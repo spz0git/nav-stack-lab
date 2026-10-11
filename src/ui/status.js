@@ -1,16 +1,15 @@
 
 /* ---------- status & metrics ---------- */
-const STATE_CLS={IDLE:'idle',PLAN:'plan',DRIVE:'drive',NO_PATH:'bad',DONE:'done',LOST:'warn'};
+// Status strip: the state as a coloured chip (grey ready/idle, amber plan, green drive, blue done, red stuck/lost/contact), then large figures
+const STATE_CLS={IDLE:'idle',PLAN:'plan',DRIVE:'drive',NO_PATH:'bad',DONE:'done',LOST:'bad'};
 function renderStatus(){
-  const F=S.fsm,r=S.robot,e=S.est,ep=hyp(r.x-e.x,r.y-e.y),done=WPS.filter(w=>w.done).length;
-  const ready=!running&&S.t===0&&(F.state==='DRIVE'||F.state==='PLAN');
-  const st=F.state==='IDLE'&&WPS.length===0?'IDLE · tap the map to add goals':ready?'READY':F.state.replace('_',' ');
-  $('#status').innerHTML=`<span class="pill ${ready?'ready':STATE_CLS[F.state]}">${st}</span>
-   <span class="kv">t <b>${S.t.toFixed(1)} s</b></span>
-   <span class="kv">goals <b>${done}/${WPS.length}</b></span>
-   <span class="kv">pose error <b class="${ep>0.5?'bad':''}">${ep.toFixed(2)} m</b></span>
-   <span class="kv">collisions <b class="${S.coll+S.collPed?'bad':''}">${S.coll+S.collPed}</b></span>${isCar()?`
-   <span class="kv">gear <b>${r.v<-0.01?'R':r.v>0.01?'D':'–'}</b> · steer <b>${deg(r.d).toFixed(0)}°</b></span>`:''}`;
+  const F=S.fsm,r=S.robot,e=S.est,ep=hyp(r.x-e.x,r.y-e.y),done=WPS.filter(w=>w.done).length,nc=S.coll+S.collPed;
+  const ready=!running&&S.t===0&&(F.state==='DRIVE'||F.state==='PLAN'),contact=r.contact||r.pedContact;
+  const st=contact?'CONTACT':ready?'READY':F.state.replace('_',' '),cls=contact?'bad':ready?'ready':STATE_CLS[F.state];
+  const cell=(k,v,c='',tip='')=>`<span class="kv"${tip?` title="${tip}"`:''}><span>${k}</span><b class="${c}">${v}</b></span>`;
+  $('#status').innerHTML=`<span class="pill ${cls}">${st}</span>${F.state==='IDLE'&&WPS.length===0?`<span class="st-note">tap the map to add goals</span>`:''}`+
+   cell('t',`${S.t.toFixed(1)} s`)+cell('goals',`${done}/${WPS.length}`)+cell('pose error',`${ep.toFixed(2)} m`,ep>0.5?'bad':'','Distance between the true pose and the estimate')+
+   cell('collisions',String(nc),nc?'bad':'',`${S.coll} static, ${S.collPed} people`)+(isCar()?cell('gear · steer',`${r.v<-0.01?'R':r.v>0.01?'D':'–'} · ${deg(r.d).toFixed(0)}°`):'');
   $('#run').textContent=running?'Pause':'Run';
 }
 function renderMetrics(){

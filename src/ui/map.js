@@ -112,7 +112,7 @@ function draw(){
       ctx.strokeStyle=TOK.warn;ctx.lineWidth=px(2);ctx.beginPath();ctx.arc(t.x,t.y,t.r,0,TAU);ctx.stroke();}
     for(const m of egoM){ctx.strokeStyle=TOK.accent;ctx.lineWidth=px(1.5);ctx.fillStyle=TOK['map-bg'];ctx.beginPath();ctx.arc(m[0],m[1],px(7),0,TAU);ctx.fill();ctx.stroke();}
   }
-  if(S.ctlViz&&S.ctlViz.carrot){const c=S.ctlViz.carrot,f=S.ctlViz.from||[S.est.x,S.est.y];ctx.strokeStyle=TOK.accent;ctx.lineWidth=px(1.5);ctx.beginPath();ctx.moveTo(f[0],f[1]);ctx.lineTo(c[0],c[1]);ctx.stroke();ctx.fillStyle=TOK.accent;ctx.beginPath();ctx.arc(c[0],c[1],px(4),0,TAU);ctx.fill();}
+  if(LAYERS.look&&S.ctlViz&&S.ctlViz.carrot){const c=S.ctlViz.carrot,f=S.ctlViz.from||[S.est.x,S.est.y];ctx.strokeStyle=TOK.accent;ctx.lineWidth=px(1.5);ctx.beginPath();ctx.moveTo(f[0],f[1]);ctx.lineTo(c[0],c[1]);ctx.stroke();ctx.fillStyle=TOK.accent;ctx.beginPath();ctx.arc(c[0],c[1],px(4),0,TAU);ctx.fill();}
   // SLAM map: estimated beacon positions with their 95 % ellipses
   if(LAYERS.belief&&S.slam){for(const lm of slamLandmarks()){ellipse(lm.x,lm.y,lm.P);ctx.strokeStyle=TOK.beacon;ctx.lineWidth=px(1.5);ctx.beginPath();ctx.moveTo(lm.x-0.2,lm.y-0.2);ctx.lineTo(lm.x+0.2,lm.y+0.2);ctx.moveTo(lm.x-0.2,lm.y+0.2);ctx.lineTo(lm.x+0.2,lm.y-0.2);ctx.stroke();}}
   // belief
@@ -151,11 +151,12 @@ function draw(){
 }
 function shapePath(s){ctx.beginPath();if(s.t==='r')ctx.rect(s.x,s.y,s.w,s.h);else ctx.arc(s.x,s.y,s.r,0,TAU);}
 function polyline(p){ctx.beginPath();let up=true;for(const q of p){if(!q){up=true;continue;}if(up){ctx.moveTo(q[0],q[1]);up=false;}else ctx.lineTo(q[0],q[1]);}}
-function carPath(x,y,th){const c=Math.cos(th),s=Math.sin(th),a=-CAR.rear,b=P.wheelbase+CAR.front,h=CAR.width/2;ctx.beginPath();
+function carPath(x,y,th,g=1){const c=Math.cos(th),s=Math.sin(th),a=-CAR.rear*g,b=(P.wheelbase+CAR.front)*g,h=CAR.width/2*g;ctx.beginPath();
   for(const[u,v]of[[a,-h],[b,-h],[b,h],[a,h]])ctx.lineTo(x+u*c-v*s,y+u*s+v*c);ctx.closePath();}
 function carShape(x,y,th,truth,px){
-  const c=Math.cos(th),s=Math.sin(th),P2=(u,v)=>[x+u*c-v*s,y+u*s+v*c],h=CAR.width/2;
-  carPath(x,y,th);
+  // glyph at least 14 px long at any zoom (scaled about the pose when the true body would be smaller)
+  const g=Math.max(1,px(14)/(CAR.rear+P.wheelbase+CAR.front)),c=Math.cos(th),s=Math.sin(th),P2=(u,v)=>[x+(u*c-v*s)*g,y+(u*s+v*c)*g],h=CAR.width/2;
+  carPath(x,y,th,g);
   if(!truth){ctx.strokeStyle=TOK.accent;ctx.lineWidth=px(2);ctx.setLineDash([px(4),px(2.5)]);ctx.stroke();ctx.setLineDash([]);
     const f=P2(P.wheelbase+CAR.front+0.2,0);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(f[0],f[1]);ctx.stroke();return;}
   ctx.fillStyle=rgba(TOK.ink,0.88);ctx.fill();
@@ -164,12 +165,17 @@ function carShape(x,y,th,truth,px){
   for(const sg of[-1,1]){const r=P2(0,sg*wy);ctx.beginPath();ctx.moveTo(r[0]-wl*c,r[1]-wl*s);ctx.lineTo(r[0]+wl*c,r[1]+wl*s);ctx.stroke();
     const f=P2(P.wheelbase,sg*wy),cd=Math.cos(th+S.robot.d),sd=Math.sin(th+S.robot.d);ctx.beginPath();ctx.moveTo(f[0]-wl*cd,f[1]-wl*sd);ctx.lineTo(f[0]+wl*cd,f[1]+wl*sd);ctx.stroke();}
   ctx.fillStyle=TOK['map-bg'];ctx.beginPath();ctx.arc(x,y,px(2.5),0,TAU);ctx.fill();
+  headTick(P2(P.wheelbase+CAR.front,0),th,px);
 }
+// heading tick: a short ink line out of the front of the true body
+function headTick(f,th,px){ctx.strokeStyle=TOK.ink;ctx.lineWidth=px(2);ctx.beginPath();ctx.moveTo(f[0],f[1]);ctx.lineTo(f[0]+px(6)*Math.cos(th),f[1]+px(6)*Math.sin(th));ctx.stroke();}
 function robotShape(x,y,th,truth,px){
   if(isCar())return carShape(x,y,th,truth,px);
-  ctx.beginPath();ctx.arc(x,y,RR,0,TAU);
-  if(truth){ctx.fillStyle=rgba(TOK.ink,0.88);ctx.fill();ctx.strokeStyle=TOK['map-bg'];ctx.lineWidth=px(2);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+RR*0.95*Math.cos(th),y+RR*0.95*Math.sin(th));ctx.stroke();}
-  else{ctx.strokeStyle=TOK.accent;ctx.lineWidth=px(2);ctx.setLineDash([px(4),px(2.5)]);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+RR*1.5*Math.cos(th),y+RR*1.5*Math.sin(th));ctx.stroke();}
+  const R=Math.max(RR,px(7));   // at least 14 px across at any zoom
+  ctx.beginPath();ctx.arc(x,y,R,0,TAU);
+  if(truth){ctx.fillStyle=rgba(TOK.ink,0.88);ctx.fill();ctx.strokeStyle=TOK['map-bg'];ctx.lineWidth=px(2);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+R*0.95*Math.cos(th),y+R*0.95*Math.sin(th));ctx.stroke();
+    headTick([x+R*Math.cos(th),y+R*Math.sin(th)],th,px);}
+  else{ctx.strokeStyle=TOK.accent;ctx.lineWidth=px(2);ctx.setLineDash([px(4),px(2.5)]);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+R*1.5*Math.cos(th),y+R*1.5*Math.sin(th));ctx.stroke();}
 }
 function ellipse(x,y,Pc){
   const a=Pc[0],b=Pc[1],c=Pc[4];const tr=(a+c)/2,dd=Math.sqrt(Math.max(0,((a-c)/2)**2+b*b));const l1=tr+dd,l2=Math.max(0,tr-dd);const ang=0.5*Math.atan2(2*b,a-c);

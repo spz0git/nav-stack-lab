@@ -42,18 +42,20 @@
         <button class="btn" id="kidnapb" title="Then tap the map where the robot should be teleported (the estimator is not told)" aria-pressed="false">Kidnap…</button>
       </div>
       <p class="hint" id="firstrun"><span><b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
-      <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll to zoom; drag to pan."></canvas></div>
-      <div class="legend">
-        <span><i class="disc" style="background:var(--ink)"></i>true pose</span>
-        <span><i class="ring" style="border-color:var(--accent)"></i>estimate</span>
-        <span><i style="border-color:var(--accent)"></i>path</span>
-        <span><i class="dash" style="border-color:var(--warn)"></i>reverse</span>
-        <span><i class="dot" style="background:var(--rose)"></i>belief</span>
-        <span><i class="dot" style="background:var(--amber)"></i>lidar</span>
-        <span><i class="dot" style="background:var(--beacon);border-radius:1px;transform:rotate(45deg)"></i>beacon</span>
-        <span><i class="disc" style="background:var(--warn)"></i>people</span>
-        <span><i style="border-color:var(--ok)"></i>MPC</span>
-        <button class="linkbtn" id="legendmore" type="button">All map symbols</button>
+      <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll to zoom; drag to pan."></canvas>
+        <div class="legend" id="legend" hidden>
+          <span><i class="disc" style="background:var(--ink)"></i>true pose</span>
+          <span><i class="ring" style="border-color:var(--accent)"></i>estimate</span>
+          <span><i style="border-color:var(--accent)"></i>path</span>
+          <span><i class="dash" style="border-color:var(--warn)"></i>reverse</span>
+          <span><i class="dot" style="background:var(--rose)"></i>belief</span>
+          <span><i class="dot" style="background:var(--amber)"></i>lidar</span>
+          <span><i class="dot" style="background:var(--beacon);border-radius:1px;transform:rotate(45deg)"></i>beacon</span>
+          <span><i class="disc" style="background:var(--warn)"></i>people</span>
+          <span><i style="border-color:var(--ok)"></i>MPC / DWA</span>
+          <span><i class="dot" style="background:var(--accent)"></i>lookahead</span>
+          <button class="linkbtn" id="legendmore" type="button">All map symbols</button>
+        </div>
       </div>
       <section class="box tele">
         <div class="tele-head"><h2>Telemetry</h2><div class="plotpick"><div class="seg" id="plotsel" aria-label="Plot channel"></div><select class="sel sm" id="plotsel2" aria-label="Second channel, right axis" title="Second channel on the right axis"><option value="none">+ compare…</option><option value="pos">Position error</option><option value="eth">θ error</option><option value="cte">Cross-track</option><option value="v">Speed</option><option value="turn">Steering</option></select></div></div>

@@ -92,10 +92,11 @@ function tapAt(x,y,e){
   startMission();doPlan('initial');draw();refreshAll();
 }
 // view buttons on the map
-{const mw=$('.mapwrap');const bar=document.createElement('div');bar.className='mapview';bar.innerHTML=`<button id="mv-in" title="Zoom in (scroll on the map also zooms)">+</button><button id="mv-out" title="Zoom out">−</button><button id="mv-fit" title="Fit the whole world (0)">⤢</button><button id="mv-follow" title="Follow the robot (F)" aria-pressed="false">◎</button>`;mw.appendChild(bar);
+{const mw=$('.mapwrap');const bar=document.createElement('div');bar.className='mapview';bar.innerHTML=`<button id="mv-in" title="Zoom in (scroll on the map also zooms)">+</button><button id="mv-out" title="Zoom out">−</button><button id="mv-fit" title="Fit the whole world (0)">⤢</button><button id="mv-follow" title="Follow the robot (F)" aria-pressed="false">◎</button><button id="mv-key" title="Map key: what the symbols mean" aria-pressed="false" aria-controls="legend">?</button>`;mw.appendChild(bar);
   const tip=document.createElement('div');tip.className='maptip';tip.id='maptip';tip.hidden=true;mw.appendChild(tip);
   $('#mv-in').onclick=()=>zoomAt(1.5,cv.width/2,cv.height/2);$('#mv-out').onclick=()=>zoomAt(1/1.5,cv.width/2,cv.height/2);
   $('#mv-fit').onclick=()=>{VIEW.z=1;VIEW.cx=W/2;VIEW.cy=H/2;VIEW.follow=false;syncViewUI();draw();};
+  $('#mv-key').onclick=()=>{const l=$('#legend'),on=l.hidden;l.hidden=!on;$('#mv-key').setAttribute('aria-pressed',String(on));};
   $('#mv-follow').onclick=()=>{VIEW.follow=!VIEW.follow;if(VIEW.follow&&VIEW.z===1)VIEW.z=2.5;syncViewUI();draw();};syncViewUI();}
 function hideTip(){const t=$('#maptip');if(t&&!t.hidden)t.hidden=true;}
 // hover cards: nearest of robot, estimate, goals, people, tracks, beacons within 14 px

@@ -195,5 +195,5 @@ let anTimer=null;
 function anInvalidate(keepMeas){AN.dirty=true;AN.resSpd=null;if(!keepMeas){AN.meas={step:null,freq:null,spd:null};AN.msg='';}
   if(AN.mode==='an'){clearTimeout(anTimer);anTimer=setTimeout(renderAnalysis,90);}}
 function setMode(m){AN.mode=m;$('#simview').hidden=m!=='sim';$('#anview').hidden=m!=='an';
-  $('#modesel').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===m)));
+  if(uiMode!=='learn')uiMode=m;syncModeUI();
   if(m==='an'){running=false;AN.dirty=true;renderAnalysis();}else{draw();drawPlot();refreshAll();}}

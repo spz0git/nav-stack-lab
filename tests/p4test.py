@@ -16,10 +16,10 @@ async def main():
         print('hybrid lesson:',await pg.evaluate("[window.__nav.LV.id, window.__nav.P.plan]")); await pg.keyboard.press('Space')
         await pg.click('#tab-learn'); await pg.wait_for_timeout(100); await pg.screenshot(path='p4_learn.png')
         # FSM
-        await pg.click('#tab-mis'); await pg.wait_for_timeout(200); print('fsm svg',await pg.evaluate("[!!document.querySelector('.fsm'), document.querySelector('.fsm-box.on')?.nextElementSibling?.textContent]"))
+        await pg.click('#mode-sim'); await pg.click('#tab-mis'); await pg.wait_for_timeout(200); print('fsm svg',await pg.evaluate("[!!document.querySelector('.fsm'), document.querySelector('.fsm-box.on')?.nextElementSibling?.textContent]"))
         await pg.locator('.console').screenshot(path='p4_fsm.png')
         # symbols search
-        await pg.click('#tab-sym'); await pg.fill('#symq','margin'); await pg.wait_for_timeout(200)
+        await pg.click('#tg-ref'); await pg.click('#tab-sym'); await pg.fill('#symq','margin'); await pg.wait_for_timeout(200)
         print('sym visible rows',await pg.evaluate("document.querySelectorAll('#pane dt:not(.hidden)').length"),'groups',await pg.evaluate("document.querySelectorAll('#pane .nom:not(.hidden)').length"))
         await pg.locator('.console').screenshot(path='p4_sym.png')
         print('ERR',errs); await b.close()

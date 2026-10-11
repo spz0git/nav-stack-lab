@@ -12,7 +12,8 @@
 const AG_PATH_CTL=['pp','rwf','stanley','pid'];
 function agInit(){return{tracks:[],nextId:1,det:[],dynPts:[],staticPts:null,lastT:null,st:null,vlim:Infinity,vlimStop:Infinity,blockT:0,lastAgentPlan:-99,yieldLog:{},egoPath:null};}
 const agOn=()=>P.agents!=='off';
-const stActive=()=>AG_PATH_CTL.includes(P.ctl)&&P.spd==='st'&&agOn();
+const AG_ST_CTL=[...AG_PATH_CTL,'mpc'];   // controllers that follow the speed plan: path trackers as a speed cap, MPC as its reference
+const stActive=()=>AG_ST_CTL.includes(P.ctl)&&P.spd==='st'&&agOn();
 // A lidar hit is "explained" when the static map accounts for it
 function agExplained(x,y){
   const k=cellIdx(x,y);if(k<0)return true;
@@ -107,7 +108,7 @@ function stPlan(){
   let bi=-1,bc=Infinity;for(let i=nt*NSV;i<N;i++){if(C[i]===Infinity)continue;const c=C[i]+term[((i-nt*NSV)/nv)|0];if(c<bc){bc=c;bi=i;}}
   // unconstrained reference: accelerate toward v_ref, ignoring agents
   const free=[[0,0]];{let s=0,v=v0;for(let k=1;k<=nt;k++){const vr=vrefAt(s),v2=v<vr?Math.min(vr,v+Aacc*ST_DT):Math.max(vr,v-Bdec*ST_DT);s=Math.min(sMax,s+(v+v2)/2*ST_DT);v=v2;free.push([k*ST_DT,s]);}}
-  const st={nt,ns,dt:ST_DT,ds:ST_DS,sMax,occ,prox,who,free,prof:null,conflict:false,inter,s0:pr.s,dir,pathId:S.pathId,t:S.t};
+  const st={nt,ns,dt:ST_DT,ds:ST_DS,sMax,occ,prox,who,free,prof:null,conflict:false,inter,s0:pr.s,dir,pathId:S.pathId,seg:S.segIdx,t:S.t};
   if(bi>=0){const prof=[];let i=bi;for(let k=nt;k>=1;k--){prof.push([k*ST_DT,Sv[i],Vv[i]]);i=Par[i];}prof.push([0,0,v0]);prof.reverse();st.prof=prof;
     // conflict: even the cheapest profile is predicted to touch an agent
     for(let k=1;k<=nt&&!st.conflict;k++){const j2=clamp(Math.round(prof[k][1]/ST_DS),0,ns-1),j1=Math.min(j2,Math.max(0,Math.ceil(prof[k-1][1]/ST_DS-1e-6)));for(let j=j1;j<=j2;j++)if(occ[k*ns+j]===2){st.conflict=k*ST_DT;break;}}}
@@ -162,7 +163,7 @@ function agPost(){
   if(P.ctl==='mpc'&&V&&V.pred)A.egoPath={pts:V.pred,dt:P.mpcDt,src:'MPC prediction'};
   else if(P.ctl==='dwa'&&V&&V.trajs&&V.best>=0){const q=V.trajs[V.best].pts,pts=[];for(let i=0;i<q.length;i+=2)pts.push([q[i],q[i+1]]);A.egoPath={pts,dt:0.2,src:'DWA rollout'};}
 }
-// Ego positions at whole seconds: from the speed plan (path trackers) or the local planner's own prediction
+// Ego positions at whole seconds: from the speed plan (path trackers) or the local planner's own prediction (DWA, MPC)
 function agEgoMarks(){
   const A=S.agents,out=[];if(!A||!S.track)return out;
   if(A.egoPath){const{pts,dt}=A.egoPath;for(let t=1;t*1<=(pts.length-1)*dt+1e-6;t++){const i=Math.round(t/dt);if(i<pts.length)out.push([pts[i][0],pts[i][1],t]);}return out;}

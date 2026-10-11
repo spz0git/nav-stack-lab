@@ -28,7 +28,7 @@ prediction  p(t) = p + v t,   r(t) = r + g t</div>
  mis:`<p>The behavior layer is a small state machine. Watch its state in the status bar and its transitions in the event log.</p>
 <div class="eq">IDLE ─Run→ PLAN ─ok→ DRIVE ─arrived→ PLAN (next) … DONE
                  └fail→ NO_PATH ─2 s→ PLAN   (skip after 3)
-DRIVE → PLAN on: path blocked in costmap · agent blocking (speed planner) · stuck (&lt;0.15 m in 5 s,
+DRIVE → PLAN on: path blocked in costmap · off path (estimate &gt; 1 m from it) · agent blocking (speed planner) · stuck (&lt;0.15 m in 5 s,
                  skip after 3) · periodic timer
 DRIVE → LOST if guard on and σ_pos > 1 m; LOST → PLAN when σ_pos &lt; 0.4 m</div>
 <p><b>Arrival is declared on the estimate</b> (0.25 m). The log reports the true distance at that moment, so localization error shows up as missed goals.</p>

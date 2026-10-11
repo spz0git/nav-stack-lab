@@ -411,7 +411,7 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
    Constants & helpers
    ============================================================ */
 const W=24,H=16,RES=0.1,GW=240,GH=160,NC=GW*GH,DT=0.05,RR=0.3,LETHAL=0.4,LMAX=8,NBEAM=120,PENW=3,SQ2=Math.SQRT2,TAU=Math.PI*2;
-const ARRIVE=0.25;
+const ARRIVE=0.25,OFFPATH=1.0;   // arrival radius; replan when the estimate is this far from the path [m]
 const $=s=>(typeof document!=='undefined')?document.querySelector(s):null;
 const CAR={rear:0.15,front:0.15,width:0.5};   // overhangs and width [m]; pose = rear-axle center
 const wrap=a=>{a=(a+Math.PI)%TAU;if(a<0)a+=TAU;return a-Math.PI;};
@@ -1445,6 +1445,8 @@ function missionTick(){
     if(F.queue.length){F.state='PLAN';F.pendingReason='initial';}else{F.state='DONE';S.track=null;S.plan=null;logE(`Mission complete in ${S.t.toFixed(1)} s`,'ok');}
     return;
   }
+  // the estimate is far from the path (kidnapped, relocalized, pushed aside): plan again from where the robot is now
+  if(S.t-F.lastPlanT>0.5&&project(e.x,e.y,true).d>OFFPATH){F.state='PLAN';F.pendingReason='off path';return;}
   if(P.replan>0&&S.t-F.lastPlanT>=P.replan){F.state='PLAN';F.pendingReason='periodic';return;}
   if(P.plan==='hybrid'&&isCar()&&S.t-F.lastBlockT>0.5){
     // footprint check of the remaining legs (poses carry heading)
@@ -2441,7 +2443,7 @@ self.onmessage=async e=>{
    Constants & helpers
    ============================================================ */
 const W=24,H=16,RES=0.1,GW=240,GH=160,NC=GW*GH,DT=0.05,RR=0.3,LETHAL=0.4,LMAX=8,NBEAM=120,PENW=3,SQ2=Math.SQRT2,TAU=Math.PI*2;
-const ARRIVE=0.25;
+const ARRIVE=0.25,OFFPATH=1.0;   // arrival radius; replan when the estimate is this far from the path [m]
 const $=s=>(typeof document!=='undefined')?document.querySelector(s):null;
 const CAR={rear:0.15,front:0.15,width:0.5};   // overhangs and width [m]; pose = rear-axle center
 const wrap=a=>{a=(a+Math.PI)%TAU;if(a<0)a+=TAU;return a-Math.PI;};
@@ -3475,6 +3477,8 @@ function missionTick(){
     if(F.queue.length){F.state='PLAN';F.pendingReason='initial';}else{F.state='DONE';S.track=null;S.plan=null;logE(`Mission complete in ${S.t.toFixed(1)} s`,'ok');}
     return;
   }
+  // the estimate is far from the path (kidnapped, relocalized, pushed aside): plan again from where the robot is now
+  if(S.t-F.lastPlanT>0.5&&project(e.x,e.y,true).d>OFFPATH){F.state='PLAN';F.pendingReason='off path';return;}
   if(P.replan>0&&S.t-F.lastPlanT>=P.replan){F.state='PLAN';F.pendingReason='periodic';return;}
   if(P.plan==='hybrid'&&isCar()&&S.t-F.lastBlockT>0.5){
     // footprint check of the remaining legs (poses carry heading)
@@ -4748,7 +4752,7 @@ function renderMetrics(){
 /* ---- ui/fsm.js ---- */
 /* ---------- live state diagram of the behaviour layer (Mission tab) ---------- */
 const FSM_NODES={IDLE:[60,96],PLAN:[200,96],DRIVE:[360,96],DONE:[520,96],NO_PATH:[200,186],LOST:[360,186]};
-const FSM_EDGES=[['IDLE','PLAN','Run'],['PLAN','DRIVE','path found'],['DRIVE','PLAN','arrived, next goal · path blocked · stuck · periodic · agent blocking'],['PLAN','NO_PATH','no path'],['NO_PATH','PLAN','2 s'],['DRIVE','DONE','last goal'],['DRIVE','LOST','σ > 1 m'],['LOST','PLAN','σ < 0.4 m'],['DONE','PLAN','new goal']];
+const FSM_EDGES=[['IDLE','PLAN','Run'],['PLAN','DRIVE','path found'],['DRIVE','PLAN','arrived, next goal · path blocked · off path · stuck · periodic · agent blocking'],['PLAN','NO_PATH','no path'],['NO_PATH','PLAN','2 s'],['DRIVE','DONE','last goal'],['DRIVE','LOST','σ > 1 m'],['LOST','PLAN','σ < 0.4 m'],['DONE','PLAN','new goal']];
 let fsmLast={from:null,to:null,t:-1};
 function fsmSVG(){
   const cur=S?S.fsm.state:'IDLE';const box=(n,[x,y])=>`<g data-fsm="${n}"><rect x="${x-44}" y="${y-16}" width="88" height="32" rx="6" class="fsm-box${n===cur?' on':''}"/><text x="${x}" y="${y+4}" class="fsm-t${n===cur?' on':''}">${n.replace('_',' ')}</text></g>`;
@@ -4914,7 +4918,7 @@ prediction  p(t) = p + v t,   r(t) = r + g t</div>
  mis:`<p>The behavior layer is a small state machine. Watch its state in the status bar and its transitions in the event log.</p>
 <div class="eq">IDLE ─Run→ PLAN ─ok→ DRIVE ─arrived→ PLAN (next) … DONE
                  └fail→ NO_PATH ─2 s→ PLAN   (skip after 3)
-DRIVE → PLAN on: path blocked in costmap · agent blocking (speed planner) · stuck (&lt;0.15 m in 5 s,
+DRIVE → PLAN on: path blocked in costmap · off path (estimate &gt; 1 m from it) · agent blocking (speed planner) · stuck (&lt;0.15 m in 5 s,
                  skip after 3) · periodic timer
 DRIVE → LOST if guard on and σ_pos > 1 m; LOST → PLAN when σ_pos &lt; 0.4 m</div>
 <p><b>Arrival is declared on the estimate</b> (0.25 m). The log reports the true distance at that moment, so localization error shows up as missed goals.</p>
@@ -5945,8 +5949,8 @@ h = ε · max(2D Dijkstra with obstacles, Reeds–Shepp without obstacles)
 analytic expansion: try a Reeds–Shepp shot to the goal, accept it if collision-free</div>
 <p>The planner uses 85 % of the steering limit on purpose. A full-lock arc leaves the tracker nothing to correct with; push it to 100 % and the parking legs fail. Plain A* ignores all of this and swings the car wide of the bay.</p>`,
   tries:[['Hybrid A*',{sim:true,level:5,tab:'plan',layers:{search:true}}],['2D heuristic only',{sim:true,level:5,set:{hybH:'2d'},tab:'plan',layers:{search:true}}],['Planner at 100 % steering',{sim:true,level:5,set:{planPct:100},tab:'plan'}],['Plain A* on the car',{sim:true,level:5,set:{plan:'astar'},tab:'plan'}]]},
- {t:'Replanning and the behaviour layer',b:`<p>The mission is a small state machine, drawn live in the Mission tab. Plans are cheap, so the stack replans whenever its assumptions break: the path crosses a newly lethal cell, the robot has not moved 0.15 m in 5 s, a timer fires, or the speed planner reports an agent it cannot get past. Three failures in a row skip the goal.</p>
-<div class="eq">DRIVE → PLAN on: path blocked · stuck · periodic · agent blocking
+ {t:'Replanning and the behaviour layer',b:`<p>The mission is a small state machine, drawn live in the Mission tab. Plans are cheap, so the stack replans whenever its assumptions break: the path crosses a newly lethal cell, the estimate is more than 1 m off the path, the robot has not moved 0.15 m in 5 s, a timer fires, or the speed planner reports an agent it cannot get past. Three failures in a row skip the goal.</p>
+<div class="eq">DRIVE → PLAN on: path blocked · off path · stuck · periodic · agent blocking
 PLAN → NO_PATH → (2 s) PLAN, skip after 3</div>
 <p>Watch the event log on the unknown building: every discovered wall becomes a replan. On the busy floor the agent-blocking replan adds the person's predicted positions to the costmap for that one plan, so the new path goes around where they will be.</p>`,
   tries:[['Discover the building',{sim:true,level:LV_BUILDING,tab:'mis'}],['Periodic replan every 1 s',{sim:true,level:LV_BUILDING,set:{replan:1},tab:'mis'}],['Agent-blocking replans',{sim:true,level:LV_BUSY,tab:'mis'}]]},
@@ -6442,7 +6446,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{tokKey
 UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{buildLevels();applyTabLayers(true);renderAllPanes();};UI.mode=()=>AN.mode;
 buildTabs();loadLevel(0);{const c=configFromHash();if(c){try{applyConfig(c);logE('Setup restored from the link','ok');}catch(e){logE('Could not restore the setup from the link: '+e.message,'warn');}}}syncModeUI();renderLearn();lessonFromHash();readTokens();draw();drawPlot();
 requestAnimationFrame(loop);
-window.__an={AN,anCompute,LESSONS_EXTRA,LESSON_GROUPS,spdCompute,runStepTest,runInjection,setMode,setUIMode,openLesson,lessonBack,get lessonOpen(){return lessonOpen;},lessonGo,LESSONS,stepMetrics,Ljw,anBuild};window.__nav={scatter:()=>scatterParticles(),get S(){return S;},P,LEVELS,loadLevel,advance,setParam,get WPS(){return WPS;},toScreen:(x,y)=>toScreen(x,y),get VIEW(){return VIEW;},get GHOST(){return GHOST;},LAYERS,EXP,expCSV,configURL,get LV(){return LV;},SLOTS,slotLoad,slamLandmarks,tryGo};
+window.__an={AN,anCompute,LESSONS_EXTRA,LESSON_GROUPS,spdCompute,runStepTest,runInjection,setMode,setUIMode,openLesson,lessonBack,get lessonOpen(){return lessonOpen;},lessonGo,LESSONS,stepMetrics,Ljw,anBuild};window.__nav={scatter:()=>scatterParticles(),kidnapTo,get S(){return S;},P,LEVELS,loadLevel,advance,setParam,get WPS(){return WPS;},toScreen:(x,y)=>toScreen(x,y),get VIEW(){return VIEW;},get GHOST(){return GHOST;},LAYERS,EXP,expCSV,configURL,get LV(){return LV;},SLOTS,slotLoad,slamLandmarks,tryGo};
 
 })();
 </script>

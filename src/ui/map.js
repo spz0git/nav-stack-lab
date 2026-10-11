@@ -68,7 +68,10 @@ function draw(){
     else{const{X,Y,Pa}=S.search;ctx.strokeStyle=rgba(TOK.accent,0.28);ctx.lineWidth=px(1);ctx.beginPath();for(let i=1;i<X.length;i++){ctx.moveTo(X[i],Y[i]);ctx.lineTo(X[Pa[i]],Y[Pa[i]]);}ctx.stroke();}
   }
   // beacons
-  for(const b of S.beacons){ctx.fillStyle=TOK.beacon;ctx.strokeStyle=TOK['map-bg'];ctx.lineWidth=px(1);ctx.beginPath();const s=Math.max(0.18,px(6));ctx.moveTo(b.x,b.y+s);ctx.lineTo(b.x+s,b.y);ctx.lineTo(b.x,b.y-s);ctx.lineTo(b.x-s,b.y);ctx.closePath();ctx.fill();ctx.stroke();}
+  // switched off: hollow and grey; down in a random outage: hollow
+  {const off=beaconsOff();for(const b of S.beacons){const sw=off.has(b.id),dn=sw||!!(S.bDown&&S.bDown[b.id]);
+    ctx.fillStyle=dn?TOK['map-bg']:TOK.beacon;ctx.strokeStyle=dn?(sw?TOK.muted:TOK.beacon):TOK['map-bg'];ctx.lineWidth=px(dn?1.5:1);ctx.beginPath();const s=Math.max(0.18,px(6));ctx.moveTo(b.x,b.y+s);ctx.lineTo(b.x+s,b.y);ctx.lineTo(b.x,b.y-s);ctx.lineTo(b.x-s,b.y);ctx.closePath();ctx.fill();ctx.stroke();
+    if(sw){ctx.beginPath();ctx.moveTo(b.x-s*0.6,b.y-s*0.6);ctx.lineTo(b.x+s*0.6,b.y+s*0.6);ctx.stroke();}}}
   // people
   for(const p of S.peds){if(p.car){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.th);ctx.fillStyle=rgba(TOK.warn,0.75);ctx.strokeStyle=TOK.warn;ctx.lineWidth=px(1.5);ctx.beginPath();ctx.rect(-p.len/2,-p.wid/2,p.len,p.wid);ctx.fill();ctx.stroke();ctx.fillStyle=TOK['map-bg'];ctx.fillRect(p.len/2-0.18,-p.wid/2+0.08,0.1,p.wid-0.16);ctx.restore();continue;}
     ctx.fillStyle=rgba(TOK.warn,0.85);ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,TAU);ctx.fill();
@@ -80,8 +83,8 @@ function draw(){
     ctx.lineWidth=px(1.3);ctx.strokeStyle=rgba(TOK.ink,0.45);polyline(S.trailT);ctx.stroke();
     ctx.setLineDash([px(3),px(3)]);ctx.strokeStyle=rgba(TOK.accent,0.7);polyline(S.trailE);ctx.stroke();ctx.setLineDash([]);
   }
-  // beacon measurements (drawn from the estimate)
-  if(LAYERS.beam&&P.loc!=='truth'){
+  // beacon measurements (drawn from the estimate); dead reckoning never uses them, so they are not drawn for it
+  if(LAYERS.beam&&P.loc!=='truth'&&P.loc!=='dr'){
     const e=S.est;ctx.lineWidth=px(1);
     for(const m of S.lastZ){const a=e.th+m.b,x=e.x+m.r*Math.cos(a),y=e.y+m.r*Math.sin(a);ctx.strokeStyle=m.fake?rgba(TOK.bad,0.6):rgba(TOK.beacon,0.6);ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(x,y);ctx.stroke();
       ctx.fillStyle=m.fake?TOK.bad:TOK.beacon;ctx.beginPath();ctx.arc(x,y,px(2.5),0,TAU);ctx.fill();}

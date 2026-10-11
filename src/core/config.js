@@ -27,6 +27,8 @@ function setParam(k,v,live){
   if(k==='ctl'){S.ctlState={I:0,prev:null};S.ctlViz=null;SLOTS.ctl.lastErr='';if(SLOTS.ctl.worker)SLOTS.ctl.worker.reset();logE(`Controller → ${({pp:'pure pursuit',rwf:'rear-wheel feedback',pid:'PID',dwa:'DWA',stanley:'Stanley',mpc:'MPC',custom:'your code'})[v]}`);}
   if(k==='agPred'&&SLOTS.pred.worker)SLOTS.pred.worker.reset();
   if(k==='vehicles'||k==='people'){if(k==='vehicles'){S.peds=S.peds.filter(p=>!p.car);if(v)carsInit();}logE(k==='people'?`People → ${v}`:`Other vehicles → ${v?'on':'off'}`);}
+  if(k==='bOff'){const n=beaconsOff().size;logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)`:'All beacons on');}
+  if(k==='bOut'&&!live)logE(v>0?`Random beacon outages: each beacon down ${v} % of the time`:'Random beacon outages off');
   if(k==='seed'&&!live)logE(`Seed ${v} takes effect on Reset`);
   if(k==='model'){S.robot.d=0;S.robot.w=0;S.cmd={v:0,w:0,steer:0};
     if(v==='diff'){if(P.plan==='rs'||P.plan==='hybrid')P.plan='astar';if(P.ctl==='stanley')P.ctl='pp';}
@@ -35,6 +37,10 @@ function setParam(k,v,live){
   if(['wheelbase','steerMaxDeg','revOK','revPen','gearPen','hybH','planPct'].includes(k)&&!live&&(P.plan==='hybrid'||P.plan==='rs'))requestReplan('vehicle or planner changed');
   UI.invalidate();
   if(UI.mode()==='sim'){UI.draw();UI.refresh();}
+}
+function toggleBeacon(id){
+  const s=beaconsOff();if(s.has(id))s.delete(id);else s.add(id);
+  setParam('bOff',[...s].sort((a,b)=>a-b).join(','),false);
 }
 function requestReplan(reason){
   const F=S.fsm;if(F.state==='DRIVE'||F.state==='NO_PATH'||F.state==='PLAN'){F.state='PLAN';F.pendingReason=reason;if(!running)advanceMission();}

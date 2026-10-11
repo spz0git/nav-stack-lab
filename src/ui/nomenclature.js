@@ -102,7 +102,7 @@ const NOMEN=[
   ['<i class="swatch line dash" style="border-color:var(--warn)"></i>','Global path, reverse leg (car)',''],
   ['<i class="swatch" style="background:var(--rose)"></i>','Belief: particles (particle filter) or 95 % covariance ellipse (EKF, dead reckoning)',''],
   ['<i class="swatch sq" style="background:var(--amber)"></i>','Lidar hits, placed using the estimated pose',''],
-  ['<i class="swatch dia" style="background:var(--beacon)"></i>','Beacons (known positions) and the current range–bearing readings drawn from the estimate; red readings are false detections',''],
+  ['<i class="swatch dia" style="background:var(--beacon)"></i>','Beacons (known positions) and the current range–bearing readings drawn from the estimate (not for dead reckoning, which ignores them); red readings are false detections. Hollow: in an outage; grey with a stroke: switched off',''],
   ['<i class="swatch" style="background:var(--warn)"></i>','People (ground truth), with a velocity tick',''],
   ['<i class="swatch ring" style="border-color:var(--warn)"></i>','Tracked agent with its ID, as estimated; dashed rings are its predicted positions at 1 s, 2 s, … growing with uncertainty. Grey dashed ring: tentative track',''],
   ['<i class="swatch ring" style="border-color:var(--accent)"></i>','Ego predicted positions at 1 s, 2 s, … from the speed plan, MPC or DWA. Matching numbers on the agents\' rings are the same instants',''],

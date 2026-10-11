@@ -14,7 +14,7 @@ async function tryGo(cfg){
   if(!cfg.keep)loadLevel(LEVELS.indexOf(LV));
   for(const[k,v]of Object.entries(cfg.set||{}))setParam(k,v,false);
   if(cfg.layers)Object.assign(LAYERS,cfg.layers);
-  if(cfg.tab){activeTab=cfg.tab;buildTabs();}renderAllPanes();
+  if(cfg.tab){activeTab=cfg.tab;consoleOpen=true;buildTabs();}renderAllPanes();
   if(cfg.plot){plotCh=cfg.plot;seg($('#plotsel'),PLOT_OPTS,()=>plotCh,v=>{plotCh=v;drawPlot();});}
   if(AN.mode!=='sim')setMode('sim');
   if(cfg.keep){draw();return;}
@@ -24,15 +24,20 @@ async function tryGo(cfg){
   running=true;refreshAll();
 }
 let activeTab='loc';const howOpen={};
+// Phones show the console as its tab row until a tab is tapped; tapping the open tab folds it again. Wide screens ignore this.
+let consoleOpen=false;const narrowUI=()=>matchMedia('(max-width:760px)').matches;
 // Show a Symbols group: scroll only the console on desktop (below its sticky tabs), the page on phones
-function showSym(id){activeTab='sym';buildTabs();renderAllPanes();
+function showSym(id){activeTab='sym';consoleOpen=true;buildTabs();renderAllPanes();
   const el=document.getElementById('sym-'+id),c=document.querySelector('.right')||document.querySelector('.console');if(!el)return;
   if(c.scrollHeight>c.clientHeight+1&&getComputedStyle(c).overflowY!=='visible'){const tb=c.querySelector('.tabs').offsetHeight;
     c.scrollTop+=el.getBoundingClientRect().top-c.getBoundingClientRect().top-tb-8;}
   else el.scrollIntoView({block:'start'});}
 function buildTabs(){
   $('#tabs').innerHTML=TABS.map(t=>`<button class="tab" role="tab" id="tab-${t.id}" aria-selected="${t.id===activeTab}" aria-controls="pane">${t.n?`<small>${t.n}</small>`:''}${t.name}</button>`).join('');
-  $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{activeTab=b.id.slice(4);buildTabs();renderAllPanes();});
+  $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{const id=b.id.slice(4);
+    if(id===activeTab&&consoleOpen&&narrowUI()){consoleOpen=false;buildTabs();return;}
+    activeTab=id;consoleOpen=true;buildTabs();renderAllPanes();});
+  $('.console').classList.toggle('collapsed',!consoleOpen);
 }
 function renderAllPanes(){
   const t=activeTab;let html='';

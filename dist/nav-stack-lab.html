@@ -97,6 +97,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .legend i.dash{border-top-style:dashed}
 
 .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.transport{display:flex;flex-direction:column;gap:10px}
 .ctl-sep{width:1px;align-self:stretch;background:var(--line);margin-inline:4px}
 @media (max-width:960px){.ctl-sep{display:none}}
 .sel{font:inherit;font-size:.9rem;color:var(--ink);background:var(--raise);border:1px solid var(--line);border-radius:5px;padding:6px 8px}
@@ -231,6 +232,44 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .symsearch{width:100%;font:inherit;font-size:.9rem;padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--ink);box-sizing:border-box}
 .symchips{display:flex;flex-wrap:wrap;gap:4px}.symchips button{font-size:.74rem;padding:2px 7px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--muted);cursor:pointer}.symchips button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
 .nom.hidden,.nom dt.hidden,.nom dd.hidden{display:none}
+
+/* Phone (≤ 760 px): one column in the order you use it — title, map, a sticky transport bar, telemetry, then the level,
+   brief and the console collapsed to its tab row. The wrappers become display:contents, so this is only a CSS reorder
+   of the same DOM (scripts, tests and the worker see no difference). */
+@media (max-width:760px){
+  body{padding-block:10px 24px}
+  .layout{gap:10px}
+  .right,.ctx,.stage,#simview:not([hidden]){display:contents}
+  .top{order:1}
+  .modebar{order:2} #modehint{display:none}
+  .mapwrap,#anview{order:3}
+  .legend{order:4}
+  html{scroll-padding-top:116px}   /* jumps (Symbols, Try) land below the sticky transport bar */
+  /* full-bleed bar without widening the page: the background and its bottom rule are shadows, clipped to the bar's height */
+  .transport{order:5;position:sticky;top:0;z-index:6;gap:6px;padding:6px 0 7px;background:var(--bg);box-shadow:0 0 0 100vmax var(--bg),0 1px 0 100vmax var(--line);clip-path:inset(0 -100vmax -1px)}
+  .tapctl{order:6}
+  #scrub{order:7}
+  #firstrun{order:8}
+  .tele{order:9}
+  .levels{order:10}
+  .brief{order:11}
+  .console{order:12}
+  .status{gap:2px 10px;font-size:.8rem}
+  .status .pill{font-size:.7rem;padding:2px 7px}
+  .transport .controls{flex-wrap:nowrap;gap:6px}
+  .transport .btn{padding:6px 10px}
+  .transport .btn.primary{min-width:64px}
+  .transport .seg{flex:1 1 auto;flex-wrap:nowrap;min-width:0}
+  .transport .seg button{padding:6px 0;min-width:0}
+  .levels{flex-wrap:wrap;overflow:visible}
+  .lvl{flex:1 1 30%;min-width:0;padding:5px 10px 6px}
+  .tapctl .sel{flex:1 1 auto;order:1} .tapctl .lbl{order:0} .tapctl .btn{order:2} .tapctl .check{order:3}
+  .lvl span{font-size:.92rem}
+  .tab{padding:8px 7px 7px;font-size:.9rem}
+  .console.collapsed #panes{display:none}
+  .console.collapsed .tabs{border-bottom:0}
+  .console.collapsed .tab[aria-selected="true"]{color:var(--muted);border-bottom-color:transparent}
+}
 </style>
 
 <div class="wrap">
@@ -247,12 +286,16 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
       <div class="modebar"><div class="seg" id="modesel" aria-label="View"></div><span class="lbl" id="modehint">Linear analysis of the tracking loop, with guided lessons in the Learn tab</span></div>
       <div id="simview" class="view">
       <p class="hint" id="firstrun"><span><b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
+      <div class="transport" id="transport">
       <div class="status" id="status"></div>
       <div class="controls">
         <button class="btn primary" id="run" title="Space">Run</button>
         <button class="btn" id="stepb" title="Advance 0.5 s (N)">Step</button>
         <button class="btn" id="resetb" title="R">Reset</button>
         <div class="seg" id="speed" aria-label="Simulation speed" title="[ and ] change speed"></div>
+      </div>
+      </div>
+      <div class="controls tapctl">
         <label class="check sm" title="Pause the simulation when the robot touches an obstacle or a person"><input type="checkbox" id="pausec"><span>Pause on contact</span></label>
         <span class="ctl-sep"></span>
         <label class="lbl" for="tapsel">Tap map</label>
@@ -4915,7 +4958,7 @@ async function tryGo(cfg){
   if(!cfg.keep)loadLevel(LEVELS.indexOf(LV));
   for(const[k,v]of Object.entries(cfg.set||{}))setParam(k,v,false);
   if(cfg.layers)Object.assign(LAYERS,cfg.layers);
-  if(cfg.tab){activeTab=cfg.tab;buildTabs();}renderAllPanes();
+  if(cfg.tab){activeTab=cfg.tab;consoleOpen=true;buildTabs();}renderAllPanes();
   if(cfg.plot){plotCh=cfg.plot;seg($('#plotsel'),PLOT_OPTS,()=>plotCh,v=>{plotCh=v;drawPlot();});}
   if(AN.mode!=='sim')setMode('sim');
   if(cfg.keep){draw();return;}
@@ -4925,15 +4968,20 @@ async function tryGo(cfg){
   running=true;refreshAll();
 }
 let activeTab='loc';const howOpen={};
+// Phones show the console as its tab row until a tab is tapped; tapping the open tab folds it again. Wide screens ignore this.
+let consoleOpen=false;const narrowUI=()=>matchMedia('(max-width:760px)').matches;
 // Show a Symbols group: scroll only the console on desktop (below its sticky tabs), the page on phones
-function showSym(id){activeTab='sym';buildTabs();renderAllPanes();
+function showSym(id){activeTab='sym';consoleOpen=true;buildTabs();renderAllPanes();
   const el=document.getElementById('sym-'+id),c=document.querySelector('.right')||document.querySelector('.console');if(!el)return;
   if(c.scrollHeight>c.clientHeight+1&&getComputedStyle(c).overflowY!=='visible'){const tb=c.querySelector('.tabs').offsetHeight;
     c.scrollTop+=el.getBoundingClientRect().top-c.getBoundingClientRect().top-tb-8;}
   else el.scrollIntoView({block:'start'});}
 function buildTabs(){
   $('#tabs').innerHTML=TABS.map(t=>`<button class="tab" role="tab" id="tab-${t.id}" aria-selected="${t.id===activeTab}" aria-controls="pane">${t.n?`<small>${t.n}</small>`:''}${t.name}</button>`).join('');
-  $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{activeTab=b.id.slice(4);buildTabs();renderAllPanes();});
+  $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{const id=b.id.slice(4);
+    if(id===activeTab&&consoleOpen&&narrowUI()){consoleOpen=false;buildTabs();return;}
+    activeTab=id;consoleOpen=true;buildTabs();renderAllPanes();});
+  $('.console').classList.toggle('collapsed',!consoleOpen);
 }
 function renderAllPanes(){
   const t=activeTab;let html='';

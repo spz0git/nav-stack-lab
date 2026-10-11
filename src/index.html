@@ -20,12 +20,16 @@
       <div class="modebar"><div class="seg" id="modesel" aria-label="View"></div><span class="lbl" id="modehint">Linear analysis of the tracking loop, with guided lessons in the Learn tab</span></div>
       <div id="simview" class="view">
       <p class="hint" id="firstrun"><span><b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
+      <div class="transport" id="transport">
       <div class="status" id="status"></div>
       <div class="controls">
         <button class="btn primary" id="run" title="Space">Run</button>
         <button class="btn" id="stepb" title="Advance 0.5 s (N)">Step</button>
         <button class="btn" id="resetb" title="R">Reset</button>
         <div class="seg" id="speed" aria-label="Simulation speed" title="[ and ] change speed"></div>
+      </div>
+      </div>
+      <div class="controls tapctl">
         <label class="check sm" title="Pause the simulation when the robot touches an obstacle or a person"><input type="checkbox" id="pausec"><span>Pause on contact</span></label>
         <span class="ctl-sep"></span>
         <label class="lbl" for="tapsel">Tap map</label>

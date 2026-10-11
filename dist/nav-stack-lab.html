@@ -36,7 +36,9 @@ p{margin:0}
 .mono,code,output{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px}
 .sub{color:var(--muted);font-size:.85rem;font-family:var(--f-mono)}
-.ver{color:var(--ink);font-weight:500;white-space:nowrap}
+.ver{white-space:nowrap}
+h1[title]{cursor:help}
+.purpose{flex:1 1 100%;font-size:.92rem;line-height:1.4;color:var(--muted);max-width:62ch}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
@@ -299,8 +301,9 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   <main class="layout">
     <section class="ctx">
       <header class="top">
-        <h1>Nav Stack Lab</h1>
-        <p class="sub">diff-drive or car-like robot · 24 × 16 m · 20 Hz · <span class="ver" id="appver" title="Nav Stack Lab v16, released 2026-10-11: Hybrid A* gets out of tight starts such as the parallel slot">v16 · 2026-10-11</span></p>
+        <h1 title="Diff-drive or car-like robot · 24 × 16 m world · 20 Hz">Nav Stack Lab</h1>
+        <span class="sub ver" id="appver" title="Nav Stack Lab v16, released 2026-10-11: Hybrid A* gets out of tight starts such as the parallel slot">v16 · 2026-10-11</span>
+        <p class="purpose">Tune localization, perception, planning and control on a simulated robot across six levels; analyze the loop; learn with guided lessons.</p>
       </header>
       <nav class="levels seg" id="levels" aria-label="Scenario level"></nav>
       <section class="brief" id="brief" aria-live="polite"></section>

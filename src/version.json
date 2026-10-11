@@ -1,1 +1,1 @@
-{"version": 15, "date": "2026-10-11", "note": "Version label in the header"}
+{"version": 16, "date": "2026-10-11", "note": "Hybrid A* gets out of tight starts such as the parallel slot"}

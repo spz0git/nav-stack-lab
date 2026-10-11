@@ -39,7 +39,7 @@ function buildTabs(){
   $('#tabgroups').innerHTML=TAB_GROUPS.map(g=>`<button id="tg-${g.id}" type="button" aria-pressed="${g===G}">${g.name}</button>`).join('');
   $('#tabgroups').querySelectorAll('button').forEach(b=>b.onclick=()=>{const g=TAB_GROUPS.find(x=>'tg-'+x.id===b.id);if(g===G&&consoleOpen)return;
     activeTab=groupTab[g.id]||g.tabs[0];consoleOpen=true;buildTabs();renderAllPanes();});
-  $('#tabs').innerHTML=TABS.filter(t=>G.tabs.includes(t.id)).map(t=>`<button class="tab" role="tab" id="tab-${t.id}" aria-selected="${t.id===activeTab}" aria-controls="pane">${t.n?`<small>${t.n}</small>`:''}${t.name}</button>`).join('');
+  $('#tabs').innerHTML=TABS.filter(t=>G.tabs.includes(t.id)).map(t=>`<button class="tab" role="tab" id="tab-${t.id}"${SYS[t.id]?` data-sys="${t.id}"`:''} aria-selected="${t.id===activeTab}" aria-controls="pane">${t.n?`<small>${t.n}</small>`:''}${t.name}</button>`).join('');
   $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{const id=b.id.slice(4);
     if(id===activeTab&&consoleOpen&&narrowUI()){consoleOpen=false;buildTabs();return;}
     activeTab=id;consoleOpen=true;buildTabs();renderAllPanes();});

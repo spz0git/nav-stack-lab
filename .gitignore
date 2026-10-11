@@ -4,3 +4,4 @@ __pycache__/
 *.png
 .DS_Store
 dist/app.js
+!docs/screenshots/**/*.png

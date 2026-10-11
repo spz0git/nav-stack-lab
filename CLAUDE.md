@@ -10,7 +10,7 @@
   - Whenever a change lands on `main` in this session (you merge a PR or push to main), rebuild, run the tests below,
     and republish `dist/nav-stack-lab.html` to the live artifact URL above with `capabilities: {downloads: true}`.
     Say in your reply that the live page was updated.
-  - The header shows the version from `src/version.json` (`v17 · 2026-10-11`). Before each republish of the live artifact,
+  - The header shows the version from `src/version.json` (`v18 · 2026-10-11`). Before each republish of the live artifact,
     set `version` to the artifact version the publish will create (the last publish result's version + 1), with the date
     and a short note, rebuild, and commit it; the label then matches the artifact's version history.
 - Before committing: `./build.sh`, then from `tests/`: `python3 test.py` (L1–L5 regression summary must not change unless

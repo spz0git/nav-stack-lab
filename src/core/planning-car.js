@@ -30,7 +30,7 @@ function hybridAstar(e,wp){
   const clearAt=(x,y,th)=>{const c=Math.cos(th),s=Math.sin(th);let m=Infinity;for(const o of offs){const k=cellIdx(x+o*c,y+o*s);if(k<0)return -1;const d=dist[k]-rc;if(d<m)m=d;}return m;};
   if(goalTh!=null&&clearAt(wp.x,wp.y,goalTh)<MARG)return{ok:false,reason:'the goal pose overlaps an obstacle'};
   if(goalTh==null&&cellIdx(wp.x,wp.y)>=0&&dist[cellIdx(wp.x,wp.y)]<CAR.width/2+MARG)return{ok:false,reason:'goal is too close to an obstacle for the car'};
-  const startClear=clearAt(e.x,e.y,e.th),lenient=startClear<MARG;
+  const startClear=clearAt(e.x,e.y,e.th);
   const h2=holoField(wp.x,wp.y,dist,CAR.width/2+0.02);
   const h2At=(x,y)=>{const k=cellIdx(x,y);if(k<0)return Infinity;const v=h2[k];return isFinite(v)?v:hyp(x-wp.x,y-wp.y)+20;};
   const useRS=goalTh!=null&&P.hybH==='both';
@@ -39,40 +39,49 @@ function hybridAstar(e,wp){
   const key=(x,y,th)=>{const i=Math.floor(x/XY),j=Math.floor(y/XY);if(i<0||j<0||i>=NX||j>=HY.NY)return -1;return (j*NX+i)*NT+(((Math.round(th/(TAU/NT))%NT)+NT)%NT);};
   const steers=[-dm,-dm/2,0,dm/2,dm],dirs=P.revOK?[1,-1]:[1];
   const s0=key(e.x,e.y,e.th);if(s0<0)return{ok:false,reason:'start is outside the map'};
-  B.g[s0]=0;B.par[s0]=-1;B.x[s0]=e.x;B.y[s0]=e.y;B.th[s0]=e.th;B.dir[s0]=0;B.st[s0]=S.robot.d||0;
-  const heap=new Heap();heap.push(s0,P.eps*hAt(e.x,e.y,e.th));
-  const viz=[];let exp=0,fin=-1,tail=null,shots=0;
-  while(heap.size&&exp<BUDGET){
-    const u=heap.pop();if(B.closed[u])continue;B.closed[u]=1;exp++;
-    const x=B.x[u],y=B.y[u],th=B.th[u];if(viz.length<40000)viz.push(x,y);
-    const dg=hyp(x-wp.x,y-wp.y);
-    if(dg<0.15&&(goalTh==null||Math.abs(wrap(th-goalTh))<0.12)){fin=u;break;}   // inside the arrival tolerance
-    // analytic expansion: try a Reeds–Shepp shot to the goal
-    if(goalTh!=null&&(dg<2.5||exp%10===0)){
-      shots++;const cs=RS.solve([x,y,th],q1,R);
-      for(let ci=0,tried=0;ci<cs.length&&tried<4&&!tail;ci++){
-        // reject shots with gear legs too short to execute (< 0.25 m)
-        let short=false,acc=0,sg0=0;for(const d of cs[ci].L){const sg=Math.sign(d);if(Math.abs(d)<1e-9)continue;if(sg!==sg0&&sg0!==0){if(acc<0.25)short=true;acc=0;}sg0=sg;acc+=Math.abs(d)*R;}if(acc<0.25&&cs[ci].len*R>0.25)short=true;
-        if(short)continue;tried++;
-        const segs=RS.sample([x,y,th],cs[ci],R,SUB);let ok=true;
-        for(const sg of segs){for(const p of sg.pts){if(clearAt(p[0],p[1],p[2])<MARG){ok=false;break;}}if(!ok)break;}
-        if(ok)tail=segs;
+  let viz,exp,fin,tail,shots;
+  // lenient: within 1 m of the start, primitives need only startClear − RES (one grid cell below the start's reading)
+  const search=lenient=>{
+    B.g[s0]=0;B.par[s0]=-1;B.x[s0]=e.x;B.y[s0]=e.y;B.th[s0]=e.th;B.dir[s0]=0;B.st[s0]=S.robot.d||0;
+    const heap=new Heap();heap.push(s0,P.eps*hAt(e.x,e.y,e.th));
+    viz=[];exp=0;fin=-1;tail=null;shots=0;
+    while(heap.size&&exp<BUDGET){
+      const u=heap.pop();if(B.closed[u])continue;B.closed[u]=1;exp++;
+      const x=B.x[u],y=B.y[u],th=B.th[u];if(viz.length<40000)viz.push(x,y);
+      const dg=hyp(x-wp.x,y-wp.y);
+      if(dg<0.15&&(goalTh==null||Math.abs(wrap(th-goalTh))<0.12)){fin=u;break;}   // inside the arrival tolerance
+      // analytic expansion: try a Reeds–Shepp shot to the goal
+      if(goalTh!=null&&(dg<2.5||exp%10===0)){
+        shots++;const cs=RS.solve([x,y,th],q1,R);
+        for(let ci=0,tried=0;ci<cs.length&&tried<4&&!tail;ci++){
+          // reject shots with gear legs too short to execute (< 0.25 m)
+          let short=false,acc=0,sg0=0;for(const d of cs[ci].L){const sg=Math.sign(d);if(Math.abs(d)<1e-9)continue;if(sg!==sg0&&sg0!==0){if(acc<0.25)short=true;acc=0;}sg0=sg;acc+=Math.abs(d)*R;}if(acc<0.25&&cs[ci].len*R>0.25)short=true;
+          if(short)continue;tried++;
+          const segs=RS.sample([x,y,th],cs[ci],R,SUB);let ok=true;
+          for(const sg of segs){for(const p of sg.pts){if(clearAt(p[0],p[1],p[2])<MARG){ok=false;break;}}if(!ok)break;}
+          if(ok)tail=segs;
+        }
+        if(tail){fin=u;break;}
       }
-      if(tail){fin=u;break;}
+      for(const d of dirs)for(const st of steers){
+        let nx=x,ny=y,nt=th,minC=Infinity,ok=true;const w=d*Math.tan(st)/L;
+        for(let k=0;k<Math.round(STEP/SUB);k++){const n=integ(nx,ny,nt,d,w,SUB);nx=n.x;ny=n.y;nt=n.th;
+          const c=clearAt(nx,ny,nt),need=(lenient&&hyp(nx-e.x,ny-e.y)<1.0)?startClear-RES:MARG;   // let a car in a tight spot back out
+          if(c<need){ok=false;break;}if(c<minC)minC=c;}
+        if(!ok)continue;
+        const v=key(nx,ny,nt);if(v<0||B.closed[v])continue;
+        const prox=Math.max(0,(0.4-minC)/0.4);
+        const cost=STEP*(d>0?1:P.revPen)+0.05*Math.abs(st)/dm+0.1*Math.abs(st-B.st[u])/dm+((B.dir[u]!==0&&B.dir[u]!==d)?P.gearPen:0)+STEP*2*prox*prox;
+        const ng=B.g[u]+cost;
+        if(ng<B.g[v]){B.g[v]=ng;B.par[v]=u;B.x[v]=nx;B.y[v]=ny;B.th[v]=nt;B.dir[v]=d;B.st[v]=st;heap.push(v,ng+P.eps*hAt(nx,ny,nt));}
+      }
     }
-    for(const d of dirs)for(const st of steers){
-      let nx=x,ny=y,nt=th,minC=Infinity,ok=true;const w=d*Math.tan(st)/L;
-      for(let k=0;k<Math.round(STEP/SUB);k++){const n=integ(nx,ny,nt,d,w,SUB);nx=n.x;ny=n.y;nt=n.th;
-        const c=clearAt(nx,ny,nt),need=(lenient&&hyp(nx-e.x,ny-e.y)<1.0)?Math.min(MARG,startClear-0.1):MARG;   // let a car that is touching something back out
-        if(c<need){ok=false;break;}if(c<minC)minC=c;}
-      if(!ok)continue;
-      const v=key(nx,ny,nt);if(v<0||B.closed[v])continue;
-      const prox=Math.max(0,(0.4-minC)/0.4);
-      const cost=STEP*(d>0?1:P.revPen)+0.05*Math.abs(st)/dm+0.1*Math.abs(st-B.st[u])/dm+((B.dir[u]!==0&&B.dir[u]!==d)?P.gearPen:0)+STEP*2*prox*prox;
-      const ng=B.g[u]+cost;
-      if(ng<B.g[v]){B.g[v]=ng;B.par[v]=u;B.x[v]=nx;B.y[v]=ny;B.th[v]=nt;B.dir[v]=d;B.st[v]=st;heap.push(v,ng+P.eps*hAt(nx,ny,nt));}
-    }
-  }
+  };
+  // A car touching something may back out at reduced margin. Clearance reads come in whole 0.1 m cells, so a start
+  // one cell above MARG can be boxed in too: a 1 cm move drops the reading by a cell and every way out of a tight
+  // slot fails. Such a start gets the same leniency, but only when the strict search runs out of nodes.
+  search(startClear<MARG);
+  if(fin<0&&exp<BUDGET&&startClear>=MARG&&startClear-RES<MARG){hyBuf();search(true);}
   S.search={type:'hybrid',pts:viz};
   if(fin<0)return{ok:false,reason:exp>=BUDGET?`search budget of ${BUDGET} expansions used up`:'no kinematically feasible route',exp};
   // rebuild: re-simulate each primitive from its parent pose

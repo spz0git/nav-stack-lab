@@ -1,0 +1,103 @@
+<title>Nav Stack Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=STIX+Two+Text:ital,wght@0,400;1,400&display=swap">
+<style>
+/*__CSS__*/
+</style>
+
+<div class="wrap">
+  <main class="layout">
+    <section class="ctx">
+      <header class="top">
+        <h1>Nav Stack Lab</h1>
+        <p class="sub">diff-drive or car-like robot · 24 × 16 m · 20 Hz</p>
+      </header>
+      <nav class="levels" id="levels" aria-label="Scenario level"></nav>
+      <section class="brief" id="brief" aria-live="polite"></section>
+    </section>
+    <section class="stage">
+      <div class="modebar"><div class="seg" id="modesel" aria-label="View"></div><span class="lbl" id="modehint">Linear analysis of the tracking loop, with guided lessons in the Learn tab</span></div>
+      <div id="simview" class="view">
+      <p class="hint" id="firstrun"><span><b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
+      <div class="status" id="status"></div>
+      <div class="controls">
+        <button class="btn primary" id="run" title="Space">Run</button>
+        <button class="btn" id="stepb" title="Advance 0.5 s (N)">Step</button>
+        <button class="btn" id="resetb" title="R">Reset</button>
+        <div class="seg" id="speed" aria-label="Simulation speed" title="[ and ] change speed"></div>
+        <label class="check sm" title="Pause the simulation when the robot touches an obstacle or a person"><input type="checkbox" id="pausec"><span>Pause on contact</span></label>
+        <span class="ctl-sep"></span>
+        <label class="lbl" for="tapsel">Tap map</label>
+        <select class="sel" id="tapsel">
+          <option value="wp">Add goal</option>
+          <option value="pose">Goal with heading (drag)</option>
+          <option value="goal">Replace all goals</option>
+        </select>
+        <button class="btn" id="clearwp" title="Remove every goal">Clear goals</button>
+        <span class="ctl-sep"></span>
+        <button class="btn" id="kidnapb" title="Then tap the map where the robot should be teleported (the estimator is not told)" aria-pressed="false">Kidnap…</button>
+      </div>
+      <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll to zoom; drag to pan."></canvas></div>
+      <div class="legend">
+        <span><i class="disc" style="background:var(--ink)"></i>true pose</span>
+        <span><i class="ring" style="border-color:var(--accent)"></i>estimate</span>
+        <span><i style="border-color:var(--accent)"></i>path</span>
+        <span><i class="dash" style="border-color:var(--warn)"></i>reverse</span>
+        <span><i class="dot" style="background:var(--rose)"></i>belief</span>
+        <span><i class="dot" style="background:var(--amber)"></i>lidar</span>
+        <span><i class="dot" style="background:var(--beacon);border-radius:1px;transform:rotate(45deg)"></i>beacon</span>
+        <span><i class="disc" style="background:var(--warn)"></i>people</span>
+        <span><i style="border-color:var(--ok)"></i>MPC</span>
+        <button class="linkbtn" id="legendmore" type="button">All map symbols</button>
+      </div>
+      <section class="box tele">
+        <div class="tele-head"><h2>Telemetry</h2><div class="plotpick"><div class="seg" id="plotsel" aria-label="Plot channel"></div><select class="sel sm" id="plotsel2" aria-label="Second channel, right axis" title="Second channel on the right axis"><option value="none">+ compare…</option><option value="pos">Position error</option><option value="eth">θ error</option><option value="cte">Cross-track</option><option value="v">Speed</option><option value="turn">Steering</option></select></div></div>
+        <div class="tele-grid">
+          <canvas id="plot" aria-label="Time series plot"></canvas>
+          <div class="tele-log"><h3>Event log</h3><ol class="log" id="log"></ol></div>
+        </div>
+        <dl class="metrics" id="metrics"></dl>
+      </section>
+      </div>
+      <div id="anview" class="view" hidden>
+        <div class="an-ctl"><span class="lbl">Loop</span><span class="seg sm" id="an-loop"></span><span class="lbl">Path</span><span class="seg sm" id="an-curve"></span><label class="check sm" id="an-est-l" title="Run the step and injection experiments with the estimator you picked in Localize, instead of ground truth"><input type="checkbox" id="an-est"><span>experiments use the estimator</span></label></div>
+        <p class="an-op" id="an-op"></p>
+        <div id="an-none" class="box an-none" hidden></div>
+        <div id="an-body">
+          <div class="an-diagram" id="an-diagram"></div>
+          <div class="an-chips" id="an-chips"></div>
+          <div class="an-grid">
+            <figure class="an-fig"><figcaption><span>Bode · open loop L(jω)</span><span class="seg sm" id="an-cl"></span></figcaption><canvas id="cv-bode" aria-label="Bode plot"></canvas></figure>
+            <figure class="an-fig"><figcaption><span>Nyquist</span><span class="seg sm" id="an-nyq"></span></figcaption><canvas id="cv-nyq" aria-label="Nyquist plot"></canvas></figure>
+            <figure class="an-fig"><figcaption><span>Time response</span><span class="seg sm" id="an-kind"></span></figcaption><canvas id="cv-step" aria-label="Step response"></canvas></figure>
+            <figure class="an-fig"><figcaption><span>Poles · root locus</span><span class="lbl">s-plane [1/s]</span></figcaption><canvas id="cv-pz" aria-label="Pole-zero map"></canvas></figure>
+          </div>
+          <div class="an-exp">
+            <span class="lbl">Check in the simulator</span>
+            <button class="btn" id="an-step">Run step test</button>
+            <select class="sel" id="an-amp" aria-label="Step size"><option value="0.05">0.05 m offset</option><option value="0.2" selected>0.2 m offset</option><option value="0.5">0.5 m offset</option><option value="1">1.0 m offset</option></select>
+            <button class="btn" id="an-inj">Measure L(jω)</button>
+            <select class="sel" id="an-inja" aria-label="Injection amplitude"><option value="small">small sine</option><option value="large">large sine</option></select>
+            <span class="an-msg" id="an-msg"></span>
+          </div>
+          <p class="note an-foot">Bode and Nyquist: continuous vehicle behind a zero-order hold (delay T/2 plus latency), with the 20 Hz controller and actuator elements evaluated exactly at z = e^(sT). Poles and the predicted response: the exact 20 Hz discrete loop. Amber points and dashed curves: measured in the full nonlinear simulator. <button class="linkbtn" type="button" id="an-src">View the source</button></p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="console">
+      <div class="box">
+        <div class="tabs" role="tablist" id="tabs"></div>
+        <div id="panes"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script type="text/plain" id="core-worker-src">
+/*__WORKER__*/
+</script>
+<script>
+/*__JS__*/
+</script>

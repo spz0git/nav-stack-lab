@@ -1,0 +1,87 @@
+/* ---------- guided lessons ---------- */
+function lessonGo(cfg){
+  if(cfg.level!=null)loadLevel(cfg.level);   // always start from the level's defaults
+  for(const[k,v]of Object.entries(cfg.set||{}))setParam(k,v,false);
+  if(cfg.stepKind)AN.stepKind=cfg.stepKind;if(cfg.stepAmp!=null)AN.stepAmp=cfg.stepAmp;if(cfg.injAmp)AN.injAmp=cfg.injAmp;
+  AN.loop=cfg.loop||'lat';AN.curveR=cfg.curveR||0;AN.useEst=!!cfg.useEst;AN.meas={step:null,freq:null,spd:null};
+  syncAnControls();renderAllPanes();setMode('an');
+  if(cfg.test==='step'){runStepTest();renderAnalysis();}else if(cfg.test==='inj')runInjection();else if(cfg.test==='spdstep'){if(!AN.resSpd)spdCompute();runSpeedStepTest();renderAnalysis();}
+}
+const LV_DIFF=0,LV_CAR=5;   // levels that set up each vehicle
+const LESSONS_EXTRA=[
+ {t:'The speed loop is open, except for MPC',b:`<p>Every path tracker here commands speed from a profile: cruise speed, slowed in curves and toward the goal. Nothing measures the actual speed and corrects the command, so the speed "loop" is open. What you see in the Speed plot is the actuator chain: latency, then a first-order lag, then the acceleration limit.</p>
+<div class="eq">G(s) = e^{−sT_lat} / (τs + 1)        bandwidth ≈ 1/τ,  10–90 % rise ≈ 2.2 τ
+MPC:  a = −K_v (v − v_ref) − K_vc (v_cmd − v_ref) + K_u a_prev   closes a loop through its rate input</div>
+<p>Switch the loop selector to Speed. For pure pursuit the chips report the plant's bandwidth and time constant and the step test lands on the prediction. For MPC the loop has margins of its own, and the step test shows what its acceleration bound costs when the step is large.</p>`,
+  tries:[['Pure pursuit, τ = 0.3 s',{level:LV_DIFF,set:{ctl:'pp',lag:0.3},loop:'spd',test:'spdstep'}],['MPC with the lag modeled',{level:LV_DIFF,set:{ctl:'mpc',lag:0.3,mpcLag:true},loop:'spd',test:'spdstep'}],['Latency 0.2 s',{level:LV_DIFF,set:{ctl:'pp',lag:0.3,latency:0.2},loop:'spd',test:'spdstep'}]]},
+ {t:'The estimator in the loop',b:`<p>The model assumes the controller knows where the robot is. In the simulator it knows only the estimate. An EKF between beacons integrates odometry, so most of the time the estimate follows the true motion; at each beacon reading it jumps. The loop sees those jumps as disturbances, and the noise as extra phase scatter.</p>
+<div class="eq">controller input:  e_est = e + (estimation error)
+the model's L(jω) describes e → u; the injection measures the whole chain, estimator included</div>
+<p>Tick <b>experiments use the estimator</b> and repeat the step test and the injection. The measured points still follow the model near crossover, which is why the straight-line analysis is still useful, but the overshoot is larger and the high-frequency points scatter. Raise the odometry noise and the scatter grows.</p>`,
+  tries:[['EKF in the loop, step test',{level:LV_DIFF,set:{ctl:'pp',loc:'ekf',odoK:1},useEst:true,test:'step',stepKind:'offset',stepAmp:0.2}],['EKF, measure L(jω)',{level:LV_DIFF,set:{ctl:'pp',loc:'ekf',odoK:1},useEst:true,test:'inj'}],['Dead reckoning in the loop',{level:LV_DIFF,set:{ctl:'pp',loc:'dr',odoK:2},useEst:true,test:'step',stepKind:'offset',stepAmp:0.2}]]},
+ {t:'Curves: does the straight-line analysis hold?',b:`<p>On a curve the controller's operating point changes: it works around a nonzero steering command, and some trackers sit at a steady lateral offset. The gains are read by finite differences about that settled state, on a circle, and the deviation dynamics are still two integrators, so the same Bode and Nyquist plots apply.</p>
+<div class="eq">θ̇_e = g·(u − u₀),   ė = v₀·θ_e     about the settled point on the circle</div>
+<p>Pure pursuit measures its lookahead along the path, so it follows a circle exactly and its gains barely move. Rear-wheel feedback carries the curvature as feedforward. Stanley and PID have no curvature feedforward, so whether they settle off the path depends on the geometry: the Offset chip reports where they end up, and the step test is measured about that offset. The car on a 4 m circle also runs into its steering-rate limit, which the message under the experiments reports.</p>`,
+  tries:[['Pure pursuit, R = 2 m',{level:LV_DIFF,set:{ctl:'pp'},curveR:2,test:'step',stepKind:'offset',stepAmp:0.2}],['PID, R = 2 m',{level:LV_DIFF,set:{ctl:'pid'},curveR:2,test:'step',stepKind:'offset',stepAmp:0.2}],['Car, Stanley, R = 4 m',{level:LV_CAR,set:{ctl:'stanley'},curveR:4,test:'step',stepKind:'offset',stepAmp:0.2}]]}];
+const LESSONS=[
+ {t:'The loop being analyzed',b:`<p>Every tracker in this lab closes the same loop. It measures how far the robot is from the path, turns, and the turn changes that error. Near a straight path at constant speed v<sub>0</sub> and with small errors, the vehicle reduces to two integrators in series:</p>
+<div class="eq">θ̇ₑ = g·u      u = ω, g = 1 (diff-drive)     u = δ, g = v₀/L (car)
+ė  = v₀·θₑ</div>
+<p>The lateral error is the double integral of the steering command. A controller that fed back only e would oscillate for ever, so every tracker also feeds back θ<sub>e</sub>. Since θ<sub>e</sub> = ė/v<sub>0</sub>, that term is derivative action.</p>
+<p>The analysis reads the controller's gains directly from its code at this operating point by finite differences. It then adds the 25 ms hold delay of the 50 ms tick, any latency, and actuator lag. Plots update as you move sliders in the Control and Vehicle tabs.</p>`,
+  tries:[['Open the analysis (diff-drive, pure pursuit)',{level:LV_DIFF,set:{ctl:'pp'}}],['Same loop on the car',{level:LV_CAR,set:{ctl:'pp'}}]]},
+ {t:'Pure pursuit is a PD controller',b:`<p>The bearing to a carrot L_d ahead on the path is α ≈ −e/L_d − θ<sub>e</sub>, and pure pursuit commands curvature 2 sin α / L_d. Linearized:</p>
+<div class="eq">ω = −(2v₀/L_d²)·e − (2v₀/L_d)·θₑ
+L(s) = (2v₀²/L_d²) · (1 + s·L_d/v₀) / s² · e^(−sT_d)</div>
+<p>Without delay, solving |L(jω)| = 1 gives ω_c = 2.20·v<sub>0</sub>/L_d and a phase margin of exactly 65.5°, for any v<sub>0</sub> and L_d. The lookahead does not set the damping; it sets the speed of the loop. Margin is lost only to delay and lag, ω_c·T_d radians of it, and a short lookahead raises ω_c and so loses more. The car's δ ≈ 2L·α/L_d with g = v<sub>0</sub>/L gives the same loop.</p>`,
+  tries:[['L<sub>0</sub> = 1.5 m (slow, calm)',{level:LV_DIFF,set:{ctl:'pp',ppL0:1.5,ppK:0}}],['L<sub>0</sub> = 0.1 m (fast)',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.1,ppK:0}}],['…and run a step test',{test:'step',stepKind:'offset',stepAmp:0.2}]]},
+ {t:'Reading the Bode plot',b:`<p>The top panel is |L(jω)| in dB and the bottom panel its phase. Two integrators give a −40 dB/decade slope at −180°. The controller's zero at s = −K_e·v<sub>0</sub>/K_θ bends the slope to −20 dB/decade and lifts the phase.</p>
+<p>The <b>crossover</b> ω_c, where |L| = 0 dB, is roughly the closed-loop bandwidth. The <b>phase margin</b> is the distance above −180° at ω_c; a common second-order rule of thumb is ζ ≈ PM/100 below about 70°. With closed loop turned on, green is |T| (how the robot follows a path offset) and pink is |S| (how much disturbances are amplified; its peak is M_s).</p>
+<p>The dotted line π/T = 62.8 rad/s is the Nyquist frequency of the 20 Hz loop. Nothing above it exists in a sampled controller.</p>`,
+  tries:[['Rear-wheel feedback, k_e = 2',{level:LV_DIFF,set:{ctl:'rwf',rwKe:2,rwKth:3}}],['k_e = 12',{level:LV_DIFF,set:{ctl:'rwf',rwKe:12,rwKth:3}}],['Measure L(jω) in the simulator',{test:'inj',injAmp:'small'}]]},
+ {t:'Nyquist and the −1 point',b:`<p>The closed loop has a pole wherever 1 + L(s) = 0, so −1 is the point to stay away from. The plot traces L(jω) for ω > 0 (solid) and its mirror for ω < 0 (dashed). The Nyquist criterion counts clockwise encirclements of −1, N, and gives the number of unstable closed-loop poles, Z = N + P, where P is the number of unstable open-loop poles (none here). The pink segment is the closest approach; its length is 1/M_s, one number that covers both gain and phase robustness.</p>
+<p>A delay multiplies L by e^(−jωT_d), which rotates each point clockwise by ωT_d radians, more at high frequency. That is how latency drags the curve onto −1.</p>
+<p>Because of the double integrator, |L| goes to infinity at low frequency. The plot therefore uses radius log<sub>2</sub>(1+|L|), which keeps −1 and the unit circle in place.</p>`,
+  tries:[['Short lookahead, no latency',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.1,ppK:0,latency:0}}],['+ 0.05 s latency',{set:{latency:0.05}}],['+ 0.10 s latency',{set:{latency:0.1}}]]},
+ {t:'Delay margin: the latency budget',b:`<p>Phase margin converts directly into time. An extra delay ΔT costs ω_c·ΔT radians at crossover, so the loop tolerates</p>
+<div class="eq">DM = PM / ω_c   (PM in radians)</div>
+<p>of additional latency before it goes unstable. Fast loops have small latency budgets. This is the frequency-domain reason latency is budgeted end to end in a vehicle stack, from sensor exposure to actuator.</p>
+<p>The simulator adds latency in whole 50 ms ticks, so the delay margin chip tells you which setting tips the loop over. Exceed it and run a step test. The linear model says the oscillation grows without bound. In the simulator, the turn-rate limit caps it into a sustained oscillation, a limit cycle, which is what an unstable loop usually looks like on a real vehicle.</p>`,
+  tries:[['Fast loop (L<sub>0</sub> 0.1 m): small budget',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.1,ppK:0,latency:0}}],['Fast loop + 0.05 s latency, step test',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.1,ppK:0,latency:0.05},test:'step',stepKind:'offset',stepAmp:0.1}],['Slow loop (L<sub>0</sub> 1.2 m), 0.3 s, step test',{level:LV_DIFF,set:{ctl:'pp',ppL0:1.2,ppK:0,latency:0.3},test:'step',stepKind:'offset',stepAmp:0.2}]]},
+ {t:'Poles, damping and the step response',b:`<p>The closed-loop poles come from the exact 20 Hz loop; each discrete pole z maps to s = ln z / T. The slowest complex pair dominates. Its damping ζ sets the overshoot and ζω_n sets the settling time:</p>
+<div class="eq">overshoot ≈ exp(−πζ / √(1−ζ²))       t_s(2%) ≈ 4 / (ζ·ω_n)</div>
+<p>Rear-wheel feedback on the diff-drive shows this cleanly. Its loop is a mass-spring-damper in disguise (ignoring the small delay):</p>
+<div class="eq">s² + v₀k_θ·s + v₀²k_e = 0   →   ω_n = v₀√k_e,   ζ = k_θ / (2√k_e)</div>
+<p>The heading gain is the damper and the lateral gain is the spring. The blue dots are the root locus: where the poles go if the controller's output is scaled from ×0.06 to ×16. Where the locus enters the shaded right half plane, that scale factor is the gain margin. Delay and extra poles make these formulas approximate, which is why the step plot computes the response exactly.</p>`,
+  tries:[['k_θ = 1: light damping',{level:LV_DIFF,set:{ctl:'rwf',rwKe:6,rwKth:1},test:'step',stepKind:'offset',stepAmp:0.2}],['k_θ = 3',{level:LV_DIFF,set:{ctl:'rwf',rwKe:6,rwKth:3},test:'step',stepKind:'offset',stepAmp:0.2}],['k_θ = 6: heavy damping',{level:LV_DIFF,set:{ctl:'rwf',rwKe:6,rwKth:6},test:'step',stepKind:'offset',stepAmp:0.2}]]},
+ {t:'Actuator lag, and what MPC assumes',b:`<p>A first-order actuator 1/(τs+1) costs atan(ω·τ) of phase at each frequency: 17° at ω = 2 rad/s with τ = 0.15 s.</p>
+<p>An MPC is only as good as its prediction model. Unless you tick Include actuator lag, it predicts that the actuator follows its commands instantly. It then plans as if its steering took effect at once and reacts to the lagging actuator position it measures. The analysis shows what that costs: with τ = 0.15 s, the phase margin falls from about 52° to about 30°, and M_s rises above 2.</p>
+<p>With the lag modeled, the controller also feeds back its own commanded value (the K_c gain in the block diagram) and the margin comes back. Margin is not the same as tracking performance, though. Run L5 both ways: the cross-track error barely changes. What changes is how much extra delay or model error the loop can absorb before it rings or goes unstable. That is the quantity a safety case cares about.</p>`,
+  tries:[['Pure pursuit, τ = 0.15 s',{level:LV_DIFF,set:{ctl:'pp',lag:0.15}}],['MPC, τ = 0.15 s, lag not modeled',{level:LV_DIFF,set:{ctl:'mpc',lag:0.15,mpcLag:false}}],['MPC, τ = 0.15 s, lag modeled',{level:LV_DIFF,set:{ctl:'mpc',lag:0.15,mpcLag:true}}]]},
+ {t:'Integral action and steady-state error',b:`<p>A constant actuator bias, such as a misaligned steering link or one weaker motor, is a step disturbance at the plant input. A PD-type loop settles where the controller cancels it, which needs a standing error:</p>
+<div class="eq">e_ss = d / K_e     (K_e: command per metre of lateral error)</div>
+<p>An integrator removes it: PID with K_i > 0 keeps adding to the command until the error is gone. The price is phase. 1/s adds −90° at low frequency, so too much K_i erodes the margin and causes slow overshoot. The response plot switches to the bias case here, and the Vehicle tab has the same bias as a slider for normal runs.</p>
+<p>The MPC here commands a rate and builds each command on its previous one, so it integrates its input. A turn-rate bias on the diff-drive shows up in the turn rate it measures, and it removes it completely. The car's steering misalignment is invisible to the steering encoder the MPC reads, so a small error remains. Integral action only fixes what it can see.</p>`,
+  tries:[['Car, rear-wheel feedback, 2° bias',{level:LV_CAR,set:{ctl:'rwf'},stepKind:'bias',test:'step'}],['Diff-drive MPC, 0.1 rad/s bias',{level:LV_DIFF,set:{ctl:'mpc'},stepKind:'bias',test:'step'}],['Car, PID with K_i = 0',{level:LV_CAR,set:{ctl:'pid',kp:2,ki:0,kd:0.15},stepKind:'bias',test:'step'}],['Car, PID with K_i = 0.4',{level:LV_CAR,set:{ctl:'pid',kp:2,ki:0.4,kd:0.15},stepKind:'bias',test:'step'}]]},
+ {t:'Linear versus nonlinear',b:`<p>Everything above holds for small signals. The car's steering moves at most 1.5 rad/s (Vehicle tab), and diff-drive turn rate and acceleration are limited too. A large step asks for more than the actuator can deliver. The response then stops scaling with the input, and the dashed measurement leaves the linear prediction.</p>
+<p>The same happens in the frequency domain: a large injected sine saturates the rate limit at high frequency, and the measured points bend away from the model.</p>`,
+  tries:[['Car, 0.05 m step test',{level:LV_CAR,set:{ctl:'rwf'},stepKind:'offset',stepAmp:0.05,test:'step'}],['Car, 1.0 m step test',{level:LV_CAR,set:{ctl:'rwf'},stepKind:'offset',stepAmp:1.0,test:'step'}],['Car, large-sine L(jω)',{level:LV_CAR,set:{ctl:'rwf'},injAmp:'large',test:'inj'}]]},
+ {t:'Speed changes the plant: gain scheduling',b:`<p>The plant gain depends on speed. It is v<sub>0</sub> for diff-drive and v<sub>0</sub>²/L for the car, because both the turn rate (v·tan δ/L) and the lateral rate (v·θ<sub>e</sub>) scale with v. Fixed gains would make the loop faster, and closer to its delay limit, as speed rises.</p>
+<p>Pure pursuit schedules itself: L_d = L<sub>0</sub> + k·v<sub>0</sub> grows with speed, so ω_c = 2.2·v<sub>0</sub>/L_d levels off at 2.2/k. Rear-wheel feedback works in curvature, so its ω_c grows roughly in proportion to v<sub>0</sub>. Change the cruise speed and watch the crossover.</p>`,
+  tries:[['PP, k = 0, v = 0.4',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.5,ppK:0,vcruise:0.4}}],['PP, k = 0, v = 1.6',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.5,ppK:0,vcruise:1.6,vmax:1.6}}],['PP, k = 0.5, v = 1.6',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.5,ppK:0.5,vcruise:1.6,vmax:1.6}}]]},
+];
+let lessonOpen='ctl:0';
+const LESSON_GROUPS=()=>[
+ {id:'loc',title:'Localization',note:'Runs in the simulator. Each button reloads the level, applies the settings and runs.',items:SIM_LESSONS.loc},
+ {id:'per',title:'Perception',note:'',items:SIM_LESSONS.per},
+ {id:'plan',title:'Planning and the mission',note:'',items:SIM_LESSONS.plan},
+ {id:'ctl',title:'The control loop (linear analysis)',note:'Each button sets up the lab and switches the left side to <b>Analysis</b>; the Simulation/Analysis switch is above the map.',items:LESSONS.concat(LESSONS_EXTRA)}];
+function learnPane(){
+  return`<p class="note">Guided lessons, grouped by subsystem. Open one, read it, press its Try buttons. The Symbols tab defines every symbol used.</p>`+
+   LESSON_GROUPS().map(G=>`<section class="lgroup"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
+    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${L.b}<div class="tries">${L.tries.map((t,j)=>`<button class="btn small" data-try="${id}:${j}">${t[0]}</button>`).join('')}</div></div></details>`;}).join('')+`</section>`).join('');
+}
+function wireLearn(pane){
+  pane.querySelectorAll('details.lesson').forEach(d=>d.ontoggle=()=>{if(d.open){lessonOpen=d.dataset.l;pane.querySelectorAll('details.lesson').forEach(o=>{if(o!==d)o.open=false;});}});
+  pane.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':');lessonOpen=g+':'+i;const G=LESSON_GROUPS().find(x=>x.id===g),cfg=G.items[+i].tries[+j][1];if(cfg.sim)tryGo(cfg);else lessonGo(cfg);});
+}

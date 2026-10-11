@@ -1,0 +1,6 @@
+tests/wrapped.html
+node_modules/
+__pycache__/
+*.png
+.DS_Store
+dist/app.js

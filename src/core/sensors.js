@@ -8,10 +8,23 @@ function lidarSense(){
   for(let k=0;k<NBEAM;k++){const a=r.th-Math.PI+k*TAU/NBEAM;let d=rayCast(r.x,r.y,Math.cos(a),Math.sin(a),LMAX,sh);if(d<LMAX)d=Math.max(0.05,d+P.lidarSig*g.n());ranges[k]=d;}
   return ranges;
 }
+// Beacon availability: switched off by the user (P.bOff, comma-separated IDs) or down in a random outage.
+// Each beacon is a two-state Markov chain stepped at every beacon scan: an outage lasts bOutLen s on average
+// and a beacon is down bOut % of the time. Outages draw from their own stream, so the sensor noise is unchanged.
+function beaconsOff(){return new Set(String(P.bOff||'').split(',').filter(s=>s.trim()!=='').map(Number));}
+function beaconDown(id){return beaconsOff().has(id)||!!(S.bDown&&S.bDown[id]);}
+function beaconOutages(){
+  const n=S.beacons.length;if(!S.bDown)S.bDown=new Array(n).fill(false);
+  const f=clamp((P.bOut||0)/100,0,0.95);if(f<=0){S.bDown.fill(false);return;}
+  const dt=4*DT,pUp=Math.min(1,dt/Math.max(dt,P.bOutLen||1)),pDown=Math.min(1,pUp*f/(1-f)),g=S.rngB;
+  for(let i=0;i<n;i++)S.bDown[i]=S.bDown[i]?g.u()>=pUp:g.u()<pDown;
+}
 function senseBeacons(){
   const r=S.robot,g=S.rngW,sh=allShapes(),out=[];
   const sr=0.08*P.lmK, sb=0.03*P.lmK;
+  const off=beaconsOff();beaconOutages();
   for(const b of S.beacons){
+    if(off.has(b.id)||S.bDown[b.id])continue;
     const dx=b.x-r.x,dy=b.y-r.y,d=hyp(dx,dy);
     if(d>P.lmRange||d<0.2)continue;
     if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12)continue;

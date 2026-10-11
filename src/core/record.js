@@ -8,7 +8,7 @@ function recFrame(){
   const sp=S.scanPts,sc=new Float32Array(sp.length*2);for(let i=0;i<sp.length;i++){sc[2*i]=sp[i][0];sc[2*i+1]=sp[i][1];}
   const A=S.agents;
   REC.frames.push({t:S.t,tick:S.tick,robot:{...S.robot},est:{...S.est},Pc:S.Pc?S.Pc.slice():null,cmd:{...S.cmd},
-    peds:S.peds.map(p=>({x:p.x,y:p.y,vx:p.vx||0,vy:p.vy||0,r:p.r,wait:p.wait||0})),scan:sc,lastZ:S.lastZ,
+    peds:S.peds.map(p=>({x:p.x,y:p.y,vx:p.vx||0,vy:p.vy||0,r:p.r,wait:p.wait||0})),scan:sc,lastZ:S.lastZ,bDown:S.bDown?S.bDown.slice():null,
     nT:S.trailT.length,nE:S.trailE.length,plan:S.plan,segIdx:S.segIdx,track:S.track,ctlViz:S.ctlViz,search:S.search,
     fsm:{state:S.fsm.state,queue:S.fsm.queue.slice()},done:WPS.map(w=>[w.done,w.skipped]),
     agents:A?{tracks:A.tracks.map(t=>({...t})),egoPath:A.egoPath,st:A.st,det:[],dynPts:[],staticPts:null}:null,
@@ -18,7 +18,7 @@ function recFrame(){
 // A frame as a view over the live state: fields the renderer reads come from the frame, everything else falls through
 function frameView(f){
   const v=Object.create(S);
-  Object.assign(v,{t:f.t,tick:f.tick,robot:f.robot,est:f.est,Pc:f.Pc,cmd:f.cmd,peds:f.peds,lastZ:f.lastZ,plan:f.plan,segIdx:f.segIdx,track:f.track,ctlViz:f.ctlViz,search:f.search,
+  Object.assign(v,{t:f.t,tick:f.tick,robot:f.robot,est:f.est,Pc:f.Pc,cmd:f.cmd,peds:f.peds,lastZ:f.lastZ,bDown:f.bDown,plan:f.plan,segIdx:f.segIdx,track:f.track,ctlViz:f.ctlViz,search:f.search,
     agents:f.agents,coll:f.coll,collPed:f.collPed,pf:null,fsm:Object.assign(Object.create(S.fsm),f.fsm),
     trailT:S.trailT.slice(0,f.nT),trailE:S.trailE.slice(0,f.nE)});
   const pts=[];for(let i=0;i<f.scan.length;i+=2)pts.push([f.scan[i],f.scan[i+1]]);v.scanPts=pts;

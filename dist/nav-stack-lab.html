@@ -207,6 +207,11 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .an-fig figcaption{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;font-family:var(--f-display);font-weight:600;font-size:.92rem}
 .an-fig canvas{width:100%;height:230px;display:block;border-radius:4px}
 .seg.sm button{padding:2px 7px;font-size:.74rem}
+.bchips{display:flex;flex-wrap:wrap;gap:4px}
+.bchips button{flex:0 0 auto;min-width:2.1rem;padding:5px 4px;border:1px solid var(--line);border-radius:5px;background:var(--raise);color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums;text-decoration:line-through}
+.bchips button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel);text-decoration:none}
+.bchips-all{display:flex;gap:14px;margin-top:4px}
+@media (max-width:760px){.bchips button{min-width:2.6rem;padding:9px 4px}}
 .an-exp{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .an-msg{font-size:.82rem;color:var(--muted);flex:1 1 220px}
 .an-foot{font-size:.78rem}
@@ -337,6 +342,7 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
           <option value="wp">Add goal</option>
           <option value="pose">Goal with heading (drag)</option>
           <option value="goal">Replace all goals</option>
+          <option value="beacon">Switch a beacon on/off</option>
         </select>
         <button class="btn" id="clearwp" title="Remove every goal">Clear goals</button>
         <span class="ctl-sep"></span>
@@ -513,7 +519,8 @@ const LEVELS=[
    {t:'<b>Localize:</b> switch to EKF. Then raise odometry bias in Vehicle and watch NEES climb past 3: the filter becomes overconfident.',b:[['EKF',{set:{loc:'ekf'},tab:'loc',plot:'pos'}],['EKF, bias ×3',{set:{loc:'ekf',odoB:3},tab:'veh',plot:'pos'}]]},
    {t:'<b>Localize:</b> raise the filter\'s assumed motion noise until NEES settles near 3 again.',b:[['EKF, bias ×3, assumed noise ×4',{set:{loc:'ekf',odoB:3,filtK:4},tab:'loc',plot:'pos'}]]},
    {t:'<b>Localize:</b> EKF-SLAM does not know where the beacons are. It drifts like dead reckoning until it sees a beacon it mapped early; a longer sensor range gives more overlap and bounds the drift.',b:[['EKF-SLAM',{set:{loc:'slam'},tab:'loc',plot:'pos'}],['EKF-SLAM, beacon range 12 m',{set:{loc:'slam',lmRange:12},tab:'loc',plot:'pos'}],['EKF-SLAM, unlabeled',{set:{loc:'slam',assoc:'unknown'},tab:'loc',plot:'pos'}]]},
-   {t:'<b>Localize:</b> kidnap the robot. With known IDs the EKF can pull itself back. With unlabeled beacons the gate rejects every reading. The particle filter recovers either way.',b:[['EKF, kidnap at 8 s',{set:{loc:'ekf'},tab:'loc',plot:'pos',act:'kidnap'}],['Unlabeled, kidnap',{set:{loc:'ekf',assoc:'unknown'},tab:'loc',plot:'pos',act:'kidnap'}],['Particle filter, kidnap',{set:{loc:'pf',assoc:'unknown'},tab:'loc',plot:'pos',act:'kidnap'}]]}],
+   {t:'<b>Localize:</b> kidnap the robot. With known IDs the EKF can pull itself back. With unlabeled beacons the gate rejects every reading. The particle filter recovers either way.',b:[['EKF, kidnap at 8 s',{set:{loc:'ekf'},tab:'loc',plot:'pos',act:'kidnap'}],['Unlabeled, kidnap',{set:{loc:'ekf',assoc:'unknown'},tab:'loc',plot:'pos',act:'kidnap'}],['Particle filter, kidnap',{set:{loc:'pf',assoc:'unknown'},tab:'loc',plot:'pos',act:'kidnap'}]]},
+   {t:'<b>Localize:</b> take beacons away from the EKF. With the east half off it coasts on odometry there, like dead reckoning, and snaps back in the west. Flicker costs little; long outages leave dead zones where the ellipse grows.',b:[['EKF, east beacons off',{set:{loc:'ekf',bOff:'1,3,5,7,11'},tab:'loc',plot:'pos'}],['EKF, flickering beacons',{set:{loc:'ekf',bOut:50,bOutLen:0.4},tab:'loc',plot:'pos'}],['EKF, long outages',{set:{loc:'ekf',bOut:70,bOutLen:6},tab:'loc',plot:'pos'}]]}],
   shapes:warehouse(),beacons:WH_BEACONS,peds:[],
   start:[1.5,1.5,0],wps:[[21.8,2],[21.8,14.5],[12,8.4],[2,14.5],[2,5]],
   cfg:{loc:'dr',per:'oracle',mis:'sequential',plan:'astar',ctl:'pp',odoK:1,odoB:1,accel:false,lag:0,assoc:'known',clutter:0,replan:0},layers:{cost:false}},
@@ -574,7 +581,7 @@ const LEVELS=[
 const DEFAULTS={loc:'truth',assoc:'known',npart:400,inject:true,pfLidar:true,filtK:1,per:'oracle',unknownAs:'free',infl:0.6,
   mis:'sequential',replan:0,lostGuard:false,rwKth:3.0,rwKe:6.0,latency:0,biasDeg:0,biasW:0,mpcMode:'nmpc',mpcNp:20,mpcNc:10,mpcDt:0.1,mpcIt:3,mpcQlat:20,mpcQlon:4,mpcQth:6,mpcQv:2,mpcQf:5,mpcRa:0.3,mpcRs:0.3,mpcRd:1.0,mpcRho:200,mpcObs:true,mpcMarg:0.1,mpcLag:false,planPct:85,model:'diff',wheelbase:0.6,steerMaxDeg:32,steerRate:1.5,revOK:true,revPen:2.0,gearPen:2.0,hybH:'both',stanK:2.0,plan:'astar',eps:1,smooth:true,rrtIt:1500,ctl:'pp',vcruise:0.8,ppL0:0.5,ppK:0.5,alat:0.6,
   kp:2.0,ki:0,kd:0.15,dwaG:1.0,dwaO:0.6,dwaV:0.4,dwaT:1.6,vmax:1.0,wmax:1.8,accel:false,amax:0.8,alpha:3.0,lag:0,
-  odoK:0,odoB:0,lmK:1,lmRange:7,clutter:0,lidarSig:0.02,seed:7,agents:'off',agPred:'cv',agT:4,agGrow:0.1,agSigA:0.8,spd:'none',stMarg:0.3,agPlan:true,people:'scripted',sensLat:0,vehicles:true};
+  odoK:0,odoB:0,lmK:1,lmRange:7,clutter:0,bOff:'',bOut:0,bOutLen:1,lidarSig:0.02,seed:7,agents:'off',agPred:'cv',agT:4,agGrow:0.1,agSigA:0.8,spd:'none',stMarg:0.3,agPlan:true,people:'scripted',sensLat:0,vehicles:true};
 const P={...DEFAULTS};
 const LAYERS={ghost:true,cost:false,search:true,lidar:true,beam:true,belief:true,trail:true,dwa:true,agents:true,ghostrun:true};
 
@@ -589,7 +596,7 @@ function recFrame(){
   const sp=S.scanPts,sc=new Float32Array(sp.length*2);for(let i=0;i<sp.length;i++){sc[2*i]=sp[i][0];sc[2*i+1]=sp[i][1];}
   const A=S.agents;
   REC.frames.push({t:S.t,tick:S.tick,robot:{...S.robot},est:{...S.est},Pc:S.Pc?S.Pc.slice():null,cmd:{...S.cmd},
-    peds:S.peds.map(p=>({x:p.x,y:p.y,vx:p.vx||0,vy:p.vy||0,r:p.r,wait:p.wait||0})),scan:sc,lastZ:S.lastZ,
+    peds:S.peds.map(p=>({x:p.x,y:p.y,vx:p.vx||0,vy:p.vy||0,r:p.r,wait:p.wait||0})),scan:sc,lastZ:S.lastZ,bDown:S.bDown?S.bDown.slice():null,
     nT:S.trailT.length,nE:S.trailE.length,plan:S.plan,segIdx:S.segIdx,track:S.track,ctlViz:S.ctlViz,search:S.search,
     fsm:{state:S.fsm.state,queue:S.fsm.queue.slice()},done:WPS.map(w=>[w.done,w.skipped]),
     agents:A?{tracks:A.tracks.map(t=>({...t})),egoPath:A.egoPath,st:A.st,det:[],dynPts:[],staticPts:null}:null,
@@ -599,7 +606,7 @@ function recFrame(){
 // A frame as a view over the live state: fields the renderer reads come from the frame, everything else falls through
 function frameView(f){
   const v=Object.create(S);
-  Object.assign(v,{t:f.t,tick:f.tick,robot:f.robot,est:f.est,Pc:f.Pc,cmd:f.cmd,peds:f.peds,lastZ:f.lastZ,plan:f.plan,segIdx:f.segIdx,track:f.track,ctlViz:f.ctlViz,search:f.search,
+  Object.assign(v,{t:f.t,tick:f.tick,robot:f.robot,est:f.est,Pc:f.Pc,cmd:f.cmd,peds:f.peds,lastZ:f.lastZ,bDown:f.bDown,plan:f.plan,segIdx:f.segIdx,track:f.track,ctlViz:f.ctlViz,search:f.search,
     agents:f.agents,coll:f.coll,collPed:f.collPed,pf:null,fsm:Object.assign(Object.create(S.fsm),f.fsm),
     trailT:S.trailT.slice(0,f.nT),trailE:S.trailE.slice(0,f.nE)});
   const pts=[];for(let i=0;i<f.scan.length;i+=2)pts.push([f.scan[i],f.scan[i+1]]);v.scanPts=pts;
@@ -666,7 +673,7 @@ function reset(){
   keepGhost();
   prepLevel(LV);
   const st=LV.start;
-  S={t:0,tick:0,rngW:makeRng(P.seed*7919+1),rngA:makeRng(P.seed*104729+3),
+  S={t:0,tick:0,rngW:makeRng(P.seed*7919+1),rngA:makeRng(P.seed*104729+3),rngB:makeRng(P.seed*7907+11),bDown:null,
     shapes:LV.shapes,peds:LV.peds.map(p=>({...p,s:p.s0||0,dir:1,x:p.a[0],y:p.a[1],r:0.3})),
     beacons:LV.beacons.map((b,i)=>({id:i,x:b[0],y:b[1]})),
     robot:{x:st[0],y:st[1],th:st[2],v:0,w:0,d:0,contact:false,pedContact:false},
@@ -735,6 +742,8 @@ function setParam(k,v,live){
   if(k==='ctl'){S.ctlState={I:0,prev:null};S.ctlViz=null;SLOTS.ctl.lastErr='';if(SLOTS.ctl.worker)SLOTS.ctl.worker.reset();logE(`Controller → ${({pp:'pure pursuit',rwf:'rear-wheel feedback',pid:'PID',dwa:'DWA',stanley:'Stanley',mpc:'MPC',custom:'your code'})[v]}`);}
   if(k==='agPred'&&SLOTS.pred.worker)SLOTS.pred.worker.reset();
   if(k==='vehicles'||k==='people'){if(k==='vehicles'){S.peds=S.peds.filter(p=>!p.car);if(v)carsInit();}logE(k==='people'?`People → ${v}`:`Other vehicles → ${v?'on':'off'}`);}
+  if(k==='bOff'){const n=beaconsOff().size;logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)`:'All beacons on');}
+  if(k==='bOut'&&!live)logE(v>0?`Random beacon outages: each beacon down ${v} % of the time`:'Random beacon outages off');
   if(k==='seed'&&!live)logE(`Seed ${v} takes effect on Reset`);
   if(k==='model'){S.robot.d=0;S.robot.w=0;S.cmd={v:0,w:0,steer:0};
     if(v==='diff'){if(P.plan==='rs'||P.plan==='hybrid')P.plan='astar';if(P.ctl==='stanley')P.ctl='pp';}
@@ -743,6 +752,10 @@ function setParam(k,v,live){
   if(['wheelbase','steerMaxDeg','revOK','revPen','gearPen','hybH','planPct'].includes(k)&&!live&&(P.plan==='hybrid'||P.plan==='rs'))requestReplan('vehicle or planner changed');
   UI.invalidate();
   if(UI.mode()==='sim'){UI.draw();UI.refresh();}
+}
+function toggleBeacon(id){
+  const s=beaconsOff();if(s.has(id))s.delete(id);else s.add(id);
+  setParam('bOff',[...s].sort((a,b)=>a-b).join(','),false);
 }
 function requestReplan(reason){
   const F=S.fsm;if(F.state==='DRIVE'||F.state==='NO_PATH'||F.state==='PLAN'){F.state='PLAN';F.pendingReason=reason;if(!running)advanceMission();}
@@ -808,10 +821,23 @@ function lidarSense(){
   for(let k=0;k<NBEAM;k++){const a=r.th-Math.PI+k*TAU/NBEAM;let d=rayCast(r.x,r.y,Math.cos(a),Math.sin(a),LMAX,sh);if(d<LMAX)d=Math.max(0.05,d+P.lidarSig*g.n());ranges[k]=d;}
   return ranges;
 }
+// Beacon availability: switched off by the user (P.bOff, comma-separated IDs) or down in a random outage.
+// Each beacon is a two-state Markov chain stepped at every beacon scan: an outage lasts bOutLen s on average
+// and a beacon is down bOut % of the time. Outages draw from their own stream, so the sensor noise is unchanged.
+function beaconsOff(){return new Set(String(P.bOff||'').split(',').filter(s=>s.trim()!=='').map(Number));}
+function beaconDown(id){return beaconsOff().has(id)||!!(S.bDown&&S.bDown[id]);}
+function beaconOutages(){
+  const n=S.beacons.length;if(!S.bDown)S.bDown=new Array(n).fill(false);
+  const f=clamp((P.bOut||0)/100,0,0.95);if(f<=0){S.bDown.fill(false);return;}
+  const dt=4*DT,pUp=Math.min(1,dt/Math.max(dt,P.bOutLen||1)),pDown=Math.min(1,pUp*f/(1-f)),g=S.rngB;
+  for(let i=0;i<n;i++)S.bDown[i]=S.bDown[i]?g.u()>=pUp:g.u()<pDown;
+}
 function senseBeacons(){
   const r=S.robot,g=S.rngW,sh=allShapes(),out=[];
   const sr=0.08*P.lmK, sb=0.03*P.lmK;
+  const off=beaconsOff();beaconOutages();
   for(const b of S.beacons){
+    if(off.has(b.id)||S.bDown[b.id])continue;
     const dx=b.x-r.x,dy=b.y-r.y,d=hyp(dx,dy);
     if(d>P.lmRange||d<0.2)continue;
     if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12)continue;
@@ -2545,7 +2571,8 @@ const LEVELS=[
    {t:'<b>Localize:</b> switch to EKF. Then raise odometry bias in Vehicle and watch NEES climb past 3: the filter becomes overconfident.',b:[['EKF',{set:{loc:'ekf'},tab:'loc',plot:'pos'}],['EKF, bias ×3',{set:{loc:'ekf',odoB:3},tab:'veh',plot:'pos'}]]},
    {t:'<b>Localize:</b> raise the filter\'s assumed motion noise until NEES settles near 3 again.',b:[['EKF, bias ×3, assumed noise ×4',{set:{loc:'ekf',odoB:3,filtK:4},tab:'loc',plot:'pos'}]]},
    {t:'<b>Localize:</b> EKF-SLAM does not know where the beacons are. It drifts like dead reckoning until it sees a beacon it mapped early; a longer sensor range gives more overlap and bounds the drift.',b:[['EKF-SLAM',{set:{loc:'slam'},tab:'loc',plot:'pos'}],['EKF-SLAM, beacon range 12 m',{set:{loc:'slam',lmRange:12},tab:'loc',plot:'pos'}],['EKF-SLAM, unlabeled',{set:{loc:'slam',assoc:'unknown'},tab:'loc',plot:'pos'}]]},
-   {t:'<b>Localize:</b> kidnap the robot. With known IDs the EKF can pull itself back. With unlabeled beacons the gate rejects every reading. The particle filter recovers either way.',b:[['EKF, kidnap at 8 s',{set:{loc:'ekf'},tab:'loc',plot:'pos',act:'kidnap'}],['Unlabeled, kidnap',{set:{loc:'ekf',assoc:'unknown'},tab:'loc',plot:'pos',act:'kidnap'}],['Particle filter, kidnap',{set:{loc:'pf',assoc:'unknown'},tab:'loc',plot:'pos',act:'kidnap'}]]}],
+   {t:'<b>Localize:</b> kidnap the robot. With known IDs the EKF can pull itself back. With unlabeled beacons the gate rejects every reading. The particle filter recovers either way.',b:[['EKF, kidnap at 8 s',{set:{loc:'ekf'},tab:'loc',plot:'pos',act:'kidnap'}],['Unlabeled, kidnap',{set:{loc:'ekf',assoc:'unknown'},tab:'loc',plot:'pos',act:'kidnap'}],['Particle filter, kidnap',{set:{loc:'pf',assoc:'unknown'},tab:'loc',plot:'pos',act:'kidnap'}]]},
+   {t:'<b>Localize:</b> take beacons away from the EKF. With the east half off it coasts on odometry there, like dead reckoning, and snaps back in the west. Flicker costs little; long outages leave dead zones where the ellipse grows.',b:[['EKF, east beacons off',{set:{loc:'ekf',bOff:'1,3,5,7,11'},tab:'loc',plot:'pos'}],['EKF, flickering beacons',{set:{loc:'ekf',bOut:50,bOutLen:0.4},tab:'loc',plot:'pos'}],['EKF, long outages',{set:{loc:'ekf',bOut:70,bOutLen:6},tab:'loc',plot:'pos'}]]}],
   shapes:warehouse(),beacons:WH_BEACONS,peds:[],
   start:[1.5,1.5,0],wps:[[21.8,2],[21.8,14.5],[12,8.4],[2,14.5],[2,5]],
   cfg:{loc:'dr',per:'oracle',mis:'sequential',plan:'astar',ctl:'pp',odoK:1,odoB:1,accel:false,lag:0,assoc:'known',clutter:0,replan:0},layers:{cost:false}},
@@ -2606,7 +2633,7 @@ const LEVELS=[
 const DEFAULTS={loc:'truth',assoc:'known',npart:400,inject:true,pfLidar:true,filtK:1,per:'oracle',unknownAs:'free',infl:0.6,
   mis:'sequential',replan:0,lostGuard:false,rwKth:3.0,rwKe:6.0,latency:0,biasDeg:0,biasW:0,mpcMode:'nmpc',mpcNp:20,mpcNc:10,mpcDt:0.1,mpcIt:3,mpcQlat:20,mpcQlon:4,mpcQth:6,mpcQv:2,mpcQf:5,mpcRa:0.3,mpcRs:0.3,mpcRd:1.0,mpcRho:200,mpcObs:true,mpcMarg:0.1,mpcLag:false,planPct:85,model:'diff',wheelbase:0.6,steerMaxDeg:32,steerRate:1.5,revOK:true,revPen:2.0,gearPen:2.0,hybH:'both',stanK:2.0,plan:'astar',eps:1,smooth:true,rrtIt:1500,ctl:'pp',vcruise:0.8,ppL0:0.5,ppK:0.5,alat:0.6,
   kp:2.0,ki:0,kd:0.15,dwaG:1.0,dwaO:0.6,dwaV:0.4,dwaT:1.6,vmax:1.0,wmax:1.8,accel:false,amax:0.8,alpha:3.0,lag:0,
-  odoK:0,odoB:0,lmK:1,lmRange:7,clutter:0,lidarSig:0.02,seed:7,agents:'off',agPred:'cv',agT:4,agGrow:0.1,agSigA:0.8,spd:'none',stMarg:0.3,agPlan:true,people:'scripted',sensLat:0,vehicles:true};
+  odoK:0,odoB:0,lmK:1,lmRange:7,clutter:0,bOff:'',bOut:0,bOutLen:1,lidarSig:0.02,seed:7,agents:'off',agPred:'cv',agT:4,agGrow:0.1,agSigA:0.8,spd:'none',stMarg:0.3,agPlan:true,people:'scripted',sensLat:0,vehicles:true};
 const P={...DEFAULTS};
 const LAYERS={ghost:true,cost:false,search:true,lidar:true,beam:true,belief:true,trail:true,dwa:true,agents:true,ghostrun:true};
 
@@ -2621,7 +2648,7 @@ function recFrame(){
   const sp=S.scanPts,sc=new Float32Array(sp.length*2);for(let i=0;i<sp.length;i++){sc[2*i]=sp[i][0];sc[2*i+1]=sp[i][1];}
   const A=S.agents;
   REC.frames.push({t:S.t,tick:S.tick,robot:{...S.robot},est:{...S.est},Pc:S.Pc?S.Pc.slice():null,cmd:{...S.cmd},
-    peds:S.peds.map(p=>({x:p.x,y:p.y,vx:p.vx||0,vy:p.vy||0,r:p.r,wait:p.wait||0})),scan:sc,lastZ:S.lastZ,
+    peds:S.peds.map(p=>({x:p.x,y:p.y,vx:p.vx||0,vy:p.vy||0,r:p.r,wait:p.wait||0})),scan:sc,lastZ:S.lastZ,bDown:S.bDown?S.bDown.slice():null,
     nT:S.trailT.length,nE:S.trailE.length,plan:S.plan,segIdx:S.segIdx,track:S.track,ctlViz:S.ctlViz,search:S.search,
     fsm:{state:S.fsm.state,queue:S.fsm.queue.slice()},done:WPS.map(w=>[w.done,w.skipped]),
     agents:A?{tracks:A.tracks.map(t=>({...t})),egoPath:A.egoPath,st:A.st,det:[],dynPts:[],staticPts:null}:null,
@@ -2631,7 +2658,7 @@ function recFrame(){
 // A frame as a view over the live state: fields the renderer reads come from the frame, everything else falls through
 function frameView(f){
   const v=Object.create(S);
-  Object.assign(v,{t:f.t,tick:f.tick,robot:f.robot,est:f.est,Pc:f.Pc,cmd:f.cmd,peds:f.peds,lastZ:f.lastZ,plan:f.plan,segIdx:f.segIdx,track:f.track,ctlViz:f.ctlViz,search:f.search,
+  Object.assign(v,{t:f.t,tick:f.tick,robot:f.robot,est:f.est,Pc:f.Pc,cmd:f.cmd,peds:f.peds,lastZ:f.lastZ,bDown:f.bDown,plan:f.plan,segIdx:f.segIdx,track:f.track,ctlViz:f.ctlViz,search:f.search,
     agents:f.agents,coll:f.coll,collPed:f.collPed,pf:null,fsm:Object.assign(Object.create(S.fsm),f.fsm),
     trailT:S.trailT.slice(0,f.nT),trailE:S.trailE.slice(0,f.nE)});
   const pts=[];for(let i=0;i<f.scan.length;i+=2)pts.push([f.scan[i],f.scan[i+1]]);v.scanPts=pts;
@@ -2698,7 +2725,7 @@ function reset(){
   keepGhost();
   prepLevel(LV);
   const st=LV.start;
-  S={t:0,tick:0,rngW:makeRng(P.seed*7919+1),rngA:makeRng(P.seed*104729+3),
+  S={t:0,tick:0,rngW:makeRng(P.seed*7919+1),rngA:makeRng(P.seed*104729+3),rngB:makeRng(P.seed*7907+11),bDown:null,
     shapes:LV.shapes,peds:LV.peds.map(p=>({...p,s:p.s0||0,dir:1,x:p.a[0],y:p.a[1],r:0.3})),
     beacons:LV.beacons.map((b,i)=>({id:i,x:b[0],y:b[1]})),
     robot:{x:st[0],y:st[1],th:st[2],v:0,w:0,d:0,contact:false,pedContact:false},
@@ -2767,6 +2794,8 @@ function setParam(k,v,live){
   if(k==='ctl'){S.ctlState={I:0,prev:null};S.ctlViz=null;SLOTS.ctl.lastErr='';if(SLOTS.ctl.worker)SLOTS.ctl.worker.reset();logE(`Controller → ${({pp:'pure pursuit',rwf:'rear-wheel feedback',pid:'PID',dwa:'DWA',stanley:'Stanley',mpc:'MPC',custom:'your code'})[v]}`);}
   if(k==='agPred'&&SLOTS.pred.worker)SLOTS.pred.worker.reset();
   if(k==='vehicles'||k==='people'){if(k==='vehicles'){S.peds=S.peds.filter(p=>!p.car);if(v)carsInit();}logE(k==='people'?`People → ${v}`:`Other vehicles → ${v?'on':'off'}`);}
+  if(k==='bOff'){const n=beaconsOff().size;logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)`:'All beacons on');}
+  if(k==='bOut'&&!live)logE(v>0?`Random beacon outages: each beacon down ${v} % of the time`:'Random beacon outages off');
   if(k==='seed'&&!live)logE(`Seed ${v} takes effect on Reset`);
   if(k==='model'){S.robot.d=0;S.robot.w=0;S.cmd={v:0,w:0,steer:0};
     if(v==='diff'){if(P.plan==='rs'||P.plan==='hybrid')P.plan='astar';if(P.ctl==='stanley')P.ctl='pp';}
@@ -2775,6 +2804,10 @@ function setParam(k,v,live){
   if(['wheelbase','steerMaxDeg','revOK','revPen','gearPen','hybH','planPct'].includes(k)&&!live&&(P.plan==='hybrid'||P.plan==='rs'))requestReplan('vehicle or planner changed');
   UI.invalidate();
   if(UI.mode()==='sim'){UI.draw();UI.refresh();}
+}
+function toggleBeacon(id){
+  const s=beaconsOff();if(s.has(id))s.delete(id);else s.add(id);
+  setParam('bOff',[...s].sort((a,b)=>a-b).join(','),false);
 }
 function requestReplan(reason){
   const F=S.fsm;if(F.state==='DRIVE'||F.state==='NO_PATH'||F.state==='PLAN'){F.state='PLAN';F.pendingReason=reason;if(!running)advanceMission();}
@@ -2840,10 +2873,23 @@ function lidarSense(){
   for(let k=0;k<NBEAM;k++){const a=r.th-Math.PI+k*TAU/NBEAM;let d=rayCast(r.x,r.y,Math.cos(a),Math.sin(a),LMAX,sh);if(d<LMAX)d=Math.max(0.05,d+P.lidarSig*g.n());ranges[k]=d;}
   return ranges;
 }
+// Beacon availability: switched off by the user (P.bOff, comma-separated IDs) or down in a random outage.
+// Each beacon is a two-state Markov chain stepped at every beacon scan: an outage lasts bOutLen s on average
+// and a beacon is down bOut % of the time. Outages draw from their own stream, so the sensor noise is unchanged.
+function beaconsOff(){return new Set(String(P.bOff||'').split(',').filter(s=>s.trim()!=='').map(Number));}
+function beaconDown(id){return beaconsOff().has(id)||!!(S.bDown&&S.bDown[id]);}
+function beaconOutages(){
+  const n=S.beacons.length;if(!S.bDown)S.bDown=new Array(n).fill(false);
+  const f=clamp((P.bOut||0)/100,0,0.95);if(f<=0){S.bDown.fill(false);return;}
+  const dt=4*DT,pUp=Math.min(1,dt/Math.max(dt,P.bOutLen||1)),pDown=Math.min(1,pUp*f/(1-f)),g=S.rngB;
+  for(let i=0;i<n;i++)S.bDown[i]=S.bDown[i]?g.u()>=pUp:g.u()<pDown;
+}
 function senseBeacons(){
   const r=S.robot,g=S.rngW,sh=allShapes(),out=[];
   const sr=0.08*P.lmK, sb=0.03*P.lmK;
+  const off=beaconsOff();beaconOutages();
   for(const b of S.beacons){
+    if(off.has(b.id)||S.bDown[b.id])continue;
     const dx=b.x-r.x,dy=b.y-r.y,d=hyp(dx,dy);
     if(d>P.lmRange||d<0.2)continue;
     if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12)continue;
@@ -4547,7 +4593,10 @@ function draw(){
     else{const{X,Y,Pa}=S.search;ctx.strokeStyle=rgba(TOK.accent,0.28);ctx.lineWidth=px(1);ctx.beginPath();for(let i=1;i<X.length;i++){ctx.moveTo(X[i],Y[i]);ctx.lineTo(X[Pa[i]],Y[Pa[i]]);}ctx.stroke();}
   }
   // beacons
-  for(const b of S.beacons){ctx.fillStyle=TOK.beacon;ctx.strokeStyle=TOK['map-bg'];ctx.lineWidth=px(1);ctx.beginPath();const s=Math.max(0.18,px(6));ctx.moveTo(b.x,b.y+s);ctx.lineTo(b.x+s,b.y);ctx.lineTo(b.x,b.y-s);ctx.lineTo(b.x-s,b.y);ctx.closePath();ctx.fill();ctx.stroke();}
+  // switched off: hollow and grey; down in a random outage: hollow
+  {const off=beaconsOff();for(const b of S.beacons){const sw=off.has(b.id),dn=sw||!!(S.bDown&&S.bDown[b.id]);
+    ctx.fillStyle=dn?TOK['map-bg']:TOK.beacon;ctx.strokeStyle=dn?(sw?TOK.muted:TOK.beacon):TOK['map-bg'];ctx.lineWidth=px(dn?1.5:1);ctx.beginPath();const s=Math.max(0.18,px(6));ctx.moveTo(b.x,b.y+s);ctx.lineTo(b.x+s,b.y);ctx.lineTo(b.x,b.y-s);ctx.lineTo(b.x-s,b.y);ctx.closePath();ctx.fill();ctx.stroke();
+    if(sw){ctx.beginPath();ctx.moveTo(b.x-s*0.6,b.y-s*0.6);ctx.lineTo(b.x+s*0.6,b.y+s*0.6);ctx.stroke();}}}
   // people
   for(const p of S.peds){if(p.car){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.th);ctx.fillStyle=rgba(TOK.warn,0.75);ctx.strokeStyle=TOK.warn;ctx.lineWidth=px(1.5);ctx.beginPath();ctx.rect(-p.len/2,-p.wid/2,p.len,p.wid);ctx.fill();ctx.stroke();ctx.fillStyle=TOK['map-bg'];ctx.fillRect(p.len/2-0.18,-p.wid/2+0.08,0.1,p.wid-0.16);ctx.restore();continue;}
     ctx.fillStyle=rgba(TOK.warn,0.85);ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,TAU);ctx.fill();
@@ -4559,8 +4608,8 @@ function draw(){
     ctx.lineWidth=px(1.3);ctx.strokeStyle=rgba(TOK.ink,0.45);polyline(S.trailT);ctx.stroke();
     ctx.setLineDash([px(3),px(3)]);ctx.strokeStyle=rgba(TOK.accent,0.7);polyline(S.trailE);ctx.stroke();ctx.setLineDash([]);
   }
-  // beacon measurements (drawn from the estimate)
-  if(LAYERS.beam&&P.loc!=='truth'){
+  // beacon measurements (drawn from the estimate); dead reckoning never uses them, so they are not drawn for it
+  if(LAYERS.beam&&P.loc!=='truth'&&P.loc!=='dr'){
     const e=S.est;ctx.lineWidth=px(1);
     for(const m of S.lastZ){const a=e.th+m.b,x=e.x+m.r*Math.cos(a),y=e.y+m.r*Math.sin(a);ctx.strokeStyle=m.fake?rgba(TOK.bad,0.6):rgba(TOK.beacon,0.6);ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(x,y);ctx.stroke();
       ctx.fillStyle=m.fake?TOK.bad:TOK.beacon;ctx.beginPath();ctx.arc(x,y,px(2.5),0,TAU);ctx.fill();}
@@ -4792,7 +4841,13 @@ const SCHEMA={
       {k:'inject',type:'bool',label:'Recovery injection (augmented MCL + sensor resetting)',show:pf_},
       {k:'pfLidar',type:'bool',label:'Also weight particles by lidar against the prior map (likelihood field)',show:()=>pf_()&&P.per==='oracle'},
       {k:'filtK',label:'Filter\'s assumed motion noise',min:0.25,max:6,step:0.25,unit:'× true',show:()=>P.loc!=='truth'},
-      {type:'btn',label:'Scatter particles',act:()=>scatterParticles(),show:pf_}],
+      {type:'btn',label:'Scatter particles',act:()=>scatterParticles(),show:pf_},
+      {type:'info',text:()=>'Dead reckoning never uses the beacons: it integrates odometry only, so its error and ellipse only grow. Switch to EKF or the particle filter to see beacons pull the estimate back.',show:()=>P.loc==='dr'},
+      {type:'info',text:()=>'Odometry is perfect on this level (noise and bias 0), so dead reckoning matches the truth exactly.',show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
+      {type:'btn',label:'Add odometry noise and bias (×1)',act:()=>{setParam('odoK',1,false);setParam('odoB',1,false);renderAllPanes();},show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
+      {type:'beacons',label:'Beacons on (tap to switch one off)',show:()=>P.loc!=='truth'},
+      {k:'bOut',label:'Random beacon outages (share of time each is down)',min:0,max:90,step:5,unit:'%',show:()=>P.loc!=='truth'},
+      {k:'bOutLen',label:'Mean outage length (short = flicker)',min:0.2,max:10,step:0.2,unit:'s',show:()=>P.loc!=='truth'&&P.bOut>0}],
  per:[{k:'per',type:'seg',label:'Map source',opts:[['oracle','Prior map'],['mapping','Lidar mapping']]},
       {k:'unknownAs',type:'seg',label:'Unknown space is',opts:[['free','Free (optimistic)'],['lethal','Lethal (cautious)']],show:()=>P.per==='mapping'},
       {k:'infl',label:'Inflation band beyond lethal',min:0,max:1.5,step:0.05,unit:'m'},
@@ -4898,6 +4953,7 @@ M = diag(σ_v², σ_ω²)  (assumed noise × filter scale)</div>
 H = [−Δx/√q  −Δy/√q   0 ;  Δy/q  −Δx/q  −1]
 S = HΣHᵀ + Q,  K = ΣHᵀS⁻¹,  μ += K(z − ẑ)
 unlabeled: pick min Mahalanobis d² = νᵀS⁻¹ν, gate d² < 9.21 (χ²₂, 99%)</div>
+<p><b>Beacon availability.</b> Switch beacons off (the numbered chips, or Tap map → Switch a beacon on/off) or let them fail at random. While no beacon is in view the EKF and the particle filter only predict, exactly as dead reckoning does, and the ellipse grows; the first reading back pulls the estimate in. Dead reckoning never uses beacons, so the map draws no beacon readings for it. On the map a switched-off beacon is a grey hollow diamond with a stroke; one in a random outage is a hollow diamond.</p>
 <p><b>Particle filter</b> (Monte Carlo localization) samples the motion model per particle, weights by beacon likelihood with a robust floor, and resamples with the low-variance sampler when N_eff &lt; N/2. Augmented MCL tracks short- and long-term likelihood averages (α_fast = 0.1, α_slow = 0.001) and, when the short-term average drops, replaces up to 25% of particles with poses drawn from the current beacon readings (sensor-resetting localization). That is what recovers from kidnapping.</p>
 <p>With a prior map the particle filter can also score lidar scans (likelihood field, 24 beams, σ = 0.2 m, tempered by 0.4 because beams are correlated). Beacons alone are sparse; walls are everywhere.</p>
 <p>Like AMCL, the filter skips sensor updates until the robot has moved about 5 cm (or turned about 0.1 rad). Updating while parked would resample the same evidence over and over and collapse the particle set.</p>
@@ -5061,13 +5117,16 @@ const TIPS={loc:'Which estimator produces the pose the planner and controller us
  plan:'Global planner on the costmap. Reeds–Shepp and Hybrid A* are car-only.',planPct:'Fraction of the steering limit the planner may use. The rest is margin for the tracker.',eps:'Heuristic weight. Above 1 the search is faster and the path up to ε times longer.',hybH:'Which heuristic guides Hybrid A*.',revOK:'Allow reverse legs with cusps.',revPen:'Cost multiplier on reverse distance.',gearPen:'Fixed cost for each change of direction.',rrtIt:'Samples per RRT* run.',smooth:'Shortcut the path with line-of-sight checks.',agPlan:'When the speed planner cannot avoid an agent, replan around its predicted positions.',
  ctl:'Path tracker that turns the plan into speed and steering.',vcruise:'Speed the reference profile aims for on straights.',spd:'How path trackers and MPC react to tracked agents. Ignore: not at all. Reactive stop: brake for hits in the corridor ahead (path trackers). Speed planning: ST-graph speed profile against the predictions; it caps a path tracker\'s speed and is MPC\'s reference.',stMarg:'Clearance the speed planner keeps from predicted agents.',ppL0:'Lookahead distance at zero speed.',ppK:'Extra lookahead per m/s of speed.',alat:'Lateral acceleration cap that slows the robot in curves.',rwKth:'Heading-error gain of rear-wheel feedback. Higher damps more.',rwKe:'Lateral-error gain of rear-wheel feedback. Higher is stiffer.',stanK:'Stanley cross-track gain.',kp:'Proportional gain on heading error to the carrot.',ki:'Integral gain; removes steady error but adds phase lag.',kd:'Derivative gain on heading error.',dwaG:'DWA weight on distance and heading to the carrot.',dwaO:'DWA weight on clearance.',dwaV:'DWA weight on speed.',dwaT:'How far DWA rolls each candidate out.',
  mpcMode:'NMPC relinearizes every iteration; LTV linearizes once about the reference.',mpcNp:'Prediction horizon in steps of Δt.',mpcNc:'Free input moves; later moves are held at the last one.',mpcDt:'Prediction step.',mpcIt:'SQP iterations per 50 ms tick, within a 15 ms budget.',mpcQlat:'Penalty on lateral error.',mpcQlon:'Penalty on along-track error.',mpcQth:'Penalty on heading error.',mpcQv:'Penalty on speed error.',mpcQf:'Multiplier on the last step of the horizon.',mpcRa:'Penalty on acceleration input.',mpcRs:'Penalty on steering-rate or angular-acceleration input.',mpcRd:'Penalty on the change between consecutive moves.',mpcRho:'Augmented-Lagrangian penalty for the state constraints.',mpcObs:'Add clearance constraints against lidar points and predicted agents.',mpcMarg:'Extra clearance in the obstacle constraints.',mpcLag:'Model the first-order actuator lag with two more states.',
- model:'Unicycle turns in place; the bicycle model steers front wheels and needs motion to turn.',wheelbase:'Distance between axles.',steerMaxDeg:'Steering limit; sets the minimum turning radius.',steerRate:'How fast the steering angle can change.',vmax:'Speed limit.',wmax:'Turn-rate limit of the unicycle.',accel:'Enforce acceleration limits in the vehicle.',amax:'Linear acceleration limit.',alpha:'Angular acceleration limit.',lag:'First-order actuator time constant.',latency:'Ticks a command waits before reaching the actuators.',biasDeg:'Constant offset between commanded and actual steering angle.',biasW:'Constant offset in turn rate, as from one weak motor.',odoK:'Odometry noise scale.',odoB:'Odometry calibration bias the filters are not told about.',lmK:'Beacon range and bearing noise scale.',lmRange:'Beacon sensor range.',clutter:'False beacon detections per scan in unlabeled mode.',lidarSig:'Lidar range noise.',seed:'Seed of the world and sensor noise. Applied on Reset.'};
+ model:'Unicycle turns in place; the bicycle model steers front wheels and needs motion to turn.',wheelbase:'Distance between axles.',steerMaxDeg:'Steering limit; sets the minimum turning radius.',steerRate:'How fast the steering angle can change.',vmax:'Speed limit.',wmax:'Turn-rate limit of the unicycle.',accel:'Enforce acceleration limits in the vehicle.',amax:'Linear acceleration limit.',alpha:'Angular acceleration limit.',lag:'First-order actuator time constant.',latency:'Ticks a command waits before reaching the actuators.',biasDeg:'Constant offset between commanded and actual steering angle.',biasW:'Constant offset in turn rate, as from one weak motor.',odoK:'Odometry noise scale.',odoB:'Odometry calibration bias the filters are not told about.',lmK:'Beacon range and bearing noise scale.',bOff:'Beacons switched off send no readings. Also: Tap map → Switch a beacon on/off.',bOut:'Each beacon fails at random and comes back; this is the share of time it is down. Outages have their own random stream, so the sensor noise is unchanged.',bOutLen:'Average length of one outage. A few tenths of a second is a flicker; several seconds is a dead zone.',lmRange:'Beacon sensor range.',clutter:'False beacon detections per scan in unlabeled mode.',lidarSig:'Lidar range noise.',seed:'Seed of the world and sensor noise. Applied on Reset.'};
 function lvlDefault(k){return k in (LV.cfg||{})?LV.cfg[k]:DEFAULTS[k];}
-function chgMark(f){const d=lvlDefault(f.k);if(d===undefined||P[f.k]===d)return'';return`<button class="rst" data-reset="${f.k}" title="Back to this level's default (${fmtVal(f,d)})">↺</button>`;}
+function chgMark(f){const d=lvlDefault(f.k);if(d===undefined||P[f.k]===d)return'';const o=f.opts&&(typeof f.opts==='function'?f.opts():f.opts).find(x=>x[0]===d);
+  const dv=typeof d==='number'?fmtVal(f,d):typeof d==='boolean'?(d?'on':'off'):o?o[1]:d===''?'none':d;return`<button class="rst" data-reset="${f.k}" title="Back to this level's default (${dv})">↺</button>`;}
 function fieldHTML(f){
   if(f.type==='info'){infoFns.push(f.text);return`<p class="note" data-info="${infoFns.length-1}">${f.text()}</p>`;}
   if(f.type==='seg')return`<div class="field${chgMark(f)?' chg':''}"><span class="lbl" title="${TIPS[f.k]||''}">${f.label}${chgMark(f)}</span><div class="seg" data-k="${f.k}">${(typeof f.opts==='function'?f.opts():f.opts).map(([v,l])=>`<button data-v="${v}" aria-pressed="${P[f.k]===v}">${l}</button>`).join('')}</div></div>`;
   if(f.type==='bool')return`<label class="check${chgMark(f)?' chg':''}" title="${TIPS[f.k]||''}"><input type="checkbox" id="p-${f.k}" data-k="${f.k}" ${P[f.k]?'checked':''}><span>${f.label}${chgMark(f)}</span></label>`;
+  if(f.type==='beacons'){const off=beaconsOff(),c=chgMark({k:'bOff'});
+    return`<div class="field${c?' chg':''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b=>`<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="linkbtn" data-beacon="all">All on</button><button class="linkbtn" data-beacon="none">All off</button></div></div>`;}
   if(f.type==='btn'){btnActs.push(f.act);return`<div><button class="btn" data-act="${btnActs.length-1}">${f.label}</button></div>`;}
   return`<div class="field${chgMark(f)?' chg':''}"><div class="row"><label for="p-${f.k}" title="${TIPS[f.k]||''}">${f.label}${chgMark(f)}</label><output id="o-${f.k}">${fmtVal(f,P[f.k])}</output></div><input type="range" id="p-${f.k}" data-k="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${P[f.k]}"></div>`;
 }
@@ -5080,6 +5139,8 @@ function wirePane(t){
   pane.querySelectorAll('input[type=range][data-k]').forEach(rg=>{const f=Object.values(SCHEMA).flat().find(x=>x.k===rg.dataset.k);
     rg.oninput=()=>{$('#o-'+f.k).textContent=fmtVal(f,rg.value);setParam(f.k,+rg.value,true);pane.querySelectorAll('[data-info]').forEach(el=>{el.textContent=infoFns[+el.dataset.info]();});};
     rg.onchange=()=>setParam(f.k,+rg.value,false);});
+  pane.querySelectorAll('[data-beacon]').forEach(b=>b.onclick=()=>{const v=b.dataset.beacon;
+    if(v==='all')setParam('bOff','',false);else if(v==='none')setParam('bOff',S.beacons.map(x=>x.id).join(','),false);else toggleBeacon(+v);renderAllPanes();});
   pane.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>btnActs[+b.dataset.act]());
   btnActs=btnActs.slice(-20);infoFns=infoFns.slice(-20);
   pane.querySelectorAll('details[data-how]').forEach(d=>d.ontoggle=()=>{howOpen[d.dataset.how]=d.open;});
@@ -5203,7 +5264,7 @@ const NOMEN=[
   ['<i class="swatch line dash" style="border-color:var(--warn)"></i>','Global path, reverse leg (car)',''],
   ['<i class="swatch" style="background:var(--rose)"></i>','Belief: particles (particle filter) or 95 % covariance ellipse (EKF, dead reckoning)',''],
   ['<i class="swatch sq" style="background:var(--amber)"></i>','Lidar hits, placed using the estimated pose',''],
-  ['<i class="swatch dia" style="background:var(--beacon)"></i>','Beacons (known positions) and the current range–bearing readings drawn from the estimate; red readings are false detections',''],
+  ['<i class="swatch dia" style="background:var(--beacon)"></i>','Beacons (known positions) and the current range–bearing readings drawn from the estimate (not for dead reckoning, which ignores them); red readings are false detections. Hollow: in an outage; grey with a stroke: switched off',''],
   ['<i class="swatch" style="background:var(--warn)"></i>','People (ground truth), with a velocity tick',''],
   ['<i class="swatch ring" style="border-color:var(--warn)"></i>','Tracked agent with its ID, as estimated; dashed rings are its predicted positions at 1 s, 2 s, … growing with uncertainty. Grey dashed ring: tentative track',''],
   ['<i class="swatch ring" style="border-color:var(--accent)"></i>','Ego predicted positions at 1 s, 2 s, … from the speed plan, MPC or DWA. Matching numbers on the agents\' rings are the same instants',''],
@@ -6323,7 +6384,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='0'){$('#mv-fit').click();}
   else if(e.key==='a'||e.key==='A'){setMode(AN.mode==='sim'?'an':'sim');}
 });
-$('#tapsel').onchange=e=>{tapMode=e.target.value;$('#kidnapb').setAttribute('aria-pressed','false');cv.style.touchAction=tapMode==='pose'?'none':'manipulation';};
+$('#tapsel').onchange=e=>{tapMode=e.target.value;if(tapMode==='beacon')logE('Tap a beacon (diamond) to switch it off or on');$('#kidnapb').setAttribute('aria-pressed','false');cv.style.touchAction=tapMode==='pose'?'none':'manipulation';};
 $('#pausec').onchange=e=>{pauseOnContact=e.target.checked;};
 $('#kidnapb').onclick=()=>{const on=tapMode!=='kidnap';tapMode=on?'kidnap':$('#tapsel').value;$('#kidnapb').setAttribute('aria-pressed',String(on));if(on)logE('Tap the map where the robot should be teleported','warn');};
 $('#legendmore').onclick=()=>showSym('map');
@@ -6387,6 +6448,9 @@ cv.addEventListener('pointerdown',e=>{
 });
 function tapAt(x,y,e){
   const k=cellIdx(x,y);if(k<0)return;
+  if(tapMode==='beacon'){const{kz}=viewXform(),r=cv.getBoundingClientRect(),tol=22*(cv.width/r.width)/kz;let best=null;
+    for(const b of S.beacons){const d=hyp(x-b.x,y-b.y);if(d<tol&&(!best||d<best[0]))best=[d,b];}
+    if(best){toggleBeacon(best[1].id);renderAllPanes();}else logE('No beacon there: tap a diamond','warn');return;}
   if(tapMode==='pose'){poseDrag={x,y,x2:x,y2:y};try{if(e)cv.setPointerCapture(e.pointerId);}catch(_){}draw();return;}
   const free=LV.truthDist[k]>(isCar()?CAR.width/2+0.05:RR+0.02);
   if(tapMode==='kidnap'){
@@ -6415,7 +6479,7 @@ function hoverAt(e){
   WPS.forEach((w,i)=>{const q=S.fsm.queue.indexOf(i);C.push([hyp(x-w.x,y-w.y),()=>`<b>Goal ${q>=0?q+1:i+1}</b> · ${w.done?(w.skipped?'skipped':'reached'):q===0?'active':'queued'}<br>${w.x.toFixed(2)}, ${w.y.toFixed(2)} m${w.th!=null?` · heading ${deg(w.th).toFixed(0)}°`:''}`]);});
   S.peds.forEach((p,i)=>C.push([hyp(x-p.x,y-p.y)-0.1,()=>p.car?`<b>Vehicle</b> (ground truth)<br>${p.v.toFixed(2)} m/s${p.v<0.05?' · yielding':''}`:`<b>Person ${i+1}</b> (ground truth)<br>${hyp(p.vx||0,p.vy||0).toFixed(2)} m/s${p.wait>0?' · paused':''}`]));
   if(S.agents&&agOn())for(const t of S.agents.tracks)C.push([hyp(x-t.x,y-t.y)-0.1,()=>`<b>Agent #${t.id}</b> · ${t.conf?'confirmed':'tentative'}<br>v ${hyp(t.vx,t.vy).toFixed(2)} m/s · heading ${deg(Math.atan2(t.vy,t.vx)).toFixed(0)}°<br>r ${t.r.toFixed(2)} m · ${t.hits} hits · σ<sub>pos</sub> ${Math.sqrt(Math.max(0,t.pxx)).toFixed(2)} m`]);
-  for(const b of S.beacons)C.push([hyp(x-b.x,y-b.y),()=>`<b>Beacon ${b.id}</b><br>${b.x.toFixed(2)}, ${b.y.toFixed(2)} m`]);
+  for(const b of S.beacons)C.push([hyp(x-b.x,y-b.y),()=>`<b>Beacon ${b.id}</b> · ${beaconsOff().has(b.id)?'switched off':S.bDown&&S.bDown[b.id]?'outage':'on'}<br>${b.x.toFixed(2)}, ${b.y.toFixed(2)} m${tapMode==='beacon'?'<br>tap to switch it '+(beaconsOff().has(b.id)?'on':'off'):''}`]);
   let best=null;for(const c of C)if(c[0]<tol&&(!best||c[0]<best[0]))best=c;
   const t=$('#maptip');if(!best){hideTip();return;}
   t.innerHTML=best[1]();t.hidden=false;

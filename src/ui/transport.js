@@ -16,7 +16,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='0'){$('#mv-fit').click();}
   else if(e.key==='a'||e.key==='A'){setMode(AN.mode==='sim'?'an':'sim');}
 });
-$('#tapsel').onchange=e=>{tapMode=e.target.value;$('#kidnapb').setAttribute('aria-pressed','false');cv.style.touchAction=tapMode==='pose'?'none':'manipulation';};
+$('#tapsel').onchange=e=>{tapMode=e.target.value;if(tapMode==='beacon')logE('Tap a beacon (diamond) to switch it off or on');$('#kidnapb').setAttribute('aria-pressed','false');cv.style.touchAction=tapMode==='pose'?'none':'manipulation';};
 $('#pausec').onchange=e=>{pauseOnContact=e.target.checked;};
 $('#kidnapb').onclick=()=>{const on=tapMode!=='kidnap';tapMode=on?'kidnap':$('#tapsel').value;$('#kidnapb').setAttribute('aria-pressed',String(on));if(on)logE('Tap the map where the robot should be teleported','warn');};
 $('#legendmore').onclick=()=>showSym('map');
@@ -80,6 +80,9 @@ cv.addEventListener('pointerdown',e=>{
 });
 function tapAt(x,y,e){
   const k=cellIdx(x,y);if(k<0)return;
+  if(tapMode==='beacon'){const{kz}=viewXform(),r=cv.getBoundingClientRect(),tol=22*(cv.width/r.width)/kz;let best=null;
+    for(const b of S.beacons){const d=hyp(x-b.x,y-b.y);if(d<tol&&(!best||d<best[0]))best=[d,b];}
+    if(best){toggleBeacon(best[1].id);renderAllPanes();}else logE('No beacon there: tap a diamond','warn');return;}
   if(tapMode==='pose'){poseDrag={x,y,x2:x,y2:y};try{if(e)cv.setPointerCapture(e.pointerId);}catch(_){}draw();return;}
   const free=LV.truthDist[k]>(isCar()?CAR.width/2+0.05:RR+0.02);
   if(tapMode==='kidnap'){
@@ -108,7 +111,7 @@ function hoverAt(e){
   WPS.forEach((w,i)=>{const q=S.fsm.queue.indexOf(i);C.push([hyp(x-w.x,y-w.y),()=>`<b>Goal ${q>=0?q+1:i+1}</b> · ${w.done?(w.skipped?'skipped':'reached'):q===0?'active':'queued'}<br>${w.x.toFixed(2)}, ${w.y.toFixed(2)} m${w.th!=null?` · heading ${deg(w.th).toFixed(0)}°`:''}`]);});
   S.peds.forEach((p,i)=>C.push([hyp(x-p.x,y-p.y)-0.1,()=>p.car?`<b>Vehicle</b> (ground truth)<br>${p.v.toFixed(2)} m/s${p.v<0.05?' · yielding':''}`:`<b>Person ${i+1}</b> (ground truth)<br>${hyp(p.vx||0,p.vy||0).toFixed(2)} m/s${p.wait>0?' · paused':''}`]));
   if(S.agents&&agOn())for(const t of S.agents.tracks)C.push([hyp(x-t.x,y-t.y)-0.1,()=>`<b>Agent #${t.id}</b> · ${t.conf?'confirmed':'tentative'}<br>v ${hyp(t.vx,t.vy).toFixed(2)} m/s · heading ${deg(Math.atan2(t.vy,t.vx)).toFixed(0)}°<br>r ${t.r.toFixed(2)} m · ${t.hits} hits · σ<sub>pos</sub> ${Math.sqrt(Math.max(0,t.pxx)).toFixed(2)} m`]);
-  for(const b of S.beacons)C.push([hyp(x-b.x,y-b.y),()=>`<b>Beacon ${b.id}</b><br>${b.x.toFixed(2)}, ${b.y.toFixed(2)} m`]);
+  for(const b of S.beacons)C.push([hyp(x-b.x,y-b.y),()=>`<b>Beacon ${b.id}</b> · ${beaconsOff().has(b.id)?'switched off':S.bDown&&S.bDown[b.id]?'outage':'on'}<br>${b.x.toFixed(2)}, ${b.y.toFixed(2)} m${tapMode==='beacon'?'<br>tap to switch it '+(beaconsOff().has(b.id)?'on':'off'):''}`]);
   let best=null;for(const c of C)if(c[0]<tol&&(!best||c[0]<best[0]))best=c;
   const t=$('#maptip');if(!best){hideTip();return;}
   t.innerHTML=best[1]();t.hidden=false;

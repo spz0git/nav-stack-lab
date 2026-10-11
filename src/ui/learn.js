@@ -23,7 +23,7 @@ const LESSON_LAYERS={
   per:[['lidar','ghost'],['cost','lidar','ghost'],['lidar','agents'],['lidar','agents'],['agents','lidar']],
   plan:[['search','cost'],['search','cost'],['search','cost','trail'],['search','cost','trail'],['search','agents']],
   ctl:[]};
-function lessonLayers(id){const[g,i]=id.split(':');const L=(LESSON_LAYERS[g]||[])[+i]||['trail','dwa'];
+function lessonLayers(id){const[g,i]=id.split(':');const L=(LESSON_LAYERS[g]||[])[+i]||['trail','dwa','look'];
   return Object.fromEntries(Object.keys(LAYERS).map(k=>[k,L.includes(k)]));}
 const lessonItem=id=>{const[g,i]=id.split(':'),G=LESSON_GROUPS().find(x=>x.id===g);return G&&G.items[+i]?{G,i:+i,L:G.items[+i]}:null;};
 function openLesson(id){

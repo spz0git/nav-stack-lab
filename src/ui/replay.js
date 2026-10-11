@@ -18,6 +18,6 @@ function syncScrub(){
 function exitReplay(){if(REPLAY.active){REPLAY.active=false;syncScrub();draw();}}
 {const w=document.createElement('div');w.className='scrub';w.id='scrub';w.hidden=true;
  w.innerHTML=`<span class="lbl" title="Drag to review the run. Run or Step continues from the live state.">Replay</span><input type="range" id="scrubr" min="0" max="0" value="0" aria-label="Replay position"><span class="kv" id="scrubt"></span><button class="btn small" id="scrub-live" hidden>Live</button>`;
- const lg=$('.legend');lg.parentNode.insertBefore(w,lg);
+ const mw=$('.mapwrap');mw.parentNode.insertBefore(w,mw.nextSibling);
  $('#scrubr').oninput=e=>{REPLAY.active=true;REPLAY.i=+e.target.value;syncScrub();drawMaybeReplay();};
  $('#scrub-live').onclick=exitReplay;}

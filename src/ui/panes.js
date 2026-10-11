@@ -13,8 +13,8 @@ async function tryGo(cfg){
   if(cfg.level!=null)LV=LEVELS[cfg.level];
   if(!cfg.keep)loadLevel(LEVELS.indexOf(LV));
   for(const[k,v]of Object.entries(cfg.set||{}))setParam(k,v,false);
-  if(cfg.layers)Object.assign(LAYERS,cfg.layers);
-  if(cfg.tab){activeTab=cfg.tab;consoleOpen=true;buildTabs();}renderAllPanes();
+  if(cfg.tab){activeTab=cfg.tab;consoleOpen=true;buildTabs();}
+  applyTabLayers();if(cfg.layers)Object.assign(LAYERS,cfg.layers);renderAllPanes();
   if(cfg.plot){plotCh=cfg.plot;seg($('#plotsel'),PLOT_OPTS,()=>plotCh,v=>{plotCh=v;drawPlot();});}
   if(AN.mode!=='sim')setMode('sim');
   if(cfg.keep){draw();return;}
@@ -46,6 +46,7 @@ function buildTabs(){
   $('.console').classList.toggle('collapsed',!consoleOpen);
 }
 function renderAllPanes(){
+  applyTabLayers();
   const t=activeTab;let html='';
   if(t==='code')html=codePane();
   else if(t==='view')html=layersPane();
@@ -94,7 +95,8 @@ function wirePane(t){
   if(t==='exp')wireExp(pane);
   if(t==='sym')wireSym(pane);
   if(t==='view'){const g=$('#ghost-clear');if(g)g.onclick=()=>{GHOST=null;renderAllPanes();draw();};}
-  if(t==='view')pane.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;draw();});
+  if(t==='view'){pane.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;const fresh=!layersEdited;layersEdited=true;if(fresh)renderAllPanes();draw();});
+    const au=$('#layers-auto');if(au)au.onclick=()=>{layersEdited=false;layersKey='';renderAllPanes();};}
 }
 let replanDebounce=null;
 

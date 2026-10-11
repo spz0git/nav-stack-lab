@@ -69,7 +69,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
   .right{grid-area:right;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
   .stage{grid-area:stage;min-height:0;overflow-y:auto;overscroll-behavior:contain}
   .console{border-radius:6px}
-  .console .tabs{position:sticky;top:0;z-index:2;background:var(--panel);border-radius:6px 6px 0 0}
+  .console .tabhead{position:sticky;top:0;z-index:2;background:var(--panel);border-radius:6px 6px 0 0}
   .mapwrap{width:min(100%,max(480px,calc((100vh - 440px)*1.5)));margin-inline:auto}
   .levels{flex-wrap:wrap;overflow:visible}
   .lvl{flex-direction:row;align-items:baseline;gap:6px;min-width:0;padding:4px 10px;white-space:nowrap}
@@ -115,6 +115,28 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .tab{flex:0 0 auto;border:0;background:transparent;padding:10px 9px 9px;font-family:var(--f-display);font-weight:600;font-size:.95rem;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .tab small{font-family:var(--f-mono);font-size:.68rem;font-weight:400;margin-right:4px;opacity:.7}
+.tabgroups{display:flex;flex-wrap:wrap;gap:4px;padding:8px 8px 0}
+.tabgroups button{border:1px solid transparent;background:none;border-radius:999px;padding:2px 10px;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tabgroups button:hover{border-color:var(--line)}
+.tabgroups button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+/* Learn mode: the right column is the lesson list, then the open lesson at full width */
+.layout[data-mode="learn"] .levels,.layout[data-mode="learn"] .brief,.layout[data-mode="learn"] .console{display:none}
+.learncol{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px 14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.learncol[hidden]{display:none}
+.learn-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}
+.learn-head .note{flex:1 1 100%}
+.learn-head .linkbtn{align-self:center}
+.learncol .lesson summary{list-style:none}
+.learncol .lesson summary::-webkit-details-marker{display:none}
+.learncol .lesson summary::after{content:"›";margin-left:auto;color:var(--muted);font-family:var(--f-mono)}
+.learncol .lesson summary:hover{color:var(--accent)}
+.learncol.reading .lgroup:not(.cur),.learncol.reading .lgroup>h3,.learncol.reading .lgroup>.note,.learncol.reading .lesson:not([open]){display:none}
+.learncol.reading .lesson{border-top:0;padding-top:0}
+.learncol.reading .lesson summary{font-size:1.3rem;cursor:default}
+.learncol.reading .lesson summary::after{content:none}
+.learncol.reading .how-body{font-size:.94rem}
+.learncol.reading .how-body p{max-width:none}
+.learncol.reading .tries{margin-top:6px}
 .pane{padding:14px;display:flex;flex-direction:column;gap:12px}
 .field{display:flex;flex-direction:column;gap:5px}
 .rst{border:0;background:none;color:var(--accent);cursor:pointer;font-size:.9rem;padding:0 4px;line-height:1}
@@ -253,7 +275,8 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .tele{order:9}
   .levels{order:10}
   .brief{order:11}
-  .console{order:12}
+  .console,.learncol{order:12}
+  .layout[data-mode="learn"] .learncol{order:6}   /* a lesson reads right under the transport bar */
   .status{gap:2px 10px;font-size:.8rem}
   .status .pill{font-size:.7rem;padding:2px 7px}
   .transport .controls{flex-wrap:nowrap;gap:6px}
@@ -283,7 +306,7 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
       <section class="brief" id="brief" aria-live="polite"></section>
     </section>
     <section class="stage">
-      <div class="modebar"><div class="seg" id="modesel" aria-label="View"></div><span class="lbl" id="modehint">Linear analysis of the tracking loop, with guided lessons in the Learn tab</span></div>
+      <div class="modebar"><div class="seg" id="modesel" role="group" aria-label="Mode"></div><span class="lbl" id="modehint"></span></div>
       <div id="simview" class="view">
       <p class="hint" id="firstrun"><span><b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
       <div class="transport" id="transport">
@@ -358,10 +381,11 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 
     <aside class="console">
       <div class="box">
-        <div class="tabs" role="tablist" id="tabs"></div>
+        <div class="tabhead"><div class="tabgroups" id="tabgroups" role="group" aria-label="Tab group"></div><div class="tabs" role="tablist" id="tabs"></div></div>
         <div id="panes"></div>
       </div>
     </aside>
+    <section class="learncol" id="learnview" aria-label="Lessons" hidden></section>
   </main>
 </div>
 
@@ -4729,7 +4753,8 @@ function fsmRefresh(){fsmTrack();const el=$('#fsm-wrap');if(!el||activeTab!=='mi
    ============================================================ */
 const TABS=[
  {id:'loc',n:'1',name:'Localize'},{id:'per',n:'2',name:'Perceive'},{id:'mis',n:'3',name:'Mission'},{id:'plan',n:'4',name:'Plan'},{id:'ctl',n:'5',name:'Control'},
- {id:'veh',n:'',name:'Vehicle'},{id:'code',n:'',name:'Code'},{id:'exp',n:'',name:'Experiments'},{id:'view',n:'',name:'Layers'},{id:'sym',n:'',name:'Symbols'},{id:'learn',n:'',name:'Learn'}];
+ {id:'veh',n:'',name:'Vehicle'},{id:'exp',n:'',name:'Experiments'},{id:'code',n:'',name:'Code'},{id:'view',n:'',name:'Layers'},{id:'sym',n:'',name:'Symbols'}];
+const TAB_GROUPS=[{id:'pipe',name:'Pipeline',tabs:['loc','per','mis','plan','ctl','veh']},{id:'tools',name:'Tools',tabs:['exp','code']},{id:'ref',name:'Reference',tabs:['view','sym']}];
 const mpc_=()=>P.ctl==='mpc',pf_=()=>P.loc==='pf',filt=()=>P.loc==='ekf'||P.loc==='pf';
 
 /* ---- ui/schema.js ---- */
@@ -4971,13 +4996,19 @@ let activeTab='loc';const howOpen={};
 // Phones show the console as its tab row until a tab is tapped; tapping the open tab folds it again. Wide screens ignore this.
 let consoleOpen=false;const narrowUI=()=>matchMedia('(max-width:760px)').matches;
 // Show a Symbols group: scroll only the console on desktop (below its sticky tabs), the page on phones
-function showSym(id){activeTab='sym';consoleOpen=true;buildTabs();renderAllPanes();
+function showSym(id){if(uiMode==='learn')setUIMode(AN.mode);activeTab='sym';consoleOpen=true;buildTabs();renderAllPanes();
   const el=document.getElementById('sym-'+id),c=document.querySelector('.right')||document.querySelector('.console');if(!el)return;
   if(c.scrollHeight>c.clientHeight+1&&getComputedStyle(c).overflowY!=='visible'){const tb=c.querySelector('.tabs').offsetHeight;
     c.scrollTop+=el.getBoundingClientRect().top-c.getBoundingClientRect().top-tb-8;}
   else el.scrollIntoView({block:'start'});}
+// Simulate's tabs come in three groups; only the chosen group's tabs show. Each group remembers its last tab.
+const groupTab={};
 function buildTabs(){
-  $('#tabs').innerHTML=TABS.map(t=>`<button class="tab" role="tab" id="tab-${t.id}" aria-selected="${t.id===activeTab}" aria-controls="pane">${t.n?`<small>${t.n}</small>`:''}${t.name}</button>`).join('');
+  const G=TAB_GROUPS.find(g=>g.tabs.includes(activeTab))||TAB_GROUPS[0];groupTab[G.id]=activeTab;
+  $('#tabgroups').innerHTML=TAB_GROUPS.map(g=>`<button id="tg-${g.id}" type="button" aria-pressed="${g===G}">${g.name}</button>`).join('');
+  $('#tabgroups').querySelectorAll('button').forEach(b=>b.onclick=()=>{const g=TAB_GROUPS.find(x=>'tg-'+x.id===b.id);if(g===G&&consoleOpen)return;
+    activeTab=groupTab[g.id]||g.tabs[0];consoleOpen=true;buildTabs();renderAllPanes();});
+  $('#tabs').innerHTML=TABS.filter(t=>G.tabs.includes(t.id)).map(t=>`<button class="tab" role="tab" id="tab-${t.id}" aria-selected="${t.id===activeTab}" aria-controls="pane">${t.n?`<small>${t.n}</small>`:''}${t.name}</button>`).join('');
   $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{const id=b.id.slice(4);
     if(id===activeTab&&consoleOpen&&narrowUI()){consoleOpen=false;buildTabs();return;}
     activeTab=id;consoleOpen=true;buildTabs();renderAllPanes();});
@@ -4988,7 +5019,6 @@ function renderAllPanes(){
   if(t==='code')html=codePane();
   else if(t==='view')html=layersPane();
   else if(t==='sym')html=symPane();
-  else if(t==='learn')html=learnPane();
   else if(t==='exp')html=expPane();
   else{
     if(t==='mis')html+=`<div id="fsm-wrap" class="fsm-wrap">${fsmSVG()}</div>`;
@@ -5030,7 +5060,6 @@ function wirePane(t){
   pane.querySelectorAll('[data-sym]').forEach(b=>b.onclick=()=>showSym(b.dataset.sym));
   pane.querySelectorAll('[data-source]').forEach(b=>b.onclick=()=>showSource(b.dataset.source));
   if(t==='code')wireCode();
-  if(t==='learn')wireLearn(pane);
   if(t==='exp')wireExp(pane);
   if(t==='sym')wireSym(pane);
   if(t==='view'){const g=$('#ghost-clear');if(g)g.onclick=()=>{GHOST=null;renderAllPanes();draw();};}
@@ -5808,7 +5837,7 @@ let anTimer=null;
 function anInvalidate(keepMeas){AN.dirty=true;AN.resSpd=null;if(!keepMeas){AN.meas={step:null,freq:null,spd:null};AN.msg='';}
   if(AN.mode==='an'){clearTimeout(anTimer);anTimer=setTimeout(renderAnalysis,90);}}
 function setMode(m){AN.mode=m;$('#simview').hidden=m!=='sim';$('#anview').hidden=m!=='an';
-  $('#modesel').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===m)));
+  if(uiMode!=='learn')uiMode=m;syncModeUI();
   if(m==='an'){running=false;AN.dirty=true;renderAnalysis();}else{draw();drawPlot();refreshAll();}}
 
 /* ---- analysis/lessons2.js ---- */
@@ -5966,21 +5995,77 @@ L(s) = (2v₀²/L_d²) · (1 + s·L_d/v₀) / s² · e^(−sT_d)</div>
 <p>Pure pursuit schedules itself: L_d = L<sub>0</sub> + k·v<sub>0</sub> grows with speed, so ω_c = 2.2·v<sub>0</sub>/L_d levels off at 2.2/k. Rear-wheel feedback works in curvature, so its ω_c grows roughly in proportion to v<sub>0</sub>. Change the cruise speed and watch the crossover.</p>`,
   tries:[['PP, k = 0, v = 0.4',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.5,ppK:0,vcruise:0.4}}],['PP, k = 0, v = 1.6',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.5,ppK:0,vcruise:1.6,vmax:1.6}}],['PP, k = 0.5, v = 1.6',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.5,ppK:0.5,vcruise:1.6,vmax:1.6}}]]},
 ];
-let lessonOpen='ctl:0';
 const LESSON_GROUPS=()=>[
  {id:'loc',title:'Localization',note:'Runs in the simulator. Each button reloads the level, applies the settings and runs.',items:SIM_LESSONS.loc},
  {id:'per',title:'Perception',note:'',items:SIM_LESSONS.per},
  {id:'plan',title:'Planning and the mission',note:'',items:SIM_LESSONS.plan},
- {id:'ctl',title:'The control loop (linear analysis)',note:'Each button sets up the lab and switches the left side to <b>Analysis</b>; the Simulation/Analysis switch is above the map.',items:LESSONS.concat(LESSONS_EXTRA)}];
-function learnPane(){
-  return`<p class="note">Guided lessons, grouped by subsystem. Open one, read it, press its Try buttons. The Symbols tab defines every symbol used.</p>`+
-   LESSON_GROUPS().map(G=>`<section class="lgroup"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
+ {id:'ctl',title:'The control loop (linear analysis)',note:'Each button sets up the lab and shows the loop analysis on the left; <b>A</b> switches between it and the map.',items:LESSONS.concat(LESSONS_EXTRA)}];
+
+/* ---- ui/learn.js ---- */
+/* ============================================================
+   UI: the three modes (Simulate · Analyze · Learn) and the Learn column
+   ============================================================ */
+// uiMode is what the switch shows. The left side is AN.mode (map or loop analysis); in Learn it follows the lesson.
+let uiMode='sim',lessonOpen=null,userLayers=null;
+const MODES=[['sim','Simulate','mode-sim'],['an','Analyze','mode-an'],['learn','Learn','tab-learn']];   // Learn keeps the old tab's id
+const MODE_HINT={sim:'Run the stack on the map; tune it in the tabs on the right',an:'Linear analysis of the tracking loop: margins, Bode, Nyquist, poles',learn:'Guided lessons: open one, read it, press its Try buttons'};
+function setUIMode(m){
+  if(m==='learn'){if(uiMode==='learn'&&lessonOpen)lessonBack();uiMode='learn';}
+  else{uiMode=m;setMode(m);}
+  syncModeUI();
+}
+function syncModeUI(){
+  $('#modesel').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===uiMode)));
+  $('.layout').dataset.mode=uiMode;$('#learnview').hidden=uiMode!=='learn';$('#modehint').textContent=MODE_HINT[uiMode];
+}
+$('#modesel').innerHTML=MODES.map(([v,l,id])=>`<button type="button" id="${id}" data-v="${v}" aria-pressed="${v===uiMode}">${l}</button>`).join('');
+$('#modesel').querySelectorAll('button').forEach(b=>b.onclick=()=>setUIMode(b.dataset.v));
+
+// Map layers each lesson is about (Layers tab keys); opening a lesson shows only these, Back restores the user's set.
+const LESSON_LAYERS={
+  loc:[['belief','trail'],['belief','beam','trail'],['belief','beam','trail'],['belief','beam','lidar'],['belief','beam','trail']],
+  per:[['lidar','ghost'],['cost','lidar','ghost'],['lidar','agents'],['lidar','agents'],['agents','lidar']],
+  plan:[['search','cost'],['search','cost'],['search','cost','trail'],['search','cost','trail'],['search','agents']],
+  ctl:[]};
+function lessonLayers(id){const[g,i]=id.split(':');const L=(LESSON_LAYERS[g]||[])[+i]||['trail','dwa'];
+  return Object.fromEntries(Object.keys(LAYERS).map(k=>[k,L.includes(k)]));}
+const lessonItem=id=>{const[g,i]=id.split(':'),G=LESSON_GROUPS().find(x=>x.id===g);return G&&G.items[+i]?{G,i:+i,L:G.items[+i]}:null;};
+function openLesson(id){
+  if(!lessonItem(id))return false;
+  if(!userLayers)userLayers={...LAYERS};
+  lessonOpen=id;Object.assign(LAYERS,lessonLayers(id));renderLearn();draw();
+  const v=$('#learnview');if(v.getBoundingClientRect().top<0)v.scrollIntoView({block:'start'});return true;
+}
+function lessonBack(){
+  lessonOpen=null;if(userLayers){Object.assign(LAYERS,userLayers);userLayers=null;}
+  renderLearn();draw();if(activeTab==='view')renderAllPanes();
+}
+function lessonLink(id){const[g,i]=id.split(':');return location.href.split('#')[0]+`#lesson=${g}:${+i+1}`;}
+function renderLearn(){
+  const v=$('#learnview'),cur=lessonOpen&&lessonItem(lessonOpen);
+  const all=LESSON_GROUPS().flatMap(G=>G.items.map((_,i)=>`${G.id}:${i}`)),k=cur?all.indexOf(lessonOpen):-1;
+  v.classList.toggle('reading',!!cur);
+  v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${k<all.length-1?`<button class="linkbtn" id="learn-next" type="button">Next lesson →</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
+     :`<h2>Lessons</h2><p class="note">Grouped by subsystem. Open one, read it, press its Try buttons. Opening a lesson shows the map layers it is about; <b>All lessons</b> brings yours back. The Symbols tab defines every symbol used.</p>`}</div>`+
+   LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
     G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${L.b}<div class="tries">${L.tries.map((t,j)=>`<button class="btn small" data-try="${id}:${j}">${t[0]}</button>`).join('')}</div></div></details>`;}).join('')+`</section>`).join('');
+  v.querySelectorAll('details.lesson>summary').forEach(s=>s.onclick=e=>{e.preventDefault();const id=s.parentNode.dataset.l;if(lessonOpen===id)lessonBack();else openLesson(id);});
+  v.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':'),id=g+':'+i;if(lessonOpen!==id)openLesson(id);
+    const cfg=lessonItem(id).L.tries[+j][1];
+    if(cfg.sim)return tryGo({...cfg,layers:{...lessonLayers(id),...(cfg.layers||{})}});lessonGo(cfg);});   // loading the level must not undo the lesson's layers
+  const bk=$('#learn-back');if(bk)bk.onclick=lessonBack;
+  const nx=$('#learn-next');if(nx)nx.onclick=()=>openLesson(all[k+1]);
+  const lk=$('#learn-link');if(lk)lk.onclick=()=>{const u=lessonLink(lessonOpen),msg=$('#learn-msg');
+    try{history.replaceState(null,'','#'+u.split('#')[1]);}catch(_){}
+    if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>{msg.textContent='Link copied.';},()=>{msg.textContent=u;});else msg.textContent=u;};
 }
-function wireLearn(pane){
-  pane.querySelectorAll('details.lesson').forEach(d=>d.ontoggle=()=>{if(d.open){lessonOpen=d.dataset.l;pane.querySelectorAll('details.lesson').forEach(o=>{if(o!==d)o.open=false;});}});
-  pane.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':');lessonOpen=g+':'+i;const G=LESSON_GROUPS().find(x=>x.id===g),cfg=G.items[+i].tries[+j][1];if(cfg.sim)tryGo(cfg);else lessonGo(cfg);});
+// #lesson=loc:3 opens Learn on that lesson (numbers as shown in the list)
+function lessonFromHash(){
+  const m=/^lesson=(\w+):(\d+)$/.exec(location.hash.slice(1));if(!m)return false;
+  const id=`${m[1]}:${+m[2]-1}`;if(!lessonItem(id))return false;
+  setUIMode('learn');return openLesson(id);
 }
+window.addEventListener('hashchange',lessonFromHash);
 
 /* ---- ui/experiments.js ---- */
 /* ============================================================
@@ -6204,7 +6289,6 @@ $('#pausec').onchange=e=>{pauseOnContact=e.target.checked;};
 $('#kidnapb').onclick=()=>{const on=tapMode!=='kidnap';tapMode=on?'kidnap':$('#tapsel').value;$('#kidnapb').setAttribute('aria-pressed',String(on));if(on)logE('Tap the map where the robot should be teleported','warn');};
 $('#legendmore').onclick=()=>showSym('map');
 $('#an-src').onclick=()=>showSource('analysis/model.js');
-seg($('#modesel'),[['sim','Simulation'],['an','Analysis']],()=>AN.mode,v=>setMode(v));
 function syncAnControls(){
   seg($('#an-loop'),[['lat','Lateral'],['spd','Speed']],()=>AN.loop,v=>{AN.loop=v;AN.msg='';renderAnalysis();});
   seg($('#an-curve'),[['0','Straight'],['4','Curve R 4 m'],['2','Curve R 2 m']],()=>String(AN.curveR||0),v=>{AN.curveR=+v;anInvalidate();renderAnalysis();});
@@ -6311,7 +6395,7 @@ function loop(ts){
   requestAnimationFrame(loop);
 }
 {const ex=$('.an-exp'),grid=$('.an-grid');if(ex&&grid)grid.parentNode.insertBefore(ex,grid);}
-{const right=document.createElement('div');right.className='right';const ctxEl=$('.ctx'),con=$('.console');ctxEl.parentNode.insertBefore(right,ctxEl);right.appendChild(ctxEl);right.appendChild(con);}
+{const right=document.createElement('div');right.className='right';const ctxEl=$('.ctx'),con=$('.console');ctxEl.parentNode.insertBefore(right,ctxEl);right.appendChild(ctxEl);right.appendChild(con);right.appendChild($('#learnview'));}
 const mo=new MutationObserver(()=>{tokKey='';if(AN.mode==='an')renderAnalysis();});mo.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 window.addEventListener('resize',()=>{if(AN.mode==='an')renderAnalysis();else{draw();drawPlot();}});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{tokKey='';if(AN.mode==='an')setTimeout(renderAnalysis,30);});
@@ -6320,9 +6404,9 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{tokKey
 
 /* ---------- boot ---------- */
 UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{buildLevels();renderAllPanes();};UI.mode=()=>AN.mode;
-buildTabs();loadLevel(0);{const c=configFromHash();if(c){try{applyConfig(c);logE('Setup restored from the link','ok');}catch(e){logE('Could not restore the setup from the link: '+e.message,'warn');}}}readTokens();draw();drawPlot();
+buildTabs();loadLevel(0);{const c=configFromHash();if(c){try{applyConfig(c);logE('Setup restored from the link','ok');}catch(e){logE('Could not restore the setup from the link: '+e.message,'warn');}}}syncModeUI();renderLearn();lessonFromHash();readTokens();draw();drawPlot();
 requestAnimationFrame(loop);
-window.__an={AN,anCompute,LESSONS_EXTRA,LESSON_GROUPS,spdCompute,runStepTest,runInjection,setMode,lessonGo,LESSONS,stepMetrics,Ljw,anBuild};window.__nav={scatter:()=>scatterParticles(),get S(){return S;},P,LEVELS,loadLevel,advance,setParam,get WPS(){return WPS;},toScreen:(x,y)=>toScreen(x,y),get VIEW(){return VIEW;},get GHOST(){return GHOST;},EXP,expCSV,configURL,get LV(){return LV;},SLOTS,slotLoad,slamLandmarks,tryGo};
+window.__an={AN,anCompute,LESSONS_EXTRA,LESSON_GROUPS,spdCompute,runStepTest,runInjection,setMode,setUIMode,openLesson,lessonBack,get lessonOpen(){return lessonOpen;},lessonGo,LESSONS,stepMetrics,Ljw,anBuild};window.__nav={scatter:()=>scatterParticles(),get S(){return S;},P,LEVELS,loadLevel,advance,setParam,get WPS(){return WPS;},toScreen:(x,y)=>toScreen(x,y),get VIEW(){return VIEW;},get GHOST(){return GHOST;},EXP,expCSV,configURL,get LV(){return LV;},SLOTS,slotLoad,slamLandmarks,tryGo};
 
 })();
 </script>

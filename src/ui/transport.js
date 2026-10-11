@@ -21,7 +21,6 @@ $('#pausec').onchange=e=>{pauseOnContact=e.target.checked;};
 $('#kidnapb').onclick=()=>{const on=tapMode!=='kidnap';tapMode=on?'kidnap':$('#tapsel').value;$('#kidnapb').setAttribute('aria-pressed',String(on));if(on)logE('Tap the map where the robot should be teleported','warn');};
 $('#legendmore').onclick=()=>showSym('map');
 $('#an-src').onclick=()=>showSource('analysis/model.js');
-seg($('#modesel'),[['sim','Simulation'],['an','Analysis']],()=>AN.mode,v=>setMode(v));
 function syncAnControls(){
   seg($('#an-loop'),[['lat','Lateral'],['spd','Speed']],()=>AN.loop,v=>{AN.loop=v;AN.msg='';renderAnalysis();});
   seg($('#an-curve'),[['0','Straight'],['4','Curve R 4 m'],['2','Curve R 2 m']],()=>String(AN.curveR||0),v=>{AN.curveR=+v;anInvalidate();renderAnalysis();});

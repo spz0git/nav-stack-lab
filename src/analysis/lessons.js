@@ -70,18 +70,8 @@ L(s) = (2v₀²/L_d²) · (1 + s·L_d/v₀) / s² · e^(−sT_d)</div>
 <p>Pure pursuit schedules itself: L_d = L<sub>0</sub> + k·v<sub>0</sub> grows with speed, so ω_c = 2.2·v<sub>0</sub>/L_d levels off at 2.2/k. Rear-wheel feedback works in curvature, so its ω_c grows roughly in proportion to v<sub>0</sub>. Change the cruise speed and watch the crossover.</p>`,
   tries:[['PP, k = 0, v = 0.4',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.5,ppK:0,vcruise:0.4}}],['PP, k = 0, v = 1.6',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.5,ppK:0,vcruise:1.6,vmax:1.6}}],['PP, k = 0.5, v = 1.6',{level:LV_DIFF,set:{ctl:'pp',ppL0:0.5,ppK:0.5,vcruise:1.6,vmax:1.6}}]]},
 ];
-let lessonOpen='ctl:0';
 const LESSON_GROUPS=()=>[
  {id:'loc',title:'Localization',note:'Runs in the simulator. Each button reloads the level, applies the settings and runs.',items:SIM_LESSONS.loc},
  {id:'per',title:'Perception',note:'',items:SIM_LESSONS.per},
  {id:'plan',title:'Planning and the mission',note:'',items:SIM_LESSONS.plan},
- {id:'ctl',title:'The control loop (linear analysis)',note:'Each button sets up the lab and switches the left side to <b>Analysis</b>; the Simulation/Analysis switch is above the map.',items:LESSONS.concat(LESSONS_EXTRA)}];
-function learnPane(){
-  return`<p class="note">Guided lessons, grouped by subsystem. Open one, read it, press its Try buttons. The Symbols tab defines every symbol used.</p>`+
-   LESSON_GROUPS().map(G=>`<section class="lgroup"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
-    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${L.b}<div class="tries">${L.tries.map((t,j)=>`<button class="btn small" data-try="${id}:${j}">${t[0]}</button>`).join('')}</div></div></details>`;}).join('')+`</section>`).join('');
-}
-function wireLearn(pane){
-  pane.querySelectorAll('details.lesson').forEach(d=>d.ontoggle=()=>{if(d.open){lessonOpen=d.dataset.l;pane.querySelectorAll('details.lesson').forEach(o=>{if(o!==d)o.open=false;});}});
-  pane.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':');lessonOpen=g+':'+i;const G=LESSON_GROUPS().find(x=>x.id===g),cfg=G.items[+i].tries[+j][1];if(cfg.sim)tryGo(cfg);else lessonGo(cfg);});
-}
+ {id:'ctl',title:'The control loop (linear analysis)',note:'Each button sets up the lab and shows the loop analysis on the left; <b>A</b> switches between it and the map.',items:LESSONS.concat(LESSONS_EXTRA)}];

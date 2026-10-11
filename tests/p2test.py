@@ -17,7 +17,7 @@ async def main():
         await pg.evaluate("async()=>{const N=window.__nav;N.setParam('ctl','rwf');document.querySelector('#run').click();document.querySelector('#run').click();await N.advance(400)}")
         await pg.click('#plotsel button[data-v="cte"]'); await pg.wait_for_timeout(300); await pg.screenshot(path='p2_ghost.png')
         # experiments
-        await pg.click('#tab-exp'); await pg.wait_for_timeout(200)
+        await pg.click('#tg-tools'); await pg.click('#tab-exp'); await pg.wait_for_timeout(200)
         await pg.select_option('select[data-vary="0"]','ctl'); await pg.wait_for_timeout(200)
         await pg.fill('input[data-vals="0"]','pp, rwf'); await pg.fill('#exp-s1','2'); await pg.press('#exp-s1','Tab'); await pg.fill('#exp-secs','60'); await pg.press('#exp-secs','Tab'); await pg.wait_for_timeout(100)
         print('run label',await pg.evaluate("document.querySelector('#exp-run').textContent"))

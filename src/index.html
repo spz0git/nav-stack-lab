@@ -17,7 +17,7 @@
       <section class="brief" id="brief" aria-live="polite"></section>
     </section>
     <section class="stage">
-      <div class="modebar"><div class="seg" id="modesel" aria-label="View"></div><span class="lbl" id="modehint">Linear analysis of the tracking loop, with guided lessons in the Learn tab</span></div>
+      <div class="modebar"><div class="seg" id="modesel" role="group" aria-label="Mode"></div><span class="lbl" id="modehint"></span></div>
       <div id="simview" class="view">
       <p class="hint" id="firstrun"><span><b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
       <div class="transport" id="transport">
@@ -92,10 +92,11 @@
 
     <aside class="console">
       <div class="box">
-        <div class="tabs" role="tablist" id="tabs"></div>
+        <div class="tabhead"><div class="tabgroups" id="tabgroups" role="group" aria-label="Tab group"></div><div class="tabs" role="tablist" id="tabs"></div></div>
         <div id="panes"></div>
       </div>
     </aside>
+    <section class="learncol" id="learnview" aria-label="Lessons" hidden></section>
   </main>
 </div>
 

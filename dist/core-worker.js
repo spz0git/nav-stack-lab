@@ -1189,10 +1189,12 @@ function mpcModel(){
   };
   return{n:lag?7:5,f,car,lag};
 }
-function mpcJac(M,x,u,dt){   // forward-difference Jacobians A = ∂f/∂x, B = ∂f/∂u
+// Central-difference Jacobians A = ∂f/∂x, B = ∂f/∂u. Not forward differences: the steering state saturates at ±s_max, and a
+// forward step from +s_max is clipped, which reads as zero sensitivity to steering at full left lock (the solver then cannot unwind it)
+function mpcJac(M,x,u,dt){
   const n=M.n,f0=M.f(x,u,dt),A=new Float64Array(n*n),B=new Float64Array(n*2),h=1e-6;
-  for(let j=0;j<n;j++){const xp=x.slice();xp[j]+=h;const fp=M.f(xp,u,dt);for(let i=0;i<n;i++)A[i*n+j]=(fp[i]-f0[i])/h;}
-  for(let j=0;j<2;j++){const up=u.slice();up[j]+=h;const fp=M.f(x,up,dt);for(let i=0;i<n;i++)B[i*2+j]=(fp[i]-f0[i])/h;}
+  for(let j=0;j<n;j++){const xp=x.slice(),xm=x.slice();xp[j]+=h;xm[j]-=h;const fp=M.f(xp,u,dt),fm=M.f(xm,u,dt);for(let i=0;i<n;i++)A[i*n+j]=(fp[i]-fm[i])/(2*h);}
+  for(let j=0;j<2;j++){const up=u.slice(),um=u.slice();up[j]+=h;um[j]-=h;const fp=M.f(x,up,dt),fm=M.f(x,um,dt);for(let i=0;i<n;i++)B[i*2+j]=(fp[i]-fm[i])/(2*h);}
   return{f0,A,B};
 }
 function cholSolve(A,b,n){
@@ -1222,13 +1224,19 @@ function boxQP(H,g,lo,hi,n){
   return z;
 }
 function segAt(sArc){const T=S.track;sArc=clamp(sArc,0,T.total);let i=Math.min(T.idx,T.pts.length-2);while(i>0&&T.s[i]>sArc)i--;while(i<T.pts.length-2&&T.s[i+1]<sArc)i++;return i;}
-// Time-parametrized reference along the current leg, using the same speed profile as the other trackers
+// Time-parametrized reference along the current leg, using the same speed profile as the other trackers.
+// With speed planning on and agents in play, s(t) and v(t) come from the ST profile instead, so the reference yields:
+// otherwise the tracking cost pulls the robot along at v_ref into people and only the agent constraints push back.
 function mpcReference(Np,dt){
   const{T,pr,dir}=trackPre(),ref=[];   // also advances the path-progress index
   const vAt=s=>{let v=Math.min(P.vcruise,vCap(dir)),kp=0;for(let d=0;d<=0.6;d+=0.2)kp=Math.max(kp,Math.abs(kapAt(s+d)));if(kp>1e-6)v=Math.min(v,Math.sqrt(P.alat/kp));return Math.min(v,decelCap(T.total-s));};
+  const st=S.agents&&S.agents.st,useST=stActive()&&st&&st.prof&&st.inter&&st.pathId===S.pathId&&st.seg===S.segIdx;
+  const pAt=(t,c)=>{const q=st.prof,f=clamp(t/st.dt,0,st.nt),i=Math.min(Math.floor(f),st.nt-1),w=f-i;return q[i][c]*(1-w)+q[i+1][c]*w;};   // ST profile column c (1: s, 2: v) at time t after it was planned
+  const age=useST?S.t-st.t:0,s0=useST?pAt(age,1):0;
   let s=pr.s;
-  for(let k=0;k<=Np;k++){const p=pointAt(s),hd=T.hd[segAt(s)],v=vAt(s);
-    ref.push({x:p[0],y:p[1],hd,th:dir>0?hd:wrap(hd+Math.PI),v:dir*v,kap:kapAt(s)});s=Math.min(T.total,s+v*dt);}
+  for(let k=0;k<=Np;k++){if(useST)s=Math.min(T.total,pr.s+pAt(age+k*dt,1)-s0);
+    const p=pointAt(s),hd=T.hd[segAt(s)],v=useST?pAt(age+k*dt,2):vAt(s);
+    ref.push({x:p[0],y:p[1],hd,th:dir>0?hd:wrap(hd+Math.PI),v:dir*v,kap:kapAt(s)});if(!useST)s=Math.min(T.total,s+v*dt);}
   return{ref,dir};
 }
 function ctlMPC(){
@@ -1250,8 +1258,24 @@ function ctlMPC(){
   const aMax=P.accel?P.amax:3,rMax=car?P.steerRate:(P.accel?P.alpha:8);
   const vMax=car?vCap(dir):P.vmax,sMax=car?steerMax():P.wmax,rho=P.mpcRho;
   const obs=P.mpcObs&&!ltv,offs=car?[0,1,2].map(i=>-CAR.rear+carLen()/3*(i+0.5)):[0],rc=car?Math.hypot(carLen()/6,CAR.width/2):RR;
-  const agM=obs&&agOn(),nc=4+(obs?offs.length*(agM?2:1):0),ags=agM?agList(Np*dt*Math.max(vMax,0.3)+4):[];
+  const agM=obs&&agOn(),nc=4+(obs?offs.length*(agM?2:1):0),ags=agM?agList(14):[];   // the speed planner's range: the hold window reaches T_p + 3 s ahead
   const pts=obs?((S.agents&&S.agents.staticPts)||S.scanPts).filter(p=>hyp(p[0]-e.x,p[1]-e.y)<Np*dt*Math.max(vMax,0.3)+1.5):[];
+  // predicted agents at each step's time. The prediction ends at Np·dt, but the robot does not vanish there: at the end of a leg
+  // (a cusp, a goal) it stops and waits. So the terminal state must also stay clear while the robot waits there, out to the
+  // speed planner's window T_p + 3 s, with the radius growth frozen at the horizon (the same terminal test as stPlan).
+  const tN=Np*dt,QA=agM?Array.from({length:Np+1},(_,k)=>ags.map(a=>agPred(a,k*dt))):null;
+  if(agM)for(const a of ags){const r=agPred(a,tN)[2];for(let tt=tN+0.5;tt<=Math.max(P.agT,tN)+3+1e-6;tt+=0.5){const q=agPred(a,tt);QA[Np].push([q[0],q[1],r]);}}
+  // clearance to the nearest predicted agent for footprint circle o at step k, as c ≤ 0 with its gradient
+  const agCons=(k,x,o)=>{const c=Math.cos(x[2]),sn=Math.sin(x[2]),cx=x[0]+o*c,cy=x[1]+o*sn;let bd=Infinity,bq=null;
+    for(const q of QA[k]){const d=hyp(q[0]-cx,q[1]-cy)-q[2];if(d<bd){bd=d;bq=q;}}
+    if(!bq)return[-1,[0,0,0,0,0]];
+    const d=Math.max(hyp(cx-bq[0],cy-bq[1]),1e-6),ux=(cx-bq[0])/d,uy=(cy-bq[1])/d;
+    return[rc+bq[2]+P.mpcMarg-d,[-ux,-uy,-(ux*(-o*sn)+uy*(o*c)),0,0]];};
+  // Passive safety: the robot answers for the clearance it can still control. A person may walk into it whatever it does,
+  // so each agent constraint is relaxed by what braking to a stop now (and waiting) would violate. Braking then always
+  // satisfies them, the problem stays feasible, and the multipliers cannot wind up against the speed-sign bound.
+  const brk=[];
+  if(agM){let xb=x0.slice();for(let k=0;k<=Np;k++){if(k)xb=M.f(xb,[clamp(-(M.lag?xb[5]:xb[3])/dt,-aMax,aMax),0],dt);brk.push(offs.map(o=>Math.max(0,agCons(k,xb,o)[0])));}}
   // warm start: shift the previous solution by one sim tick
   const sig=`${P.mpcMode}|${Np}|${Nc}|${dt}|${n}|${nc}|${P.model}|${S.pathId}`;
   let W=S.mpc;
@@ -1285,12 +1309,7 @@ function ctlMPC(){
         if(!bp){out.push([-1,[0,0,0,0,0]]);continue;}
         const d=Math.max(Math.sqrt(bd),1e-6),ux=(cx-bp[0])/d,uy=(cy-bp[1])/d;
         out.push([rc+P.mpcMarg-d,[-ux,-uy,-(ux*(-o*sn)+uy*(o*c)),0,0]]);}
-      if(agM){const Q=ags.map(a=>agPred(a,k*dt));   // predicted agents at this step's time
-        for(const o of offs){const cx=x[0]+o*c,cy=x[1]+o*sn;let bd=Infinity,bq=null;
-          for(const q of Q){const d=hyp(q[0]-cx,q[1]-cy)-q[2];if(d<bd){bd=d;bq=q;}}
-          if(!bq){out.push([-1,[0,0,0,0,0]]);continue;}
-          const d=Math.max(hyp(cx-bq[0],cy-bq[1]),1e-6),ux=(cx-bq[0])/d,uy=(cy-bq[1])/d;
-          out.push([rc+bq[2]+P.mpcMarg-d,[-ux,-uy,-(ux*(-o*sn)+uy*(o*c)),0,0]]);}}}
+      if(agM)offs.forEach((o,oi)=>{const[cv,g]=agCons(k,x,o);out.push([cv-brk[k][oi],g]);});}
     return out;};
   // residuals of step k (1..Np) as [r, grad over state]; inputs handled separately
   const sq=Math.sqrt,lamOf=(k,c)=>W.lam[(k-1)*nc+c];
@@ -1618,7 +1637,8 @@ function trajPred(t,tt){const T=t.traj;if(!T)return null;const k=tt/T.dt,i=Math.
 const AG_PATH_CTL=['pp','rwf','stanley','pid'];
 function agInit(){return{tracks:[],nextId:1,det:[],dynPts:[],staticPts:null,lastT:null,st:null,vlim:Infinity,vlimStop:Infinity,blockT:0,lastAgentPlan:-99,yieldLog:{},egoPath:null};}
 const agOn=()=>P.agents!=='off';
-const stActive=()=>AG_PATH_CTL.includes(P.ctl)&&P.spd==='st'&&agOn();
+const AG_ST_CTL=[...AG_PATH_CTL,'mpc'];   // controllers that follow the speed plan: path trackers as a speed cap, MPC as its reference
+const stActive=()=>AG_ST_CTL.includes(P.ctl)&&P.spd==='st'&&agOn();
 // A lidar hit is "explained" when the static map accounts for it
 function agExplained(x,y){
   const k=cellIdx(x,y);if(k<0)return true;
@@ -1713,7 +1733,7 @@ function stPlan(){
   let bi=-1,bc=Infinity;for(let i=nt*NSV;i<N;i++){if(C[i]===Infinity)continue;const c=C[i]+term[((i-nt*NSV)/nv)|0];if(c<bc){bc=c;bi=i;}}
   // unconstrained reference: accelerate toward v_ref, ignoring agents
   const free=[[0,0]];{let s=0,v=v0;for(let k=1;k<=nt;k++){const vr=vrefAt(s),v2=v<vr?Math.min(vr,v+Aacc*ST_DT):Math.max(vr,v-Bdec*ST_DT);s=Math.min(sMax,s+(v+v2)/2*ST_DT);v=v2;free.push([k*ST_DT,s]);}}
-  const st={nt,ns,dt:ST_DT,ds:ST_DS,sMax,occ,prox,who,free,prof:null,conflict:false,inter,s0:pr.s,dir,pathId:S.pathId,t:S.t};
+  const st={nt,ns,dt:ST_DT,ds:ST_DS,sMax,occ,prox,who,free,prof:null,conflict:false,inter,s0:pr.s,dir,pathId:S.pathId,seg:S.segIdx,t:S.t};
   if(bi>=0){const prof=[];let i=bi;for(let k=nt;k>=1;k--){prof.push([k*ST_DT,Sv[i],Vv[i]]);i=Par[i];}prof.push([0,0,v0]);prof.reverse();st.prof=prof;
     // conflict: even the cheapest profile is predicted to touch an agent
     for(let k=1;k<=nt&&!st.conflict;k++){const j2=clamp(Math.round(prof[k][1]/ST_DS),0,ns-1),j1=Math.min(j2,Math.max(0,Math.ceil(prof[k-1][1]/ST_DS-1e-6)));for(let j=j1;j<=j2;j++)if(occ[k*ns+j]===2){st.conflict=k*ST_DT;break;}}}
@@ -1768,7 +1788,7 @@ function agPost(){
   if(P.ctl==='mpc'&&V&&V.pred)A.egoPath={pts:V.pred,dt:P.mpcDt,src:'MPC prediction'};
   else if(P.ctl==='dwa'&&V&&V.trajs&&V.best>=0){const q=V.trajs[V.best].pts,pts=[];for(let i=0;i<q.length;i+=2)pts.push([q[i],q[i+1]]);A.egoPath={pts,dt:0.2,src:'DWA rollout'};}
 }
-// Ego positions at whole seconds: from the speed plan (path trackers) or the local planner's own prediction
+// Ego positions at whole seconds: from the speed plan (path trackers) or the local planner's own prediction (DWA, MPC)
 function agEgoMarks(){
   const A=S.agents,out=[];if(!A||!S.track)return out;
   if(A.egoPath){const{pts,dt}=A.egoPath;for(let t=1;t*1<=(pts.length-1)*dt+1e-6;t++){const i=Math.round(t/dt);if(i<pts.length)out.push([pts[i][0],pts[i][1],t]);}return out;}

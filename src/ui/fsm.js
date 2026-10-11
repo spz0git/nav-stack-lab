@@ -1,6 +1,6 @@
 /* ---------- live state diagram of the behaviour layer (Mission tab) ---------- */
 const FSM_NODES={IDLE:[60,96],PLAN:[200,96],DRIVE:[360,96],DONE:[520,96],NO_PATH:[200,186],LOST:[360,186]};
-const FSM_EDGES=[['IDLE','PLAN','Run'],['PLAN','DRIVE','path found'],['DRIVE','PLAN','arrived, next goal · path blocked · stuck · periodic · agent blocking'],['PLAN','NO_PATH','no path'],['NO_PATH','PLAN','2 s'],['DRIVE','DONE','last goal'],['DRIVE','LOST','σ > 1 m'],['LOST','PLAN','σ < 0.4 m'],['DONE','PLAN','new goal']];
+const FSM_EDGES=[['IDLE','PLAN','Run'],['PLAN','DRIVE','path found'],['DRIVE','PLAN','arrived, next goal · path blocked · off path · stuck · periodic · agent blocking'],['PLAN','NO_PATH','no path'],['NO_PATH','PLAN','2 s'],['DRIVE','DONE','last goal'],['DRIVE','LOST','σ > 1 m'],['LOST','PLAN','σ < 0.4 m'],['DONE','PLAN','new goal']];
 let fsmLast={from:null,to:null,t:-1};
 function fsmSVG(){
   const cur=S?S.fsm.state:'IDLE';const box=(n,[x,y])=>`<g data-fsm="${n}"><rect x="${x-44}" y="${y-16}" width="88" height="32" rx="6" class="fsm-box${n===cur?' on':''}"/><text x="${x}" y="${y+4}" class="fsm-t${n===cur?' on':''}">${n.replace('_',' ')}</text></g>`;

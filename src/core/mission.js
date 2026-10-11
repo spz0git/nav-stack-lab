@@ -79,6 +79,8 @@ function missionTick(){
     if(F.queue.length){F.state='PLAN';F.pendingReason='initial';}else{F.state='DONE';S.track=null;S.plan=null;logE(`Mission complete in ${S.t.toFixed(1)} s`,'ok');}
     return;
   }
+  // the estimate is far from the path (kidnapped, relocalized, pushed aside): plan again from where the robot is now
+  if(S.t-F.lastPlanT>0.5&&project(e.x,e.y,true).d>OFFPATH){F.state='PLAN';F.pendingReason='off path';return;}
   if(P.replan>0&&S.t-F.lastPlanT>=P.replan){F.state='PLAN';F.pendingReason='periodic';return;}
   if(P.plan==='hybrid'&&isCar()&&S.t-F.lastBlockT>0.5){
     // footprint check of the remaining legs (poses carry heading)

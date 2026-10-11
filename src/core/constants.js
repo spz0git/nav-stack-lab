@@ -2,7 +2,7 @@
    Constants & helpers
    ============================================================ */
 const W=24,H=16,RES=0.1,GW=240,GH=160,NC=GW*GH,DT=0.05,RR=0.3,LETHAL=0.4,LMAX=8,NBEAM=120,PENW=3,SQ2=Math.SQRT2,TAU=Math.PI*2;
-const ARRIVE=0.25;
+const ARRIVE=0.25,OFFPATH=1.0;   // arrival radius; replan when the estimate is this far from the path [m]
 const $=s=>(typeof document!=='undefined')?document.querySelector(s):null;
 const CAR={rear:0.15,front:0.15,width:0.5};   // overhangs and width [m]; pose = rear-axle center
 const wrap=a=>{a=(a+Math.PI)%TAU;if(a<0)a+=TAU;return a-Math.PI;};

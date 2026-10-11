@@ -864,7 +864,9 @@ function hybridAstar(e,wp){
   const clearAt=(x,y,th)=>{const c=Math.cos(th),s=Math.sin(th);let m=Infinity;for(const o of offs){const k=cellIdx(x+o*c,y+o*s);if(k<0)return -1;const d=dist[k]-rc;if(d<m)m=d;}return m;};
   if(goalTh!=null&&clearAt(wp.x,wp.y,goalTh)<MARG)return{ok:false,reason:'the goal pose overlaps an obstacle'};
   if(goalTh==null&&cellIdx(wp.x,wp.y)>=0&&dist[cellIdx(wp.x,wp.y)]<CAR.width/2+MARG)return{ok:false,reason:'goal is too close to an obstacle for the car'};
-  const startClear=clearAt(e.x,e.y,e.th),lenient=startClear<MARG;
+  // Clearance reads come in whole 0.1 m cells, so a start one cell above MARG has no slack: a 1 cm move can drop
+  // the reading by a cell and every primitive out of a tight slot fails. Near the start, allow one cell of loss.
+  const startClear=clearAt(e.x,e.y,e.th),lenient=startClear-RES<MARG;
   const h2=holoField(wp.x,wp.y,dist,CAR.width/2+0.02);
   const h2At=(x,y)=>{const k=cellIdx(x,y);if(k<0)return Infinity;const v=h2[k];return isFinite(v)?v:hyp(x-wp.x,y-wp.y)+20;};
   const useRS=goalTh!=null&&P.hybH==='both';
@@ -897,7 +899,7 @@ function hybridAstar(e,wp){
     for(const d of dirs)for(const st of steers){
       let nx=x,ny=y,nt=th,minC=Infinity,ok=true;const w=d*Math.tan(st)/L;
       for(let k=0;k<Math.round(STEP/SUB);k++){const n=integ(nx,ny,nt,d,w,SUB);nx=n.x;ny=n.y;nt=n.th;
-        const c=clearAt(nx,ny,nt),need=(lenient&&hyp(nx-e.x,ny-e.y)<1.0)?Math.min(MARG,startClear-0.1):MARG;   // let a car that is touching something back out
+        const c=clearAt(nx,ny,nt),need=(lenient&&hyp(nx-e.x,ny-e.y)<1.0)?startClear-RES:MARG;   // let a car in a tight spot back out
         if(c<need){ok=false;break;}if(c<minC)minC=c;}
       if(!ok)continue;
       const v=key(nx,ny,nt);if(v<0||B.closed[v])continue;

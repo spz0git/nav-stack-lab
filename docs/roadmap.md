@@ -1,6 +1,7 @@
 # Nav Stack Lab — architecture and roadmap
 
 Artifact: https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7 (browser simulator; v1 2026-10-03, v2 2026-10-04 car-like robot, v3 2026-10-04 MPC, v4–v5 beacon colour, Symbols tab, one-screen layout, v6 2026-10-10 loop analysis + lessons, v7 2026-10-11 agent tracking, prediction and ST speed planning; people in the parking lot; v8–v13 2026-10-11 the enhancement plan: usability, modules + worker core, experiments, code slots, lessons, fidelity)
+Source: https://github.com/spz0git/nav-stack-lab (from v13; `./build.sh`, tests in `tests/`)
 
 ## Robot and world
 - Two kinematic models, selectable in Vehicle:

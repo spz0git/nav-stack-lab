@@ -25,7 +25,7 @@ Source: https://github.com/spz0git/nav-stack-lab (from v13; `./build.sh`, tests 
 - Cost: along-track, lateral, heading and speed error against a time-parametrized reference (same speed profile as the other trackers), terminal multiplier, input weights on a and ṡ, Δu weight between moves.
 - Horizons: prediction horizon Np and control horizon Nc (move blocking: u_k = u_{Nc−1} for k ≥ Nc; 2·Nc decision variables). Step Δt tunable.
 - Constraints: input box (exact, projected-Newton box QP); speed sign/limit per leg, |s| ≤ s_max and lidar obstacle clearance (footprint circles ≥ margin, NMPC only) via augmented Lagrangian with tunable ρ.
-- Solver: single-shooting Gauss–Newton SQP with forward sensitivities and finite-difference Jacobians, backtracking line search, warm start shifted by one tick (RTI-style), 15 ms budget. Typical solve ≈ 1 ms, worst observed ≈ 15 ms.
+- Solver: single-shooting Gauss–Newton SQP with forward sensitivities and central-difference Jacobians (forward differences read zero steering sensitivity at full left lock, where the steering state saturates, so the car stalled at cusps that end on +δ_max), backtracking line search, warm start shifted by one tick (RTI-style), 15 ms budget. Typical solve ≈ 1 ms, worst observed ≈ 15 ms.
 - Results (headless runs): L1 cross-track RMS 0.051 m (rear-wheel feedback 0.083, pure pursuit 0.105, LTV 0.089, Nc = 1 0.178). L5 with τ = 0.15 s: 0.082 m with and without the lag model after the Δu change (the lag model changes the loop margins more than the tracking error). L4: NMPC with obstacle constraints 4/4; LTV clips the table. L6: NMPC parks 4/4 with no collisions; LTV collides in the parallel slot.
 - Known limits: obstacle constraints use a lidar snapshot (people treated as static); the reference is per leg, so the MPC does not plan through a cusp. A minimum-progress constraint was tried for L6 and made things worse (circling); reverted.
 
@@ -37,14 +37,14 @@ Source: https://github.com/spz0git/nav-stack-lab (from v13; `./build.sh`, tests 
 - Teaching (v12): 28 lessons in four groups (localization 5, perception 5, planning 5, control loop 13); live FSM diagram in Mission; searchable Symbols; Analysis gains a speed-loop view, curved operating points (gains read about the settled point on a circle) and experiments run through the estimator.
 - Fidelity (v13): EKF-SLAM (unknown beacon positions, known or unlabeled IDs); sensor latency for lidar and beacons; reactive pedestrians (social force); another vehicle in the parking lot that yields; space-time A* (x, y, t) for the diff-drive robot.
 - Verification: the L1–L5 regression is unchanged through every phase; the worker core reproduces the page's results; every Try button (84 in lessons and levels) runs without error.
-- Known limits added by these phases: MPC in the parking lot with people still makes 1–2 contacts (its reference speed does not yield; only the path trackers use the ST speed planner); EKF-SLAM drifts until loop closure by design, so with a 7 m beacon range it misses goals; space-time A* is diff-drive only.
+- Known limits added by these phases: MPC in the parking lot with people no longer touches anyone (L6 seed 7: 4/4, 0 contacts, closest 0.48 m; seeds 1–4: 0 contacts, closest ≥ 0.40 m), but on seeds 2 and 4 it skips goal 4: it parks the parallel slot 6–8 cm toward the curb and Hybrid A* finds no route out of that pose (dead spots near y ≈ 0.60 on the 0.1 m distance grid; rear-wheel feedback parks within 1 cm of the goal and gets out); EKF-SLAM drifts until loop closure by design, so with a 7 m beacon range it misses goals; space-time A* is diff-drive only.
 
 ## Moving agents (v7)
 - Before v7 people only reached the stack as lidar hits: the global planner never saw them, DWA and MPC treated hits as static at scan time, and pure pursuit ignored them.
 - Architecture: global path static on purpose; agents handled at the trajectory level (path–velocity decomposition); escalate to a replan only when speed alone cannot resolve the conflict.
 - Path trackers (pure pursuit, rear-wheel feedback, Stanley, PID): Moving agents = Ignore / Reactive stop (brake for unexplained hits in the footprint corridor) / Speed planning. The ST planner runs DP over (t, s, v) with Δt 0.2 s and horizon T_p. Costs: speed error to v_ref(s), acceleration, proximity, a hard cost when the predicted bodies overlap (soft cost in the uncertainty band), and a terminal cost so the profile cannot end parked in an agent's lane just past the horizon. The speed at 0.2 s caps the tracker and curvature is kept.
 - Escalation: unavoidable conflict for about 0.3 s, or about 4 s of waiting, triggers a replan. That plan alone has agents' predicted positions over the next 2 s in the costmap.
-- DWA checks each rollout against the agents' predicted positions at the same time step. NMPC gets one clearance constraint per footprint circle and step against the nearest predicted agent. Hits from tracked agents are removed from the static point set.
+- DWA checks each rollout against the agents' predicted positions at the same time step. NMPC gets one clearance constraint per footprint circle and step against the nearest predicted agent; the last step must also stay clear while the robot would wait there, out to T_p + 3 s (the speed planner's terminal test), and each agent constraint is relaxed by what braking to a stop now would violate, so it stays feasible when a person walks into the robot. With Speed planning the MPC's reference follows the ST profile, and the speed planner's escalation (replan on an agent blocking) applies to it as to the path trackers. Hits from tracked agents are removed from the static point set.
 - UI: ST graph telemetry tab (occupancy, chosen profile, the profile without agents, MPC/DWA prediction projected on the path). Map layer with tracks, predicted rings at 1 s intervals, and ego predicted positions with matching time numbers. New metrics: contacts into the stopped robot, closest approach, track counts. Symbols group, notes, and obs.agents for custom code.
 - L6 now has 4 pedestrians crossing the lanes, pausing 1–3 s at the ends of their walks (this breaks constant-velocity prediction when they stop and when they set off again).
 - Results (people contacts per mission):
@@ -52,6 +52,7 @@ Source: https://github.com/spz0git/nav-stack-lab (from v13; `./build.sh`, tests 
   - L5 seeds 2–5: ST with lidar ≈1 per run versus 3 when ignoring. The residual case is a person reversing at the end of their walk beside the robot.
   - L6: Ignore 5, Reactive 1 (walked into the stopped car), Frozen prediction 1, ST lidar 0 on seeds 1–4.
   - L5 MPC with predictions 0 versus 3 without.
+  - L6 MPC (seeds 7, 1–4): before 4 contacts in 5 runs, closest −0.30…0.16 m; after 0 contacts, closest 0.40–0.57 m. Cause: the agent constraints reached only Np·dt = 2 s ahead on a reference that did not yield, so the car reversed out of a bay at full speed into a lane a person was walking down, stopped at the cusp with nothing checking the time after the horizon, and then had a forward leg aimed at the person; the infeasible constraints wound the multipliers up and it lunged.
 - Tracker accuracy in L5: position error ≈0.11 m, velocity error ≈0.15 m/s. Phantom tracks appear at shelf faces when particle-filter error is large (seed-dependent).
 - Limits: people do not react to the robot (no interaction model); single-hypothesis constant-velocity prediction; the global planner never reasons in time (no space-time search).
 
@@ -74,7 +75,7 @@ Source: https://github.com/spz0git/nav-stack-lab (from v13; `./build.sh`, tests 
 - L6 Parking lot — car-like robot: reverse-in bay, nose-in bay, 2.2 m parallel slot.
 
 ## Candidate next steps
-- Agents: interaction-aware prediction (the predictor does not know people react); multi-modal prediction; JPDA/multi-hypothesis tracking; an ST speed planner for MPC's reference.
+- Agents: interaction-aware prediction (the predictor does not know people react); multi-modal prediction; JPDA/multi-hypothesis tracking.
 - Localization: timestamped (lagged-state) filtering to absorb sensor latency; scan matching for SLAM without beacons.
 - Planning: space-time planning for the car (Hybrid A* in time).
 - Analysis: longitudinal (speed) loop; analysis on a curved path (operating point at constant curvature); localization in the loop (EKF as a dynamic element, so estimator bandwidth shows up in the margins); disturbance/noise spectra.

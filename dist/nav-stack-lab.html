@@ -119,6 +119,15 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .tab{flex:0 0 auto;border:0;background:transparent;padding:10px 9px 9px;font-family:var(--f-display);font-weight:600;font-size:.95rem;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .tab small{font-family:var(--f-mono);font-size:.68rem;font-weight:400;margin-right:4px;opacity:.7}
+/* subsystem accents: the map's hues for localization, perception, planning and control, everywhere */
+[data-sys="loc"]{--sys:var(--rose)} [data-sys="per"]{--sys:var(--amber)} [data-sys="plan"]{--sys:var(--accent)} [data-sys="ctl"]{--sys:var(--ok)}
+.tab[data-sys] small{color:var(--sys);opacity:1;font-weight:600}
+.tab[data-sys][aria-selected="true"]{border-bottom-color:var(--sys)}
+.metrics div[data-sys]{border-left:3px solid var(--sys);padding-left:6px}
+.metrics div{border-left:3px solid transparent;padding-left:6px}
+.lgroup[data-sys]>h3,.learn-head .lbl[data-sys]{color:var(--sys)}
+.lgroup[data-sys] .lnum{color:var(--sys);font-weight:600}
+.lgroup[data-sys] .lesson summary::after{color:var(--sys)}
 .tabgroups{display:flex;flex-wrap:wrap;gap:4px;padding:8px 8px 0}
 .tabgroups button{border:1px solid transparent;background:none;border-radius:999px;padding:2px 10px;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .tabgroups button:hover{border-color:var(--line)}
@@ -4720,20 +4729,20 @@ function renderMetrics(){
   const items=[
     ['Distance',`${S.dist.toFixed(1)} m`],
     ['Collisions',`${S.coll} static, ${S.collPed} people${S.collPedStill?` (${S.collPedStill} into the stopped robot)`:''}`],
-    ['Pose error',`${ep.toFixed(2)} m · ${deg(Math.abs(wrap(r.th-e.th))).toFixed(1)}°`],
-    ['Pose RMS',S.errN?`${Math.sqrt(S.errSq/S.errN).toFixed(2)} m`:'—'],
-    ['NEES (3 = consistent)',nees==null?'—':`${nees.toFixed(1)}${nees>7.8?' · overconfident':''}`],
-    ['Cross-track RMS',S.cteN?`${Math.sqrt(S.cteSq/S.cteN).toFixed(3)} m`:'—'],
-    ['Last plan',ps?`${ps.name} · ${ps.len.toFixed(1)} m${ps.extra?' · '+ps.extra:''} · ${ps.ms.toFixed(0)} ms`:'—'],
-    ['Search effort',ps&&ps.exp?`${ps.exp} ${ps.name==='RRT*'?'tree nodes':'expansions'}`:'—'],
+    ['Pose error',`${ep.toFixed(2)} m · ${deg(Math.abs(wrap(r.th-e.th))).toFixed(1)}°`,'loc'],
+    ['Pose RMS',S.errN?`${Math.sqrt(S.errSq/S.errN).toFixed(2)} m`:'—','loc'],
+    ['NEES (3 = consistent)',nees==null?'—':`${nees.toFixed(1)}${nees>7.8?' · overconfident':''}`,'loc'],
+    ['Cross-track RMS',S.cteN?`${Math.sqrt(S.cteSq/S.cteN).toFixed(3)} m`:'—','ctl'],
+    ['Last plan',ps?`${ps.name} · ${ps.len.toFixed(1)} m${ps.extra?' · '+ps.extra:''} · ${ps.ms.toFixed(0)} ms`:'—','plan'],
+    ['Search effort',ps&&ps.exp?`${ps.exp} ${ps.name==='RRT*'?'tree nodes':'expansions'}`:'—','plan'],
   ];
-  if(P.ctl==='mpc'&&S.mpcStats){const m=S.mpcStats;items.push(['MPC solve',`${m.mode} · ${m.ms.toFixed(1)} ms · ${m.it} it · J ${m.J.toFixed(1)}`],['MPC violation',m.viol>0.005?`${m.viol.toFixed(3)}`:'none']);}
+  if(P.ctl==='mpc'&&S.mpcStats){const m=S.mpcStats;items.push(['MPC solve',`${m.mode} · ${m.ms.toFixed(1)} ms · ${m.it} it · J ${m.J.toFixed(1)}`,'ctl'],['MPC violation',m.viol>0.005?`${m.viol.toFixed(3)}`:'none','ctl']);}
   if(S.peds.length)items.push(['Closest to a person',isFinite(S.minPed)?`${Math.max(0,S.minPed).toFixed(2)} m`:'—']);
-  if(S.agents&&agOn()){const tr=S.agents.tracks,cf=tr.filter(t=>t.conf).length;items.push(['Agent tracks',`${cf} confirmed · ${tr.length-cf} tentative`]);}
-  if(S.slam)items.push(['SLAM map',`${S.slam.n} of ${S.beacons.length} beacons · ${(3+2*S.slam.n)} states`]);
-  if(S.pf)items.push(['Particles',`N_eff ${S.pf.neff.toFixed(0)}/${S.pf.N}, inj ${(S.pf.inj*100).toFixed(0)}%`]);
-  if(P.assoc==='unknown'&&P.loc!=='truth'&&P.loc!=='dr')items.push(['Gated measurements',String(S.rejected)]);
-  $('#metrics').innerHTML=items.map(([a,b])=>`<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
+  if(S.agents&&agOn()){const tr=S.agents.tracks,cf=tr.filter(t=>t.conf).length;items.push(['Agent tracks',`${cf} confirmed · ${tr.length-cf} tentative`,'per']);}
+  if(S.slam)items.push(['SLAM map',`${S.slam.n} of ${S.beacons.length} beacons · ${(3+2*S.slam.n)} states`,'loc']);
+  if(S.pf)items.push(['Particles',`N_eff ${S.pf.neff.toFixed(0)}/${S.pf.N}, inj ${(S.pf.inj*100).toFixed(0)}%`,'loc']);
+  if(P.assoc==='unknown'&&P.loc!=='truth'&&P.loc!=='dr')items.push(['Gated measurements',String(S.rejected),'loc']);
+  $('#metrics').innerHTML=items.map(([a,b,c])=>`<div${c?` data-sys="${c}"`:''}><dt>${a}</dt><dd>${b}</dd></div>`).join('');
 }
 
 /* ---- ui/fsm.js ---- */
@@ -4764,6 +4773,8 @@ function fsmRefresh(){fsmTrack();const el=$('#fsm-wrap');if(!el||activeTab!=='mi
 const TABS=[
  {id:'loc',n:'1',name:'Localize'},{id:'per',n:'2',name:'Perceive'},{id:'mis',n:'3',name:'Mission'},{id:'plan',n:'4',name:'Plan'},{id:'ctl',n:'5',name:'Control'},
  {id:'veh',n:'',name:'Vehicle'},{id:'exp',n:'',name:'Experiments'},{id:'code',n:'',name:'Code'},{id:'view',n:'',name:'Layers'},{id:'sym',n:'',name:'Symbols'}];
+// One colour per subsystem, the same as on the map: belief rose, lidar amber, path blue, MPC green (styles.css [data-sys])
+const SYS={loc:1,per:1,plan:1,ctl:1};
 const TAB_GROUPS=[{id:'pipe',name:'Pipeline',tabs:['loc','per','mis','plan','ctl','veh']},{id:'tools',name:'Tools',tabs:['exp','code']},{id:'ref',name:'Reference',tabs:['view','sym']}];
 const mpc_=()=>P.ctl==='mpc',pf_=()=>P.loc==='pf',filt=()=>P.loc==='ekf'||P.loc==='pf';
 
@@ -5018,7 +5029,7 @@ function buildTabs(){
   $('#tabgroups').innerHTML=TAB_GROUPS.map(g=>`<button id="tg-${g.id}" type="button" aria-pressed="${g===G}">${g.name}</button>`).join('');
   $('#tabgroups').querySelectorAll('button').forEach(b=>b.onclick=()=>{const g=TAB_GROUPS.find(x=>'tg-'+x.id===b.id);if(g===G&&consoleOpen)return;
     activeTab=groupTab[g.id]||g.tabs[0];consoleOpen=true;buildTabs();renderAllPanes();});
-  $('#tabs').innerHTML=TABS.filter(t=>G.tabs.includes(t.id)).map(t=>`<button class="tab" role="tab" id="tab-${t.id}" aria-selected="${t.id===activeTab}" aria-controls="pane">${t.n?`<small>${t.n}</small>`:''}${t.name}</button>`).join('');
+  $('#tabs').innerHTML=TABS.filter(t=>G.tabs.includes(t.id)).map(t=>`<button class="tab" role="tab" id="tab-${t.id}"${SYS[t.id]?` data-sys="${t.id}"`:''} aria-selected="${t.id===activeTab}" aria-controls="pane">${t.n?`<small>${t.n}</small>`:''}${t.name}</button>`).join('');
   $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{const id=b.id.slice(4);
     if(id===activeTab&&consoleOpen&&narrowUI()){consoleOpen=false;buildTabs();return;}
     activeTab=id;consoleOpen=true;buildTabs();renderAllPanes();});
@@ -6069,9 +6080,9 @@ function renderLearn(){
   const v=$('#learnview'),cur=lessonOpen&&lessonItem(lessonOpen);
   const all=LESSON_GROUPS().flatMap(G=>G.items.map((_,i)=>`${G.id}:${i}`)),k=cur?all.indexOf(lessonOpen):-1;
   v.classList.toggle('reading',!!cur);
-  v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${k<all.length-1?`<button class="linkbtn" id="learn-next" type="button">Next lesson →</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
+  v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${k<all.length-1?`<button class="linkbtn" id="learn-next" type="button">Next lesson →</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
      :`<h2>Lessons</h2><p class="note">Grouped by subsystem. Open one, read it, press its Try buttons. Opening a lesson shows the map layers it is about; <b>All lessons</b> brings yours back. The Symbols tab defines every symbol used.</p>`}</div>`+
-   LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
+   LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}" data-sys="${G.id}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
     G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${L.b}<div class="tries">${L.tries.map((t,j)=>`<button class="btn small" data-try="${id}:${j}">${t[0]}</button>`).join('')}</div></div></details>`;}).join('')+`</section>`).join('');
   v.querySelectorAll('details.lesson>summary').forEach(s=>s.onclick=e=>{e.preventDefault();const id=s.parentNode.dataset.l;if(lessonOpen===id)lessonBack();else openLesson(id);});
   v.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':'),id=g+':'+i;if(lessonOpen!==id)openLesson(id);

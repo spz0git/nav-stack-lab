@@ -19,18 +19,18 @@ function renderMetrics(){
   const items=[
     ['Distance',`${S.dist.toFixed(1)} m`],
     ['Collisions',`${S.coll} static, ${S.collPed} people${S.collPedStill?` (${S.collPedStill} into the stopped robot)`:''}`],
-    ['Pose error',`${ep.toFixed(2)} m · ${deg(Math.abs(wrap(r.th-e.th))).toFixed(1)}°`],
-    ['Pose RMS',S.errN?`${Math.sqrt(S.errSq/S.errN).toFixed(2)} m`:'—'],
-    ['NEES (3 = consistent)',nees==null?'—':`${nees.toFixed(1)}${nees>7.8?' · overconfident':''}`],
-    ['Cross-track RMS',S.cteN?`${Math.sqrt(S.cteSq/S.cteN).toFixed(3)} m`:'—'],
-    ['Last plan',ps?`${ps.name} · ${ps.len.toFixed(1)} m${ps.extra?' · '+ps.extra:''} · ${ps.ms.toFixed(0)} ms`:'—'],
-    ['Search effort',ps&&ps.exp?`${ps.exp} ${ps.name==='RRT*'?'tree nodes':'expansions'}`:'—'],
+    ['Pose error',`${ep.toFixed(2)} m · ${deg(Math.abs(wrap(r.th-e.th))).toFixed(1)}°`,'loc'],
+    ['Pose RMS',S.errN?`${Math.sqrt(S.errSq/S.errN).toFixed(2)} m`:'—','loc'],
+    ['NEES (3 = consistent)',nees==null?'—':`${nees.toFixed(1)}${nees>7.8?' · overconfident':''}`,'loc'],
+    ['Cross-track RMS',S.cteN?`${Math.sqrt(S.cteSq/S.cteN).toFixed(3)} m`:'—','ctl'],
+    ['Last plan',ps?`${ps.name} · ${ps.len.toFixed(1)} m${ps.extra?' · '+ps.extra:''} · ${ps.ms.toFixed(0)} ms`:'—','plan'],
+    ['Search effort',ps&&ps.exp?`${ps.exp} ${ps.name==='RRT*'?'tree nodes':'expansions'}`:'—','plan'],
   ];
-  if(P.ctl==='mpc'&&S.mpcStats){const m=S.mpcStats;items.push(['MPC solve',`${m.mode} · ${m.ms.toFixed(1)} ms · ${m.it} it · J ${m.J.toFixed(1)}`],['MPC violation',m.viol>0.005?`${m.viol.toFixed(3)}`:'none']);}
+  if(P.ctl==='mpc'&&S.mpcStats){const m=S.mpcStats;items.push(['MPC solve',`${m.mode} · ${m.ms.toFixed(1)} ms · ${m.it} it · J ${m.J.toFixed(1)}`,'ctl'],['MPC violation',m.viol>0.005?`${m.viol.toFixed(3)}`:'none','ctl']);}
   if(S.peds.length)items.push(['Closest to a person',isFinite(S.minPed)?`${Math.max(0,S.minPed).toFixed(2)} m`:'—']);
-  if(S.agents&&agOn()){const tr=S.agents.tracks,cf=tr.filter(t=>t.conf).length;items.push(['Agent tracks',`${cf} confirmed · ${tr.length-cf} tentative`]);}
-  if(S.slam)items.push(['SLAM map',`${S.slam.n} of ${S.beacons.length} beacons · ${(3+2*S.slam.n)} states`]);
-  if(S.pf)items.push(['Particles',`N_eff ${S.pf.neff.toFixed(0)}/${S.pf.N}, inj ${(S.pf.inj*100).toFixed(0)}%`]);
-  if(P.assoc==='unknown'&&P.loc!=='truth'&&P.loc!=='dr')items.push(['Gated measurements',String(S.rejected)]);
-  $('#metrics').innerHTML=items.map(([a,b])=>`<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
+  if(S.agents&&agOn()){const tr=S.agents.tracks,cf=tr.filter(t=>t.conf).length;items.push(['Agent tracks',`${cf} confirmed · ${tr.length-cf} tentative`,'per']);}
+  if(S.slam)items.push(['SLAM map',`${S.slam.n} of ${S.beacons.length} beacons · ${(3+2*S.slam.n)} states`,'loc']);
+  if(S.pf)items.push(['Particles',`N_eff ${S.pf.neff.toFixed(0)}/${S.pf.N}, inj ${(S.pf.inj*100).toFixed(0)}%`,'loc']);
+  if(P.assoc==='unknown'&&P.loc!=='truth'&&P.loc!=='dr')items.push(['Gated measurements',String(S.rejected),'loc']);
+  $('#metrics').innerHTML=items.map(([a,b,c])=>`<div${c?` data-sys="${c}"`:''}><dt>${a}</dt><dd>${b}</dd></div>`).join('');
 }

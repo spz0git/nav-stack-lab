@@ -114,6 +114,15 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .tab{flex:0 0 auto;border:0;background:transparent;padding:10px 9px 9px;font-family:var(--f-display);font-weight:600;font-size:.95rem;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .tab small{font-family:var(--f-mono);font-size:.68rem;font-weight:400;margin-right:4px;opacity:.7}
+/* subsystem accents: the map's hues for localization, perception, planning and control, everywhere */
+[data-sys="loc"]{--sys:var(--rose)} [data-sys="per"]{--sys:var(--amber)} [data-sys="plan"]{--sys:var(--accent)} [data-sys="ctl"]{--sys:var(--ok)}
+.tab[data-sys] small{color:var(--sys);opacity:1;font-weight:600}
+.tab[data-sys][aria-selected="true"]{border-bottom-color:var(--sys)}
+.metrics div[data-sys]{border-left:3px solid var(--sys);padding-left:6px}
+.metrics div{border-left:3px solid transparent;padding-left:6px}
+.lgroup[data-sys]>h3,.learn-head .lbl[data-sys]{color:var(--sys)}
+.lgroup[data-sys] .lnum{color:var(--sys);font-weight:600}
+.lgroup[data-sys] .lesson summary::after{color:var(--sys)}
 .tabgroups{display:flex;flex-wrap:wrap;gap:4px;padding:8px 8px 0}
 .tabgroups button{border:1px solid transparent;background:none;border-radius:999px;padding:2px 10px;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .tabgroups button:hover{border-color:var(--line)}

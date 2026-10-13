@@ -27,6 +27,9 @@ const LIVE={
   lidarSig:()=>liveF(P.lidarSig,2),infl:()=>liveF(P.infl,1),agSigA:()=>liveF(P.agSigA,1),agT:()=>liveF(P.agT,1),agGrow:()=>liveF(P.agGrow,2),sensLat:()=>liveF(P.sensLat,2),
   lam:()=>liveF(P.agSigA*0.01/0.1,3),alpha:()=>liveF(abGains().a,2),beta:()=>liveF(abGains().b,3),tauv:()=>{const a=abGains().a;return liveF(0.1/(-Math.log(Math.sqrt(1-a))),1);},
   rAtT:()=>liveF(0.35+P.agGrow*P.agT,2),
+  // planning (chapter 4)
+  eps:()=>liveF(P.eps,1),rrtIt:()=>String(P.rrtIt),planPct:()=>String(P.planPct),Rmin:()=>liveF(P.wheelbase/Math.tan(steerMax()),2),Rplan:()=>liveF(planR(),2),
+  stMarg:()=>liveF(P.stMarg,2),dtc:()=>liveF(0.2/Math.max(0.2,Math.min(P.vcruise,P.vmax)),2),nt:()=>String(Math.ceil(P.agT/(0.2/Math.max(0.2,Math.min(P.vcruise,P.vmax))))+1),
   v0:()=>liveF(anV0()),Ld:()=>liveF(ppFormulas().Ld),
   Ke0:()=>liveF(ppFormulas().Ke,3),Kth0:()=>liveF(ppFormulas().Kth,3),wn0:()=>liveF(ppFormulas().wn),wc0:()=>liveF(ppFormulas().wc),
   lead0:()=>liveF(ppFormulas().lead,1),holdlag0:()=>liveF(ppFormulas().hold,1),pm0:()=>liveF(ppFormulas().pm,1),dm0:()=>liveF(ppFormulas().dm),

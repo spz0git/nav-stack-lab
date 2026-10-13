@@ -234,6 +234,18 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .swatch.line.dash{border-top-style:dashed}
 .nom .unit{color:var(--muted);font-family:var(--f-mono);font-size:.74rem;white-space:nowrap}
 .linkbtn{border:0;background:none;padding:0;color:var(--accent);font:inherit;font-size:.86rem;text-decoration:underline;text-underline-offset:2px;cursor:pointer;align-self:flex-start}
+.term{text-decoration:underline dotted;text-decoration-color:var(--muted);text-underline-offset:3px;cursor:help;border-radius:2px}
+.term:hover,.term[aria-describedby]{color:var(--accent);text-decoration-color:var(--accent)}
+.termtip{position:fixed;z-index:30;max-width:min(320px,calc(100vw - 16px));background:var(--raise);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-family:var(--f-body);font-size:.84rem;line-height:1.4;white-space:normal;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
+.termtip b{font-family:var(--f-math);font-size:1rem;font-weight:600;margin-right:3px}
+.termtip .unit,.terms .unit{color:var(--muted);font-family:var(--f-mono);font-size:.74rem;white-space:nowrap}
+.terms{border:1px solid var(--line);border-radius:6px;background:var(--raise);padding:6px 10px}
+.terms summary{cursor:pointer;font-family:var(--f-display);font-weight:600;font-size:.9rem}
+.terms dl{display:grid;grid-template-columns:minmax(64px,max-content) minmax(0,1fr);gap:4px 14px;margin:8px 0 2px}
+.terms dt{font-family:var(--f-math);font-size:1rem;line-height:1.35}
+.terms dd{margin:0;font-size:.84rem;line-height:1.4;min-width:0}
+.terms dt.w,.termtip b.w{font-family:var(--f-body);font-size:.86rem;font-weight:600}
+@media (max-width:760px){.terms dl{grid-template-columns:minmax(0,7em) minmax(0,1fr);gap:5px 10px}}
 .codestat.err{color:var(--bad)} .codestat.ok{color:var(--ok)}
 
 .tele{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
@@ -6101,6 +6113,360 @@ const LESSON_GROUPS=()=>[
  {id:'plan',title:'Planning and the mission',note:'',items:SIM_LESSONS.plan},
  {id:'ctl',title:'The control loop (linear analysis)',note:'Each button sets up the lab and shows the loop analysis on the left; <b>A</b> switches between it and the map.',items:LESSONS.concat(LESSONS_EXTRA)}];
 
+/* ---- analysis/glossary.js ---- */
+/* ---------- lesson glossary: short definitions of the terms and symbols each lesson uses ---------- */
+// GLOSS[id] = [shown as (HTML), definition (HTML), unit, patterns]. Patterns are the exact text (or HTML) the lessons
+// write; the longest one wins at each position, lowercase words match any case, [] means listed but not marked inline.
+// A symbol means different things in different lessons (Σ, g, L, ω …), so each meaning has its own id.
+const GLOSS={
+ // localization
+ odometry:['odometry','Motion the robot measures itself, from its wheel encoders: speed <i>v</i> and turn rate ω every tick. Its errors are never corrected, so they accumulate.','',['odometry']],
+ deadreck:['dead reckoning','Estimating the pose by integrating odometry alone, with no external reference. The error grows without bound.','',['dead reckoning']],
+ arc:['arc model','Motion model that holds <i>v</i> and ω constant over one tick, so the robot moves along a circular arc (a straight line when ω = 0).','',['arc model']],
+ covariance:['covariance','How uncertain the estimate is, and how the errors of its states are correlated. Drawn on the map as the 95 % ellipse.','',['covariance']],
+ ellipse:['ellipse','The 95 % uncertainty ellipse of the position, drawn on the map from Σ.','',['ellipse']],
+ consistent:['consistent filter','A filter whose covariance matches its real errors: the true error stays inside its σ bounds as often as statistics predict.','',['consistent filter','consistent']],
+ band2s:['2σ band','Two standard deviations of the estimate either side of zero on the error plot. A consistent filter stays inside it about 95 % of the time.','',['2σ band']],
+ poserr:['Position error','Telemetry plot of the distance between the true and the estimated position, with the filter\'s 2σ band.','',['Position error']],
+ mu:['μ','Pose estimate, the filter\'s mean [<i>x̂</i>, <i>ŷ</i>, θ̂]. μ′ is its value one tick later.','m, rad',['μ']],
+ Sigma:['Σ','Covariance of the pose estimate, 3 × 3. Σ′ is its value one tick later.','',['Σ']],
+ gmot:['<i>g</i>(μ, <i>u</i>)','Motion model: the next pose from the current one and the odometry input, by the arc model.','',['g(μ, u)','g']],
+ uodo:['<i>u</i>','Odometry input (<i>v</i>, ω).','m/s, rad/s',['u']],
+ Gjac:['<i>G</i>','Jacobian of the motion model with respect to the pose: how an error in the pose carries into the next pose.','',['G']],
+ Vjac:['<i>V</i>','Jacobian of the motion model with respect to the odometry input: how odometry noise enters the pose.','',['V']],
+ Modo:['<i>M</i>','Odometry noise covariance, diag(σ<sub>v</sub>², σ<sub>ω</sub>²).','',['M']],
+ sigx:['σ<sub>x</sub>²','Variance of the <i>x</i> estimate, the top-left entry of Σ.','m²',['σ_x²']],
+ v:['<i>v</i>','Speed along the heading.','m/s',['<i>v</i>','v']],
+ w:['ω','Turn rate (yaw rate).','rad/s',['ω']],
+ thetaerr:['θ','Heading. In the drift formula, the heading error.','rad',['θ']],
+ t:['<i>t</i>','Time.','s',['t']],
+ beacon:['beacon','Landmark at a known position on the walls. The robot measures range and bearing to the ones within reach.','',['beacons','beacon']],
+ rb:['range and bearing','Distance to a beacon, and its direction relative to the robot\'s heading.','m, rad',['range and bearing']],
+ ekf:['EKF','Extended Kalman filter: a Kalman filter for nonlinear models, linearized about the current estimate. It keeps one Gaussian belief (μ, Σ).','',['EKF']],
+ kgain:['Kalman gain','How far the estimate moves per unit of innovation. Large when the estimate is uncertain and the sensor precise.','',['Kalman gain']],
+ nu:['ν','Innovation <i>z</i> − <i>ẑ</i>: measured minus predicted reading, the part the filter did not expect.','m, rad',['ν','innovations','innovation']],
+ z:['<i>z</i>','Measurement: range and bearing to a beacon.','m, rad',['z']],
+ zhat:['<i>ẑ</i>','Predicted measurement, computed from the current estimate.','m, rad',['ẑ']],
+ Sinn:['<i>S</i>','Innovation covariance <i>H</i>Σ<i>H</i>ᵀ + <i>Q</i>: how spread out the innovations should be.','',['S']],
+ Hjac:['<i>H</i>','Measurement Jacobian: how the predicted reading changes with the pose.','',['H']],
+ Qmeas:['<i>Q</i>','Measurement noise covariance, diag(σ<sub>r</sub>², σ<sub>φ</sub>²).','',['Q']],
+ K:['<i>K</i>','Kalman gain Σ<i>H</i>ᵀ<i>S</i>⁻¹.','',['K']],
+ Iid:['<i>I</i>','Identity matrix.','',['I']],
+ nees:['NEES','Normalized estimation error squared, <i>e</i>ᵀΣ⁻¹<i>e</i>: the true error in units of the filter\'s own covariance. About 3 on average for a consistent 3-state filter; above 3 means overconfident.','',['NEES']],
+ eerr:['<i>e</i>','True estimation error: true pose minus estimate.','m, rad',['e']],
+ overconf:['overconfident','Its covariance is smaller than its real error: the filter trusts itself too much and underweights readings that would correct it.','',['overconfident']],
+ bias:['bias','Systematic error that does not average out, such as a wheel slightly larger than the model assumes. Filters model noise, not bias.','',['bias']],
+ assumed:['assumed motion noise','The odometry noise the filter believes in (Localize tab). Raising it widens Σ, so beacon readings count for more.','',['assumed motion noise']],
+ unlabeled:['unlabeled beacons','Beacons that all look alike: the filter must work out which one each reading came from (data association).','',['unlabeled beacons','unlabeled']],
+ mahal:['Mahalanobis distance','Distance counted in standard deviations, allowing for correlations: <i>d</i>² = νᵀ<i>S</i>⁻¹ν.','',['Mahalanobis distance']],
+ gate:['gate','Acceptance threshold on <i>d</i>²: a reading outside it is treated as an outlier and ignored.','',['gate']],
+ d2:['<i>d</i>²','Squared Mahalanobis distance between a reading and its prediction.','',['d²']],
+ chi2:['χ²','Chi-squared distribution. For a correct 2-D reading <i>d</i>² follows χ² with 2 degrees of freedom, which exceeds 9.21 only 1 % of the time.','',['χ²']],
+ clutter:['clutter','False detections: readings that come from no beacon.','',['clutter']],
+ outlier:['outlier','A reading too far from its prediction to be trusted.','',['outliers','outlier']],
+ kidnap:['kidnapping','Teleporting the robot without telling the estimator, to test whether localization recovers from a gross error.','',['kidnapping','kidnap']],
+ knownids:['known IDs','Each reading says which beacon it came from, so no association and no gate are needed.','',['known IDs']],
+ pf:['particle filter','Represents the belief by many sampled poses (particles), weighted by how well each explains the readings. It can hold several hypotheses at once.','',['particle filter']],
+ hyp:['hypotheses','Candidate poses the filter is still considering.','',['hypotheses']],
+ particle:['particle','One sampled guess of the pose.','',['particles','particle']],
+ motionmodel:['motion model','Predicts the next pose from the current pose and the odometry; each particle samples it with its own noise.','',['motion model']],
+ likelihood:['likelihood','How probable the actual reading is if the robot were at a particle\'s pose.','',['likelihood']],
+ resample:['resampling','Drawing a new particle set from the old one in proportion to the weights: likely particles are copied, unlikely ones dropped.','',['resamples','resampling','resample']],
+ neff:['<i>N</i><sub>eff</sub>','Effective sample size 1 / Σ <i>w</i><sub>i</sub>²: <i>N</i> when all weights are equal, 1 when one particle holds all the weight.','',['effective sample size','N_eff']],
+ Npart:['<i>N</i>','Number of particles.','',['N']],
+ sumP:['Σ','Sum over all particles (here not a covariance).','',['Σ']],
+ wi:['<i>w</i><sub>i</sub>','Normalized weight of particle <i>i</i>; the weights sum to 1.','',['w_i']],
+ lowvar:['low-variance resampling','Resampling with one random number and <i>N</i> evenly spaced pointers, so the new set follows the weights as closely as possible.','',['low-variance resampling']],
+ amcl:['augmented MCL','Monte Carlo localization (a particle filter) that watches how well the readings fit and injects new particles when the fit suddenly drops.','',['augmented MCL']],
+ wfs:['<i>w</i><sub>fast</sub>, <i>w</i><sub>slow</sub>','Short- and long-term running averages of the particle likelihood. <i>w</i><sub>fast</sub> falling below <i>w</i><sub>slow</sub> means the readings have stopped fitting.','',['w_fast','w_slow']],
+ wavg:['<i>w</i>','Average particle likelihood at this update.','',['w']],
+ inject:['injection','Replacing some particles with poses drawn from the current readings, so the filter can find a robot it has lost.','',['injection','inject']],
+ globalloc:['global localization','Finding the pose with no initial guess at all.','',['global localization']],
+ mirror:['mirror pose','The pose turned 180° about the warehouse center, which unlabeled beacons cannot tell from the true one.','',['mirror pose']],
+ lidar:['lidar','Laser scanner: distance to the nearest obstacle along 120 beams around the robot.','',['lidar']],
+ slam:['SLAM','Simultaneous localization and mapping: estimating the pose and the map together.','',['EKF-SLAM','SLAM']],
+ landmark:['landmark','A mapped feature whose position the filter estimates; here, a beacon.','',['landmarks','landmark']],
+ xslam:['<i>x</i>','SLAM state: the pose [<i>x</i>, <i>y</i>, θ] followed by every landmark position.','',['x']],
+ mlm:['<i>m</i>','Position of a landmark; <i>m</i>₁ₓ, <i>m</i>₁ᵧ are the coordinates of the first one.','m',['m₁ₓ','m']],
+ Pslam:['<i>P</i>','Covariance of the whole SLAM state: pose and landmarks, with their correlations.','',['P']],
+ nlm:['<i>n</i>','Number of landmarks in the map.','',['n']],
+ ppos:['<i>p</i>','Robot position when the landmark is first seen.','m',['p']],
+ rr:['<i>r</i>','Measured range to the beacon.','m',['r']],
+ bb:['<i>b</i>','Measured bearing to the beacon, relative to the heading.','rad',['b']],
+ Pmm:['<i>P</i><sub>mm</sub>, <i>P</i><sub>xx</sub>','Covariance of the new landmark, and of the pose.','',['P_mm','P_xx']],
+ Jxz:['<i>J</i><sub>x</sub>, <i>J</i><sub>z</sub>','Jacobians of the new landmark position with respect to the pose and to the reading.','',['J_x','J_z']],
+ Rm:['<i>R</i>','Measurement noise covariance (<i>Q</i> in the EKF lesson).','',['R']],
+ correlated:['correlated','Errors that move together: if the pose is off, the landmarks placed from it are off the same way.','',['correlated']],
+ loopclosure:['loop closure','Re-observing a landmark mapped long ago, which corrects the drift accumulated since.','',['loop closure']],
+ drift:['drift','Error that grows steadily with the distance travelled.','',['drifts','drift']],
+ // perception
+ beam:['beam','One lidar ray, traced through the grid cell by cell.','',['beams','beam']],
+ grid:['occupancy grid','The map as 0.1 m cells, each holding how likely it is to be occupied.','',['grid']],
+ logodds:['log-odds','<i>l</i> = ln(<i>p</i> / (1 − <i>p</i>)) for a cell\'s probability <i>p</i> of being occupied: 0 is unknown, positive is probably occupied. Evidence then simply adds.','',['log-odds']],
+ l:['<i>l</i>','Log-odds of a cell.','',['l']],
+ lmeas:['<i>l</i><sub>meas</sub>','Evidence from one beam: <i>l</i><sub>free</sub> for the cells it crosses, <i>l</i><sub>hit</sub> for its end cell.','',['l_meas']],
+ lfh:['<i>l</i><sub>free</sub>, <i>l</i><sub>hit</sub>','Log-odds added for a cell a beam crosses (−0.4) and for the cell it ends in (+0.85).','',['l_free','l_hit']],
+ clamp:['clamp','Limit a value to a range; here ±4, so a cell can always change its mind.','',['clamping','clamp']],
+ estframe:['estimated frame','Coordinates built from the estimated pose: wherever the estimate is wrong, the map is drawn wrong.','',['<i>estimated</i> frame']],
+ costmap:['costmap','The grid the planner sees: a cost for every cell, computed from the obstacle distances.','',['costmap']],
+ disttrans:['distance transform','Gives every cell its distance to the nearest occupied cell.','',['distance transform']],
+ lethal:['lethal','A cell the robot\'s center may not enter: closer than 0.4 m to an obstacle (radius 0.3 m plus margin).','',['lethal']],
+ inflation:['inflation band','Band beyond the lethal cells where the cost fades to zero, so paths keep clear of walls when they can.','',['inflation band']],
+ penalty:['penalty','Extra cost of a cell in the inflation band: 1 at its inner edge, 0 at its outer edge.','',['penalty']],
+ dobs:['<i>d</i>','Distance from a cell to the nearest obstacle.','m',['d']],
+ winf:['<i>w</i>','Width of the inflation band.','m',['w']],
+ edgecost:['edge cost','Cost of a move between neighbouring cells: its length, raised by the penalty.','',['edge cost']],
+ frontier:['frontier exploration','Driving to the boundary between known free space and unknown space, to map more.','',['frontier exploration']],
+ cluster:['cluster','Neighbouring lidar hits grouped as one object.','',['cluster']],
+ track:['track','One tracked person: a filter holding their position and velocity.','',['tracks','track']],
+ cvkf:['constant-velocity Kalman filter','Kalman filter that assumes the person keeps their velocity, with random acceleration as noise.','',['constant-velocity Kalman filter']],
+ confirm:['confirm','A track counts only after three hits, so one stray detection does not create a person.','',['confirm']],
+ coast:['coast','Keep predicting a track that has no detection, here for up to 1 s, while the person is hidden.','',['coasts','coast']],
+ xag:['<i>x</i>','Track state [<i>p</i><sub>x</sub>, <i>p</i><sub>y</sub>, <i>v</i><sub>x</sub>, <i>v</i><sub>y</sub>]: position and velocity.','m, m/s',['x']],
+ pxy:['<i>p</i><sub>x</sub>, <i>p</i><sub>y</sub>','Tracked position.','m',['p_x','p_y']],
+ vxy:['<i>v</i><sub>x</sub>, <i>v</i><sub>y</sub>','Tracked velocity, inferred from position changes.','m/s',['v_x','v_y']],
+ Fcv:['<i>F</i>','State transition of the constant-velocity model: position grows by velocity × Δ<i>t</i>.','',['F']],
+ Qproc:['<i>Q</i>','Process noise covariance: how much the velocity may change unpredictably per step.','',['Q']],
+ siga:['σ<sub>a</sub>','Standard deviation of the random acceleration the tracker assumes.','m/s²',['σ_a']],
+ pt:['<i>p</i>(<i>t</i>)','Predicted position <i>t</i> seconds ahead.','m',['p(t)']],
+ rt:['<i>r</i>(<i>t</i>)','Predicted radius <i>t</i> seconds ahead; it grows to cover prediction error.','m',['r(t)']],
+ ggrow:['<i>g</i>','Growth rate of the predicted radius.','m/s',['g']],
+ pag:['<i>p</i>','Current tracked position.','m',['p']],
+ vag:['<i>v</i>','Current tracked velocity.','m/s',['v']],
+ rag:['<i>r</i>','Radius of the person.','m',['r']],
+ groundtruth:['ground truth','The simulator\'s true values, which a real robot never has.','',['ground truth']],
+ latency:['latency','Delay between a reading (or command) being made and being used.','s',['latency']],
+ tick:['tick','One simulation step, 0.05 s.','s',['ticks','tick']],
+ Ts:['<i>T</i><sub>s</sub>','Sensor latency.','s',['T_s']],
+ biased:['biased','Wrong on average, not just noisy.','',['biased']],
+ lagged:['lagged-state filter','A filter that keeps recent states (or buffers readings), so a late reading is applied at the time it was taken.','',['lagged-state']],
+ timestamp:['timestamp','The time a reading was taken, stored with it.','',['timestamp']],
+ socialforce:['social forces','Pedestrian model: each person accelerates toward their goal and is pushed away from the robot, other people and walls.','',['social forces']],
+ Fsf:['<i>F</i>','Social force on a person: the acceleration that steers them.','m/s²',['F']],
+ v0p:['<i>v</i>₀','Preferred walking speed.','m/s',['v₀']],
+ edir:['<i>e</i>','Unit vector toward the person\'s goal.','',['e']],
+ vp:['<i>v</i>','Current velocity of the person.','m/s',['v']],
+ tausf:['τ','Relaxation time: how fast a person returns to the preferred velocity.','s',['τ']],
+ sumO:['Σ','Sum over the other people and the robot.','',['Σ']],
+ Asf:['<i>A</i>','Strength of the push.','m/s²',['A']],
+ Bsf:['<i>B</i>','Distance over which the push fades.','m',['B']],
+ rij:['<i>r</i><sub>i</sub>, <i>r</i><sub>j</sub>','Radii of the two bodies.','m',['r_i','r_j']],
+ dpp:['<i>d</i>','Distance between the two centers.','m',['d']],
+ ndir:['<i>n</i>','Unit vector pointing away from the other body.','',['n']],
+ closest:['closest approach','Smallest distance between the robot and any person during the run (a Telemetry metric).','m',['closest-approach','closest approach']],
+ contacts:['contacts','Times the robot touched a person.','',['contacts']],
+ // planning
+ astar:['A*','Best-first graph search: always expands the node with the smallest <i>f</i> = <i>g</i> + <i>h</i>.','',['A*']],
+ node:['node','A search state; here a grid cell.','',['node']],
+ fcost:['<i>f</i>','Estimated total cost of a path through the node, <i>g</i> + <i>h</i>.','',['f']],
+ gcost:['<i>g</i>','Cost of the best path found so far from the start to the node.','',['g']],
+ hcost:['<i>h</i>','Heuristic estimate of the cost from the node to the goal.','',['h']],
+ heur:['heuristic','An estimate of the remaining cost to the goal that steers the search toward it.','',['heuristics','heuristic']],
+ admissible:['admissible','A heuristic that never overestimates the true cost to the goal; with it, A* returns an optimal path.','',['admissible']],
+ eightconn:['8-connected','Each cell has eight neighbours: four straight, four diagonal.','',['8-connected']],
+ octile:['octile distance','Shortest distance on an 8-connected grid without obstacles: diagonal steps plus straight ones.','',['octile distance']],
+ eps:['ε','Heuristic weight. Above 1 the search is greedier and faster, and the path costs at most ε times the optimum.','',['ε']],
+ expansions:['expansions','Nodes the search took off its queue and expanded: the work it did.','',['expansions','expansion']],
+ weighted:['weighted A*','A* with <i>h</i> multiplied by ε > 1.','',['Weighted A*','weighted A*']],
+ rrtstar:['RRT*','Rapidly-exploring random tree, optimal variant: grows a tree toward random samples and rewires it toward shorter paths.','',['RRT*']],
+ samples:['samples','Random points in free space that the tree grows toward.','',['samples']],
+ parent:['parent','The node a new node connects back to; following parents leads to the start.','',['parent']],
+ rewire:['rewire','Reconnect existing nodes through a new node when that shortens their path to the start.','',['rewires','rewire']],
+ neigh:['neighbourhood','Nodes within radius <i>r</i> of a new node, considered as its parent and for rewiring.','',['neighbourhood']],
+ asym:['asymptotically optimal','Converges to the shortest path as the number of samples grows without limit.','',['asymptotically optimal']],
+ rrad:['<i>r</i>','Neighbourhood radius; it shrinks as the tree grows.','m',['r']],
+ ntree:['<i>n</i>','Number of nodes in the tree.','',['n']],
+ seed:['seed','Starting value of the random number generator: the same seed gives the same run.','',['seed']],
+ hybrid:['Hybrid A*','A* over grid cells in which every node keeps a continuous pose and every edge is an arc the car can drive.','',['Hybrid A*']],
+ heading:['heading','Direction the vehicle points.','rad',['heading']],
+ minturn:['minimum turning radius','Tightest circle the car can drive, <i>L</i> / tan δ<sub>max</sub>; about 1 m here.','m',['minimum turning radius']],
+ arcs:['arc','A short drive at a constant steering angle: the edges of the search.','',['arcs','arc']],
+ reverse:['reverse','Driving backward; each change of direction is a cusp.','',['reverse']],
+ dijkstra:['Dijkstra','Search outward from the goal over the grid, giving the exact obstacle-aware distance from every cell; used here as a heuristic.','',['2D Dijkstra','Dijkstra']],
+ rs:['Reeds–Shepp','Shortest path for a car that can reverse, ignoring obstacles: a few arcs and straights. Also used as a heuristic.','',['Reeds–Shepp']],
+ analytic:['analytic expansion','Try a direct Reeds–Shepp path from the current node to the goal, and take it if it is collision-free.','',['analytic expansion']],
+ steerlimit:['steering limit','Largest front-wheel angle, δ<sub>max</sub> = 32° here.','°',['steering limit']],
+ fulllock:['full-lock','Steering at the limit.','',['full-lock']],
+ tracker:['tracker','The path-following controller (Control tab).','',['trackers','tracker']],
+ fsm:['state machine','A small set of states (PLAN, DRIVE, …) with rules for moving between them, drawn live in the Mission tab.','',['state machine']],
+ states:['DRIVE, PLAN, NO_PATH','Mission states: following a path; computing one; no path found (retry after 2 s, skip the goal after 3 failures).','',['DRIVE','PLAN','NO_PATH']],
+ replan:['replan','Plan again from the current estimate.','',['replans','replan']],
+ estimate:['estimate','The pose the localization believes; the planner and controller use it, not the truth.','',['estimate']],
+ speedplanner:['speed planner','Picks the speed along the path so the robot avoids predicted people by slowing or waiting.','',['speed planner']],
+ agent:['agent','A moving obstacle; here, a person.','',['agent']],
+ sta:['Space-time A*','A* over (<i>x</i>, <i>y</i>, <i>t</i>): waiting is a move, and a cell is blocked at the times a predicted person covers it.','',['Space-time A*']],
+ refspeed:['reference speed','Speed used to turn moves into time, <i>v</i>₀.','m/s',['reference speed']],
+ horizon:['prediction horizon','How far ahead people\'s positions are predicted.','s',['prediction horizon']],
+ ijk:['(<i>i</i>, <i>j</i>, <i>k</i>)','Search state: grid cell (<i>i</i>, <i>j</i>) and time index <i>k</i>.','',['(i, j, k)']],
+ kidx:['<i>k</i>','Time index, <i>t</i> / Δ<i>t</i>.','',['k']],
+ dtst:['Δ<i>t</i>','Time per step: the time to cross one cell at the reference speed.','s',['Δt']],
+ v0r:['<i>v</i>₀','Reference speed.','m/s',['v₀']],
+ cij:['<i>c</i><sub>ij</sub>','Center of cell (<i>i</i>, <i>j</i>).','m',['c_ij']],
+ pa:['<i>p</i><sub>a</sub>, <i>r</i><sub>a</sub>','Predicted position and radius of agent <i>a</i>; the radius grows with time.','m',['p_a','r_a']],
+ rrobot:['<i>r</i><sub>robot</sub>','Robot radius, 0.3 m.','m',['r_robot']],
+ // control loop
+ ectl:['<i>e</i>','Lateral (cross-track) error: signed distance from the path.','m',['e']],
+ the:['θ<sub>e</sub>','Heading error: robot heading minus path direction.','rad',['θ<sub>e</sub>','θₑ','θ_e']],
+ thdot:['θ̇<sub>e</sub>','Rate of change of the heading error.','rad/s',['θ̇ₑ','θ̇_e']],
+ edot:['<i>ė</i>','Rate of change of the lateral error.','m/s',['ė']],
+ v0c:['<i>v</i><sub>0</sub>','Operating speed of the analysis (the cruise speed).','m/s',['v<sub>0</sub>','v₀']],
+ gpl:['<i>g</i>','Plant gain from the steering command to the heading rate: 1 for diff-drive, <i>v</i><sub>0</sub>/<i>L</i> for the car.','',['g']],
+ uc:['<i>u</i>','Steering command: turn rate ω (diff-drive) or steering angle δ (car).','',['u']],
+ u0:['<i>u</i>₀','Steering command at the settled point on the circle.','',['u₀']],
+ wturn:['ω','Turn-rate command (diff-drive).','rad/s',['ω']],
+ wfreq:['ω','Angular frequency of a sinusoid.','rad/s',['ω']],
+ delta:['δ','Front-wheel steering angle (car).','rad',['δ']],
+ Lwb:['<i>L</i>','Wheelbase of the car.','m',['L']],
+ integrator:['integrator','Its output is the running integral of its input; two in series make the double integrator.','',['integrators','integrator']],
+ derivative:['derivative action','Feedback on the rate of change of the error; it damps the loop.','',['derivative action']],
+ opoint:['operating point','The steady condition the loop is linearized about: speed, path curvature and settled offset.','',['operating point']],
+ findiff:['finite differences','Estimating a derivative by nudging the input slightly and measuring the change in the output.','',['finite differences']],
+ hold:['hold delay','A sampled controller holds each command for one tick, which on average delays it by half a tick (25 ms).','s',['hold delay']],
+ actlag:['actuator lag','The actuator approaches each command exponentially, with time constant τ, instead of at once.','',['actuator lag','first-order lag']],
+ Ls:['<i>L</i>(<i>s</i>)','Open-loop transfer function: the loop broken at the steering command. <i>L</i>(jω) is its frequency response.','',['L(s)','L(jω)','|L|']],
+ sL:['<i>s</i>','Laplace variable (complex frequency); on the frequency axis <i>s</i> = jω.','1/s',['s']],
+ Td:['<i>T</i><sub>d</sub>','Loop delay: half a tick of hold, plus any latency.','s',['T_d']],
+ wc:['ω<sub>c</sub>','Gain crossover: the frequency where |<i>L</i>| = 1 (0 dB), roughly the closed-loop bandwidth.','rad/s',['ω_c']],
+ pm:['phase margin','How far the phase at crossover lies above −180°. More margin, less overshoot and more tolerance of delay.','°',['phase margin','PM']],
+ linearized:['linearized','Approximated by a linear model, valid for small errors.','',['Linearized','linearized']],
+ pd:['PD controller','Proportional-derivative: feedback on the error and on its rate of change.','',['PD controller']],
+ pp:['pure pursuit','Path tracker that steers along the arc through a carrot point on the path.','',['Pure pursuit','pure pursuit']],
+ carrot:['carrot','The point on the path a lookahead distance <i>L</i><sub>d</sub> ahead, which pure pursuit steers toward.','',['carrot']],
+ Ld:['<i>L</i><sub>d</sub>','Lookahead distance of pure pursuit.','m',['L_d']],
+ alpha:['α','Bearing from the robot\'s heading to the carrot.','rad',['α']],
+ curv:['curvature','1 / turning radius; positive to the left.','1/m',['curvature']],
+ bode:['Bode plot','Gain in dB and phase of <i>L</i>(jω) against frequency, on logarithmic axes.','',['Bode plot','Bode']],
+ dB:['dB','Decibels: 20 log<sub>10</sub> of a gain; 0 dB is a gain of 1.','',['dB']],
+ decade:['decade','A factor of 10 in frequency.','',['decade']],
+ zero:['zero','A value of <i>s</i> where the transfer function is 0; it adds phase lead above that frequency.','',['zero']],
+ Ke:['<i>K</i><sub>e</sub>, <i>K</i><sub>θ</sub>','Controller gains on lateral error and on heading error.','',['K_e','K_θ']],
+ crossover:['crossover','The frequency ω<sub>c</sub> where |<i>L</i>| = 1.','',['crossover']],
+ zeta:['ζ','Damping ratio of the dominant closed-loop poles: 1 is critically damped, lower values overshoot more.','',['ζ']],
+ closedloop:['closed loop','The loop with its feedback connected.','',['closed loop']],
+ Tcl:['|<i>T</i>|','Complementary sensitivity <i>L</i> / (1 + <i>L</i>): how the robot follows a path offset.','',['|T|']],
+ Ssens:['|<i>S</i>|','Sensitivity 1 / (1 + <i>L</i>): how much disturbances are amplified (above 0 dB) or suppressed.','',['|S|']],
+ Ms:['<i>M</i><sub>s</sub>','Peak of |<i>S</i>|, equal to 1 / (closest distance from <i>L</i> to −1). Above 2 the loop is fragile.','',['M_s']],
+ piT:['π/<i>T</i>','Nyquist frequency of the sampled loop: half the 20 Hz sampling rate, 62.8 rad/s.','rad/s',['π/T']],
+ nyqfreq:['Nyquist frequency','Highest frequency a sampled system can represent.','rad/s',['Nyquist frequency']],
+ nyqcrit:['Nyquist criterion','<i>Z</i> = <i>N</i> + <i>P</i>: counts the unstable closed-loop poles from the encirclements of −1 and the unstable open-loop poles.','',['Nyquist criterion']],
+ pole:['pole','A value of <i>s</i> where the transfer function is infinite. Closed-loop poles set how the loop responds; right of the imaginary axis means unstable.','',['poles','pole']],
+ m1:['−1','The critical point: where <i>L</i> = −1, 1 + <i>L</i> = 0 and the closed loop is on the edge of instability.','',['−1']],
+ encircle:['encirclements','Times the curve winds around −1, counted clockwise.','',['encirclements']],
+ Nenc:['<i>N</i>','Clockwise encirclements of −1.','',['N']],
+ Zun:['<i>Z</i>','Unstable closed-loop poles.','',['Z']],
+ Pun:['<i>P</i>','Unstable open-loop poles (none here).','',['P']],
+ DT:['Δ<i>T</i>','Extra delay added to the loop.','s',['ΔT']],
+ DM:['DM','Delay margin PM / ω<sub>c</sub>: the extra latency the loop tolerates before it goes unstable.','s',['DM']],
+ limitcycle:['limit cycle','A sustained oscillation of fixed size: an unstable loop held in check by a saturation.','',['limit cycle']],
+ steptest:['step test','Shift the path sideways at once and record how the robot settles.','',['step test']],
+ zdisc:['<i>z</i>','Pole of the discrete 20 Hz loop; <i>s</i> = ln <i>z</i> / <i>T</i>.','',['z']],
+ Tsamp:['<i>T</i>','Sample time, 0.05 s.','s',['T']],
+ wn:['ω<sub>n</sub>','Natural frequency of the dominant pole pair.','rad/s',['ω_n']],
+ overshoot:['overshoot','How far the response passes its final value, in % of the step.','%',['overshoot']],
+ ts:['<i>t</i><sub>s</sub>','Settling time: until the response stays within 2 % of its final value.','s',['t_s']],
+ rwf:['rear-wheel feedback','Path tracker that feeds back lateral and heading error through gains <i>k</i><sub>e</sub>, <i>k</i><sub>θ</sub>, with the path curvature as feedforward.','',['Rear-wheel feedback','rear-wheel feedback']],
+ kth:['<i>k</i><sub>θ</sub>, <i>k</i><sub>e</sub>','Rear-wheel feedback gains on heading error and on lateral error.','',['k_θ','k_e']],
+ rootlocus:['root locus','The paths of the closed-loop poles as the controller gain is scaled.','',['root locus']],
+ rhp:['right half plane','Re <i>s</i> > 0: a pole there grows exponentially, so the loop is unstable.','',['right half plane']],
+ gm:['gain margin','Factor by which the loop gain can grow before the loop goes unstable.','',['gain margin']],
+ firstorder:['first-order actuator','Its response approaches the command exponentially: transfer function 1/(τ<i>s</i> + 1).','',['first-order actuator']],
+ tau:['τ','Actuator time constant: the time to cover 63 % of a step.','s',['τ']],
+ mpc:['MPC','Model predictive control: optimizes the next commands over a horizon with a model of the vehicle, applies the first, repeats every tick.','',['MPC']],
+ predmodel:['prediction model','The model MPC uses to predict how the vehicle responds to its commands.','',['prediction model']],
+ Kc:['<i>K</i><sub>c</sub>','MPC gain on its own commanded value, used when the lag is modeled.','',['K_c']],
+ stepdist:['step disturbance','A constant push that starts suddenly; here, an actuator bias.','',['step disturbance']],
+ ess:['<i>e</i><sub>ss</sub>','Steady-state lateral error left by the bias.','m',['e_ss']],
+ dbias:['<i>d</i>','Size of the constant bias, in command units.','',['d']],
+ Ke1:['<i>K</i><sub>e</sub>','Command per metre of lateral error.','',['K_e']],
+ pid:['PID','Proportional-integral-derivative controller.','',['PID']],
+ Ki:['<i>K</i><sub>i</sub>','Integral gain.','',['K_i']],
+ smallsig:['small signals','Errors small enough that the linear model holds.','',['small signals']],
+ ratelim:['rate limit','The fastest an actuator can change, such as 1.5 rad/s of steering.','',['rate limit']],
+ injsine:['injected sine','A small sine added to the steering command to measure <i>L</i>(jω) in the simulator.','',['injected sine']],
+ L0:['<i>L</i><sub>0</sub>','Lookahead at zero speed.','m',['L<sub>0</sub>']],
+ kpp:['<i>k</i>','Lookahead growth with speed: <i>L</i><sub>d</sub> = <i>L</i><sub>0</sub> + <i>k</i>·<i>v</i><sub>0</sub>.','s',['k']],
+ plantgain:['plant gain','Ratio of the vehicle\'s response to the command; here it grows with speed.','',['plant gain']],
+ gainsched:['gain scheduling','Changing the controller gains with the operating condition, here the speed.','',['gain scheduling']],
+ cruise:['cruise speed','Target speed on a straight path (Control tab).','m/s',['cruise speed']],
+ openloop:['open loop','No feedback: the command is computed without measuring the result.','',['open']],
+ Gs:['<i>G</i>(<i>s</i>)','Transfer function of the speed actuator chain.','',['G(s)']],
+ Tlat:['<i>T</i><sub>lat</sub>','Control latency.','s',['T_lat']],
+ bandwidth:['bandwidth','The frequency up to which the output follows the input.','rad/s',['bandwidth']],
+ rise:['rise time','Time from 10 % to 90 % of a step.','s',['rise']],
+ aacc:['<i>a</i>','Acceleration command.','m/s²',[]],
+ Kv:['<i>K</i><sub>v</sub>, <i>K</i><sub>vc</sub>, <i>K</i><sub>u</sub>','MPC gains on the speed error, on the commanded-speed error, and on its previous acceleration.','',['K_v','K_vc','K_u']],
+ vref:['<i>v</i><sub>ref</sub>, <i>v</i><sub>cmd</sub>','Speed from the profile, and the commanded speed.','m/s',['v_ref','v_cmd']],
+ aprev:['<i>a</i><sub>prev</sub>','Previous acceleration command.','m/s²',['a_prev']],
+ eest:['<i>e</i><sub>est</sub>','Lateral error computed from the estimate: what the controller actually sees.','m',['e_est']],
+ injection:['injection','Measuring <i>L</i>(jω) by adding a sine to the steering command and recording the response.','',['injection']],
+ feedforward:['feedforward','A command computed from the path itself (here its curvature), added to the feedback.','',['feedforward']],
+ offset:['Offset chip','Analysis readout of the steady lateral offset the tracker settles at on the circle.','m',['Offset chip']],
+ steerrate:['steering-rate limit','The fastest the steering angle can change, 1.5 rad/s.','rad/s',['steering-rate limit']],
+ stanley:['Stanley','Path tracker that steers by the heading error plus a term in the front axle\'s cross-track error.','',['Stanley']],
+};
+// Terms each lesson uses, in reading order (keyed by lesson title)
+const LESSON_TERMS={
+ 'Dead reckoning drifts, and knows it':'deadreck odometry arc v w covariance mu gmot uodo Sigma Gjac Vjac Modo sigx t thetaerr ellipse poserr band2s consistent',
+ 'The Kalman update, and NEES as a lie detector':'beacon rb ekf nu z zhat kgain Sinn Hjac Qmeas K mu Sigma Iid nees eerr overconf bias assumed',
+ 'Gating, and the kidnapped robot':'unlabeled mahal gate d2 nu Sinn chi2 clutter outlier kidnap knownids ekf pf hyp',
+ 'Particles: resampling, injection and symmetry':'pf motionmodel particle likelihood resample neff lowvar sumP wi Npart amcl wfs wavg inject globalloc mirror unlabeled lidar',
+ 'EKF-SLAM: the map is part of the state':'slam landmark xslam mlm Pslam nlm ppos rr bb Pmm Jxz Rm correlated drift deadreck loopclosure',
+ 'Log-odds mapping':'lidar beam grid logodds clamp l lmeas lfh estframe deadreck',
+ 'Costmap: lethal cells and the inflation band':'costmap disttrans lethal inflation dobs penalty winf edgecost frontier',
+ 'Tracking people: from lidar hits to tracks':'cluster lidar cvkf track mahal confirm coast xag pxy vxy Fcv Qproc siga d2 pt pag vag t rt rag ggrow groundtruth',
+ 'Sensor latency: stale readings, moving prediction':'latency tick lidar beacon nu Ts v nees ekf pf inject timestamp lagged biased',
+ 'People who react':'socialforce Fsf v0p edir vp tausf sumO Asf rij dpp Bsf ndir contacts closest',
+ 'A*: the heuristic and ε':'astar node fcost gcost hcost heur admissible eightconn octile eps weighted expansions',
+ 'RRT*: sampling, rewiring, and luck':'rrtstar samples parent rewire neigh asym rrad ntree seed',
+ 'Hybrid A*: planning for a car':'hybrid heading minturn arcs reverse heur hcost eps dijkstra rs analytic steerlimit fulllock tracker',
+ 'Replanning and the behaviour layer':'fsm replan lethal estimate speedplanner agent states costmap',
+ 'Space-time A*: planning with time as a coordinate':'sta refspeed horizon ijk kidx t dtst v0r cij pa rrobot speedplanner expansions',
+ 'The loop being analyzed':'tracker v0c integrator the gpl uc wturn delta Lwb ectl derivative opoint findiff hold latency actlag',
+ 'Pure pursuit is a PD controller':'pd carrot Ld alpha the ectl pp curv linearized wturn v0c Ls sL Td wc pm delta Lwb gpl',
+ 'Reading the Bode plot':'bode Ls dB decade zero sL Ke v0c crossover wc pm zeta closedloop Tcl Ssens Ms piT nyqfreq',
+ 'Nyquist and the −1 point':'pole Ls m1 wfreq nyqcrit encircle Nenc Zun Pun Ms Td',
+ 'Delay margin: the latency budget':'pm DT wc DM latency limitcycle steptest',
+ 'Poles, damping and the step response':'pole zdisc sL Tsamp zeta wn overshoot ts rwf v0c kth rootlocus rhp gm',
+ 'Actuator lag, and what MPC assumes':'firstorder tau wfreq mpc predmodel actlag pm Ms Kc',
+ 'Integral action and steady-state error':'bias stepdist ess dbias Ke1 integrator pid Ki sL mpc',
+ 'Linear versus nonlinear':'smallsig steerrate ratelim injsine',
+ 'Speed changes the plant: gain scheduling':'plantgain v0c Lwb v delta the Ld L0 kpp wc rwf curv cruise gainsched pp',
+ 'The speed loop is open, except for MPC':'tracker cruise openloop latency actlag Gs Tlat tau bandwidth rise mpc aacc Kv vref aprev steptest',
+ 'The estimator in the loop':'estimate ekf beacon odometry eest ectl Ls uc injection crossover',
+ 'Curves: does the straight-line analysis hold?':'opoint findiff thdot gpl uc u0 edot v0c the pp rwf curv feedforward stanley pid offset steptest steerrate',
+};
+const lessonTerms=L=>(LESSON_TERMS[L.t]||'').split(' ').filter(id=>GLOSS[id]);
+// Wrap the first occurrence of each listed term in the lesson HTML (prose and equations) in a focusable .term span.
+// Tags are copied through; a match must not continue a word or an index (θ̇ₑ is not θ, w_i is not w).
+function glossMark(html,ids){
+  const pats=[];for(const id of ids)for(const p of GLOSS[id][3]){const ci=/^[a-z][a-z -]{2,}$/.test(p);pats.push([p,id,ci]);}
+  pats.sort((a,b)=>b[0].length-a[0].length);
+  // a neighbour continues the match if it is an index, a combining mark, or a letter of the same script:
+  // "HΣHᵀ" and "−jωT_d" are products of symbols, but "grows" does not contain g
+  const greek=c=>/\p{Script=Greek}/u.test(c),
+    joins=(c,e)=>!!c&&c!=='ᵀ'&&(/[_\u2080-\u209C\u0300-\u036F]/u.test(c)||/\p{L}/u.test(c)&&(!/\p{L}/u.test(e)||greek(c)===greek(e)));
+  const done=new Set(),n=html.length;let out='',i=0;
+  while(i<n){
+    let hit=null;
+    for(const[p,id,ci]of pats){const s=html.substr(i,p.length);if(ci?s.toLowerCase()!==p:s!==p)continue;
+      const b=html[i-1],a=html[i+p.length];
+      if(b!=='>'&&joins(b,p[0]))continue;if(a!=='<'&&(joins(a,p[p.length-1])||/\d/.test(a||'')))continue;if(html.startsWith('<sub>',i+p.length))continue;
+      if(p.length===1&&/\d\s$/.test(html.slice(Math.max(0,i-2),i)))continue;   // "5 s", "7 m": a unit, not a symbol
+      hit=[s,id];break;}
+    if(hit){const[s,id]=hit;out+=done.has(id)?s:`<span class="term" tabindex="0" data-g="${id}">${s}</span>`;done.add(id);i+=s.length;continue;}
+    if(html[i]==='<'&&/[A-Za-z\/!]/.test(html[i+1]||'')){const j=html.indexOf('>',i);out+=html.slice(i,j+1);i=j+1;continue;}
+    out+=html[i++];
+  }
+  return out;
+}
+const glossWord=id=>/^[A-Za-z0-9 *–'-]{2,}$/.test(GLOSS[id][0]);   // a word term, not a symbol: set in the text face
+const glossDef=id=>{const g=GLOSS[id];return`${g[1]}${g[2]?` <span class="unit">[${g[2]}]</span>`:''}`;};
+// The lesson body with its terms marked, followed by the list of terms and symbols
+function glossLesson(L){
+  const ids=lessonTerms(L);if(!ids.length)return L.b;
+  return glossMark(L.b,ids)+`<details class="terms" open><summary>Terms and symbols</summary><dl>${ids.map(id=>`<dt${glossWord(id)?' class="w"':''}>${GLOSS[id][0]}</dt><dd>${glossDef(id)}</dd>`).join('')}</dl></details>`;
+}
+
 /* ---- ui/learn.js ---- */
 /* ============================================================
    UI: the three modes (Simulate · Analyze · Learn) and the Learn column
@@ -6146,9 +6512,9 @@ function renderLearn(){
   const all=LESSON_GROUPS().flatMap(G=>G.items.map((_,i)=>`${G.id}:${i}`)),k=cur?all.indexOf(lessonOpen):-1;
   v.classList.toggle('reading',!!cur);
   v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${k<all.length-1?`<button class="linkbtn" id="learn-next" type="button">Next lesson →</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
-     :`<h2>Lessons</h2><p class="note">Grouped by subsystem. Open one, read it, press its Try buttons. Opening a lesson shows the map layers it is about; <b>All lessons</b> brings yours back. The Symbols tab defines every symbol used.</p>`}</div>`+
+     :`<h2>Lessons</h2><p class="note">Grouped by subsystem. Open one, read it, press its Try buttons. Opening a lesson shows the map layers it is about; <b>All lessons</b> brings yours back. Dotted terms show a short definition on hover or tap, and each lesson ends with its terms and symbols; the Symbols tab has them all.</p>`}</div>`+
    LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}" data-sys="${G.id}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
-    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${L.b}<div class="tries">${L.tries.map((t,j)=>`<button class="btn small" data-try="${id}:${j}">${t[0]}</button>`).join('')}</div></div></details>`;}).join('')+`</section>`).join('');
+    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${glossLesson(L)}<div class="tries">${L.tries.map((t,j)=>`<button class="btn small" data-try="${id}:${j}">${t[0]}</button>`).join('')}</div></div></details>`;}).join('')+`</section>`).join('');
   v.querySelectorAll('details.lesson>summary').forEach(s=>s.onclick=e=>{e.preventDefault();const id=s.parentNode.dataset.l;if(lessonOpen===id)lessonBack();else openLesson(id);});
   v.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':'),id=g+':'+i;if(lessonOpen!==id)openLesson(id);
     const cfg=lessonItem(id).L.tries[+j][1];
@@ -6166,6 +6532,26 @@ function lessonFromHash(){
   setUIMode('learn');return openLesson(id);
 }
 window.addEventListener('hashchange',lessonFromHash);
+// Term pop-ups: hover (mouse), tap or keyboard focus on a dotted term shows its short definition
+const termTip=document.createElement('div');termTip.className='termtip';termTip.id='termtip';termTip.setAttribute('role','tooltip');termTip.hidden=true;document.body.appendChild(termTip);
+let termAt=null;
+function showTerm(el){
+  const id=el.dataset.g;if(!GLOSS[id])return;if(termAt&&termAt!==el)termAt.removeAttribute('aria-describedby');
+  termAt=el;el.setAttribute('aria-describedby','termtip');termTip.innerHTML=`<b${glossWord(id)?' class="w"':''}>${GLOSS[id][0]}</b> ${glossDef(id)}`;termTip.hidden=false;
+  const r=el.getBoundingClientRect(),w=termTip.offsetWidth,h=termTip.offsetHeight;
+  termTip.style.left=Math.max(8,Math.min(r.left+r.width/2-w/2,innerWidth-w-8))+'px';
+  termTip.style.top=(r.bottom+6+h>innerHeight-8?Math.max(8,r.top-h-6):r.bottom+6)+'px';
+}
+function hideTerm(){if(termAt)termAt.removeAttribute('aria-describedby');termAt=null;termTip.hidden=true;}
+{const v=$('#learnview'),term=e=>e.target.closest&&e.target.closest('.term');
+  v.addEventListener('pointerover',e=>{const t=term(e);if(t&&e.pointerType==='mouse')showTerm(t);});
+  v.addEventListener('pointerout',e=>{const t=term(e);if(t&&e.pointerType==='mouse'&&!t.contains(e.relatedTarget))hideTerm();});
+  v.addEventListener('click',e=>{const t=term(e);if(t)showTerm(t);});
+  v.addEventListener('focusin',e=>{const t=term(e);if(t)showTerm(t);});
+  v.addEventListener('focusout',e=>{if(term(e)===termAt)hideTerm();});
+  document.addEventListener('pointerdown',e=>{if(termAt&&!term(e))hideTerm();},true);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&termAt)hideTerm();});
+  addEventListener('scroll',()=>{if(termAt)hideTerm();},true);addEventListener('resize',()=>{if(termAt)hideTerm();});}
 
 /* ---- ui/experiments.js ---- */
 /* ============================================================
@@ -6510,7 +6896,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{tokKey
 UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{buildLevels();applyTabLayers(true);renderAllPanes();};UI.mode=()=>AN.mode;
 buildTabs();loadLevel(0);{const c=configFromHash();if(c){try{applyConfig(c);logE('Setup restored from the link','ok');}catch(e){logE('Could not restore the setup from the link: '+e.message,'warn');}}}syncModeUI();renderLearn();lessonFromHash();readTokens();draw();drawPlot();
 requestAnimationFrame(loop);
-window.__an={AN,anCompute,LESSONS_EXTRA,LESSON_GROUPS,spdCompute,runStepTest,runInjection,setMode,setUIMode,openLesson,lessonBack,get lessonOpen(){return lessonOpen;},lessonGo,LESSONS,stepMetrics,Ljw,anBuild};window.__nav={scatter:()=>scatterParticles(),kidnapTo,get S(){return S;},P,LEVELS,loadLevel,advance,setParam,get WPS(){return WPS;},toScreen:(x,y)=>toScreen(x,y),get VIEW(){return VIEW;},get GHOST(){return GHOST;},LAYERS,EXP,expCSV,configURL,get LV(){return LV;},SLOTS,slotLoad,slamLandmarks,tryGo};
+window.__an={AN,anCompute,GLOSS,LESSON_TERMS,glossMark,lessonTerms,LESSONS_EXTRA,LESSON_GROUPS,spdCompute,runStepTest,runInjection,setMode,setUIMode,openLesson,lessonBack,get lessonOpen(){return lessonOpen;},lessonGo,LESSONS,stepMetrics,Ljw,anBuild};window.__nav={scatter:()=>scatterParticles(),kidnapTo,get S(){return S;},P,LEVELS,loadLevel,advance,setParam,get WPS(){return WPS;},toScreen:(x,y)=>toScreen(x,y),get VIEW(){return VIEW;},get GHOST(){return GHOST;},LAYERS,EXP,expCSV,configURL,get LV(){return LV;},SLOTS,slotLoad,slamLandmarks,tryGo};
 
 })();
 </script>

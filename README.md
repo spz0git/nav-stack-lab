@@ -24,7 +24,7 @@ The tests need Python 3 with Playwright and a Chromium (`pip install playwright 
 
 ## Companion notes
 
-`docs/notes/*.md` are the textbook chapters shown in the app's Learn mode. They are markdown with TeX formulas, plus
+`docs/notes/*.md` are the textbook chapters shown in the app's Learn mode (1 vehicle models, 2 localization, 3 perception, 4 planning, 5 path trackers, 6 the lateral tracking loop, 7 MPC). They are markdown with TeX formulas, plus
 `{{live:key}}` for numbers the app computes from the current settings and `[try: Label | {cfg}]` for buttons that set the
 simulator or the analysis up. `node build.mjs` converts them (TeX → MathML with the vendored temml) and inlines them in the page.
 A lesson links to the section that derives its formula with `<a class="chref" href="#notes=ch2/<section-slug>">` (the slug is the

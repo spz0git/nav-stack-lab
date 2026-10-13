@@ -27,6 +27,16 @@ const LIVE={
   lidarSig:()=>liveF(P.lidarSig,2),infl:()=>liveF(P.infl,1),agSigA:()=>liveF(P.agSigA,1),agT:()=>liveF(P.agT,1),agGrow:()=>liveF(P.agGrow,2),sensLat:()=>liveF(P.sensLat,2),
   lam:()=>liveF(P.agSigA*0.01/0.1,3),alpha:()=>liveF(abGains().a,2),beta:()=>liveF(abGains().b,3),tauv:()=>{const a=abGains().a;return liveF(0.1/(-Math.log(Math.sqrt(1-a))),1);},
   rAtT:()=>liveF(0.35+P.agGrow*P.agT,2),
+  // vehicle models (chapter 1)
+  wheelbase:()=>liveF(P.wheelbase,2),steerMaxDeg:()=>String(P.steerMaxDeg),ayPlan:()=>liveF(anV0()**2/planR(),2),ayFrac:()=>liveF(100*anV0()**2/planR()/Math.max(0.01,P.alat),0),
+  betaMax:()=>liveF(Math.atan(0.5*Math.tan(steerMax()))*180/Math.PI,1),
+  // path trackers (chapter 5)
+  rwKe:()=>liveF(P.rwKe,1),rwKth:()=>liveF(P.rwKth,1),stanK:()=>liveF(P.stanK,1),alat:()=>liveF(P.alat,2),
+  wnRwf:()=>liveF(anV0()*Math.sqrt(P.rwKe)),zetaRwf:()=>liveF(P.rwKth/(2*Math.sqrt(P.rwKe))),
+  // MPC (chapter 7)
+  mpcNp:()=>String(Math.round(P.mpcNp)),mpcNc:()=>String(Math.min(Math.round(P.mpcNc),Math.round(P.mpcNp))),mpcDt:()=>liveF(P.mpcDt,2),mpcH:()=>liveF(Math.round(P.mpcNp)*P.mpcDt,1),
+  mpcIt:()=>String(Math.round(P.mpcIt)),mpcQlat:()=>String(P.mpcQlat),mpcMarg:()=>liveF(P.mpcMarg,2),mpcRho:()=>String(P.mpcRho),
+  lagModel:()=>P.lag>0?(P.mpcLag?`τ = ${liveF(P.lag,2)} s, modeled`:`τ = ${liveF(P.lag,2)} s, not modeled`):'none',
   // planning (chapter 4)
   eps:()=>liveF(P.eps,1),rrtIt:()=>String(P.rrtIt),planPct:()=>String(P.planPct),Rmin:()=>liveF(P.wheelbase/Math.tan(steerMax()),2),Rplan:()=>liveF(planR(),2),
   stMarg:()=>liveF(P.stMarg,2),dtc:()=>liveF(0.2/Math.max(0.2,Math.min(P.vcruise,P.vmax)),2),nt:()=>String(Math.ceil(P.agT/(0.2/Math.max(0.2,Math.min(P.vcruise,P.vmax))))+1),

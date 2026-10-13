@@ -6,7 +6,7 @@ let uiMode='sim',lessonOpen=null,userLayers=null;
 const MODES=[['sim','Simulate','mode-sim'],['an','Analyze','mode-an'],['learn','Learn','tab-learn']];   // Learn keeps the old tab's id
 const MODE_HINT={sim:'Run the stack on the map; tune it in the tabs on the right',an:'Linear analysis of the tracking loop: margins, Bode, Nyquist, poles',learn:'Guided lessons: open one, read it, press its Try buttons'};
 function setUIMode(m){
-  if(m==='learn'){if(uiMode==='learn'&&lessonOpen)lessonBack();uiMode='learn';}
+  if(m==='learn'){if(uiMode==='learn'&&lessonOpen)lessonBack();if(uiMode==='learn'&&chapterOpen)chapterBack();uiMode='learn';}
   else{uiMode=m;setMode(m);}
   syncModeUI();
 }
@@ -38,13 +38,15 @@ function lessonBack(){
 }
 function lessonLink(id){const[g,i]=id.split(':');return location.href.split('#')[0]+`#lesson=${g}:${+i+1}`;}
 function renderLearn(){
-  const v=$('#learnview'),cur=lessonOpen&&lessonItem(lessonOpen);
+  const v=$('#learnview');v.classList.remove('chapter');if(chapterOpen)return renderChapter();
+  const cur=lessonOpen&&lessonItem(lessonOpen);
   const all=LESSON_GROUPS().flatMap(G=>G.items.map((_,i)=>`${G.id}:${i}`)),k=cur?all.indexOf(lessonOpen):-1;
   v.classList.toggle('reading',!!cur);
   v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${k<all.length-1?`<button class="linkbtn" id="learn-next" type="button">Next lesson →</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
-     :`<h2>Lessons</h2><p class="note">Grouped by subsystem. Open one, read it, press its Try buttons. Opening a lesson shows the map layers it is about; <b>All lessons</b> brings yours back. Dotted terms show a short definition on hover or tap, and each lesson ends with its terms and symbols; the Symbols tab has them all.</p>`}</div>`+
+     :`<h2>Lessons</h2><p class="note">Grouped by subsystem. Open one, read it, press its Try buttons. The companion notes at the end derive the mathematics. Opening a lesson shows the map layers it is about; <b>All lessons</b> brings yours back. Dotted terms show a short definition on hover or tap, and each lesson ends with its terms and symbols; the Symbols tab has them all.</p>`}</div>`+
    LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}" data-sys="${G.id}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
-    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${glossLesson(L)}<div class="tries">${L.tries.map((t,j)=>`<button class="btn small" data-try="${id}:${j}">${t[0]}</button>`).join('')}</div></div></details>`;}).join('')+`</section>`).join('');
+    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${glossLesson(L)}<div class="tries">${L.tries.map((t,j)=>`<button class="btn small" data-try="${id}:${j}">${t[0]}</button>`).join('')}</div></div></details>`;}).join('')+`</section>`).join('')+(cur?'':chaptersListHTML());
+  v.querySelectorAll('.chapter-open').forEach(b=>b.onclick=()=>openChapter(b.dataset.ch));
   v.querySelectorAll('details.lesson>summary').forEach(s=>s.onclick=e=>{e.preventDefault();const id=s.parentNode.dataset.l;if(lessonOpen===id)lessonBack();else openLesson(id);});
   v.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':'),id=g+':'+i;if(lessonOpen!==id)openLesson(id);
     const cfg=lessonItem(id).L.tries[+j][1];

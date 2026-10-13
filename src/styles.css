@@ -266,6 +266,14 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .symsearch{width:100%;font:inherit;font-size:.9rem;padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--ink);box-sizing:border-box}
 .symchips{display:flex;flex-wrap:wrap;gap:4px}.symchips button{font-size:.74rem;padding:2px 7px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--muted);cursor:pointer}.symchips button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
 .nom.hidden,.nom dt.hidden,.nom dd.hidden{display:none}
+.nom#sym-terms dt{font-family:inherit;font-size:.86rem;font-weight:600;white-space:normal}
+/* glossary terms in lessons, and their pop-up */
+dfn.term{font-style:normal;text-decoration:underline dotted;text-decoration-color:var(--muted);text-underline-offset:3px;cursor:help;border-radius:2px}
+dfn.term:hover,dfn.term[aria-describedby]{color:var(--accent);text-decoration-color:var(--accent)}
+dfn.term:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.termtip{position:fixed;z-index:60;max-width:min(320px,calc(100vw - 16px));background:var(--raise);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-size:.82rem;line-height:1.45;box-shadow:0 4px 14px rgba(0,0,0,.2);pointer-events:none}
+.termtip[hidden]{display:none}
+.termtip b{display:block;margin-bottom:2px}
 
 /* Phone (≤ 760 px): one column in the order you use it — title, map, a sticky transport bar, telemetry, then the level,
    brief and the console collapsed to its tab row. The wrappers become display:contents, so this is only a CSS reorder

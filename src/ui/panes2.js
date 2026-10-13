@@ -1,9 +1,11 @@
 let symQuery='',symGroup='';
+// The lesson glossary is listed after the symbols, as its own group, in alphabetical order
+const SYM_GROUPS=()=>NOMEN.concat([{id:'terms',title:'Terms',rows:GLOSS.filter(e=>!e.k.startsWith('sym-')).sort((a,b)=>a.n.localeCompare(b.n)).map(e=>[e.n,e.d,''])}]);
 function symPane(){
-  return`<p class="note">Notation follows the usual IEEE style. Some letters are reused between subsystems, as in the literature (for example ${I('g')}, ${I('H')}, ${I('S')}, ${I('J')}, ${I('k')}, α and ${I('s')}). The group heading tells you which meaning applies. SI units; angles in radians unless a panel shows degrees.</p>
+  return`<p class="note">Notation follows the usual IEEE style. Some letters are reused between subsystems, as in the literature (for example ${I('g')}, ${I('H')}, ${I('S')}, ${I('J')}, ${I('k')}, α and ${I('s')}). The group heading tells you which meaning applies. SI units; angles in radians unless a panel shows degrees. <b>Terms</b>, at the end, defines the words the lessons use.</p>
   <input class="symsearch" id="symq" type="search" placeholder="Search symbols and definitions…" value="${esc(symQuery)}" aria-label="Search symbols">
-  <div class="symchips"><button data-g="" aria-pressed="${symGroup===''}">All</button>${NOMEN.map(g=>`<button data-g="${g.id}" aria-pressed="${symGroup===g.id}">${g.title}</button>`).join('')}</div>`+
-    NOMEN.map(g=>`<section class="nom" id="sym-${g.id}"><h3>${g.title}</h3><dl>${g.rows.map(([sy,d,u])=>`<dt>${sy}</dt><dd>${d}${u?` <span class="unit">[${u}]</span>`:''}</dd>`).join('')}</dl></section>`).join('');
+  <div class="symchips"><button data-g="" aria-pressed="${symGroup===''}">All</button>${SYM_GROUPS().map(g=>`<button data-g="${g.id}" aria-pressed="${symGroup===g.id}">${g.title}</button>`).join('')}</div>`+
+    SYM_GROUPS().map(g=>`<section class="nom" id="sym-${g.id}"><h3>${g.title}</h3><dl>${g.rows.map(([sy,d,u])=>`<dt>${sy}</dt><dd>${d}${u?` <span class="unit">[${u}]</span>`:''}</dd>`).join('')}</dl></section>`).join('');
 }
 function symFilter(){
   const q=symQuery.trim().toLowerCase();

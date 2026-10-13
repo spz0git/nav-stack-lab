@@ -87,6 +87,12 @@ Known limits: on a phone at fit zoom the map's view buttons cover a beacon on th
 - L5 Busy floor — moving people, accel limits, lag, unlabeled beacons, global localization.
 - L6 Parking lot — car-like robot: reverse-in bay, nose-in bay, 2.2 m parallel slot.
 
+## Lesson glossary (requested in a page comment, 2026-10-13)
+- `src/ui/glossary.js`: about 130 short definitions of the words the lessons use (odometry, pose, covariance, Kalman gain, NEES, costmap, admissible, phase margin, …), plus a few symbols whose meaning is fixed by the lesson group (v, ω, ν in localization; ε in planning; ζ, τ in the control loop). `glossify()` marks the first use of each term per lesson with a dotted underline; equations, headings and buttons are left alone. Words that mean different things in different subsystems (injection, margin, pole, track) carry the lesson groups they apply to.
+- Pop-up: hover with a mouse, tap on a phone (tap again or elsewhere to close), or Tab to it from the keyboard (Esc closes). It is placed under the term, flips above near the bottom of the screen, and uses the theme colours in dark mode.
+- The Symbols tab gains a Terms group (alphabetical, searchable) with the same definitions.
+- Known limits: only lesson bodies are marked, not the How-it-works notes in the tabs; symbols in plain-text equations and most single-letter symbols in prose (e, k, L_d) are not marked, because their meaning changes between subsystems; see the Symbols tab.
+
 ## Candidate next steps
 - Agents: interaction-aware prediction (the predictor does not know people react); multi-modal prediction; JPDA/multi-hypothesis tracking.
 - Localization: timestamped (lagged-state) filtering to absorb sensor latency; scan matching for SLAM without beacons.

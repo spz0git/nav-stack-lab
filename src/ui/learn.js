@@ -42,9 +42,10 @@ function renderLearn(){
   const all=LESSON_GROUPS().flatMap(G=>G.items.map((_,i)=>`${G.id}:${i}`)),k=cur?all.indexOf(lessonOpen):-1;
   v.classList.toggle('reading',!!cur);
   v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${k<all.length-1?`<button class="linkbtn" id="learn-next" type="button">Next lesson →</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
-     :`<h2>Lessons</h2><p class="note">Grouped by subsystem. Open one, read it, press its Try buttons. Opening a lesson shows the map layers it is about; <b>All lessons</b> brings yours back. The Symbols tab defines every symbol used.</p>`}</div>`+
+     :`<h2>Lessons</h2><p class="note">Grouped by subsystem. Open one, read it, press its Try buttons. Opening a lesson shows the map layers it is about; <b>All lessons</b> brings yours back. Terms with a dotted underline show a short definition on hover or tap; the Symbols tab lists them all with every symbol.</p>`}</div>`+
    LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}" data-sys="${G.id}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
     G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${L.b}<div class="tries">${L.tries.map((t,j)=>`<button class="btn small" data-try="${id}:${j}">${t[0]}</button>`).join('')}</div></div></details>`;}).join('')+`</section>`).join('');
+  v.querySelectorAll('details.lesson').forEach(d=>glossify(d.querySelector('.how-body'),d.dataset.l.split(':')[0]));
   v.querySelectorAll('details.lesson>summary').forEach(s=>s.onclick=e=>{e.preventDefault();const id=s.parentNode.dataset.l;if(lessonOpen===id)lessonBack();else openLesson(id);});
   v.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':'),id=g+':'+i;if(lessonOpen!==id)openLesson(id);
     const cfg=lessonItem(id).L.tries[+j][1];

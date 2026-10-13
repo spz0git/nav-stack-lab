@@ -16,7 +16,11 @@
 - Companion notes (the Learn column's chapters) are written in `docs/notes/<id>.md` (markdown subset + TeX; see the header of
   `tools/notes.mjs` for the `{{live:key}}` and `[try: … | {cfg}]` extensions). The build converts them to HTML with MathML
   (`tools/vendor/temml`, build-time only; the page keeps zero runtime dependencies). Live values are defined in
-  `src/ui/chapters.js` (LIVE). `tests/chtest.py` opens the chapter, checks every live value fills and presses every Try button.
+  `src/ui/chapters.js` (LIVE). `tests/chtest.py` opens every chapter, checks every live value fills, presses every Try button, and
+  follows every derivation link in the lessons (`a.chref`, `#notes=<ch>/<section-slug>`) there and back.
+- Lessons (`src/analysis/lessons.js`, `lessons2.js`): a Try is `['Label', cfg]` or, explained, `['Label', cfg, {setup, see, shows}]`;
+  a lesson may carry `q: [[question, answer], …]`. Numbers in a lesson's "What you will see" are measured headless first
+  (`tests/measure_loc.py` for localization); derivations go in the chapter, the lesson keeps a short "where it comes from" and the link.
 - Before committing: `./build.sh`, then from `tests/`: `python3 test.py` (L1–L5 regression summary must not change unless
   intended), `python3 p5test.py` (all Try buttons, ERRORS must be []), `python3 tles.py` (lessons), `python3 chtest.py` (companion notes).
 - Design notes, known limits and next steps live in `docs/roadmap.md`; keep it in sync with the project doc

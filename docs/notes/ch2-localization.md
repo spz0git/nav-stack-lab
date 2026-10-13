@@ -1,0 +1,208 @@
+id: ch2
+num: 2
+sys: loc
+summary: The derivations behind the Localization lessons: the motion and measurement models and their Jacobians, the Kalman update from first principles, NEES and the gate, the particle filter and EKF-SLAM, with the lab's own noise numbers.
+
+# Localization: the estimators derived
+
+The Localization lessons give the formulas and show what they do. This chapter shows where they come from. It follows the lessons in order: the motion model and how uncertainty moves through it (lesson 1), the Kalman update and the consistency test (lesson 2), the gate (lesson 3), the particle filter (lesson 4) and EKF-SLAM (lesson 5). The numbers are those of the lab, and the ones in blue follow your current settings: the robot is on **{{live:loc}}** with odometry noise ×{{live:odoK}} and calibration bias ×{{live:odoB}}, and at the cruise speed $v_0$ = {{live:v0}} m/s one tick of odometry carries $\sigma_v$ = {{live:sigv}} m/s and $\sigma_\omega$ = {{live:sigw}} rad/s.
+
+## 1. One problem, three estimators
+
+Every estimator in the Localize tab answers the same question: given everything the robot has measured so far, where is it? The answer is never a point; it is a probability distribution over the pose $x = [x, y, \theta]$, called the belief. Two kinds of information arrive at every tick. The odometry $u = (v, \omega)$ says how the robot moved, through a motion model with noise; a sensor reading $z$ says something about where it is, through a measurement model with noise. The recursion that combines them is the Bayes filter:
+
+$$
+\overline{bel}(x_t) = \int p(x_t \mid x_{t-1}, u_t)\, bel(x_{t-1})\, dx_{t-1}
+\qquad
+bel(x_t) = \eta\, p(z_t \mid x_t)\, \overline{bel}(x_t)
+$$
+
+The first line is prediction: push the old belief through the motion model. The second is correction: multiply by the likelihood of the reading and renormalize ($\eta$ is the normalizer). Nothing in this lab does anything else. The three estimators differ only in how they represent $bel$:
+
+| Estimator | Belief represented as | Prediction | Correction |
+| --- | --- | --- | --- |
+| Dead reckoning | one Gaussian $(\mu, \Sigma)$ | linearized motion model | none |
+| EKF, EKF-SLAM | one Gaussian $(\mu, \Sigma)$, SLAM adds the map to $x$ | linearized motion model | linearized measurement model |
+| Particle filter | $N$ samples with weights | each sample moved with its own noise | weights × likelihood, then resampling |
+
+A Gaussian is two numbers per state plus their correlations, cheap and exact only when the models are linear and the belief is one bump. Particles cost $N$ times more and can hold several bumps at once, which is what the kidnapping and global-localization lessons are about.
+
+## 2. The motion model and its Jacobians
+
+**The arc model.** Over one tick $\Delta t$ = 0.05 s the odometry reports $v$ and $\omega$ and the model holds both constant, so the robot moves along a circular arc of radius $v/\omega$:
+
+$$
+g(\mu, u) = \begin{bmatrix} x + \dfrac{v}{\omega}\left(\sin(\theta + \omega\Delta t) - \sin\theta\right) \\[6pt] y - \dfrac{v}{\omega}\left(\cos(\theta + \omega\Delta t) - \cos\theta\right) \\[6pt] \theta + \omega\Delta t \end{bmatrix}
+\;\xrightarrow{\;\omega \to 0\;}\;
+\begin{bmatrix} x + v\Delta t\cos\theta \\ y + v\Delta t\sin\theta \\ \theta \end{bmatrix}
+$$
+
+The limit on the right is the straight-line case, and the code switches to it below $|\omega| < 10^{-6}$ rad/s to avoid dividing by zero.
+
+**Why the covariance needs Jacobians.** If the pose is uncertain by a small error $\delta$ around $\mu$, the next pose is $g(\mu + \delta, u) \approx g(\mu, u) + G\,\delta$ where $G = \partial g / \partial x$ evaluated at $\mu$. The error after the step is $G\delta$, and the covariance of a linearly transformed variable is $G \Sigma G^{\mathsf T}$. The same argument on the odometry input, with noise $\epsilon \sim \mathcal N(0, M)$ in $u$, adds $V M V^{\mathsf T}$ with $V = \partial g / \partial u$. Together:
+
+$$
+\mu' = g(\mu, u), \qquad \Sigma' = G\,\Sigma\,G^{\mathsf T} + V\,M\,V^{\mathsf T}
+$$
+
+This is exact for a linear model with Gaussian noise and an approximation otherwise; the "E" in EKF stands for that approximation. For the straight-line step the derivatives are short:
+
+$$
+G = \begin{bmatrix} 1 & 0 & -v\Delta t\sin\theta \\ 0 & 1 & \phantom{-}v\Delta t\cos\theta \\ 0 & 0 & 1 \end{bmatrix},
+\qquad
+V = \begin{bmatrix} \Delta t\cos\theta & 0 \\ \Delta t\sin\theta & 0 \\ 0 & \Delta t \end{bmatrix},
+\qquad
+M = \begin{bmatrix} \sigma_v^2 & 0 \\ 0 & \sigma_\omega^2 \end{bmatrix}
+$$
+
+The lab uses these straight-line Jacobians even when $\omega \ne 0$; over 50 ms the difference from the arc Jacobians is second order in $\omega\Delta t$ and far below the noise. Read the third column of $G$: a heading error $\delta_\theta$ becomes a position error $v\Delta t\,\delta_\theta$ pointing across the heading, every tick. That column is the whole reason the uncertainty ellipse stretches sideways, and why a cheap gyro is worth more than a better wheel encoder.
+
+**The noise model.** With $V$ as above, $V M V^{\mathsf T}$ adds $(\Delta t\,\sigma_v)^2$ along the heading, $(\Delta t\,\sigma_\omega)^2$ to the heading variance, and nothing across the heading directly. The simulator's odometry noise grows with the motion:
+
+$$
+\sigma_v = k\,(0.1\,|v| + 0.02)\ \text{m/s}, \qquad \sigma_\omega = k\,(0.2\,|\omega| + 0.1\,|v| + 0.02)\ \text{rad/s}
+$$
+
+with $k$ the odometry-noise slider (×{{live:odoK}} now). The filter builds its $M$ from the same formula with $k_{\text{filter}} = \text{(assumed motion noise)} \times \max(k, 0.25)$, so the assumed noise follows the true noise by default and can be scaled in the Localize tab; the floor of 0.25 keeps $\Sigma$ growing even on a level whose odometry is perfect, because a filter cannot know that. The calibration bias is a separate thing: the reported speed is $v\,(1 + 0.02\,b)$ and the reported turn rate $\omega + 0.01\,b\,v$, with $b$ the bias slider (×{{live:odoB}} now). It appears nowhere in $M$. That omission is what lesson 1 and the second half of lesson 2 are about.
+
+[try: Dead reckoning, L3 | {"sim":true,"level":2,"set":{"loc":"dr"},"tab":"loc","plot":"pos"}] [try: Same, noise ×3 | {"sim":true,"level":2,"set":{"loc":"dr","odoK":3},"tab":"veh","plot":"pos"}]
+
+**How fast it grows.** For straight driving at speed $v$ with heading noise only, the heading variance after time $t$ is $\sigma_\theta^2(t) = \sigma_\omega^2\, t / \Delta t \cdot \Delta t^2 = \sigma_\omega^2 \Delta t\, t$, a random walk, and the sideways position error integrates it: its variance grows like $v^2 \sigma_\omega^2 \Delta t\, t^3/3$. Cubic in time. Speed noise alone gives a sideways-free, along-track variance linear in $t$. That asymmetry, $t^3$ across against $t$ along, is the ellipse.
+
+## 3. The measurement model
+
+A beacon $j$ at a known position $(m_x, m_y)$ is seen as a range and a bearing relative to the heading. With $\delta_x = m_x - x$, $\delta_y = m_y - y$ and $q = \delta_x^2 + \delta_y^2$:
+
+$$
+h(x) = \begin{bmatrix} \sqrt q \\ \operatorname{atan2}(\delta_y, \delta_x) - \theta \end{bmatrix},
+\qquad
+H = \frac{\partial h}{\partial x} = \begin{bmatrix} -\delta_x/\sqrt q & -\delta_y/\sqrt q & 0 \\ \delta_y/q & -\delta_x/q & -1 \end{bmatrix}
+$$
+
+Read the rows. The range row is minus the unit vector toward the beacon: moving toward it shortens the range, moving across it changes nothing to first order. The bearing row is the perpendicular unit vector divided by the distance, so a sideways step of one metre at 5 m changes the bearing by 0.2 rad, and the $-1$ says turning left makes every beacon appear further right. These rows are the directions each reading can correct; the Kalman update cannot move the estimate in a direction $H$ does not see.
+
+The sensor noise is $Q = \operatorname{diag}(\sigma_r^2, \sigma_b^2)$ with $\sigma_r$ = 8 cm and $\sigma_b$ = 0.03 rad (1.7°) at the default beacon-noise setting, readings every 0.2 s (every fourth tick) from beacons within {{live:lmRange}} m and in line of sight.
+
+## 4. The Kalman update, derived
+
+Suppose the belief before the reading is $\mathcal N(\mu, \Sigma)$ and the reading is $z = h(x) + \nu$ with $\nu \sim \mathcal N(0, Q)$. Linearize $h$ about $\mu$: $h(x) \approx h(\mu) + H(x - \mu)$. Then the predicted reading is $\hat z = h(\mu)$, and the innovation $\nu = z - \hat z \approx H(x - \mu) + \text{noise}$ is a linear function of the unknown error $x - \mu$, which has covariance $\Sigma$. So the innovation has covariance
+
+$$
+S = H\,\Sigma\,H^{\mathsf T} + Q
+$$
+
+the pose uncertainty seen through the measurement plus the sensor noise, and the error and the innovation are jointly Gaussian with cross-covariance $\Sigma H^{\mathsf T}$. Conditioning one Gaussian on another is a standard result: the conditional mean shifts by (cross-covariance)(innovation covariance)$^{-1}$(innovation), and the conditional covariance loses (cross-covariance)(innovation covariance)$^{-1}$(cross-covariance)$^{\mathsf T}$:
+
+$$
+K = \Sigma H^{\mathsf T} S^{-1}, \qquad \mu \leftarrow \mu + K\nu, \qquad \Sigma \leftarrow \Sigma - K S K^{\mathsf T} = (I - KH)\,\Sigma
+$$
+
+That is the whole update. $K$ is not a tuning knob; it is the ratio of what the state could explain, $\Sigma H^{\mathsf T}$, to the total spread of the surprise, $S$. Two limits make it concrete. A perfect sensor, $Q \to 0$, gives $K = \Sigma H^{\mathsf T}(H\Sigma H^{\mathsf T})^{-1}$, which moves the estimate until $h(\mu)$ matches $z$ exactly in the measured directions. A useless sensor, $Q \to \infty$, gives $K \to 0$ and nothing moves. The same formula also drops out of minimizing the trace of the posterior covariance over all linear updates $\mu + K\nu$, which is the "optimal gain" derivation in older textbooks; the Bayesian one above is shorter and says the same thing.
+
+**The Joseph form.** $(I - KH)\Sigma$ is algebraically correct but numerically fragile: it is a difference of two nearly equal matrices and can lose symmetry or go slightly indefinite after many updates. Writing the same quantity as a sum of two positive terms,
+
+$$
+\Sigma \leftarrow (I - KH)\,\Sigma\,(I - KH)^{\mathsf T} + K\,Q\,K^{\mathsf T}
+$$
+
+is exact for the optimal $K$ (expand it and the extra terms cancel) and stays positive definite for any $K$. The EKF in this lab uses it; EKF-SLAM uses the short form and re-symmetrizes, because the Joseph form costs $O(n^3)$ on the full map state.
+
+**Several readings at once.** When $k$ beacons are visible the lab applies $k$ updates in sequence, each with a 2 × 2 $S$, instead of one update with a $2k \times 2k$ $S$. For independent readings the two are equivalent to first order (the second update linearizes about the once-corrected $\mu$, which is slightly better, not worse), and inverting 2 × 2 matrices by hand is why the EKF runs in microseconds.
+
+[try: EKF on L3 | {"sim":true,"level":2,"set":{"loc":"ekf"},"tab":"loc","plot":"pos"}]
+
+## 5. Consistency: NEES and the 2σ band
+
+The covariance is only useful if it is true. The test is to measure the actual error $e = x_{\text{true}} - \mu$ in the units the filter itself proposes. If the filter is consistent then $e \sim \mathcal N(0, \Sigma)$, and the whitened error $\Sigma^{-1/2} e$ has three independent standard-normal components. Its squared length,
+
+$$
+\text{NEES} = e^{\mathsf T}\,\Sigma^{-1}\,e = \big\|\Sigma^{-1/2} e\big\|^2 \;\sim\; \chi^2_3
+$$
+
+is chi-squared with three degrees of freedom: mean 3, and below 7.81 in 95 % of samples. The lab computes it every fourth tick and the status strip shows the mean of the last 100 samples (20 s), flagging the filter as overconfident above 7.8. The average of 100 samples of a $\chi^2_3$ variable has a standard deviation of $\sqrt{6/100} \approx 0.25$, so a steady reading of 5 is already significant and a reading of 10 is not noise. The 2σ band on the Position error plot is the one-dimensional version: $2\sqrt{\sigma_x^2 + \sigma_y^2}$, which the position error should stay under about 95 % of the time if the two coordinates are independent (slightly less often when they are correlated, which is why the band is a guide and NEES is the test).
+
+What breaks consistency is anything the model lacks. Unmodeled bias is the usual case: the innovations stop being zero-mean, but $K$ still treats them as noise and $\Sigma$ keeps shrinking as if every reading were fully informative. The honest repairs are to model the bias (add a scale state to the filter, which the beacons then make observable) or, pragmatically, to inflate $M$ so that $\Sigma$ stays large enough to absorb it, which is what lesson 2's third experiment does.
+
+[try: EKF, bias ×3 | {"sim":true,"level":2,"set":{"loc":"ekf","odoB":3},"tab":"veh","plot":"pos"}] [try: Bias ×3, assumed noise ×4 | {"sim":true,"level":2,"set":{"loc":"ekf","odoB":3,"filtK":4},"tab":"loc","plot":"pos"}]
+
+## 6. Data association and the gate
+
+When readings do not say which beacon they came from, the filter must decide. For a reading $z$ and a candidate beacon $j$ it has a predicted reading $\hat z_j$ and an innovation covariance $S_j$, so the natural distance is the innovation measured in its own units:
+
+$$
+d_j^2 = \nu_j^{\mathsf T}\, S_j^{-1}\, \nu_j, \qquad \nu_j = z - \hat z_j
+$$
+
+the squared Mahalanobis distance. If $j$ is the right beacon and the filter is consistent, $\nu_j$ is zero-mean Gaussian with covariance $S_j$, so $d_j^2 \sim \chi^2_2$: two degrees of freedom, one per measured quantity. The 99 % point of $\chi^2_2$ is 9.21. The rule is therefore: take the beacon with the smallest $d^2$ (nearest neighbour), and use the reading only if $d^2 < 9.21$; otherwise call it an outlier and discard it. A correct reading is wrongly discarded 1 % of the time, which is the price of rejecting clutter.
+
+The gate is also exactly what makes a kidnapping fatal to a Gaussian filter. After the jump, every reading is many σ from its prediction, every $d^2$ is in the thousands, and every reading is rejected as an outlier. The filter is protected from the evidence that would save it. It keeps predicting with the odometry, its $\Sigma$ grows only at the odometry rate, and it can take minutes before the gate opens wide enough for a reading to pass, by which time the association will probably be wrong. Known IDs remove the gate and the EKF recovers, badly but steadily: each reading moves the estimate by $K\nu$ with the same small $K$, so a 16 m error decays geometrically, falling by about a third every second in lesson 3's first experiment. A filter with no gate is also a filter with no defence against clutter, so a real stack keeps the gate and adds a recovery mechanism, which is the particle filter's injection, next.
+
+[try: Kidnap, EKF with known IDs | {"sim":true,"level":2,"set":{"loc":"ekf"},"tab":"loc","plot":"pos","act":"kidnap"}] [try: Kidnap, EKF unlabeled | {"sim":true,"level":2,"set":{"loc":"ekf","assoc":"unknown"},"tab":"loc","plot":"pos","act":"kidnap"}]
+
+## 7. The particle filter
+
+**Importance sampling.** Represent the belief by $N$ poses $x^{[i]}$ with weights $w^{[i]}$ that sum to one, so that any expectation is approximated by $\sum_i w^{[i]} f(x^{[i]})$. The Bayes recursion then becomes two concrete operations. Prediction: move each particle through the motion model with its own draw of odometry noise, $x^{[i]} \leftarrow g(x^{[i]}, u + \epsilon^{[i]})$. The particles now sample $\overline{bel}$. Correction: multiply each weight by the likelihood of the reading at that particle,
+
+$$
+w^{[i]} \leftarrow w^{[i]}\; p(z \mid x^{[i]}), \qquad p(z \mid x) = \prod_{\text{readings}} \exp\!\left(-\tfrac12\left[\frac{(r - \hat r)^2}{\sigma_r^2} + \frac{(b - \hat b)^2}{\sigma_b^2}\right]\right)
+$$
+
+then normalize. This is Bayes' rule applied per sample: particles that explain the reading well gain weight, the others lose it. The lab keeps log-weights (sums instead of products, no underflow), adds a floor of $10^{-3}$ to each reading's likelihood so that one bad reading cannot zero a particle, and with unlabeled beacons takes the best-matching beacon for each reading, which is nearest-neighbour association done per particle rather than once for the whole filter. That per-particle association is why the particle filter survives what kills the EKF in section 6: a particle near the true pose finds the beacons that fit it, whatever the others do.
+
+**Degeneracy and resampling.** Left alone, the weights collapse: after a few updates one particle holds nearly all the weight and the rest are wasted. The effective sample size measures it:
+
+$$
+N_{\text{eff}} = \frac{1}{\sum_i \left(w^{[i]}\right)^2}
+$$
+
+which is $N$ when all weights are equal and 1 when one particle has everything. (With weights $w$ and $1-w$ on two particles, $N_{\text{eff}} = 1/(w^2 + (1-w)^2)$, between 1 and 2.) When $N_{\text{eff}} < N/2$ the lab resamples: draws a new set of $N$ particles from the old one with probability proportional to weight, then resets all weights to equal. Heavy particles are copied, light ones vanish. Drawing $N$ independent random numbers would add sampling noise of its own; low-variance resampling draws one number $u \in [0, 1/N)$ and walks the cumulative weights at $u, u + 1/N, u + 2/N, \ldots$, so a particle with weight $w$ is copied either $\lfloor Nw \rfloor$ or $\lceil Nw \rceil$ times, never more or fewer. The update step runs only once the robot has moved 5 cm since the last one, so that a stationary robot does not resample the same readings over and over and collapse the set for nothing.
+
+**Augmented MCL: noticing that the readings stopped fitting.** Keep two running averages of the mean likelihood $\bar w$ per update, a fast one and a slow one:
+
+$$
+w_{\text{slow}} \leftarrow w_{\text{slow}} + 0.001\,(\bar w - w_{\text{slow}}), \qquad w_{\text{fast}} \leftarrow w_{\text{fast}} + 0.1\,(\bar w - w_{\text{fast}})
+$$
+
+The slow one remembers how well the readings normally fit; the fast one tracks the last few seconds. When the fast average drops well below the slow one the readings have suddenly stopped fitting the particle set, which is what a kidnapping or a lost filter looks like from inside. The lab then replaces a fraction $\min(0.25,\, 1 - w_{\text{fast}}/w_{\text{slow}})$ of the resampled particles with fresh ones. Rather than scattering them uniformly, it draws each from a current reading (sensor-resetting): pick a reading, pick a beacon, place the particle at that range from the beacon in a random direction and set the heading so the bearing matches. Every injected particle is consistent with at least one reading, so the next update sorts them quickly. This is the mechanism behind the kidnap recovery in lesson 3 and the global localization in lesson 4.
+
+**The lidar against the map.** With a known map the lidar is a second likelihood. For 24 of the 120 beams the lab looks up the distance $d$ from each beam's endpoint (placed from the particle's pose) to the nearest occupied cell and scores $\log(0.9\,e^{-d^2/2\sigma^2} + 0.05)$ with $\sigma$ = 0.2 m, a likelihood-field model: no ray tracing, and the 0.05 floor keeps unexplained beams from being fatal. The sum over beams is multiplied by 0.4 before it enters the log-weight. That tempering matters: 24 beams treated as independent would give a likelihood so peaked that one particle wins every update and the set collapses onto noise. The lidar is what eventually breaks the warehouse's 180° symmetry in lesson 4, but slowly, because the map's asymmetries are small and visible only from some places.
+
+**Estimate and covariance.** The reported pose is the weighted mean of the particles, with the heading averaged as a unit vector $(\sum w\cos\theta, \sum w\sin\theta)$ so that angles near ±π do not cancel, and the reported $\Sigma$ is the weighted scatter about that mean. When the set holds two clusters, say the true pose and its mirror, the mean sits between them and $\Sigma$ is huge, which is honest and is what the lost guard reads to decide that the robot should stop and turn in place.
+
+[try: Scatter the particles, unlabeled | {"sim":true,"level":4,"set":{"loc":"pf"},"tab":"loc","act":"scatter"}] [try: Scatter, known IDs | {"sim":true,"level":4,"set":{"loc":"pf","assoc":"known"},"tab":"loc","act":"scatter"}]
+
+## 8. EKF-SLAM: the map joins the state
+
+Remove the beacon positions from the filter's knowledge and append them to its state:
+
+$$
+x = [\,x, y, \theta,\; m_{1x}, m_{1y},\; m_{2x}, m_{2y}, \ldots\,]^{\mathsf T}, \qquad P \text{ is } (3 + 2n) \times (3 + 2n)
+$$
+
+Everything from sections 2 to 4 still applies with larger matrices, and three things are new.
+
+**Prediction touches only the pose block.** Landmarks do not move, so the motion Jacobian is $G$ on the pose and the identity on the map. $P \leftarrow G P G^{\mathsf T} + Q$ then changes the 3 × 3 pose block, scales the 3 × 2n cross-covariances by $G$, and leaves the map block alone. The lab exploits that sparsity; a dense multiply would be $O(n^3)$ per tick.
+
+**A new landmark inherits the pose uncertainty.** The first reading $(r, b)$ of a beacon places it by the inverse measurement model $m = p + r\,[\cos(\theta + b), \sin(\theta + b)]$. Its covariance comes from the same linearization argument as section 2, now with two Jacobians, one on the pose and one on the reading:
+
+$$
+J_x = \begin{bmatrix} 1 & 0 & -r\sin(\theta + b) \\ 0 & 1 & \phantom{-}r\cos(\theta + b) \end{bmatrix},
+\quad
+J_z = \begin{bmatrix} \cos(\theta + b) & -r\sin(\theta + b) \\ \sin(\theta + b) & \phantom{-}r\cos(\theta + b) \end{bmatrix}
+$$
+
+$$
+P_{mm} = J_x P_{xx} J_x^{\mathsf T} + J_z Q J_z^{\mathsf T}, \qquad P_{mx} = J_x P_{xx}, \qquad P_{m,\text{others}} = J_x P_{x,\text{others}}
+$$
+
+The second and third pieces are the point of SLAM. The new landmark is placed from an uncertain pose, so its error is the pose error (through $J_x$) plus sensor noise, and it is correlated with the pose and with every landmark the pose is correlated with. The map is not a set of independent points; it is one jointly uncertain object with the robot in it.
+
+**Updates constrain relative positions.** The measurement Jacobian for landmark $j$ is the $H$ of section 3 with two extra nonzero columns, the derivatives with respect to $m_j$, which are the negatives of the pose columns: $\partial h/\partial m = -\partial h/\partial p$. A reading therefore says nothing about where the pose and the landmark are absolutely, only about their difference. The absolute error of the whole structure drifts like dead reckoning (section 2) between observations of old landmarks, and the correlations are what make loop closure work: when the robot re-observes a landmark it mapped early, while its pose was still certain, the innovation is applied through $K = P H^{\mathsf T} S^{-1}$ to every state the landmark is correlated with, which is the pose and, through the pose, every landmark placed since. One reading moves the whole map. A longer beacon range means more landmarks are shared between distant parts of the route, so loop closures happen continuously and the drift stays bounded, which is lesson 5's second experiment.
+
+The cost is the dense $P$: each update is $O(n^2)$ and memory is $O(n^2)$ in the number of landmarks, fine for a dozen beacons and the reason real systems moved to sparse graph formulations once maps grew to thousands of features.
+
+[try: EKF-SLAM, range 7 m | {"sim":true,"level":2,"set":{"loc":"slam"},"tab":"loc","plot":"pos"}] [try: Range 12 m | {"sim":true,"level":2,"set":{"loc":"slam","lmRange":12},"tab":"loc","plot":"pos"}]
+
+## 9. What to carry into the next chapters
+
+Three ideas from this chapter recur everywhere in the stack. Linearize, then propagate covariance through the Jacobian: the tracker's constant-velocity filter in chapter 3 is the same machinery on a person's position and velocity. Measure surprise in units of the expected spread: the Mahalanobis gate reappears in data association for tracks, and NEES is the test for any filter that claims a covariance. And keep the uncertainty honest rather than small: the costmap margins, the speed planner's growing radii and the lost guard all consume $\Sigma$, and all of them are only as good as it is.

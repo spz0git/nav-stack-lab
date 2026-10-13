@@ -220,6 +220,8 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .experiments .exp-head::before{content:counter(exp);font-family:var(--f-mono);font-size:.74rem;color:var(--sys,var(--muted));min-width:1em}
 .experiments .exp-head .btn{font-weight:600}
 .experiments p{margin:0}
+.how-body a.chref{display:inline-block;font-family:var(--f-mono);font-size:.76rem;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:1px 9px;margin-left:2px;white-space:nowrap;vertical-align:baseline}
+.how-body a.chref:hover{border-color:var(--accent)}
 .questions{display:flex;flex-direction:column;gap:4px}
 .questions details.q{border:1px solid var(--line);border-radius:6px;padding:5px 10px;background:var(--raise)}
 .learncol .questions details.q summary,.learncol.reading .questions details.q summary{cursor:pointer;font-weight:500;font-size:.92rem;font-family:var(--f-body);display:flex;gap:8px}

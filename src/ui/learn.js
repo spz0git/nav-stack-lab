@@ -37,6 +37,17 @@ function lessonBack(){
   renderLearn();draw();if(activeTab==='view')renderAllPanes();
 }
 function lessonLink(id){const[g,i]=id.split(':');return location.href.split('#')[0]+`#lesson=${g}:${+i+1}`;}
+// A lesson body: the text, its experiments, questions, then its terms. A try is [label, cfg] or, explained,
+// [label, cfg, {setup, see, shows}]; explained tries render as numbered cards. L.q = [[question, answer], …].
+function lessonBodyHTML(L,id){
+  const explained=L.tries.some(t=>t[2]),btn=j=>`<button class="btn small" data-try="${id}:${j}">\u0002${j}\u0002</button>`;   // labels are restored after marking
+  const tries=explained
+    ?`<h4 class="exph">Experiments</h4><ol class="experiments">`+L.tries.map((t,j)=>{const x=t[2]||{};return`<li><div class="exp-head">${btn(j)}</div>`+
+        (x.setup?`<p><b>Setup.</b> ${x.setup}</p>`:'')+(x.see?`<p><b>What you will see.</b> ${x.see}</p>`:'')+(x.shows?`<p><b>What it shows.</b> ${x.shows}</p>`:'')+`</li>`;}).join('')+`</ol>`
+    :`<div class="tries">${L.tries.map((t,j)=>btn(j)).join('')}</div>`;
+  const q=L.q&&L.q.length?`<h4 class="exph">Think about</h4><div class="questions">${L.q.map(([qq,a])=>`<details class="q"><summary>${qq}</summary><p>${a}</p></details>`).join('')}</div>`:'';
+  return glossMarkFor(L,L.b+tries+q).replace(/\u0002(\d+)\u0002/g,(_,j)=>L.tries[+j][0])+glossTermsHTML(L);
+}
 function renderLearn(){
   const v=$('#learnview');v.classList.remove('chapter');if(chapterOpen)return renderChapter();
   const cur=lessonOpen&&lessonItem(lessonOpen);
@@ -45,7 +56,7 @@ function renderLearn(){
   v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${k<all.length-1?`<button class="linkbtn" id="learn-next" type="button">Next lesson →</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
      :`<h2>Lessons</h2><p class="note">Grouped by subsystem. Open one, read it, press its Try buttons. The companion notes at the end derive the mathematics. Opening a lesson shows the map layers it is about; <b>All lessons</b> brings yours back. Dotted terms show a short definition on hover or tap, and each lesson ends with its terms and symbols; the Symbols tab has them all.</p>`}</div>`+
    LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}" data-sys="${G.id}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
-    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${glossLesson(L)}<div class="tries">${L.tries.map((t,j)=>`<button class="btn small" data-try="${id}:${j}">${t[0]}</button>`).join('')}</div></div></details>`;}).join('')+`</section>`).join('')+(cur?'':chaptersListHTML());
+    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${lessonBodyHTML(L,id)}</div></details>`;}).join('')+`</section>`).join('')+(cur?'':chaptersListHTML());
   v.querySelectorAll('.chapter-open').forEach(b=>b.onclick=()=>openChapter(b.dataset.ch));
   v.querySelectorAll('details.lesson>summary').forEach(s=>s.onclick=e=>{e.preventDefault();const id=s.parentNode.dataset.l;if(lessonOpen===id)lessonBack();else openLesson(id);});
   v.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':'),id=g+':'+i;if(lessonOpen!==id)openLesson(id);

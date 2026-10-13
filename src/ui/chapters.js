@@ -15,6 +15,7 @@ function ppFormulas(){
   const wn=Math.sqrt(g*Ke*v0),zeta=g*Kth/(2*wn);
   return{v0,Ld,Ke,Kth,wc,lead,hold,pm,dm:pm*Math.PI/180/wc,wn,zeta,zero:-v0/Ld,os:100*Math.exp(-Math.PI*zeta/Math.sqrt(1-zeta*zeta)),settle:4/(zeta*wn),ess:100*0.1/Ke};
 }
+function abGains(){const l=P.agSigA*0.01/0.1,s=Math.sqrt(l*l+8*l);return{a:-(l*l+8*l-(l+4)*s)/8,b:(l*l+4*l-l*s)/4};}
 function liveRes(){if(AN.loop!=='lat')return null;if(AN.dirty||!AN.res){anCompute();AN.dirty=false;}return AN.res&&AN.res.M.kind!=='none'?AN.res:null;}
 const LIVE={
   ctl:()=>CTL_NAMES[anCtl()]||P.ctl,
@@ -22,6 +23,10 @@ const LIVE={
   loc:()=>({truth:'ground truth',dr:'dead reckoning',ekf:'the EKF',pf:'the particle filter',slam:'EKF-SLAM',custom:'your own code'})[P.loc]||P.loc,
   odoK:()=>liveF(P.odoK,1),odoB:()=>liveF(P.odoB,1),lmRange:()=>liveF(P.lmRange,0),npart:()=>String(P.npart),
   sigv:()=>liveF(P.odoK*(0.1*anV0()+0.02),3),sigw:()=>liveF(P.odoK*(0.1*anV0()+0.02),3),
+  // perception (chapter 3): the tracker's steady-state α–β gains from the tracking index λ = σa Δt² / σz
+  lidarSig:()=>liveF(P.lidarSig,2),infl:()=>liveF(P.infl,1),agSigA:()=>liveF(P.agSigA,1),agT:()=>liveF(P.agT,1),agGrow:()=>liveF(P.agGrow,2),sensLat:()=>liveF(P.sensLat,2),
+  lam:()=>liveF(P.agSigA*0.01/0.1,3),alpha:()=>liveF(abGains().a,2),beta:()=>liveF(abGains().b,3),tauv:()=>{const a=abGains().a;return liveF(0.1/(-Math.log(Math.sqrt(1-a))),1);},
+  rAtT:()=>liveF(0.35+P.agGrow*P.agT,2),
   v0:()=>liveF(anV0()),Ld:()=>liveF(ppFormulas().Ld),
   Ke0:()=>liveF(ppFormulas().Ke,3),Kth0:()=>liveF(ppFormulas().Kth,3),wn0:()=>liveF(ppFormulas().wn),wc0:()=>liveF(ppFormulas().wc),
   lead0:()=>liveF(ppFormulas().lead,1),holdlag0:()=>liveF(ppFormulas().hold,1),pm0:()=>liveF(ppFormulas().pm,1),dm0:()=>liveF(ppFormulas().dm),

@@ -10,7 +10,7 @@
   - Whenever a change lands on `main` in this session (you merge a PR or push to main), rebuild, run the tests below,
     and republish `dist/nav-stack-lab.html` to the live artifact URL above with `capabilities: {downloads: true}`.
     Say in your reply that the live page was updated.
-  - The header shows the version from `src/version.json` (`v22 · 2026-10-13`). Before each republish of the live artifact,
+  - The header shows the version from `src/version.json` (`v23 · 2026-10-13`). Before each republish of the live artifact,
     set `version` to the artifact version the publish will create (the last publish result's version + 1), with the date
     and a short note, rebuild, and commit it; the label then matches the artifact's version history.
 - Companion notes (the Learn column's chapters) are written in `docs/notes/<id>.md` (markdown subset + TeX; see the header of
@@ -20,7 +20,7 @@
   follows every derivation link in the lessons (`a.chref`, `#notes=<ch>/<section-slug>`) there and back.
 - Lessons (`src/analysis/lessons.js`, `lessons2.js`): a Try is `['Label', cfg]` or, explained, `['Label', cfg, {setup, see, shows}]`;
   a lesson may carry `q: [[question, answer], …]`. Numbers in a lesson's "What you will see" are measured headless first
-  (`tests/measure_loc.py` for localization); derivations go in the chapter, the lesson keeps a short "where it comes from" and the link.
+  (`tests/measure_loc.py` for localization, `tests/measure_per.py` for perception); derivations go in the chapter, the lesson keeps a short "where it comes from" and the link.
 - Before committing: `./build.sh`, then from `tests/`: `python3 test.py` (L1–L5 regression summary must not change unless
   intended), `python3 p5test.py` (all Try buttons, ERRORS must be []), `python3 tles.py` (lessons), `python3 chtest.py` (companion notes).
 - Design notes, known limits and next steps live in `docs/roadmap.md`; keep it in sync with the project doc

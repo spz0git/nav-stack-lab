@@ -83,6 +83,7 @@ function fieldHTML(f){
 function fmtVal(f,v){const d=f.step<0.01?3:f.step<0.1?2:f.step<1?(f.step%0.1<1e-9?1:2):0;return`${(+v).toFixed(d)}${f.unit?' '+f.unit:''}`;}
 function wirePane(t){
   const pane=$('#pane');
+  if(NOTES[t])pane.querySelectorAll('details.how[data-how] .how-body').forEach(b=>glossify(b,t,{list:true,closed:true,what:'section'}));
   pane.querySelectorAll('[data-reset]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const k=b.dataset.reset;setParam(k,lvlDefault(k),false);renderAllPanes();});
   pane.querySelectorAll('.seg[data-k]').forEach(sg=>sg.querySelectorAll('button').forEach(b=>b.onclick=()=>{setParam(sg.dataset.k,b.dataset.v);renderAllPanes();}));
   pane.querySelectorAll('input[type=checkbox][data-k]').forEach(cb=>cb.onchange=()=>{setParam(cb.dataset.k,cb.checked);renderAllPanes();});

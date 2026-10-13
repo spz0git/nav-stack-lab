@@ -42,6 +42,7 @@
  "analysis/lessons2.js",
  "analysis/lessons.js",
  "ui/learn.js",
+ "ui/glossary.js",
  "ui/experiments.js",
  "ui/replay.js",
  "ui/source.js",

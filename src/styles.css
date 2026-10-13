@@ -172,6 +172,20 @@ details.how{border-top:1px dashed var(--line);padding-top:10px}
 details.how summary{cursor:pointer;font-family:var(--f-display);font-weight:600;font-size:.95rem}
 .how-body{font-size:.88rem;display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .how-body p{max-width:65ch}
+.term{text-decoration:underline dotted;text-decoration-color:var(--muted);text-underline-offset:3px;text-decoration-thickness:1px;cursor:help;border-radius:2px}
+.term:hover,.term:focus-visible,.term[aria-describedby]{background:var(--grid);text-decoration-color:var(--accent);outline:none}
+.gl-pop{position:fixed;z-index:50;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 10px;box-shadow:0 4px 14px rgba(0,0,0,.18);font-family:var(--f-body);font-size:.84rem;line-height:1.4;pointer-events:none}
+.gl-pop[hidden]{display:none}
+.gl-pop .gl-sym{font-family:var(--f-math);font-size:1.05rem;margin-bottom:2px}
+.gl-pop .gl-src{color:var(--muted);font-size:.72rem;margin-top:3px}
+.gl-pop .unit,.gl-terms .unit{color:var(--muted);font-family:var(--f-mono);font-size:.74rem;white-space:nowrap}
+.gl-terms{border-top:1px dashed var(--line);padding-top:8px}
+.gl-terms summary{cursor:pointer;font-family:var(--f-display);font-weight:600;font-size:.92rem}
+.gl-terms h4{margin:10px 0 0;font-family:var(--f-display);font-size:.74rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.gl-terms dl{display:grid;grid-template-columns:minmax(64px,max-content) minmax(0,1fr);gap:4px 12px;margin:8px 0 0}
+.gl-terms dt{font-family:var(--f-math);font-size:1rem;line-height:1.35;white-space:nowrap}
+.gl-terms dl.gl-words dt{font-family:var(--f-body);font-weight:600;font-size:.86rem;white-space:normal}
+.gl-terms dd{margin:0;font-size:.86rem;line-height:1.4;min-width:0}
 .eq{font-family:var(--f-mono);font-size:.78rem;background:var(--raise);border:1px solid var(--line);border-radius:4px;padding:8px 10px;overflow-x:auto;white-space:pre;line-height:1.55}
 textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;line-height:1.5;background:var(--raise);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:10px;resize:vertical;tab-size:2}
 .codestat{font-family:var(--f-mono);font-size:.78rem}

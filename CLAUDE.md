@@ -13,7 +13,11 @@
   - The header shows the version from `src/version.json` (`v20 · 2026-10-13`). Before each republish of the live artifact,
     set `version` to the artifact version the publish will create (the last publish result's version + 1), with the date
     and a short note, rebuild, and commit it; the label then matches the artifact's version history.
+- Companion notes (the Learn column's chapters) are written in `docs/notes/<id>.md` (markdown subset + TeX; see the header of
+  `tools/notes.mjs` for the `{{live:key}}` and `[try: … | {cfg}]` extensions). The build converts them to HTML with MathML
+  (`tools/vendor/temml`, build-time only; the page keeps zero runtime dependencies). Live values are defined in
+  `src/ui/chapters.js` (LIVE). `tests/chtest.py` opens the chapter, checks every live value fills and presses every Try button.
 - Before committing: `./build.sh`, then from `tests/`: `python3 test.py` (L1–L5 regression summary must not change unless
-  intended), `python3 p5test.py` (all Try buttons, ERRORS must be []), `python3 tles.py` (lessons).
+  intended), `python3 p5test.py` (all Try buttons, ERRORS must be []), `python3 tles.py` (lessons), `python3 chtest.py` (companion notes).
 - Design notes, known limits and next steps live in `docs/roadmap.md`; keep it in sync with the project doc
   `claude/nav-stack-lab-roadmap.md` in the "Robot sim" project.

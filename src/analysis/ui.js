@@ -192,7 +192,7 @@ function speedDiagram(R){
   return`<svg viewBox="0 0 860 104" class="bd" role="img" aria-label="MPC speed loop"><text x="6" y="46" class="bd-s" text-anchor="start">v<tspan baseline-shift="sub" font-size="8">ref</tspan></text>${ar(52,76)}<circle cx="86" cy="42" r="10" class="bd-box"/><text x="86" y="46" class="bd-t">Σ</text>${ar(96,118)}${box(118,210,'MPC (rate input a)',`a = −K_v Δv${M.lagModel?' − K_vc Δv_cmd':''} + K_u a_prev`)}${ar(328,370)}${box(370,100,'∫ a dt','v_cmd')}${ar(470,512)}${box(512,120,'Latency',`${fmt(M.nL*DT*1000,0)} ms`)}${ar(632,674)}${box(674,140,'Actuator',lag)}${ar(814,840)}<text x="846" y="46" class="bd-s" text-anchor="start">v</text><polyline points="826,42 826,92 86,92 86,52" class="bd-l" fill="none"/><path d="M86 52 l-4 7 h8 z" class="bd-a"/></svg>`;
 }
 let anTimer=null;
-function anInvalidate(keepMeas){AN.dirty=true;AN.resSpd=null;if(!keepMeas){AN.meas={step:null,freq:null,spd:null};AN.msg='';}
+function anInvalidate(keepMeas){AN.dirty=true;AN.resSpd=null;if(!keepMeas){AN.meas={step:null,freq:null,spd:null};AN.msg='';}chapterLiveSoon();
   if(AN.mode==='an'){clearTimeout(anTimer);anTimer=setTimeout(renderAnalysis,90);}}
 function setMode(m){AN.mode=m;$('#simview').hidden=m!=='sim';$('#anview').hidden=m!=='an';
   if(uiMode!=='learn')uiMode=m;syncModeUI();

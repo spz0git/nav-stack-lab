@@ -15,11 +15,18 @@ cd tests
 python3 test.py            # L1–L5 regression summary (goals, contacts, time, errors)
 python3 p5test.py          # every Try button runs without errors
 python3 tles.py            # lessons
+python3 chtest.py          # companion notes: live values and Try buttons
 ```
 
 The tests need Python 3 with Playwright and a Chromium (`pip install playwright && playwright install chromium`).
 `dist/nav-stack-lab.html` is committed so the published artifact always matches a commit.
 `legacy/` holds the patch scripts the single file was grown with before the split into modules (v1–v7).
+
+## Companion notes
+
+`docs/notes/*.md` are the textbook chapters shown in the app's Learn mode. They are markdown with TeX formulas, plus
+`{{live:key}}` for numbers the app computes from the current settings and `[try: Label | {cfg}]` for buttons that set the
+simulator or the analysis up. `node build.mjs` converts them (TeX → MathML with the vendored temml) and inlines them in the page.
 
 ## Source layout
 

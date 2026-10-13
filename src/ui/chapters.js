@@ -5,7 +5,7 @@
    loop analysis, and refreshed whenever the analysis is invalidated. Try buttons use the lessons' cfg format.
    ============================================================ */
 const CHAPTERS=/*__CHAPTERS__*/[];
-let chapterOpen=null,liveTimer=null;
+let chapterOpen=null,chapterFrom=null,chapterSec=null,liveTimer=null;   // chapterFrom: the lesson a link came from
 const liveF=(v,d=2)=>v==null||!isFinite(v)?'—':(+v).toFixed(d);
 // the pure-pursuit formulas of chapter 6, from the current parameters (valid for pure pursuit on the diff-drive robot)
 function ppFormulas(){
@@ -18,6 +18,10 @@ function ppFormulas(){
 function liveRes(){if(AN.loop!=='lat')return null;if(AN.dirty||!AN.res){anCompute();AN.dirty=false;}return AN.res&&AN.res.M.kind!=='none'?AN.res:null;}
 const LIVE={
   ctl:()=>CTL_NAMES[anCtl()]||P.ctl,
+  // localization (chapter 2)
+  loc:()=>({truth:'ground truth',dr:'dead reckoning',ekf:'the EKF',pf:'the particle filter',slam:'EKF-SLAM',custom:'your own code'})[P.loc]||P.loc,
+  odoK:()=>liveF(P.odoK,1),odoB:()=>liveF(P.odoB,1),lmRange:()=>liveF(P.lmRange,0),npart:()=>String(P.npart),
+  sigv:()=>liveF(P.odoK*(0.1*anV0()+0.02),3),sigw:()=>liveF(P.odoK*(0.1*anV0()+0.02),3),
   v0:()=>liveF(anV0()),Ld:()=>liveF(ppFormulas().Ld),
   Ke0:()=>liveF(ppFormulas().Ke,3),Kth0:()=>liveF(ppFormulas().Kth,3),wn0:()=>liveF(ppFormulas().wn),wc0:()=>liveF(ppFormulas().wc),
   lead0:()=>liveF(ppFormulas().lead,1),holdlag0:()=>liveF(ppFormulas().hold,1),pm0:()=>liveF(ppFormulas().pm,1),dm0:()=>liveF(ppFormulas().dm),
@@ -38,14 +42,17 @@ function chapterLive(){
 }
 function chapterLiveSoon(){if(!chapterOpen)return;clearTimeout(liveTimer);liveTimer=setTimeout(chapterLive,120);}
 const chapterById=id=>CHAPTERS.find(c=>c.id===id);
-function openChapter(id){
+function openChapter(id,sec){
   const c=chapterById(id);if(!c)return false;
-  if(lessonOpen)lessonBack();
-  chapterOpen=id;renderLearn();
-  const v=$('#learnview');if(v.getBoundingClientRect().top<0)v.scrollIntoView({block:'start'});return true;
+  chapterFrom=lessonOpen;if(lessonOpen)lessonBack();
+  chapterOpen=id;chapterSec=sec||null;renderLearn();
+  const v=$('#learnview'),h=sec&&v.querySelector('#n-'+sec);
+  if(h)h.scrollIntoView({block:'start'});else if(v.getBoundingClientRect().top<0)v.scrollIntoView({block:'start'});return true;
 }
-function chapterBack(){chapterOpen=null;renderLearn();if(activeTab==='view')renderAllPanes();}
-function chapterLink(id){return location.href.split('#')[0]+`#notes=${id}`;}
+function chapterBack(){const from=chapterFrom;chapterOpen=null;chapterFrom=null;chapterSec=null;
+  if(from&&openLesson(from)){try{history.replaceState(null,'',lessonLink(from).replace(/^[^#]*/,''));}catch(_){}return;}
+  renderLearn();if(activeTab==='view')renderAllPanes();}
+function chapterLink(id,sec){return location.href.split('#')[0]+`#notes=${id}${sec?'/'+sec:''}`;}
 // the list shown in the Learn column when nothing is open
 function chaptersListHTML(){
   if(!CHAPTERS.length)return'';
@@ -55,7 +62,7 @@ function chaptersListHTML(){
 function renderChapter(){
   const v=$('#learnview'),c=chapterById(chapterOpen);
   v.classList.add('reading','chapter');
-  v.innerHTML=`<div class="learn-head"><button class="btn small" id="learn-back" type="button" title="Back to the list">← Lessons and notes</button><span class="lbl" data-sys="${c.sys}">Chapter ${c.num}</span><button class="linkbtn" id="learn-link" type="button" title="A link that opens this chapter">Copy link</button><span class="lbl" id="learn-msg"></span></div>`+
+  v.innerHTML=`<div class="learn-head"><button class="btn small" id="learn-back" type="button" title="${chapterFrom?'Back to the lesson you came from':'Back to the list'}">${chapterFrom?'← Back to the lesson':'← Lessons and notes'}</button><span class="lbl" data-sys="${c.sys}">Chapter ${c.num}</span><button class="linkbtn" id="learn-link" type="button" title="A link that opens this chapter">Copy link</button><span class="lbl" id="learn-msg"></span></div>`+
     `<article class="chapter"><h2>${c.title}</h2><nav class="chapter-toc">${c.toc.map(t=>`<a href="#n-${t.id}" data-to="n-${t.id}">${t.text}</a>`).join('')}</nav>${c.html}</article>`;
   v.querySelectorAll('.chapter-toc a').forEach(a=>a.onclick=e=>{e.preventDefault();const h=v.querySelector('#'+a.dataset.to);if(h)h.scrollIntoView({block:'start',behavior:'smooth'});});
   v.querySelectorAll('button.try').forEach(b=>b.onclick=()=>{let cfg;try{cfg=JSON.parse(b.dataset.cfg);}catch(_){return;}
@@ -66,9 +73,9 @@ function renderChapter(){
     if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>{msg.textContent='Link copied.';},()=>{msg.textContent=u;});else msg.textContent=u;};
   chapterLive();
 }
-// #notes=ch6 opens Learn on that chapter
+// #notes=ch6 opens Learn on that chapter; #notes=ch2/4-the-kalman-update-derived scrolls to that section
 function chapterFromHash(){
-  const m=/^notes=([\w-]+)$/.exec(location.hash.slice(1));if(!m||!chapterById(m[1]))return false;
-  setUIMode('learn');return openChapter(m[1]);
+  const m=/^notes=([\w-]+)(?:\/([\w-]+))?$/.exec(location.hash.slice(1));if(!m||!chapterById(m[1]))return false;
+  setUIMode('learn');return openChapter(m[1],m[2]);
 }
 window.addEventListener('hashchange',chapterFromHash);

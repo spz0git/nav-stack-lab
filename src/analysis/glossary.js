@@ -346,7 +346,9 @@ function glossMark(html,ids){
 const glossWord=id=>/^[A-Za-z0-9 *–'-]{2,}$/.test(GLOSS[id][0]);   // a word term, not a symbol: set in the text face
 const glossDef=id=>{const g=GLOSS[id];return`${g[1]}${g[2]?` <span class="unit">[${g[2]}]</span>`:''}`;};
 // The lesson body with its terms marked, followed by the list of terms and symbols
-function glossLesson(L){
-  const ids=lessonTerms(L);if(!ids.length)return L.b;
-  return glossMark(L.b,ids)+`<details class="terms" open><summary>Terms and symbols</summary><dl>${ids.map(id=>`<dt${glossWord(id)?' class="w"':''}>${GLOSS[id][0]}</dt><dd>${glossDef(id)}</dd>`).join('')}</dl></details>`;
+const glossMarkFor=(L,html)=>{const ids=lessonTerms(L);return ids.length?glossMark(html,ids):html;};
+function glossTermsHTML(L){
+  const ids=lessonTerms(L);if(!ids.length)return'';
+  return`<details class="terms" open><summary>Terms and symbols</summary><dl>${ids.map(id=>`<dt${glossWord(id)?' class="w"':''}>${GLOSS[id][0]}</dt><dd>${glossDef(id)}</dd>`).join('')}</dl></details>`;
 }
+function glossLesson(L){return glossMarkFor(L,L.b)+glossTermsHTML(L);}

@@ -27,6 +27,10 @@ The tests need Python 3 with Playwright and a Chromium (`pip install playwright 
 `docs/notes/*.md` are the textbook chapters shown in the app's Learn mode. They are markdown with TeX formulas, plus
 `{{live:key}}` for numbers the app computes from the current settings and `[try: Label | {cfg}]` for buttons that set the
 simulator or the analysis up. `node build.mjs` converts them (TeX → MathML with the vendored temml) and inlines them in the page.
+A lesson links to the section that derives its formula with `<a class="chref" href="#notes=ch2/<section-slug>">` (the slug is the
+heading's id without `n-`; `#notes=ch2/<slug>` also works as a deep link), and Back from the chapter returns to the lesson.
+Lesson Try buttons may carry an explanation, `['Label', cfg, {setup, see, shows}]`, rendered as numbered experiment cards, and a
+lesson may carry questions `q: [[question, answer], …]`.
 
 ## Source layout
 

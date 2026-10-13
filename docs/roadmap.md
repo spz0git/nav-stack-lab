@@ -52,6 +52,12 @@ Assessment of v13: a good engineering workbench on desktop; on a phone the map s
 Guard rails held on every PR: `tests/test.py` L1–L5 summary byte-identical to the v16 baseline (plan-time ms excluded), `p5test.py` ERRORS [], `tles.py` identical, before/after screenshots at 1440 × 900 and 390 × 844 with dark-mode shots in `docs/screenshots/6.x/`, a preview artifact per PR, live artifact untouched until all six were merged. `core/` unchanged.
 Known limits: on a phone at fit zoom the map's view buttons cover a beacon on the east wall (L3 beacon 11), so it cannot be tapped there (use the chips or zoom). Between 761 and 960 px the old stacked order remains (map below the controls); title tooltips (the specs) are hover-only, so phones do not show them; tapping the open tab on a phone folds the console, which also happens after picking that tab's group.
 
+## Lesson glossary (2026-10-13, from the owner's comment on the live page)
+- Terms: `src/ui/glossary.js` holds 116 short definitions with the pattern that finds each term. In every lesson the first use of each term is underlined (dotted); hover or keyboard focus shows a pop-up, and a tap or click pins it (tap elsewhere or Escape closes it). The pop-up stays within a 16 px gutter on phones. Entries can be limited to lesson groups where a word changes meaning (tracker, injection, gain, grid).
+- Symbols: each lesson's `sy` list is shown as a Symbols key right under its last equation, written as the symbols appear in the equation (27 of 28 lessons; "Linear versus nonlinear" has no equations).
+- Screenshots: `docs/screenshots/glossary/` (before/after at 1440 × 900 and 390 × 844, dark mode on desktop).
+- Not covered yet: the How-it-works notes in the tabs and the Analyze chips; `glossify(element, group)` and `glossWire(element)` can be applied to them.
+
 ## Moving agents (v7)
 - Before v7 people only reached the stack as lidar hits: the global planner never saw them, DWA and MPC treated hits as static at scan time, and pure pursuit ignored them.
 - Architecture: global path static on purpose; agents handled at the trajectory level (path–velocity decomposition); escalate to a replan only when speed alone cannot resolve the conflict.

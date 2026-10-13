@@ -51,6 +51,10 @@ Assessment of v13: a good engineering workbench on desktop; on a phone the map s
 Guard rails held on every PR: `tests/test.py` L1–L5 summary byte-identical to the v16 baseline (plan-time ms excluded), `p5test.py` ERRORS [], `tles.py` identical, before/after screenshots at 1440 × 900 and 390 × 844 with dark-mode shots in `docs/screenshots/6.x/`, a preview artifact per PR, live artifact untouched until all six were merged. `core/` unchanged.
 Known limits: on a phone at fit zoom the map's view buttons cover a beacon on the east wall (L3 beacon 11), so it cannot be tapped there (use the chips or zoom). Between 761 and 960 px the old stacked order remains (map below the controls); title tooltips (the specs) are hover-only, so phones do not show them; tapping the open tab on a phone folds the console, which also happens after picking that tab's group.
 
+## Glossary (2026-10-13)
+- Owner's comment on the live page (lesson "Dead reckoning drifts, and knows it"): term definitions were missing. Technical terms in lessons, How-it-works notes and level hints are now dotted-underlined buttons: hover or focus shows a short definition, a tap or click pins it, a tap elsewhere or Escape closes it (one shared pop-up, `ui/glossary.js`). 116 terms; each is marked at its first use per text block; entries can be scoped to a subsystem where a word means different things (injection: particles in localization, sine injection in the control loop). Equations and buttons are never marked.
+- Every lesson with equations ends with a Symbols key (`LESSON_SYMS`, keyed group:index), visible without hovering, so it works on phones and in print.
+
 ## Moving agents (v7)
 - Before v7 people only reached the stack as lidar hits: the global planner never saw them, DWA and MPC treated hits as static at scan time, and pure pursuit ignored them.
 - Architecture: global path static on purpose; agents handled at the trajectory level (path–velocity decomposition); escalate to a replan only when speed alone cannot resolve the conflict.

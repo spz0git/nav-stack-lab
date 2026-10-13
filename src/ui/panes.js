@@ -4,6 +4,7 @@ function buildLevels(){
   $('#levels').innerHTML=LEVELS.map((L,i)=>`<button class="lvl" data-i="${i}" aria-pressed="${L===LV}" title="${L.id} ${L.name}">${L.id}</button>`).join('');
   $('#levels').querySelectorAll('.lvl').forEach(b=>b.onclick=()=>loadLevel(+b.dataset.i));
   $('#brief').innerHTML=`<div><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3><p class="adds">${LV.adds}</p></div><details class="try" ${tryOpen?'open':''}><summary><h3>Try (${LV.tries.length}) · each button sets the lab up and runs</h3></summary><ul>${LV.tries.map((t,i)=>`<li>${t.t}<div class="tries">${t.b.map((x,j)=>`<button class="btn small" data-lt="${i}:${j}">${x[0]}</button>`).join('')}</div></li>`).join('')}</ul></details>`;
+  glossify($('#brief'),'');
   $('#brief .try').ontoggle=e=>{tryOpen=e.target.open;};
   $('#brief').querySelectorAll('[data-lt]').forEach(b=>b.onclick=()=>{const[i,j]=b.dataset.lt.split(':').map(Number);tryGo(LV.tries[i].b[j][1]);});
 }
@@ -58,6 +59,7 @@ function renderAllPanes(){
     if(NOTES[t])html+=`<details class="how" ${howOpen[t]?'open':''} data-how="${t}"><summary>How it works</summary><div class="how-body">${NOTES[t]}<button class="linkbtn" data-sym="${t}">Symbol definitions for this section</button>${t==='ctl'?'<button class="linkbtn" data-sym="mpc">MPC symbols</button>':''}${t==='per'||t==='ctl'?'<button class="linkbtn" data-sym="ag">Moving-agent symbols</button>':''}${SRC_FILES[t]?`<button class="linkbtn" data-source="${SRC_FILES[t][0]}">View the source</button>`:''}</div></details>`;
   }
   $('#panes').innerHTML=`<div class="pane" id="pane" role="tabpanel">${html}</div>`;
+  glossify(document.querySelector('#pane .how-body'),t);
   wirePane(t);
 }
 let btnActs=[],infoFns=[];

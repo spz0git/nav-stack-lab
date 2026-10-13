@@ -304,3 +304,15 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .console.collapsed .tabs{border-bottom:0}
   .console.collapsed .tab[aria-selected="true"]{color:var(--muted);border-bottom-color:transparent}
 }
+
+/* glossary: terms open a short definition on hover, focus or tap */
+.term{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;text-align:inherit;cursor:help;text-decoration:underline dotted;text-decoration-color:var(--muted);text-underline-offset:3px;text-decoration-thickness:1px}
+.term:hover,.term[aria-describedby]{color:var(--accent);text-decoration-color:var(--accent)}
+.termtip{position:fixed;z-index:60;max-width:min(320px,calc(100vw - 16px));background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-size:.84rem;line-height:1.45;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.termtip b{font-family:var(--f-display);font-weight:600;margin-right:3px}
+.termtip[hidden]{display:none}
+.lsyms{border-top:1px dashed var(--line);padding-top:8px}
+.lsyms h4{margin:0 0 4px;font-family:var(--f-display);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.lsyms dl{display:grid;grid-template-columns:minmax(56px,max-content) minmax(0,1fr);gap:3px 12px;margin:0;font-size:.84rem}
+.lsyms dt{font-family:var(--f-math);font-size:.98rem;white-space:nowrap}
+.lsyms dd{margin:0;color:var(--muted)}

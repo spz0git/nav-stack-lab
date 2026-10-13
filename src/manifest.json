@@ -34,6 +34,7 @@
  "ui/notes.js",
  "ui/panes.js",
  "ui/nomenclature.js",
+ "ui/glossary.js",
  "ui/panes2.js",
  "analysis/num.js",
  "analysis/model.js",

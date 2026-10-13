@@ -292,7 +292,7 @@ const GLOSS={
 const LESSON_TERMS={
  'Dead reckoning drifts, and knows it':'deadreck odometry arc v w covariance mu gmot uodo Sigma Gjac Vjac Modo sigx t thetaerr ellipse poserr band2s consistent',
  'The Kalman update, and NEES as a lie detector':'beacon rb ekf nu z zhat kgain Sinn Hjac Qmeas K mu Sigma Iid nees eerr overconf bias assumed',
- 'Gating, and the kidnapped robot':'unlabeled mahal gate d2 nu Sinn chi2 clutter outlier kidnap knownids ekf pf hyp',
+ 'Gating, and the kidnapped robot':'kidnap particle ellipse poserr unlabeled mahal gate d2 nu Sinn chi2 clutter ekf knownids pf inject hyp',
  'Particles: resampling, injection and symmetry':'pf motionmodel particle likelihood resample neff lowvar sumP wi Npart amcl wfs wavg inject globalloc mirror unlabeled lidar',
  'EKF-SLAM: the map is part of the state':'slam landmark xslam mlm Pslam nlm ppos rr bb Pmm Jxz Rm correlated drift deadreck loopclosure',
  'Log-odds mapping':'lidar beam grid logodds clamp l lmeas lfh estframe deadreck',

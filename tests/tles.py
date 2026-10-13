@@ -19,6 +19,13 @@ async def main():
                     zeta:R.zeta&&+R.zeta.toFixed(2),OS:R.smOff&&+R.smOff.overshoot.toFixed(1),essBias:R.smBias&&+R.smBias.final.toFixed(4),
                     meas:sm?JSON.stringify(Object.fromEntries(Object.entries(sm).map(([k,v])=>[k,v==null?null:+v.toFixed(3)]))):null,sat:ms&&ms.sat,nfreq:A.AN.meas.freq&&A.AN.meas.freq.length,msg:A.AN.msg.slice(0,60),ms:Math.round(performance.now()-t0)}}}}""")
                 print('   ',r)
+        # glossary: every lesson lists its terms, every id exists, and marking leaves the text unchanged
+        g=await pg.evaluate("""()=>{const A=window.__an,tx=h=>{const d=document.createElement('div');d.innerHTML=h;return d.textContent;},bad=[];let n=0,m=0;
+          for(const G of A.LESSON_GROUPS())for(const L of G.items){const raw=(A.LESSON_TERMS[L.t]||'').split(' ').filter(Boolean);
+            if(!raw.length)bad.push('no terms: '+L.t);raw.filter(id=>!A.GLOSS[id]).forEach(id=>bad.push('unknown '+id+': '+L.t));
+            const h=A.glossMark(L.b,A.lessonTerms(L));if(tx(h)!==tx(L.b))bad.push('text changed: '+L.t);n+=raw.length;m+=(h.match(/class="term"/g)||[]).length;}
+          return {lessons:A.LESSON_GROUPS().reduce((a,G)=>a+G.items.length,0),listed:n,marked:m,bad};}""")
+        print('GLOSSARY',g)
         print('ERR',errs[:5])
         await b.close()
 asyncio.run(main())

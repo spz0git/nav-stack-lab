@@ -224,7 +224,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .scrub[data-state="replay"] .tl-time{color:var(--accent)}
 /* the transport's parts sit where they are used: the status strip above the map, the timeline under it */
 .transport{display:contents}
-#status{order:0}#firstrun{order:2}#simview>.mapwrap{order:3}.timeline{order:4}.hsplit{order:5}.tele{order:6}
+#status{order:0}#health{order:1}#firstrun{order:2}#simview>.mapwrap{order:3}.timeline{order:4}.hsplit{order:5}.tele{order:6}
 .status .kv b.replay{color:var(--accent)}
 .st-replay{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:var(--accent-ink);border-radius:4px;padding:1px 7px;align-self:center}
 .bad{color:var(--bad)}
@@ -444,6 +444,17 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .chg-h{margin:4px 0 0;font-family:var(--f-display);font-size:.95rem;display:flex;gap:8px;align-items:baseline}
 .chg-save{display:flex;gap:6px}.chg-save input{flex:1 1 auto;min-width:0;font:inherit;font-size:.84rem;padding:5px 8px;border:1px solid var(--line);border-radius:5px;background:var(--raise);color:var(--ink)}
 .setups li{display:flex;align-items:baseline;gap:8px;padding:4px 0;border-top:1px solid var(--line)}.setups .lbl{margin-left:auto;white-space:nowrap}.setups .ibtn{padding:0 7px}
+/* health (7.6): a light per subsystem with the reason */
+.health{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.hl{display:flex;align-items:center;gap:6px;min-width:0;border:1px solid var(--line);border-left:3px solid var(--sys);border-radius:5px;background:var(--panel);padding:3px 8px;font-size:.76rem;text-align:left;line-height:1.3}
+.hl:hover{border-color:var(--muted);border-left-color:var(--sys)}
+.hl i{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--line)}
+.hl.ok i{background:var(--ok)}.hl.warn i{background:var(--warn)}.hl.bad i{background:var(--bad)}
+.hl b{font-weight:600;white-space:nowrap}
+.hl span{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.hl.warn{background:color-mix(in srgb,var(--warn) 12%,var(--panel))}.hl.bad{background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.hl.warn span,.hl.bad span{color:var(--ink)}
+.tl-m.h-warn,.tl-m.h-bad{top:0;height:6px;width:6px;margin-left:-3px;border-radius:50%;background:var(--warn)}.tl-m.h-bad{background:var(--bad)}
 /* Desktop: the whole lab is one screen. Left: the map, filling what the controls and the dock leave (what you watch).
    Right: the level brief and the parameter tabs, or the lessons (what you change), scrolling on its own. */
 @media (min-width:961px) and (min-height:600px){
@@ -514,6 +525,7 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .transport .btn.primary{min-width:64px}
   .transport .sel.speed{flex:1 1 auto;min-width:0}
   .tab{padding:8px 7px 7px;font-size:.9rem}
+  #health{order:6;grid-template-columns:repeat(2,minmax(0,1fr))}
   .tele-title{flex-wrap:wrap}
   .tele-tools{flex:1 1 100%;margin-left:0}
   .mapwrap{aspect-ratio:auto;display:flex;flex-direction:column}
@@ -588,6 +600,7 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
         </div>
       </div>
       </div>
+      <div class="health" id="health" role="status" aria-label="Subsystem health"></div>
       <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across six levels. <b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
       <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll to zoom; drag to pan."></canvas>
         <div class="legend" id="legend" hidden>
@@ -7579,9 +7592,10 @@ function syncScrub(){
   $('#scrubt').textContent=n<2?'no recording yet':REPLAY.active?`${f.t.toFixed(1)} / ${tEnd.toFixed(1)} s · replay`:`${S.t.toFixed(1)} s · live`;
   $('#scrub-live').hidden=!REPLAY.active;
   // marks: redrawn when the log or the recorded span changes
-  const t0=n?F[0].t:0,span=Math.max(1e-6,tEnd-t0),key=S.log.length+'|'+(S.log[0]&&S.log[0].t)+'|'+t0.toFixed(1)+'|'+tEnd.toFixed(0);
+  const t0=n?F[0].t:0,span=Math.max(1e-6,tEnd-t0),key=S.log.length+'|'+(S.log[0]&&S.log[0].t)+'|'+t0.toFixed(1)+'|'+tEnd.toFixed(0)+'|'+HEALTH.ev.length;
   if(key!==tlKey){tlKey=key;
-    $('#tl-marks').innerHTML=n<2?'':S.log.map(l=>{const k=tlKind(l.msg);if(!k||l.t<t0-1e-6||l.t>tEnd+1e-6)return'';return`<i class="tl-m ${k[0]}" style="left:${(100*(l.t-t0)/span).toFixed(2)}%" title="${l.t.toFixed(1)} s · ${esc(l.msg)}"></i>`;}).join('');}
+    $('#tl-marks').innerHTML=n<2?'':S.log.map(l=>{const k=tlKind(l.msg);if(!k||l.t<t0-1e-6||l.t>tEnd+1e-6)return'';return`<i class="tl-m ${k[0]}" style="left:${(100*(l.t-t0)/span).toFixed(2)}%" title="${l.t.toFixed(1)} s · ${esc(l.msg)}"></i>`;}).join('')+
+      HEALTH.ev.filter(h=>h.t>=t0-1e-6&&h.t<=tEnd+1e-6).map(h=>`<i class="tl-m h-${h.lvl}" style="left:${(100*(h.t-t0)/span).toFixed(2)}%" title="${h.t.toFixed(1)} s · ${esc(h.msg)}"></i>`).join('');}   // health lights turning amber or red (health.js)
 }
 {const r=$('#scrubr');
  r.oninput=e=>{seekFrame(+e.target.value);};
@@ -8247,10 +8261,74 @@ let chgKey='';
 function renderChangedBadge(){const C=changedList(),key=C.map(c=>c.k+'='+P[c.k]).join('|')+LV.id;if(key===chgKey)return;chgKey=key;
   const n=$('#chg-n');n.textContent=String(C.length);n.dataset.n=String(C.length);renderChanged();}
 
+/* ---- ui/health.js ---- */
+/* ============================================================
+   Health (7.6): one light per subsystem under the status strip, each with the reason in words (Foxglove's
+   diagnostics, RViz's display status). Green: working as intended. Amber: degraded. Red: failing. Grey: idle or off.
+   Computed in the page from what the run records (no new simulation state); while the timeline replays, from the
+   recorded frame where it can. A light turning amber or red marks the timeline.
+   ============================================================ */
+const HEALTH={ev:[],prev:{},S:null,lastZ:0};
+const H_SYS=[['loc','Localize'],['per','Perceive'],['plan','Plan'],['ctl','Control']];
+const H_RANK={idle:0,ok:1,warn:2,bad:3};
+// [level, reason] for each subsystem, from the live state or a recorded frame f
+function healthNow(f){
+  const V=f||S,r=V.robot,F=V.fsm,st=F.state,drive=st==='DRIVE',sig=f?f.sig||{}:null,H={};
+  // localization
+  {const sp=V.Pc?Math.sqrt(Math.max(0,V.Pc[0]+V.Pc[4])):null,nees=sig?sig.nees:S.nees.length?S.nees.slice(-25).reduce((a,b)=>a+b,0)/Math.min(25,S.nees.length):null,
+     neff=sig?sig.neff:S.pf?S.pf.neff:null,N=S.pf?S.pf.N:P.npart,usesB=['ekf','pf','slam'].includes(P.loc),silent=usesB&&!f?S.t-HEALTH.lastZ:0;
+   if(P.loc==='truth')H.loc=['idle','ground truth: the pose is known'];
+   else if(st==='LOST'||sp!=null&&sp>1)H.loc=['bad',`lost: position σ ${sp!=null?sp.toFixed(1):'?'} m`];
+   else if(nees!=null&&nees>9)H.loc=['warn',`overconfident: NEES ${nees.toFixed(1)} (3 is consistent)`];
+   else if(neff!=null&&P.loc==='pf'&&neff<0.15*N)H.loc=['warn',`particles degenerate: N_eff ${neff.toFixed(0)} of ${N}`];
+   else if(silent>3&&drive)H.loc=['warn',`no beacon readings for ${silent.toFixed(1)} s`];
+   else if(P.loc==='dr')H.loc=['ok',`dead reckoning${sp!=null?`: σ ${sp.toFixed(2)} m and growing`:''}`];
+   else H.loc=['ok',`σ ${sp!=null?sp.toFixed(2):'—'} m${nees!=null?` · NEES ${nees.toFixed(1)}`:''}${neff!=null&&P.loc==='pf'?` · N_eff ${neff.toFixed(0)}`:''}`];}
+  // perception
+  {const hits=f?(f.scan?f.scan.length/2:0):S.scanPts.length,tr=V.agents?V.agents.tracks:[],cf=tr.filter(t=>t.conf).length,people=V.peds.filter(p=>!p.car).length;
+   let gap=Infinity;for(const p of V.peds)gap=Math.min(gap,hyp(r.x-p.x,r.y-p.y)-(p.r||0.3)-RR);
+   if(r.pedContact)H.per=['bad','contact with a person'];
+   else if(V.t>0.5&&hits===0)H.per=['warn','no lidar returns'];
+   else if(agOn()&&cf>people+1)H.per=['warn',`${cf} confirmed tracks for ${people} ${people===1?'person':'people'}: phantom tracks`];
+   else if(people&&gap<0.3&&drive)H.per=['warn',`a person ${Math.max(0,gap).toFixed(2)} m away`];
+   else if(people&&!agOn())H.per=['idle',`${hits} lidar hits · people not tracked (agent tracking off)`];
+   else H.per=['ok',`${hits} lidar hits${agOn()?` · ${cf} track${cf===1?'':'s'}`:''}${P.per==='mapping'?' · mapping':''}`];}
+  // mission and plan
+  {const ps=S.planStats,skipped=f?f.done.filter(d=>d[1]).length:WPS.filter(w=>w.skipped).length,n=f?f.done.length:WPS.length;
+   if(st==='NO_PATH')H.plan=['bad',`no path to the next goal${F.fails?` (attempt ${F.fails} of 3)`:''}`];
+   else if(st==='IDLE'&&!n)H.plan=['idle','no goals: tap the map to add some'];
+   else if(skipped)H.plan=['warn',`${skipped} goal${skipped===1?'':'s'} skipped`];
+   else if(ps&&ps.ms>250&&!f)H.plan=['warn',`last plan took ${ps.ms.toFixed(0)} ms (${ps.name})`];
+   else if(st==='DONE')H.plan=['ok','all goals reached'];
+   else if(st==='IDLE')H.plan=['idle','ready: press Run'];
+   else H.plan=['ok',ps?`${ps.name} · ${ps.len.toFixed(1)} m · ${ps.ms.toFixed(0)} ms`:st.toLowerCase()];}
+  // control
+  {const D=S.plot,tE=V.t,win=D.filter(d=>d.t>tE-2&&d.t<=tE+1e-6),lim=isCar()?0.97*P.steerMaxDeg:0.97*P.wmax,sat=win.length?win.filter(d=>d.ta!=null&&Math.abs(d.ta)>=lim).length/win.length:0,
+     last=win.length?win[win.length-1]:null,cte=last&&last.cte!=null?Math.abs(last.cte):null,mms=sig?sig.mpcMs:S.mpcStats&&P.ctl==='mpc'?S.mpcStats.ms:null;
+   if(r.contact)H.ctl=['bad','contact with an obstacle'];
+   else if(drive&&sat>0.5)H.ctl=['warn',`${isCar()?'steering':'turn rate'} at its limit ${(sat*100).toFixed(0)} % of the last 2 s`];
+   else if(P.ctl==='mpc'&&mms!=null&&mms>=13)H.ctl=['warn',`MPC at its 15 ms budget (${mms.toFixed(1)} ms)`];
+   else if(!f&&P.ctl==='mpc'&&S.mpcStats&&S.mpcStats.viol>0.05)H.ctl=['warn',`MPC constraints violated by ${S.mpcStats.viol.toFixed(2)}`];
+   else if(drive&&cte!=null&&cte>0.5)H.ctl=['warn',`${cte.toFixed(2)} m off the path`];
+   else if(!drive)H.ctl=['idle',st==='DONE'?'stopped: mission complete':'not driving'];
+   else H.ctl=['ok',`cross-track ${cte!=null?cte.toFixed(2):'—'} m${mms!=null?` · MPC ${mms.toFixed(1)} ms`:''}`];}
+  return H;
+}
+function renderHealth(){
+  const el=$('#health');if(!el||!S)return;
+  if(HEALTH.S!==S){HEALTH.S=S;HEALTH.ev=[];HEALTH.prev={};HEALTH.lastZ=0;tlKey='';}
+  const f=replayFrame();if(!f&&S.lastZ.length)HEALTH.lastZ=S.t;
+  const H=healthNow(f);
+  // the moments a light turned amber or red, for the timeline (live only)
+  if(!f)for(const[k,name]of H_SYS){const lv=H[k][0],pv=HEALTH.prev[k];if(pv!=null&&H_RANK[lv]>=2&&H_RANK[lv]>H_RANK[pv]){HEALTH.ev.push({t:S.t,sys:k,lvl:lv,msg:`${name}: ${H[k][1]}`});if(HEALTH.ev.length>200)HEALTH.ev.shift();}HEALTH.prev[k]=lv;}
+  const html=H_SYS.map(([k,name])=>`<button type="button" class="hl ${H[k][0]}" data-sys="${k}" data-tab="${k}" title="${esc(name)}: ${esc(H[k][1])} (open the ${TAB_NAME[k]} tab)"><i aria-hidden="true"></i><b>${name}</b><span>${esc(H[k][1])}</span></button>`).join('');
+  if(el.dataset.h!==html){el.dataset.h=html;el.innerHTML=html;el.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(uiMode==='learn')setUIMode(AN.mode);if(WS.inspOff)wsInspector(true);activeTab=b.dataset.tab;consoleOpen=true;buildTabs();renderAllPanes();});}
+}
+
 /* ---- ui/loop.js ---- */
 
 /* ---------- main loop ---------- */
-function refreshAll(){renderStatus();renderMetrics();renderLog();fsmRefresh();renderSelection();renderLayerPop();renderValues();renderChangedBadge();}
+function refreshAll(){renderStatus();renderMetrics();renderLog();fsmRefresh();renderSelection();renderLayerPop();renderValues();renderChangedBadge();renderHealth();}
 let lastTs=0,acc=0,frame=0;
 function loop(ts){
   const dt=Math.min(0.1,(ts-lastTs)/1000||0);lastTs=ts;

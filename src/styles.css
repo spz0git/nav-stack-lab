@@ -219,7 +219,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .scrub[data-state="replay"] .tl-time{color:var(--accent)}
 /* the transport's parts sit where they are used: the status strip above the map, the timeline under it */
 .transport{display:contents}
-#status{order:0}#firstrun{order:2}#simview>.mapwrap{order:3}.timeline{order:4}.hsplit{order:5}.tele{order:6}
+#status{order:0}#health{order:1}#firstrun{order:2}#simview>.mapwrap{order:3}.timeline{order:4}.hsplit{order:5}.tele{order:6}
 .status .kv b.replay{color:var(--accent)}
 .st-replay{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:var(--accent-ink);border-radius:4px;padding:1px 7px;align-self:center}
 .bad{color:var(--bad)}
@@ -439,6 +439,17 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .chg-h{margin:4px 0 0;font-family:var(--f-display);font-size:.95rem;display:flex;gap:8px;align-items:baseline}
 .chg-save{display:flex;gap:6px}.chg-save input{flex:1 1 auto;min-width:0;font:inherit;font-size:.84rem;padding:5px 8px;border:1px solid var(--line);border-radius:5px;background:var(--raise);color:var(--ink)}
 .setups li{display:flex;align-items:baseline;gap:8px;padding:4px 0;border-top:1px solid var(--line)}.setups .lbl{margin-left:auto;white-space:nowrap}.setups .ibtn{padding:0 7px}
+/* health (7.6): a light per subsystem with the reason */
+.health{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.hl{display:flex;align-items:center;gap:6px;min-width:0;border:1px solid var(--line);border-left:3px solid var(--sys);border-radius:5px;background:var(--panel);padding:3px 8px;font-size:.76rem;text-align:left;line-height:1.3}
+.hl:hover{border-color:var(--muted);border-left-color:var(--sys)}
+.hl i{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--line)}
+.hl.ok i{background:var(--ok)}.hl.warn i{background:var(--warn)}.hl.bad i{background:var(--bad)}
+.hl b{font-weight:600;white-space:nowrap}
+.hl span{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.hl.warn{background:color-mix(in srgb,var(--warn) 12%,var(--panel))}.hl.bad{background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.hl.warn span,.hl.bad span{color:var(--ink)}
+.tl-m.h-warn,.tl-m.h-bad{top:0;height:6px;width:6px;margin-left:-3px;border-radius:50%;background:var(--warn)}.tl-m.h-bad{background:var(--bad)}
 /* Desktop: the whole lab is one screen. Left: the map, filling what the controls and the dock leave (what you watch).
    Right: the level brief and the parameter tabs, or the lessons (what you change), scrolling on its own. */
 @media (min-width:961px) and (min-height:600px){
@@ -509,6 +520,7 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .transport .btn.primary{min-width:64px}
   .transport .sel.speed{flex:1 1 auto;min-width:0}
   .tab{padding:8px 7px 7px;font-size:.9rem}
+  #health{order:6;grid-template-columns:repeat(2,minmax(0,1fr))}
   .tele-title{flex-wrap:wrap}
   .tele-tools{flex:1 1 100%;margin-left:0}
   .mapwrap{aspect-ratio:auto;display:flex;flex-direction:column}

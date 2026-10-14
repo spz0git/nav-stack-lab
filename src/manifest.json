@@ -51,6 +51,7 @@
  "ui/maptools.js",
  "ui/signals.js",
  "ui/plots.js",
+ "ui/palette.js",
  "ui/loop.js",
  "ui/workspace.js",
  "ui/boot.js"

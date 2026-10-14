@@ -59,7 +59,8 @@ p{margin:0}
 .ver{white-space:nowrap}
 h1[title]{cursor:help}
 button{font:inherit;color:inherit;cursor:pointer}
-button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible,select:focus-visible,a:focus-visible,label:focus-within>input[type=file]+*,[tabindex]:focus-visible,dialog:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.maptools button:focus-visible,.mapview button:focus-visible{outline-offset:1px}
 
 /* level rail */
 .levels.seg{display:flex;flex-wrap:nowrap;width:100%}
@@ -468,6 +469,21 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .cmptab th:first-child,.cmptab td:first-child{text-align:left}.cmptab th{font-weight:600;color:var(--muted);font-size:.72rem}.cmptab td:not(:first-child){font-family:var(--f-mono);font-size:.76rem}
 .run-imp{cursor:pointer}
 #tg-runs{white-space:nowrap}
+/* View menu, keyboard sheet, phone sheet (7.8) */
+.viewmenu{position:fixed;z-index:55;width:300px;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.22);padding:6px 8px 8px;display:flex;flex-direction:column;gap:2px}
+.viewmenu[hidden]{display:none}
+.vm-h{margin:6px 4px 2px;font-family:var(--f-mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.vm-tg{display:flex;gap:6px;padding:0 4px}
+.vm-item{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;background:none;text-align:left;padding:6px 8px;border-radius:5px;font-size:.86rem}
+.vm-item:hover,.vm-item:focus-visible{background:var(--raise)}.vm-item span{font-size:.74rem;color:var(--muted)}
+.keysdlg{width:min(96vw,720px)}
+.keys-body{padding:10px 14px 14px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px 24px}
+.keys-body h4{margin:0 0 4px;font-family:var(--f-mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.keys-body dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 12px;margin:0;font-size:.84rem}
+.keys-body dd{margin:0}
+.keys-body kbd,.pal-hint kbd{font-family:var(--f-mono);font-size:.74rem;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--raise)}
+.sheetbtn,.sheet-head{display:none}
+body:has(.layout[data-mode="learn"]) .sheetbtn{display:none!important}
 /* Desktop: the whole lab is one screen. Left: the map, filling what the controls and the dock leave (what you watch).
    Right: the level brief and the parameter tabs, or the lessons (what you change), scrolling on its own. */
 @media (min-width:961px) and (min-height:600px){
@@ -539,6 +555,12 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .transport .sel.speed{flex:1 1 auto;min-width:0}
   .tab{padding:8px 7px 7px;font-size:.9rem}
   #health{order:6;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sheetbtn{display:block;position:fixed;right:16px;bottom:16px;z-index:45;border:0;border-radius:999px;padding:11px 18px;background:var(--ink);color:var(--panel);font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+  body.sheet-open .right{display:flex;flex-direction:column;gap:10px;position:fixed;left:0;right:0;bottom:0;max-height:64vh;overflow-y:auto;overscroll-behavior:contain;z-index:44;background:var(--bg);border-top:1px solid var(--line);border-radius:14px 14px 0 0;box-shadow:0 -8px 28px rgba(0,0,0,.22);padding:0 16px 72px}
+  body.sheet-open .right>.ctx{display:flex}
+  body.sheet-open .sheet-head{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;background:var(--bg);padding:8px 0 6px;margin:0 -16px;padding-inline:16px;border-bottom:1px solid var(--line)}
+  .sheet-grab{position:absolute;left:50%;top:4px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:var(--line)}
+  .sheet-head b{font-family:var(--f-display);font-size:1.05rem;margin-top:6px}.sheet-head .ibtn{margin-left:auto;margin-top:6px;padding:2px 10px;font-size:1.1rem}
   .tele-title{flex-wrap:wrap}
   .tele-tools{flex:1 1 100%;margin-left:0}
   .mapwrap{aspect-ratio:auto;display:flex;flex-direction:column}
@@ -8299,11 +8321,11 @@ function healthNow(f){
   const V=f||S,r=V.robot,F=V.fsm,st=F.state,drive=st==='DRIVE',sig=f?f.sig||{}:null,H={};
   // localization
   {const sp=V.Pc?Math.sqrt(Math.max(0,V.Pc[0]+V.Pc[4])):null,nees=sig?sig.nees:S.nees.length?S.nees.slice(-25).reduce((a,b)=>a+b,0)/Math.min(25,S.nees.length):null,
-     neff=sig?sig.neff:S.pf?S.pf.neff:null,N=S.pf?S.pf.N:P.npart,usesB=['ekf','pf','slam'].includes(P.loc),silent=usesB&&!f?S.t-HEALTH.lastZ:0;
+     neff=neffAvg(V.t),N=S.pf?S.pf.N:P.npart,usesB=['ekf','pf','slam'].includes(P.loc),silent=usesB&&!f?S.t-HEALTH.lastZ:0;
    if(P.loc==='truth')H.loc=['idle','ground truth: the pose is known'];
    else if(st==='LOST'||sp!=null&&sp>1)H.loc=['bad',`lost: position σ ${sp!=null?sp.toFixed(1):'?'} m`];
    else if(nees!=null&&nees>9)H.loc=['warn',`overconfident: NEES ${nees.toFixed(1)} (3 is consistent)`];
-   else if(neff!=null&&P.loc==='pf'&&neff<0.15*N)H.loc=['warn',`particles degenerate: N_eff ${neff.toFixed(0)} of ${N}`];
+   else if(neff!=null&&P.loc==='pf'&&neff<0.15*N)H.loc=['warn',`particles degenerate: N_eff ${neff.toFixed(0)} of ${N} (2 s mean)`];
    else if(silent>3&&drive)H.loc=['warn',`no beacon readings for ${silent.toFixed(1)} s`];
    else if(P.loc==='dr')H.loc=['ok',`dead reckoning${sp!=null?`: σ ${sp.toFixed(2)} m and growing`:''}`];
    else H.loc=['ok',`σ ${sp!=null?sp.toFixed(2):'—'} m${nees!=null?` · NEES ${nees.toFixed(1)}`:''}${neff!=null&&P.loc==='pf'?` · N_eff ${neff.toFixed(0)}`:''}`];}
@@ -8337,6 +8359,8 @@ function healthNow(f){
    else H.ctl=['ok',`cross-track ${cte!=null?cte.toFixed(2):'—'} m${mms!=null?` · MPC ${mms.toFixed(1)} ms`:''}`];}
   return H;
 }
+// N_eff averaged over the last 2 s of recorded frames (a single reading dips at every resampling)
+function neffAvg(t){const F=REC.frames;if(!F.length||P.loc!=='pf')return null;let n=0,a=0;for(let i=F.length-1;i>=0&&F[i].t>t-2;i--){if(F[i].t>t+1e-6)continue;const v=F[i].sig&&F[i].sig.neff;if(v!=null){a+=v;n++;}}return n?a/n:S.pf?S.pf.neff:null;}
 function renderHealth(){
   const el=$('#health');if(!el||!S)return;
   if(HEALTH.S!==S){HEALTH.S=S;HEALTH.ev=[];HEALTH.prev={};HEALTH.lastZ=0;tlKey='';}
@@ -8441,6 +8465,77 @@ let runsKey='';
 function renderRunsBadge(){runMetaNote();const n=RUNS.kept.length+RUNS.recent.length,el=$('#runs-n');el.textContent=String(n);el.dataset.n=String(n);
   const key=n+'|'+(RUNS.cmp&&RUNS.cmp.id);if(key!==runsKey){runsKey=key;renderRuns(true);}else if(RUNS.cmp&&S&&Math.floor(S.t)!==renderRunsBadge.t){renderRunsBadge.t=Math.floor(S.t);renderRuns(false);}}
 
+/* ---- ui/polish.js ---- */
+/* ============================================================
+   Polish (7.8): one icon set on the map, a View menu (dock and panel toggles, layout presets), the keyboard sheet
+   (?), titles readable on touch screens (long-press), and on phones the panel as a bottom sheet over the map.
+   ============================================================ */
+// the map's view buttons in the toolbar's icon style
+Object.assign(ICON,{zin:'<path d="M8 3.5v9M3.5 8h9"/>',zout:'<path d="M3.5 8h9"/>',fit:'<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/>',
+  follow:'<circle cx="8" cy="8" r="5.2"/><circle cx="8" cy="8" r="1.8" fill="currentColor" stroke="none"/>',key:'<path d="M6 6.2a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6.9v.8"/><circle cx="8" cy="11.8" r=".4" fill="currentColor"/>',
+  keys:'<rect x="1.8" y="4" width="12.4" height="8" rx="1.5"/><path d="M4.5 6.6h.01M7 6.6h.01M9.5 6.6h.01M12 6.6h.01M5 9.4h6"/>'});
+[['mv-in','zin'],['mv-out','zout'],['mv-fit','fit'],['mv-follow','follow'],['mv-key','key']].forEach(([id,k])=>{const b=$('#'+id);if(b){b.innerHTML=svgI(k);if(!b.getAttribute('aria-label'))b.setAttribute('aria-label',b.title.replace(/ \(.*$/,''));}});
+
+/* ---------- View menu: dock and panel, and layout presets ---------- */
+const PRESETS=[
+  ['tune','Tune','The map, the plot and the settings: the default',()=>{setUIMode('sim');wsInspector(true);WS.dock=220;wsDock(true);PANES.length=0;renderPanes();setMetView('metrics');twReset();}],
+  ['loc','Debug localization','Localize tab and its layers; error with σ, NEES, N_eff and beacon readings plotted; Values',()=>{setUIMode('sim');wsInspector(true);activeTab='loc';consoleOpen=true;buildTabs();layersEdited=false;layersKey='';renderAllPanes();
+    PANES.length=0;PANES.push({sigs:['ep','sp'],off:new Set()},{sigs:['nees'],off:new Set()},{sigs:['neff','zn'],off:new Set()});renderPanes();setMetView('values');}],
+  ['cmp','Compare runs','Whole run in every plot, cross-track and speed added, the Runs panel open',()=>{setUIMode('sim');PANES.length=0;PANES.push({sigs:['cte'],off:new Set()},{sigs:['va','vc'],off:new Set()});renderPanes();TW.all=true;TW.end=null;syncTW();drawPlot();toggleRuns(true);}],
+  ['map','Map only','Hide the panel and fold the dock',()=>{setUIMode('sim');wsInspector(false);wsDock(false);}]];
+{const tools=$('#bartools'),b=document.createElement('button');b.type='button';b.id='tg-view';b.className='ibtn';b.setAttribute('aria-expanded','false');b.setAttribute('aria-controls','viewmenu');b.title='Dock, panel and layout presets';b.innerHTML='View ▾';
+ const m=document.createElement('div');m.id='viewmenu';m.className='viewmenu';m.hidden=true;m.setAttribute('role','dialog');m.setAttribute('aria-label','View');
+ m.innerHTML=`<p class="vm-h">Show</p><div class="vm-tg"></div><p class="vm-h">Layouts</p>${PRESETS.map(([id,name,sub])=>`<button type="button" class="vm-item" data-preset="${id}"><b>${name}</b><span>${sub}</span></button>`).join('')}<p class="vm-h">Help</p><button type="button" class="vm-item" id="vm-keys"><b>Keyboard shortcuts</b><span>?</span></button>`;
+ tools.appendChild(b);document.body.appendChild(m);
+ const tg=m.querySelector('.vm-tg');tg.appendChild($('#tg-dock'));tg.appendChild($('#tg-insp'));
+ const place=()=>{const r=b.getBoundingClientRect();m.style.top=(r.bottom+6)+'px';m.style.right=Math.max(8,innerWidth-r.right)+'px';};
+ b.onclick=()=>{const on=m.hidden;m.hidden=!on;b.setAttribute('aria-expanded',String(on));if(on){place();m.querySelector('button').focus();}};
+ const close=()=>{m.hidden=true;b.setAttribute('aria-expanded','false');};
+ m.querySelectorAll('[data-preset]').forEach(x=>x.onclick=()=>{close();const P2=PRESETS.find(p=>p[0]===x.dataset.preset);P2[3]();toast(`Layout: ${P2[1]}`);});
+ $('#vm-keys').onclick=()=>{close();showKeys();};
+ document.addEventListener('pointerdown',e=>{if(!m.hidden&&!m.contains(e.target)&&!b.contains(e.target))close();},true);
+ m.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();close();b.focus();}});}
+
+/* ---------- keyboard shortcuts (?) ---------- */
+const KEYS=[['Run','Space','Run or pause'],['Run','N','Step 0.5 s'],['Run','R','Reset'],['Run','[  ]','Slower, faster'],
+  ['Timeline',',  .','Back or forward 0.1 s in the recording'],['Timeline','End','Back to live'],
+  ['Map','V G H K B','Select · Goal · Goal with heading · Kidnap · Beacon'],['Map','L','Layers'],['Map','F','Follow the robot'],['Map','0','Fit the whole world'],['Map','Esc','Close a popover, clear the selection, back to Goal'],
+  ['Map','Wheel · drag','Zoom · pan (drag also pans with any tool but Goal with heading; Shift-drag always)'],
+  ['Plots','Wheel · drag','Zoom · pan the time window'],['Plots','Double-click','Follow the last 30 s again'],['Plots','Click','Show that moment'],
+  ['Page','A','Simulate ⇄ Analyze'],['Page','Ctrl+K · ⌘K · /','Search everything'],['Page','?','This list'],
+  ['Splitters','← → ↑ ↓ · Enter','Resize · hide or fold (focus a splitter first)']];
+function showKeys(){
+  let d=$('#keysdlg');
+  if(!d){d=document.createElement('dialog');d.id='keysdlg';d.className='srcdlg keysdlg';d.setAttribute('aria-label','Keyboard shortcuts');
+    const groups=[...new Set(KEYS.map(k=>k[0]))];
+    d.innerHTML=`<div class="srchead"><b>Keyboard shortcuts</b><span class="lbl">keys work when no text field has focus</span><button class="btn small" id="keys-x" style="margin-left:auto">Close</button></div><div class="keys-body">${groups.map(g=>`<section><h4>${g}</h4><dl>${KEYS.filter(k=>k[0]===g).map(k=>`<dt>${k[1].split(/\s{2,}| /).filter(Boolean).map(x=>/^[·⇄]$/.test(x)?x:`<kbd>${esc(x)}</kbd>`).join(' ')}</dt><dd>${esc(k[2])}</dd>`).join('')}</dl></section>`).join('')}</div>`;
+    document.body.appendChild(d);$('#keys-x').onclick=()=>d.close();d.addEventListener('click',e=>{if(e.target===d)d.close();});}
+  if(!d.open)d.showModal();
+}
+document.addEventListener('keydown',e=>{const t=e.target,tag=t&&t.tagName;if(e.key!=='?'||e.ctrlKey||e.metaKey||e.altKey||tag==='INPUT'&&t.type!=='range'&&t.type!=='checkbox'||tag==='TEXTAREA'||tag==='SELECT')return;e.preventDefault();showKeys();});
+
+/* ---------- titles on touch screens: long-press shows them (and a tap on the name shows the specs) ---------- */
+{const tip=document.createElement('div');tip.className='termtip';tip.id='touchtip';tip.setAttribute('role','tooltip');tip.hidden=true;document.body.appendChild(tip);
+ let timer=0,at=null;const hide=()=>{tip.hidden=true;at=null;};
+ const show=el=>{const t=el.getAttribute('title');if(!t)return;tip.textContent=t;tip.hidden=false;at=el;const r=el.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
+   tip.style.left=Math.max(8,Math.min(r.left+r.width/2-w/2,innerWidth-w-8))+'px';tip.style.top=(r.top-h-8>8?r.top-h-8:r.bottom+8)+'px';};
+ document.addEventListener('pointerdown',e=>{if(at&&!tip.contains(e.target))hide();if(e.pointerType!=='touch')return;const el=e.target.closest&&e.target.closest('[title]');if(!el||el.id==='map')return;
+   clearTimeout(timer);timer=setTimeout(()=>show(el),520);},true);
+ ['pointerup','pointercancel','pointermove'].forEach(ev=>document.addEventListener(ev,e=>{if(ev==='pointermove'&&Math.abs(e.movementX)+Math.abs(e.movementY)<6)return;clearTimeout(timer);},true));
+ document.addEventListener('contextmenu',e=>{if(at)e.preventDefault();});
+ $('.brand h1').addEventListener('click',e=>{if(matchMedia('(pointer:coarse)').matches)show(e.currentTarget);});
+ addEventListener('scroll',hide,true);}
+
+/* ---------- phones: the panel as a bottom sheet over the page ---------- */
+{const fab=document.createElement('button');fab.type='button';fab.id='sheetbtn';fab.className='sheetbtn';fab.setAttribute('aria-expanded','false');fab.setAttribute('aria-controls','inspector');fab.textContent='Settings';
+ document.body.appendChild(fab);
+ const head=document.createElement('div');head.className='sheet-head';head.innerHTML='<span class="sheet-grab" aria-hidden="true"></span><b>Settings</b><button type="button" class="ibtn" id="sheet-x" aria-label="Close the settings sheet">×</button>';
+ const right=$('#inspector');right.insertBefore(head,right.firstChild);
+ const set=on=>{document.body.classList.toggle('sheet-open',on);fab.setAttribute('aria-expanded',String(on));fab.textContent=on?'Close':'Settings';if(on){consoleOpen=true;buildTabs();renderAllPanes();right.scrollTop=0;}};
+ fab.onclick=()=>set(!document.body.classList.contains('sheet-open'));$('#sheet-x').onclick=()=>set(false);
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('sheet-open'))set(false);});
+ matchMedia('(max-width:760px)').addEventListener('change',e=>{if(!e.matches)set(false);});}
+
 /* ---- ui/loop.js ---- */
 
 /* ---------- main loop ---------- */
@@ -8479,8 +8574,8 @@ function wsApply(){
   $('#tg-dock').setAttribute('aria-pressed',String(!WS.dockOff));
   const f=$('#dock-fold');f.setAttribute('aria-expanded',String(!WS.dockOff));f.textContent=WS.dockOff?'▴':'▾';f.title=WS.dockOff?'Open the dock':'Fold the dock to its header';
 }
-// a taller dock when plots are added (desktop), up to what leaves the map 260 px
-function wsEnsureDock(h){if(!wideUI())return;if(WS.dockOff)WS.dockOff=false;if(WS.dock<h){const st=$('#simview').getBoundingClientRect().height;WS.dock=Math.round(Math.max(WS.dock,Math.min(h,st-300)));}wsApply();wsSave();}
+// a taller dock when plots are added (desktop), up to what leaves the map about 300 px
+function wsEnsureDock(h){if(!wideUI())return;if(WS.dockOff)WS.dockOff=false;if(WS.dock<h){const st=$('#simview').getBoundingClientRect().height;WS.dock=Math.round(Math.max(WS.dock,Math.min(h,st-420)));}wsApply();wsSave();}
 function wsInspector(on){WS.inspOff=!on;wsApply();wsSave();}
 function wsDock(on){WS.dockOff=!on;wsApply();wsSave();}
 $('#tg-insp').onclick=()=>wsInspector(WS.inspOff);

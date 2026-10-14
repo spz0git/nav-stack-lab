@@ -12,11 +12,11 @@ function healthNow(f){
   const V=f||S,r=V.robot,F=V.fsm,st=F.state,drive=st==='DRIVE',sig=f?f.sig||{}:null,H={};
   // localization
   {const sp=V.Pc?Math.sqrt(Math.max(0,V.Pc[0]+V.Pc[4])):null,nees=sig?sig.nees:S.nees.length?S.nees.slice(-25).reduce((a,b)=>a+b,0)/Math.min(25,S.nees.length):null,
-     neff=sig?sig.neff:S.pf?S.pf.neff:null,N=S.pf?S.pf.N:P.npart,usesB=['ekf','pf','slam'].includes(P.loc),silent=usesB&&!f?S.t-HEALTH.lastZ:0;
+     neff=neffAvg(V.t),N=S.pf?S.pf.N:P.npart,usesB=['ekf','pf','slam'].includes(P.loc),silent=usesB&&!f?S.t-HEALTH.lastZ:0;
    if(P.loc==='truth')H.loc=['idle','ground truth: the pose is known'];
    else if(st==='LOST'||sp!=null&&sp>1)H.loc=['bad',`lost: position σ ${sp!=null?sp.toFixed(1):'?'} m`];
    else if(nees!=null&&nees>9)H.loc=['warn',`overconfident: NEES ${nees.toFixed(1)} (3 is consistent)`];
-   else if(neff!=null&&P.loc==='pf'&&neff<0.15*N)H.loc=['warn',`particles degenerate: N_eff ${neff.toFixed(0)} of ${N}`];
+   else if(neff!=null&&P.loc==='pf'&&neff<0.15*N)H.loc=['warn',`particles degenerate: N_eff ${neff.toFixed(0)} of ${N} (2 s mean)`];
    else if(silent>3&&drive)H.loc=['warn',`no beacon readings for ${silent.toFixed(1)} s`];
    else if(P.loc==='dr')H.loc=['ok',`dead reckoning${sp!=null?`: σ ${sp.toFixed(2)} m and growing`:''}`];
    else H.loc=['ok',`σ ${sp!=null?sp.toFixed(2):'—'} m${nees!=null?` · NEES ${nees.toFixed(1)}`:''}${neff!=null&&P.loc==='pf'?` · N_eff ${neff.toFixed(0)}`:''}`];}
@@ -50,6 +50,8 @@ function healthNow(f){
    else H.ctl=['ok',`cross-track ${cte!=null?cte.toFixed(2):'—'} m${mms!=null?` · MPC ${mms.toFixed(1)} ms`:''}`];}
   return H;
 }
+// N_eff averaged over the last 2 s of recorded frames (a single reading dips at every resampling)
+function neffAvg(t){const F=REC.frames;if(!F.length||P.loc!=='pf')return null;let n=0,a=0;for(let i=F.length-1;i>=0&&F[i].t>t-2;i--){if(F[i].t>t+1e-6)continue;const v=F[i].sig&&F[i].sig.neff;if(v!=null){a+=v;n++;}}return n?a/n:S.pf?S.pf.neff:null;}
 function renderHealth(){
   const el=$('#health');if(!el||!S)return;
   if(HEALTH.S!==S){HEALTH.S=S;HEALTH.ev=[];HEALTH.prev={};HEALTH.lastZ=0;tlKey='';}

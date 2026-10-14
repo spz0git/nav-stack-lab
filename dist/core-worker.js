@@ -188,7 +188,10 @@ function recFrame(){
     nT:S.trailT.length,nE:S.trailE.length,plan:S.plan,segIdx:S.segIdx,track:S.track,ctlViz:S.ctlViz,search:S.search,
     fsm:{state:S.fsm.state,queue:S.fsm.queue.slice()},done:WPS.map(w=>[w.done,w.skipped]),
     agents:A?{tracks:A.tracks.map(t=>({...t})),egoPath:A.egoPath,st:A.st,det:[],dynPts:[],staticPts:null}:null,
-    coll:S.coll,collPed:S.collPed});
+    coll:S.coll,collPed:S.collPed,
+    // scalar diagnostics for the plot dock's signals (UI only; nothing in the simulation reads them)
+    sig:{mpcMs:S.mpcStats?S.mpcStats.ms:null,mpcIt:S.mpcStats?S.mpcStats.it:null,mpcJ:S.mpcStats?S.mpcStats.J:null,nees:S.nees.length?S.nees[S.nees.length-1]:null,
+      neff:S.pf?S.pf.neff:null,minPed:isFinite(S.minPed)?S.minPed:null,rejected:S.rejected,dist:S.dist,fsm:S.fsm.state}});
   if(REC.frames.length>REC.max)REC.frames.splice(0,REC.frames.length-REC.max);
 }
 // A frame as a view over the live state: fields the renderer reads come from the frame, everything else falls through

@@ -334,7 +334,46 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .tele-title{display:flex;align-items:center;gap:8px;margin-right:auto}
 .plotpick{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .sel.sm{font-size:.8rem;padding:3px 6px}
-#plot{width:100%;height:170px;display:block;border:1px solid var(--line);border-radius:4px;background:var(--map-bg)}
+#plot{width:100%;height:170px;display:block;border:1px solid var(--line);border-radius:4px;background:var(--map-bg);touch-action:pan-y}
+/* plot dock (7.4): the preset plot, then added panes of any signals; one shared time window */
+.plotcol{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ppane{display:flex;flex-direction:column;gap:3px;min-height:0}
+.ppane canvas{width:100%;height:150px;display:block;border:1px solid var(--line);border-radius:4px;background:var(--map-bg);touch-action:pan-y}
+.pp-head{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:.74rem}
+.pp-chip{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;background:var(--raise);overflow:hidden;max-width:100%}
+.pp-tg{border:0;background:none;padding:1px 3px 1px 8px;font-size:.74rem;display:inline-flex;gap:5px;align-items:center;min-width:0;white-space:nowrap}
+.pp-tg i{flex:0 0 auto;width:12px;height:3px;border-radius:2px;background:var(--c)}
+.pp-tg output{font-family:var(--f-mono);font-size:.7rem;color:var(--muted)}
+.pp-chip.off .pp-tg{opacity:.45}.pp-chip.off .pp-tg i{background:var(--line)}
+.pp-x{border:0;background:none;padding:0 7px 0 3px;color:var(--muted);font-size:.9rem;line-height:1}
+.pp-x:hover{color:var(--bad)}
+.ibtn.pp-add{padding:1px 8px;font-size:.74rem}
+.ibtn.pp-close{margin-left:auto;padding:0 7px}
+.tele-tools{display:flex;flex-wrap:wrap;gap:4px;margin-left:6px}
+.tele-head .plotpick .seg button{padding:4px 8px;font-size:.8rem}
+.tele-head .plotpick .sel.sm{padding:3px 4px}
+.tele-tools .ibtn{padding:3px 8px;font-size:.76rem}
+.tele-tools .ibtn[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.ibtn:disabled{opacity:.45;cursor:default}
+.sigbrowser{position:fixed;z-index:40;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.2);padding:8px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.sigbrowser[hidden]{display:none}
+.sb-list{overflow-y:auto;min-height:0;flex:1 1 auto}
+.sb-list section{border-left:3px solid var(--sys,var(--line));padding-left:7px;margin-top:6px}
+.sb-list h4{margin:0 0 2px;font-size:.7rem;font-family:var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--sys,var(--muted))}
+.sb-row{display:flex;gap:7px;align-items:baseline;font-size:.82rem;padding:2px 0;cursor:pointer}.sb-row[hidden]{display:none}.sb-row small{color:var(--muted);font-family:var(--f-mono);font-size:.7rem}
+.sb-row input{accent-color:var(--accent)}
+.sb-foot{font-size:.72rem;color:var(--muted);margin:0}
+/* Metrics or Values */
+.met-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.metrics[hidden],.values[hidden]{display:none}
+.values{overflow-y:auto;min-height:0;font-size:.8rem}
+.val-t{font-family:var(--f-mono);font-size:.72rem;color:var(--accent);margin:0 0 4px}
+.val-g{border-left:3px solid var(--sys,var(--line));padding-left:7px;margin-bottom:8px}
+.val-g h4{margin:0 0 2px;font-size:.68rem;font-family:var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--sys,var(--muted))}
+.val-g .metrics{grid-template-columns:minmax(0,1fr);gap:1px}
+.val-g .metrics div,.val-g .metrics div[data-sys]{border-left:0;padding-left:0;justify-content:space-between}
+.val-g dt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.val-g dd{white-space:nowrap}
 .metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:3px 16px;margin:0}
 .metrics div{min-width:0;display:flex;gap:8px;align-items:baseline}
 .metrics dt{font-size:.72rem;letter-spacing:.02em;color:var(--muted);white-space:nowrap}
@@ -388,7 +427,11 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .tele.folded{height:auto}
   .tele-grid{flex:1 1 0;min-height:0}
   .tele-grid>*{min-height:0;height:100%}
-  #plot{height:100%;min-height:80px}
+  .plotcol{height:100%}
+  #plotcol>#plot{flex:1 1 0;height:auto;min-height:50px}
+  .ppane{flex:1 1 0}
+  .ppane canvas{flex:1 1 0;height:auto;min-height:40px}
+  .tele-met .values{flex:1 1 0}
   .tele-side{min-height:0}
   .tele-log,.tele-met{overflow:hidden;flex:1 1 0;min-height:0}
   .tele .log{height:auto;flex:1 1 0;min-height:0;max-height:none;resize:none}
@@ -430,6 +473,8 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .transport .btn.primary{min-width:64px}
   .transport .sel.speed{flex:1 1 auto;min-width:0}
   .tab{padding:8px 7px 7px;font-size:.9rem}
+  .tele-title{flex-wrap:wrap}
+  .tele-tools{flex:1 1 100%;margin-left:0}
   .mapwrap{aspect-ratio:auto;display:flex;flex-direction:column}
   #map{aspect-ratio:3/2;height:auto}
   .maptools{position:static;border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;padding:3px 4px;gap:4px}

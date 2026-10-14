@@ -17,6 +17,8 @@ function wsApply(){
   $('#tg-dock').setAttribute('aria-pressed',String(!WS.dockOff));
   const f=$('#dock-fold');f.setAttribute('aria-expanded',String(!WS.dockOff));f.textContent=WS.dockOff?'▴':'▾';f.title=WS.dockOff?'Open the dock':'Fold the dock to its header';
 }
+// a taller dock when plots are added (desktop), up to what leaves the map 260 px
+function wsEnsureDock(h){if(!wideUI())return;if(WS.dockOff)WS.dockOff=false;if(WS.dock<h){const st=$('#simview').getBoundingClientRect().height;WS.dock=Math.round(Math.max(WS.dock,Math.min(h,st-300)));}wsApply();wsSave();}
 function wsInspector(on){WS.inspOff=!on;wsApply();wsSave();}
 function wsDock(on){WS.dockOff=!on;wsApply();wsSave();}
 $('#tg-insp').onclick=()=>wsInspector(WS.inspOff);
@@ -46,5 +48,5 @@ $('#modesel').addEventListener('click',e=>{const b=e.target.closest('button');if
 // Canvases follow their panels (splitters and folding change sizes without a window resize)
 {let q=0;const redraw=()=>{q=0;if(AN.mode==='an'){if(!$('#anview').hidden)renderAnalysis();}else if(S){draw();drawPlot();}};
  const ro=new ResizeObserver(()=>{if(!q)q=requestAnimationFrame(redraw);});
- ro.observe($('.mapwrap'));ro.observe($('#plot'));ro.observe($('.stage'));}
+ ro.observe($('.mapwrap'));ro.observe($('#plotcol'));ro.observe($('.stage'));}
 wsApply();

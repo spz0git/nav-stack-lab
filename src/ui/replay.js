@@ -55,7 +55,7 @@ document.addEventListener('keydown',e=>{
 });
 // A hover elsewhere on the page (track or plot) redraws the plot cursor and the robot at that time on the map
 let hoverQ=0;
-function hoverChanged(){if(!hoverQ)hoverQ=requestAnimationFrame(()=>{hoverQ=0;if(AN.mode!=='sim'||!S)return;drawMaybeReplay();drawPlot();});}
+function hoverChanged(){if(!hoverQ)hoverQ=requestAnimationFrame(()=>{hoverQ=0;if(AN.mode!=='sim'||!S)return;drawMaybeReplay();drawPlot();renderValues();});}
 // the robot (true pose) and the estimate at the hovered time, drawn faintly on the map
 function drawHoverGhost(px){
   if(CURSOR.hover==null||!REC.frames.length)return;const f=REC.frames[frameAt(CURSOR.hover)];if(!f)return;

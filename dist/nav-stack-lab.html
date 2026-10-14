@@ -3,7 +3,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=STIX+Two+Text:ital,wght@0,400;1,400&display=swap">
 <style>
-/* Layout: instrument console. Map stage on the left (sticky on wide screens), subsystem console on the right; stacks on phones. */
+/* Layout: a workspace. App bar on top; the map stage fills the left with a telemetry dock under it; the panel
+   (level, tabs or lessons) on the right. Splitters resize the dock and the panel; both can be hidden. Stacks on phones. */
 :root{
   --bg:#e8ebe7; --panel:#f6f7f4; --raise:#ffffff; --ink:#1b2122; --muted:#566160; --line:#cbd2cc;
   --accent:#2058c9; --accent-ink:#ffffff; --amber:#9c6a00; --beacon:#008a87; --rose:#ad2a69; --ok:#2b7741; --warn:#a35e00; --bad:#bb3227;
@@ -25,7 +26,7 @@
 }
 *{box-sizing:border-box}
 html,body{background:var(--bg)}
-body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:14px 40px}
+body{margin:0;color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:14px 40px}
 .ctx{display:flex;flex-direction:column;gap:10px;min-width:0}
 .wrap{max-width:1600px;margin:0 auto}
 h1,h2,h3{font-family:var(--f-display);font-weight:600;margin:0;text-wrap:balance;letter-spacing:.01em}
@@ -35,12 +36,30 @@ h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mut
 p{margin:0}
 .mono,code,output{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px}
+/* app bar: name and version, mode switch, level picker, panel toggles */
+.appbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;min-width:0}
+.brand{display:flex;flex-wrap:nowrap;align-items:baseline;gap:10px;justify-content:flex-start}
+.appbar h1{font-size:1.4rem}
+.appbar .levels.seg{width:auto;flex:0 1 380px;min-width:240px}
+.bartools{display:none;gap:6px;margin-left:auto}
+.ibtn{border:1px solid var(--line);background:var(--raise);border-radius:5px;padding:4px 10px;font-size:.8rem;color:var(--muted);line-height:1.3}
+.ibtn:hover{border-color:var(--muted);color:var(--ink)}
+.bartools .ibtn[aria-pressed="true"]{color:var(--ink);border-color:var(--muted);box-shadow:inset 0 -2px 0 var(--accent)}
+.ibtn.fold{padding:2px 8px;font-size:.85rem}
+/* splitters (desktop only) */
+.hsplit,.vsplit{display:none;position:relative;touch-action:none;z-index:2}
+.hsplit{height:10px;margin-block:-8px -2px;cursor:row-resize}
+.vsplit{width:14px;cursor:col-resize}
+.hsplit::after,.vsplit::after{content:"";position:absolute;background:var(--line);border-radius:2px;transition:background .12s}
+.hsplit::after{left:calc(50% - 24px);width:48px;top:4px;height:3px}
+.vsplit::after{top:calc(50% - 24px);height:48px;left:5px;width:3px}
+.hsplit:hover::after,.hsplit:focus-visible::after,.hsplit.drag::after,.vsplit:hover::after,.vsplit:focus-visible::after,.vsplit.drag::after{background:var(--accent)}
+.hsplit:focus-visible,.vsplit:focus-visible{outline:none}
 .sub{color:var(--muted);font-size:.85rem;font-family:var(--f-mono)}
 .ver{white-space:nowrap}
 h1[title]{cursor:help}
-.purpose{flex:1 1 100%;font-size:.92rem;line-height:1.4;color:var(--muted);max-width:62ch}
 button{font:inherit;color:inherit;cursor:pointer}
-button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* level rail */
 .levels.seg{display:flex;flex-wrap:nowrap;width:100%}
@@ -51,6 +70,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .brief .adds{font-size:.92rem}
 .brief ul{margin:6px 0 0;padding-left:1.1em;font-size:.9rem;color:var(--muted)}
 .brief summary{cursor:pointer;list-style-position:inside}
+.brief .adds-d .adds{margin-top:4px}
 .brief summary h3{display:inline}
 .brief li{margin:2px 0}
 .brief li b{color:var(--ink);font-weight:600}
@@ -59,18 +79,6 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .layout{display:flex;flex-direction:column;gap:14px}
 .stage{display:flex;flex-direction:column;gap:10px;min-width:0}
 .stage>*{flex-shrink:0}
-/* wide screens: the parameter console scrolls on its own; the map + telemetry column is sized to fit one screen */
-/* Desktop: the whole lab is one screen. Left: map + telemetry (what you watch).
-   Right: level, brief and parameter tabs (what you change), each scrolling on its own. */
-@media (min-width:961px) and (min-height:600px){
-  body{padding-block:12px}
-  .layout{display:grid;height:calc(100vh - 24px);grid-template-columns:minmax(0,1.5fr) minmax(360px,1fr);grid-template-rows:minmax(0,1fr);grid-template-areas:"stage right";gap:12px 16px}
-  .right{grid-area:right;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
-  .stage{grid-area:stage;min-height:0;overflow-y:auto;overscroll-behavior:contain}
-  .console{border-radius:6px}
-  .console .tabhead{position:sticky;top:0;z-index:2;background:var(--panel);border-radius:6px 6px 0 0}
-  .mapwrap{width:min(100%,max(480px,calc((100vh - 440px)*1.5)));margin-inline:auto}
-}
 
 .status{display:flex;flex-wrap:wrap;gap:4px 20px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 12px 2px 2px}
 .pill{font-family:var(--f-mono);font-size:1.15rem;font-weight:600;padding:2px 12px;border-radius:5px;letter-spacing:.05em;color:#fff;background:var(--muted);min-width:7.2em;text-align:center}
@@ -181,6 +189,8 @@ details.how summary{cursor:pointer;font-family:var(--f-display);font-weight:600;
 textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;line-height:1.5;background:var(--raise);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:10px;resize:vertical;tab-size:2}
 .codestat{font-family:var(--f-mono);font-size:.78rem}
 .modebar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.appbar .modebar{flex:1 1 auto;min-width:0;flex-wrap:nowrap}
+.appbar #modehint{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .view{display:flex;flex-direction:column;gap:10px;min-width:0}
 .view>*{flex-shrink:0}
 .view[hidden]{display:none}
@@ -264,11 +274,15 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 @media (max-width:760px){.terms dl{grid-template-columns:minmax(0,7em) minmax(0,1fr);gap:5px 10px}}
 .codestat.err{color:var(--bad)} .codestat.ok{color:var(--ok)}
 
-.tele{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
-.tele-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:12px;align-items:start}
-.tele-log{display:flex;flex-direction:column;gap:6px;min-width:0}
-@media (max-width:700px){.tele-grid{grid-template-columns:minmax(0,1fr)}}
+.tele{padding:12px 14px;display:flex;flex-direction:column;gap:10px;container-type:inline-size}
+.tele-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
+.tele-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+@container (min-width:620px){.tele-grid{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}}
+@container (min-width:800px){.tele-grid{grid-template-columns:minmax(0,1.5fr) minmax(0,2fr)}.tele-side{flex-direction:row}.tele-side>*{flex:1 1 0}}
+.tele-log,.tele-met{display:flex;flex-direction:column;gap:6px;min-width:0}
+.tele.folded .tele-grid{display:none}
 .tele-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}
+.tele-title{display:flex;align-items:center;gap:8px;margin-right:auto}
 .plotpick{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .sel.sm{font-size:.8rem;padding:3px 6px}
 #plot{width:100%;height:170px;display:block;border:1px solid var(--line);border-radius:4px;background:var(--map-bg)}
@@ -300,14 +314,48 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .symchips{display:flex;flex-wrap:wrap;gap:4px}.symchips button{font-size:.74rem;padding:2px 7px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--muted);cursor:pointer}.symchips button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
 .nom.hidden,.nom dt.hidden,.nom dd.hidden{display:none}
 
+/* Desktop: the whole lab is one screen. Left: the map, filling what the controls and the dock leave (what you watch).
+   Right: the level brief and the parameter tabs, or the lessons (what you change), scrolling on its own. */
+@media (min-width:961px) and (min-height:600px){
+  body{padding-block:10px}
+  .wrap{max-width:none}
+  .layout{display:grid;height:calc(100vh - 20px);grid-template-columns:minmax(0,1fr) 14px var(--insp-w,minmax(360px,.55fr));grid-template-rows:auto minmax(0,1fr);grid-template-areas:"bar bar bar" "stage split right";gap:10px 0}
+  .layout.insp-off{grid-template-columns:minmax(0,1fr) 0 0}
+  .layout.insp-off>.right,.layout.insp-off>.vsplit{display:none}
+  .appbar{grid-area:bar}
+  .bartools{display:flex}
+  .hsplit,.vsplit{display:block}
+  .vsplit{grid-area:split}
+  .right{grid-area:right;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
+  .stage{grid-area:stage;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+  .console{border-radius:6px}
+  .console .tabhead{position:sticky;top:0;z-index:2;background:var(--panel);border-radius:6px 6px 0 0}
+  /* the map takes what the controls and the dock leave */
+  #simview{height:100%;min-height:520px}
+  .transport{flex-direction:row;flex-wrap:wrap;align-items:center}
+  .transport>.status{flex:1 0 auto}
+  #simview>.mapwrap{flex:1 1 0;min-height:220px;aspect-ratio:auto;width:100%}
+  .tele{height:var(--dock-h,220px);min-height:0;padding:8px 12px 10px;gap:8px}
+  .tele.folded{height:auto}
+  .tele-grid{flex:1 1 0;min-height:0}
+  .tele-grid>*{min-height:0;height:100%}
+  #plot{height:100%;min-height:80px}
+  .tele-side{min-height:0}
+  .tele-log,.tele-met{overflow:hidden;flex:1 1 0;min-height:0}
+  .tele .log{height:auto;flex:1 1 0;min-height:0;max-height:none;resize:none}
+  .tele-met .metrics{flex:1 1 0;min-height:0;overflow-y:auto;align-content:start;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+}
+@media (min-width:961px) and (max-width:1279px){#modehint{display:none}}
+
 /* Phone (≤ 760 px): one column in the order you use it — title, map, a sticky transport bar, telemetry, then the level,
    brief and the console collapsed to its tab row. The wrappers become display:contents, so this is only a CSS reorder
    of the same DOM (scripts, tests and the worker see no difference). */
 @media (max-width:760px){
   body{padding-block:10px 24px}
   .layout{gap:10px}
-  .right,.ctx,.stage,#simview:not([hidden]){display:contents}
-  .top{order:1}
+  .appbar,.right,.ctx,.stage,#simview:not([hidden]){display:contents}
+  .brand{order:1}
+  .appbar h1{font-size:1.75rem}
   .modebar{order:2} #modehint{display:none}
   .mapwrap,#anview{order:3}
   html{scroll-padding-top:116px}   /* jumps (Symbols, Try) land below the sticky transport bar */
@@ -368,17 +416,19 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
 
 <div class="wrap">
   <main class="layout">
-    <section class="ctx">
-      <header class="top">
-        <h1 title="Diff-drive or car-like robot · 24 × 16 m world · 20 Hz">Nav Stack Lab</h1>
+    <header class="appbar" id="appbar">
+      <div class="brand top">
+        <h1 title="Tune localization, perception, planning and control on a simulated robot across six levels; analyze the loop; learn with guided lessons. Diff-drive or car-like robot · 24 × 16 m world · 20 Hz">Nav Stack Lab</h1>
         <span class="sub ver" id="appver" title="Nav Stack Lab v25, released 2026-10-14: Lessons with depth: the 13 control lessons rewritten; chapters 5 (path trackers), 7 (MPC) and 1 (vehicle models, with the dynamic bicycle model)">v25 · 2026-10-14</span>
-        <p class="purpose">Tune localization, perception, planning and control on a simulated robot across six levels; analyze the loop; learn with guided lessons.</p>
-      </header>
-      <nav class="levels seg" id="levels" aria-label="Scenario level"></nav>
-      <section class="brief" id="brief" aria-live="polite"></section>
-    </section>
-    <section class="stage">
+      </div>
       <div class="modebar"><div class="seg" id="modesel" role="group" aria-label="Mode"></div><span class="lbl" id="modehint"></span></div>
+      <nav class="levels seg" id="levels" aria-label="Scenario level"></nav>
+      <div class="bartools" id="bartools">
+        <button class="ibtn" id="tg-dock" type="button" aria-pressed="true" title="Show or hide the telemetry dock under the map">Telemetry</button>
+        <button class="ibtn" id="tg-insp" type="button" aria-pressed="true" title="Show or hide the panel on the right">Panel</button>
+      </div>
+    </header>
+    <section class="stage">
       <div id="simview" class="view">
       <div class="transport" id="transport">
       <div class="status" id="status"></div>
@@ -403,7 +453,7 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
         <span class="ctl-sep"></span>
         <button class="btn" id="kidnapb" title="Then tap the map where the robot should be teleported (the estimator is not told)" aria-pressed="false">Kidnap…</button>
       </div>
-      <p class="hint" id="firstrun"><span><b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
+      <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across six levels. <b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
       <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll to zoom; drag to pan."></canvas>
         <div class="legend" id="legend" hidden>
           <span><i class="disc" style="background:var(--ink)"></i>true pose</span>
@@ -419,13 +469,16 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
           <button class="linkbtn" id="legendmore" type="button">All map symbols</button>
         </div>
       </div>
-      <section class="box tele">
-        <div class="tele-head"><h2>Telemetry</h2><div class="plotpick"><div class="seg" id="plotsel" aria-label="Plot channel"></div><select class="sel sm" id="plotsel2" aria-label="Second channel, right axis" title="Second channel on the right axis"><option value="none">+ compare…</option><option value="pos">Position error</option><option value="eth">θ error</option><option value="cte">Cross-track</option><option value="v">Speed</option><option value="turn">Steering</option></select></div></div>
+      <div class="hsplit" id="dock-split" role="separator" aria-orientation="horizontal" aria-label="Resize the telemetry dock" tabindex="0" title="Drag to resize · double-click to fold the dock"></div>
+      <section class="box tele" id="dock">
+        <div class="tele-head"><div class="tele-title"><h2>Telemetry</h2><button class="ibtn fold" id="dock-fold" type="button" aria-expanded="true" title="Fold the dock to its header">▾</button></div><div class="plotpick"><div class="seg" id="plotsel" aria-label="Plot channel"></div><select class="sel sm" id="plotsel2" aria-label="Second channel, right axis" title="Second channel on the right axis"><option value="none">+ compare…</option><option value="pos">Position error</option><option value="eth">θ error</option><option value="cte">Cross-track</option><option value="v">Speed</option><option value="turn">Steering</option></select></div></div>
         <div class="tele-grid">
           <canvas id="plot" aria-label="Time series plot"></canvas>
-          <div class="tele-log"><h3>Event log</h3><ol class="log" id="log"></ol></div>
+          <div class="tele-side">
+            <div class="tele-log"><h3>Event log</h3><ol class="log" id="log"></ol></div>
+            <div class="tele-met"><h3>Metrics</h3><dl class="metrics" id="metrics"></dl></div>
+          </div>
         </div>
-        <dl class="metrics" id="metrics"></dl>
       </section>
       </div>
       <div id="anview" class="view" hidden>
@@ -454,13 +507,19 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
       </div>
     </section>
 
-    <aside class="console">
-      <div class="box">
-        <div class="tabhead"><div class="tabgroups" id="tabgroups" role="group" aria-label="Tab group"></div><div class="tabs" role="tablist" id="tabs"></div></div>
-        <div id="panes"></div>
-      </div>
-    </aside>
-    <section class="learncol" id="learnview" aria-label="Lessons" hidden></section>
+    <div class="vsplit" id="insp-split" role="separator" aria-orientation="vertical" aria-label="Resize the panel" tabindex="0" title="Drag to resize · double-click to hide the panel"></div>
+    <div class="right" id="inspector">
+      <section class="ctx">
+        <section class="brief" id="brief" aria-live="polite"></section>
+      </section>
+      <aside class="console">
+        <div class="box">
+          <div class="tabhead"><div class="tabgroups" id="tabgroups" role="group" aria-label="Tab group"></div><div class="tabs" role="tablist" id="tabs"></div></div>
+          <div id="panes"></div>
+        </div>
+      </aside>
+      <section class="learncol" id="learnview" aria-label="Lessons" hidden></section>
+    </div>
   </main>
 </div>
 
@@ -4616,12 +4675,14 @@ function paintSearch(){
 let lastSearch=null;
 function sizeCanvas(c){const r=c.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);const w=Math.max(1,Math.round(r.width*dpr)),h=Math.max(1,Math.round(r.height*dpr));if(c.width!==w||c.height!==h){c.width=w;c.height=h;}return dpr;}
 const VIEW={z:1,cx:W/2,cy:H/2,follow:false};
-function viewClamp(){const z=VIEW.z,hw=W/(2*z),hh=H/(2*z);VIEW.cx=clamp(VIEW.cx,hw,W-hw);VIEW.cy=clamp(VIEW.cy,hh,H-hh);}
-function viewXform(){const k0=cv.width/W,kz=k0*VIEW.z;return{kz,tx:cv.width/2-VIEW.cx*kz,ty:cv.height/2+VIEW.cy*kz};}
+// The canvas takes whatever shape its panel has; zoom 1 fits the whole world in it (letterboxed), centred.
+const viewK0=()=>Math.min(cv.width/W,cv.height/H);
+function viewClamp(){const kz=viewK0()*VIEW.z,hw=cv.width/(2*kz),hh=cv.height/(2*kz);VIEW.cx=hw>=W/2?W/2:clamp(VIEW.cx,hw,W-hw);VIEW.cy=hh>=H/2?H/2:clamp(VIEW.cy,hh,H-hh);}
+function viewXform(){const kz=viewK0()*VIEW.z;return{kz,tx:cv.width/2-VIEW.cx*kz,ty:cv.height/2+VIEW.cy*kz};}
 function zoomAt(f,sx,sy){   // sx, sy in canvas pixels
   const{kz,tx,ty}=viewXform(),wx=(sx-tx)/kz,wy=(ty-sy)/kz,z2=clamp(VIEW.z*f,1,8);
   if(z2===VIEW.z)return;VIEW.z=z2;if(z2===1){VIEW.cx=W/2;VIEW.cy=H/2;VIEW.follow=false;}
-  else{const kn=cv.width/W*z2;VIEW.cx=wx-(sx-cv.width/2)/kn;VIEW.cy=wy+(sy-cv.height/2)/kn;}
+  else{const kn=viewK0()*z2;VIEW.cx=wx-(sx-cv.width/2)/kn;VIEW.cy=wy+(sy-cv.height/2)/kn;}
   viewClamp();syncViewUI();draw();
 }
 function syncViewUI(){const f=$('#mv-follow');if(f)f.setAttribute('aria-pressed',String(VIEW.follow));const t=$('#mv-fit');if(t)t.disabled=VIEW.z===1;}
@@ -4629,8 +4690,8 @@ function draw(){
   readTokens();
   if(VIEW.follow&&VIEW.z>1&&S){VIEW.cx=S.robot.x;VIEW.cy=S.robot.y;viewClamp();}
   const dpr=sizeCanvas(cv),{kz,tx,ty}=viewXform(),k=kz,px=n=>n*dpr/k;
-  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=TOK['map-bg'];ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.setTransform(k,0,0,-k,tx,ty);ctx.imageSmoothingEnabled=false;ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=TOK.bg;ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.setTransform(k,0,0,-k,tx,ty);ctx.fillStyle=TOK['map-bg'];ctx.fillRect(0,0,W,H);ctx.imageSmoothingEnabled=false;ctx.lineJoin='round';ctx.lineCap='round';
   // 1 m grid
   ctx.strokeStyle=TOK.grid;ctx.lineWidth=px(1);ctx.beginPath();for(let x=1;x<W;x++){ctx.moveTo(x,0);ctx.lineTo(x,H);}for(let y=1;y<H;y++){ctx.moveTo(0,y);ctx.lineTo(W,y);}ctx.stroke();
   // map
@@ -4764,7 +4825,7 @@ function ellipse(x,y,Pc){
   const a=Pc[0],b=Pc[1],c=Pc[4];const tr=(a+c)/2,dd=Math.sqrt(Math.max(0,((a-c)/2)**2+b*b));const l1=tr+dd,l2=Math.max(0,tr-dd);const ang=0.5*Math.atan2(2*b,a-c);
   const s=2.4477; // sqrt(chi2_2(0.95))
   ctx.save();ctx.translate(x,y);ctx.rotate(ang);ctx.beginPath();ctx.ellipse(0,0,Math.max(0.02,s*Math.sqrt(l1)),Math.max(0.02,s*Math.sqrt(l2)),0,0,TAU);ctx.restore();
-  ctx.fillStyle=rgba(TOK.rose,0.12);ctx.fill();ctx.strokeStyle=TOK.rose;ctx.lineWidth=1.5*Math.min(window.devicePixelRatio||1,2)/(cv.width/W);ctx.stroke();
+  ctx.fillStyle=rgba(TOK.rose,0.12);ctx.fill();ctx.strokeStyle=TOK.rose;ctx.lineWidth=1.5*Math.min(window.devicePixelRatio||1,2)/viewXform().kz;ctx.stroke();
 }
 
 /* ---- ui/plot.js ---- */
@@ -5105,11 +5166,13 @@ command (v, δ) → lag τ → accel limit → steering-rate limit → integrate
 /* ---- ui/panes.js ---- */
 
 let tryOpen=false;   // the Try list starts collapsed so the map and telemetry fit on screen
+let briefOpen=true;   // the level's description; folding it is remembered (workspace.js)
 function buildLevels(){
   $('#levels').innerHTML=LEVELS.map((L,i)=>`<button class="lvl" data-i="${i}" aria-pressed="${L===LV}" title="${L.id} ${L.name}">${L.id}</button>`).join('');
   $('#levels').querySelectorAll('.lvl').forEach(b=>b.onclick=()=>loadLevel(+b.dataset.i));
-  $('#brief').innerHTML=`<div><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3><p class="adds">${LV.adds}</p></div><details class="try" ${tryOpen?'open':''}><summary><h3>Try (${LV.tries.length}) · each button sets the lab up and runs</h3></summary><ul>${LV.tries.map((t,i)=>`<li>${t.t}<div class="tries">${t.b.map((x,j)=>`<button class="btn small" data-lt="${i}:${j}">${x[0]}</button>`).join('')}</div></li>`).join('')}</ul></details>`;
+  $('#brief').innerHTML=`<details class="adds-d" ${briefOpen?'open':''}><summary><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3></summary><p class="adds">${LV.adds}</p></details><details class="try" ${tryOpen?'open':''}><summary><h3>Try (${LV.tries.length}) · each button sets the lab up and runs</h3></summary><ul>${LV.tries.map((t,i)=>`<li>${t.t}<div class="tries">${t.b.map((x,j)=>`<button class="btn small" data-lt="${i}:${j}">${x[0]}</button>`).join('')}</div></li>`).join('')}</ul></details>`;
   $('#brief .try').ontoggle=e=>{tryOpen=e.target.open;};
+  $('#brief .adds-d').ontoggle=e=>{briefOpen=e.target.open;wsSave();};
   $('#brief').querySelectorAll('[data-lt]').forEach(b=>b.onclick=()=>{const[i,j]=b.dataset.lt.split(':').map(Number);tryGo(LV.tries[i].b[j][1]);});
 }
 async function tryGo(cfg){
@@ -7502,6 +7565,58 @@ function loop(ts){
 const mo=new MutationObserver(()=>{tokKey='';if(AN.mode==='an')renderAnalysis();});mo.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 window.addEventListener('resize',()=>{if(AN.mode==='an')renderAnalysis();else{draw();drawPlot();}});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{tokKey='';if(AN.mode==='an')setTimeout(renderAnalysis,30);});
+
+/* ---- ui/workspace.js ---- */
+/* ============================================================
+   Workspace (7.1): the map fills the stage; a telemetry dock under it and the panel on the right can be resized
+   (drag the splitters, or focus one and use the arrow keys) and hidden. Sizes are remembered in this browser only.
+   ============================================================ */
+const WS={insp:null,dock:220,inspOff:false,dockOff:false};
+const WS_KEY='nav-stack-lab.layout';
+try{const s=JSON.parse(localStorage.getItem(WS_KEY)||'null');if(s&&typeof s==='object'){for(const k of Object.keys(WS))if(k in s)WS[k]=s[k];if(typeof s.brief==='boolean')briefOpen=s.brief;}}catch(_){}
+function wsSave(){try{localStorage.setItem(WS_KEY,JSON.stringify({...WS,brief:briefOpen}));}catch(_){}}
+const wideUI=()=>matchMedia('(min-width:961px) and (min-height:600px)').matches;
+function wsApply(){
+  const lay=$('.layout');
+  if(WS.insp)lay.style.setProperty('--insp-w',WS.insp+'px');else lay.style.removeProperty('--insp-w');
+  lay.style.setProperty('--dock-h',WS.dock+'px');
+  lay.classList.toggle('insp-off',WS.inspOff);
+  $('#dock').classList.toggle('folded',WS.dockOff);
+  $('#tg-insp').setAttribute('aria-pressed',String(!WS.inspOff));
+  $('#tg-dock').setAttribute('aria-pressed',String(!WS.dockOff));
+  const f=$('#dock-fold');f.setAttribute('aria-expanded',String(!WS.dockOff));f.textContent=WS.dockOff?'▴':'▾';f.title=WS.dockOff?'Open the dock':'Fold the dock to its header';
+}
+function wsInspector(on){WS.inspOff=!on;wsApply();wsSave();}
+function wsDock(on){WS.dockOff=!on;wsApply();wsSave();}
+$('#tg-insp').onclick=()=>wsInspector(WS.inspOff);
+$('#tg-dock').onclick=()=>wsDock(WS.dockOff);
+$('#dock-fold').onclick=()=>wsDock(WS.dockOff);
+// Splitters: pointer drag, double-click to hide or fold, arrow keys to resize, Enter to hide or fold
+function wsSplitter(el,{size,set,toggle}){
+  let drag=null;
+  el.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();drag={p0:el.getAttribute('aria-orientation')==='vertical'?e.clientX:e.clientY,s0:size()};el.setPointerCapture(e.pointerId);el.classList.add('drag');});
+  el.addEventListener('pointermove',e=>{if(!drag)return;const p=el.getAttribute('aria-orientation')==='vertical'?e.clientX:e.clientY;set(drag.s0-(p-drag.p0));});
+  const end=()=>{if(!drag)return;drag=null;el.classList.remove('drag');wsSave();};
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+  el.addEventListener('dblclick',toggle);
+  el.addEventListener('keydown',e=>{const d={ArrowLeft:24,ArrowUp:24,ArrowRight:-24,ArrowDown:-24}[e.key];
+    if(d){e.preventDefault();set(size()+d);wsSave();}else if(e.key==='Enter'){e.preventDefault();toggle();}});
+}
+wsSplitter($('#insp-split'),{
+  size:()=>$('#inspector').getBoundingClientRect().width,
+  set:w=>{const L=$('.layout').getBoundingClientRect().width;WS.insp=Math.round(clamp(w,300,Math.max(300,L-460)));wsApply();},
+  toggle:()=>wsInspector(false)});
+wsSplitter($('#dock-split'),{
+  size:()=>WS.dockOff?44:$('#dock').getBoundingClientRect().height,
+  set:h=>{const st=$('#simview').getBoundingClientRect().height;WS.dockOff=false;WS.dock=Math.round(clamp(h,120,Math.max(120,st-300)));wsApply();},
+  toggle:()=>wsDock(WS.dockOff)});
+// Learn lives in the panel, so opening Learn shows it
+$('#modesel').addEventListener('click',e=>{const b=e.target.closest('button');if(b&&b.dataset.v==='learn'&&WS.inspOff)wsInspector(true);});
+// Canvases follow their panels (splitters and folding change sizes without a window resize)
+{let q=0;const redraw=()=>{q=0;if(AN.mode==='an'){if(!$('#anview').hidden)renderAnalysis();}else if(S){draw();drawPlot();}};
+ const ro=new ResizeObserver(()=>{if(!q)q=requestAnimationFrame(redraw);});
+ ro.observe($('.mapwrap'));ro.observe($('#plot'));ro.observe($('.stage'));}
+wsApply();
 
 /* ---- ui/boot.js ---- */
 

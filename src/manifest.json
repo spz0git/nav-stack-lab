@@ -49,6 +49,8 @@
  "ui/source.js",
  "ui/transport.js",
  "ui/maptools.js",
+ "ui/signals.js",
+ "ui/plots.js",
  "ui/loop.js",
  "ui/workspace.js",
  "ui/boot.js"

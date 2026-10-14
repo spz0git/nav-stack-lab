@@ -34,22 +34,9 @@
         <div class="scrub" id="scrub">
           <div class="tl-track" id="tl-track"><div class="tl-marks" id="tl-marks" aria-hidden="true"></div><input type="range" id="scrubr" min="0" max="0" value="0" aria-label="Time in the recorded run" title="Drag to review the run (pauses). , and . step 0.1 s. Run or Step continues from the live state."></div>
           <span class="kv tl-time" id="scrubt"></span><button class="btn small" id="scrub-live" hidden title="Back to the live state (End)">Live</button>
+          <label class="check sm tl-opt" title="Pause the simulation when the robot touches an obstacle or a person"><input type="checkbox" id="pausec"><span>Pause on contact</span></label>
         </div>
       </div>
-      </div>
-      <div class="controls tapctl">
-        <label class="check sm" title="Pause the simulation when the robot touches an obstacle or a person"><input type="checkbox" id="pausec"><span>Pause on contact</span></label>
-        <span class="ctl-sep"></span>
-        <label class="lbl" for="tapsel">Tap map</label>
-        <select class="sel" id="tapsel">
-          <option value="wp">Add goal</option>
-          <option value="pose">Goal with heading (drag)</option>
-          <option value="goal">Replace all goals</option>
-          <option value="beacon">Switch a beacon on/off</option>
-        </select>
-        <button class="btn" id="clearwp" title="Remove every goal">Clear goals</button>
-        <span class="ctl-sep"></span>
-        <button class="btn" id="kidnapb" title="Then tap the map where the robot should be teleported (the estimator is not told)" aria-pressed="false">Kidnap…</button>
       </div>
       <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across six levels. <b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
       <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll to zoom; drag to pan."></canvas>

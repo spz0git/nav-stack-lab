@@ -141,6 +141,7 @@ function draw(){
   robotShape(S.est.x,S.est.y,S.est.th,false,px);
   robotShape(S.robot.x,S.robot.y,S.robot.th,true,px);
   drawHoverGhost(px);   // the robot at the time hovered on the timeline or the plot (replay.js)
+  drawSelection(px);   // the Select tool's pick (maptools.js)
   // text overlays in screen space
   ctx.setTransform(1,0,0,1,0,0);
   const toS=(x,y)=>[x*k+tx,ty-y*k];

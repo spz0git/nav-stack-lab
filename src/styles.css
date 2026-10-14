@@ -450,6 +450,19 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .hl.warn{background:color-mix(in srgb,var(--warn) 12%,var(--panel))}.hl.bad{background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
 .hl.warn span,.hl.bad span{color:var(--ink)}
 .tl-m.h-warn,.tl-m.h-bad{top:0;height:6px;width:6px;margin-left:-3px;border-radius:50%;background:var(--warn)}.tl-m.h-bad{background:var(--bad)}
+/* Runs (7.7) */
+.runpanel{width:min(560px,calc(100vw - 32px))}
+.runs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.run{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;padding:6px 0 6px 8px;border-top:1px solid var(--line);border-left:3px solid transparent}
+.run.cmp{border-left-color:var(--amber);background:color-mix(in srgb,var(--amber) 8%,transparent)}
+.run-main{display:flex;flex-direction:column;min-width:0;flex:1 1 220px}.run-main b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.run-acts{display:flex;gap:4px;flex-wrap:wrap}.run-acts .ibtn{padding:2px 7px;font-size:.74rem}
+.run-acts .ibtn[aria-pressed="true"]{background:var(--amber);border-color:var(--amber);color:#fff}
+.cmp-sw{display:inline-block;width:18px;height:0;border-top:2px dashed var(--amber);vertical-align:middle}
+.cmptab{border-collapse:collapse;width:100%;font-size:.8rem}.cmptab th,.cmptab td{padding:3px 6px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+.cmptab th:first-child,.cmptab td:first-child{text-align:left}.cmptab th{font-weight:600;color:var(--muted);font-size:.72rem}.cmptab td:not(:first-child){font-family:var(--f-mono);font-size:.76rem}
+.run-imp{cursor:pointer}
+#tg-runs{white-space:nowrap}
 /* Desktop: the whole lab is one screen. Left: the map, filling what the controls and the dock leave (what you watch).
    Right: the level brief and the parameter tabs, or the lessons (what you change), scrolling on its own. */
 @media (min-width:961px) and (min-height:600px){

@@ -46,6 +46,9 @@ function drawPlotMain(){
   if(LAYERS.ghostrun&&GHOST&&GHOST.level===LV.id&&GHOST.plot.length>1){const GD=GHOST.plot;pctx.strokeStyle=rgba(TOK.rose,0.6);pctx.lineWidth=1.2*dpr;pctx.setLineDash([3*dpr,3*dpr]);
     for(const s of series){pctx.beginPath();let up=true;for(const d of GD){if(d.t<t0||d.t>t1)continue;const v=s.k(d);if(v==null){up=true;continue;}if(up){pctx.moveTo(X(d.t),Y(v));up=false;}else pctx.lineTo(X(d.t),Y(v));}pctx.stroke();}
     pctx.setLineDash([]);pctx.fillStyle=TOK.rose;pctx.textAlign='right';pctx.textBaseline='bottom';pctx.fillText('ghost: '+GHOST.label.slice(0,48),w-padR-2*dpr,h-2*dpr);}
+  if(cmpOn()&&RUNS.cmp.plot.length>1){const CD=RUNS.cmp.plot;pctx.strokeStyle=rgba(TOK.amber,0.9);pctx.lineWidth=1.4*dpr;pctx.setLineDash([5*dpr,3*dpr]);   // the compared run (runs.js)
+    for(const s of series){pctx.beginPath();let up=true;for(const d of CD){if(d.t<t0||d.t>t1)continue;const v=s.k(d);if(v==null){up=true;continue;}if(up){pctx.moveTo(X(d.t),Y(v));up=false;}else pctx.lineTo(X(d.t),Y(v));}pctx.stroke();}
+    pctx.setLineDash([]);pctx.fillStyle=TOK.amber;pctx.textAlign='right';pctx.textBaseline='top';pctx.fillText('- - compared: '+runName(RUNS.cmp).slice(0,40),w-padR-2*dpr,padT+(band?13*dpr:0));}
   for(const s of series){pctx.strokeStyle=s.c;pctx.lineWidth=1.6*dpr;pctx.beginPath();let up=true;for(const d of D){if(d.t<t0||d.t>t1)continue;const v=s.k(d);if(v==null){up=true;continue;}if(up){pctx.moveTo(X(d.t),Y(v));up=false;}else pctx.lineTo(X(d.t),Y(v));}pctx.stroke();}
   if(plotCh==='v'||plotCh==='turn'){pctx.textAlign='right';pctx.textBaseline='top';pctx.fillStyle=TOK.accent;pctx.fillText('command',w-padR-60*dpr,padT);pctx.fillStyle=TOK.ink;pctx.fillText('actual',w-padR-2*dpr,padT);}
   plotGeom={t0,t1,padL,padR,w,dpr};

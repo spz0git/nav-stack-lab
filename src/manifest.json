@@ -53,6 +53,7 @@
  "ui/plots.js",
  "ui/palette.js",
  "ui/health.js",
+ "ui/runs.js",
  "ui/loop.js",
  "ui/workspace.js",
  "ui/boot.js"

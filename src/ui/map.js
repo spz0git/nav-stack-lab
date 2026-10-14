@@ -80,6 +80,7 @@ function draw(){
     ctx.strokeStyle=TOK.warn;ctx.lineWidth=px(1.5);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+p.vx*0.8,p.y+p.vy*0.8);ctx.stroke();}
   // ghost of the previous run
   if(LAYERS.ghostrun&&GHOST&&GHOST.level===LV.id){ctx.lineWidth=px(2);ctx.setLineDash([px(2),px(4)]);ctx.strokeStyle=rgba(TOK.rose,0.55);polyline(GHOST.trailT);ctx.stroke();ctx.setLineDash([]);}
+  drawCompare(px);   // a run picked in Runs → Compare (runs.js)
   // trails
   if(LAYERS.trail){
     ctx.lineWidth=px(1.3);ctx.strokeStyle=rgba(TOK.ink,0.45);polyline(S.trailT);ctx.stroke();

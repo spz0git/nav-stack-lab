@@ -36,6 +36,7 @@ function drawPane(P1,c,pi){
   const[t0,t1]=timeWindow(R[0],R[1]),padL=44*dpr,padR=8*dpr,padT=8*dpr,padB=14*dpr;
   let lo=Infinity,hi=-Infinity;
   for(const id of vis){const G=SIG[id],A=sigData(G);for(const d of A){if(d.t<t0||d.t>t1)continue;const v=G.get(d);if(v==null||!isFinite(v))continue;lo=Math.min(lo,v);hi=Math.max(hi,v);}}
+  if(cmpOn())for(const id of vis){const[A,get]=cmpData(SIG[id]);for(const d of A){if(d.t<t0||d.t>t1)continue;const v=get(d);if(v==null||!isFinite(v))continue;lo=Math.min(lo,v);hi=Math.max(hi,v);}}
   if(!isFinite(lo)){lo=0;hi=1;}if(lo>=0&&lo<hi*0.5)lo=0;if(hi-lo<1e-9){hi+=0.5;lo-=0.5;}const m=(hi-lo)*0.08;hi+=m;if(lo!==0)lo-=m;
   const X=t=>padL+(t-t0)/Math.max(1e-6,t1-t0)*(w-padL-padR),Y=v=>padT+(hi-v)/(hi-lo)*(h-padT-padB);
   g.strokeStyle=TOK.line;g.lineWidth=1;if(lo<0&&hi>0){g.beginPath();g.moveTo(padL,Y(0));g.lineTo(w-padR,Y(0));g.stroke();}
@@ -44,6 +45,8 @@ function drawPane(P1,c,pi){
   g.textAlign='left';g.textBaseline='bottom';g.fillText(twLabel(t0,t1),padL+4*dpr,h-1*dpr);
   P1.sigs.forEach((id,k)=>{if(P1.off.has(id))return;const G=SIG[id],A=sigData(G);g.strokeStyle=TOK[PANE_COLORS[k%PANE_COLORS.length]];g.lineWidth=1.5*dpr;g.beginPath();let up=true;
     for(const d of A){if(d.t<t0||d.t>t1)continue;const v=G.get(d);if(v==null||!isFinite(v)){up=true;continue;}if(up){g.moveTo(X(d.t),Y(v));up=false;}else g.lineTo(X(d.t),Y(v));}g.stroke();});
+  if(cmpOn())P1.sigs.forEach((id,k)=>{if(P1.off.has(id))return;const[A,get]=cmpData(SIG[id]);g.strokeStyle=rgba(TOK[PANE_COLORS[k%PANE_COLORS.length]],0.75);g.lineWidth=1.2*dpr;g.setLineDash([5*dpr,3*dpr]);g.beginPath();let up=true;   // the compared run, dashed
+    for(const d of A){if(d.t<t0||d.t>t1)continue;const v=get(d);if(v==null||!isFinite(v)){up=true;continue;}if(up){g.moveTo(X(d.t),Y(v));up=false;}else g.lineTo(X(d.t),Y(v));}g.stroke();g.setLineDash([]);});
   const cur=(t,dash)=>{if(t==null||t<t0||t>t1)return;g.strokeStyle=dash?TOK.muted:TOK.ink;g.lineWidth=dpr;g.setLineDash(dash?[3*dpr,3*dpr]:[]);g.beginPath();g.moveTo(X(t),padT);g.lineTo(X(t),h-padB);g.stroke();g.setLineDash([]);};
   if(REPLAY.active)cur(shownT(),false);if(CURSOR.hover!=null)cur(CURSOR.hover,true);
   c.__geom={t0,t1,padL,padR,w,dpr};

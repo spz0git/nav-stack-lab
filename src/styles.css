@@ -238,7 +238,8 @@ details.how summary{cursor:pointer;font-family:var(--f-display);font-weight:600;
 textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;line-height:1.5;background:var(--raise);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:10px;resize:vertical;tab-size:2}
 .codestat{font-family:var(--f-mono);font-size:.78rem}
 .modebar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
-.appbar .modebar{flex:1 1 auto;min-width:0;flex-wrap:nowrap}
+.appbar .modebar{flex:1 1 0;min-width:0;flex-wrap:nowrap}
+.appbar #modesel{flex:0 0 auto;flex-wrap:nowrap}
 .appbar #modehint{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .view{display:flex;flex-direction:column;gap:10px;min-width:0}
 .view>*{flex-shrink:0}
@@ -404,6 +405,40 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .symchips{display:flex;flex-wrap:wrap;gap:4px}.symchips button{font-size:.74rem;padding:2px 7px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--muted);cursor:pointer}.symchips button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
 .nom.hidden,.nom dt.hidden,.nom dd.hidden{display:none}
 
+.palbtn{display:inline-flex;align-items:center;gap:6px;margin-left:8px;align-self:center;padding:3px 8px}
+.palbtn kbd,.pal-in kbd,.pal-kind kbd{font-family:var(--f-mono);font-size:.68rem;border:1px solid var(--line);border-radius:3px;padding:0 4px;color:var(--muted);background:var(--panel)}
+.badge{display:inline-block;min-width:1.5em;margin-left:4px;padding:0 5px;border-radius:999px;background:var(--line);color:var(--ink);font-family:var(--f-mono);font-size:.7rem;text-align:center}
+.badge:not([data-n="0"]){background:var(--accent);color:var(--accent-ink)}
+/* command palette (7.5) */
+.palette{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.32);display:flex;justify-content:center;align-items:flex-start;padding:10vh 16px 16px}
+.palette[hidden]{display:none}
+.pal-box{width:min(640px,100%);max-height:72vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.3);overflow:hidden}
+.pal-in{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);color:var(--muted)}
+.pal-in input{flex:1 1 auto;min-width:0;border:0;background:transparent;color:var(--ink);font:inherit;font-size:1rem;outline:none}
+#pal-list{list-style:none;margin:0;padding:4px;overflow-y:auto;min-height:0}
+#pal-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n k" "d k";gap:0 12px;padding:6px 10px 6px 9px;border-radius:5px;cursor:pointer;border-left:3px solid var(--sys,transparent)}
+#pal-list li[aria-selected="true"]{background:var(--raise);box-shadow:inset 0 0 0 1px var(--line)}
+.pal-name{grid-area:n;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pal-detail{grid-area:d;font-size:.76rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pal-kind{grid-area:k;align-self:center;font-family:var(--f-mono);font-size:.7rem;color:var(--muted);white-space:nowrap}
+#pal-list li.pal-none{display:block;color:var(--muted);cursor:default}
+.pal-hint{margin:0;padding:6px 12px;border-top:1px solid var(--line);font-size:.74rem;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:70;max-width:min(560px,calc(100vw - 32px));background:var(--ink);color:var(--panel);border-radius:6px;padding:8px 14px;font-size:.86rem;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.toast[hidden]{display:none}
+@keyframes flash{0%,40%{background:color-mix(in srgb,var(--accent) 22%,transparent)}100%{background:transparent}}
+.flash{animation:flash 1.8s ease-out;border-radius:5px}
+/* Changed from defaults (7.5) */
+.chgpanel{position:fixed;top:52px;right:16px;z-index:50;width:min(440px,calc(100vw - 32px));max-height:calc(100vh - 70px);overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.22);padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;font-size:.86rem}
+.chgpanel[hidden]{display:none}
+.chgpanel.sheet{top:auto;bottom:0;left:0;right:0;width:auto;max-height:78vh;border-radius:12px 12px 0 0}
+.chg-head{display:flex;align-items:baseline;gap:8px}.chg-head b{font-family:var(--f-display);font-size:1.05rem}.chg-head .ibtn{margin-left:auto}
+.chg-list,.setups{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.chg-list li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"n v r" "t v r";gap:0 10px;align-items:center;padding:5px 0 5px 8px;border-top:1px solid var(--line);border-left:3px solid var(--sys,var(--line))}
+.chg-go{grid-area:n;text-align:left;font-size:.86rem}.chg-tab{grid-area:t;font-size:.72rem;color:var(--muted)}
+.chg-v{grid-area:v;font-family:var(--f-mono);font-size:.78rem;text-align:right}.chg-v s{color:var(--muted);margin-left:4px}.chg-list .rst{grid-area:r;font-size:1rem}
+.chg-h{margin:4px 0 0;font-family:var(--f-display);font-size:.95rem;display:flex;gap:8px;align-items:baseline}
+.chg-save{display:flex;gap:6px}.chg-save input{flex:1 1 auto;min-width:0;font:inherit;font-size:.84rem;padding:5px 8px;border:1px solid var(--line);border-radius:5px;background:var(--raise);color:var(--ink)}
+.setups li{display:flex;align-items:baseline;gap:8px;padding:4px 0;border-top:1px solid var(--line)}.setups .lbl{margin-left:auto;white-space:nowrap}.setups .ibtn{padding:0 7px}
 /* Desktop: the whole lab is one screen. Left: the map, filling what the controls and the dock leave (what you watch).
    Right: the level brief and the parameter tabs, or the lessons (what you change), scrolling on its own. */
 @media (min-width:961px) and (min-height:600px){
@@ -446,6 +481,7 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   body{padding-block:10px 24px}
   .layout{gap:10px}
   .appbar,.right,.ctx,.stage,#simview:not([hidden]){display:contents}
+  .palbtn{position:absolute;top:12px;right:16px;margin:0;padding:6px 9px}.palbtn span,.palbtn kbd{display:none}
   .brand{order:1}
   .appbar h1{font-size:1.75rem}
   .modebar{order:2} #modehint{display:none}

@@ -1,6 +1,6 @@
 
 /* ---------- main loop ---------- */
-function refreshAll(){renderStatus();renderMetrics();renderLog();fsmRefresh();renderSelection();renderLayerPop();renderValues();}
+function refreshAll(){renderStatus();renderMetrics();renderLog();fsmRefresh();renderSelection();renderLayerPop();renderValues();renderChangedBadge();}
 let lastTs=0,acc=0,frame=0;
 function loop(ts){
   const dt=Math.min(0.1,(ts-lastTs)/1000||0);lastTs=ts;

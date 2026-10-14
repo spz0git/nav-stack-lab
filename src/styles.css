@@ -1,4 +1,5 @@
-/* Layout: instrument console. Map stage on the left (sticky on wide screens), subsystem console on the right; stacks on phones. */
+/* Layout: a workspace. App bar on top; the map stage fills the left with a telemetry dock under it; the panel
+   (level, tabs or lessons) on the right. Splitters resize the dock and the panel; both can be hidden. Stacks on phones. */
 :root{
   --bg:#e8ebe7; --panel:#f6f7f4; --raise:#ffffff; --ink:#1b2122; --muted:#566160; --line:#cbd2cc;
   --accent:#2058c9; --accent-ink:#ffffff; --amber:#9c6a00; --beacon:#008a87; --rose:#ad2a69; --ok:#2b7741; --warn:#a35e00; --bad:#bb3227;
@@ -20,7 +21,7 @@
 }
 *{box-sizing:border-box}
 html,body{background:var(--bg)}
-body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:14px 40px}
+body{margin:0;color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:14px 40px}
 .ctx{display:flex;flex-direction:column;gap:10px;min-width:0}
 .wrap{max-width:1600px;margin:0 auto}
 h1,h2,h3{font-family:var(--f-display);font-weight:600;margin:0;text-wrap:balance;letter-spacing:.01em}
@@ -30,12 +31,30 @@ h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mut
 p{margin:0}
 .mono,code,output{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px}
+/* app bar: name and version, mode switch, level picker, panel toggles */
+.appbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;min-width:0}
+.brand{display:flex;flex-wrap:nowrap;align-items:baseline;gap:10px;justify-content:flex-start}
+.appbar h1{font-size:1.4rem}
+.appbar .levels.seg{width:auto;flex:0 1 380px;min-width:240px}
+.bartools{display:none;gap:6px;margin-left:auto}
+.ibtn{border:1px solid var(--line);background:var(--raise);border-radius:5px;padding:4px 10px;font-size:.8rem;color:var(--muted);line-height:1.3}
+.ibtn:hover{border-color:var(--muted);color:var(--ink)}
+.bartools .ibtn[aria-pressed="true"]{color:var(--ink);border-color:var(--muted);box-shadow:inset 0 -2px 0 var(--accent)}
+.ibtn.fold{padding:2px 8px;font-size:.85rem}
+/* splitters (desktop only) */
+.hsplit,.vsplit{display:none;position:relative;touch-action:none;z-index:2}
+.hsplit{height:10px;margin-block:-8px -2px;cursor:row-resize}
+.vsplit{width:14px;cursor:col-resize}
+.hsplit::after,.vsplit::after{content:"";position:absolute;background:var(--line);border-radius:2px;transition:background .12s}
+.hsplit::after{left:calc(50% - 24px);width:48px;top:4px;height:3px}
+.vsplit::after{top:calc(50% - 24px);height:48px;left:5px;width:3px}
+.hsplit:hover::after,.hsplit:focus-visible::after,.hsplit.drag::after,.vsplit:hover::after,.vsplit:focus-visible::after,.vsplit.drag::after{background:var(--accent)}
+.hsplit:focus-visible,.vsplit:focus-visible{outline:none}
 .sub{color:var(--muted);font-size:.85rem;font-family:var(--f-mono)}
 .ver{white-space:nowrap}
 h1[title]{cursor:help}
-.purpose{flex:1 1 100%;font-size:.92rem;line-height:1.4;color:var(--muted);max-width:62ch}
 button{font:inherit;color:inherit;cursor:pointer}
-button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* level rail */
 .levels.seg{display:flex;flex-wrap:nowrap;width:100%}
@@ -46,6 +65,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .brief .adds{font-size:.92rem}
 .brief ul{margin:6px 0 0;padding-left:1.1em;font-size:.9rem;color:var(--muted)}
 .brief summary{cursor:pointer;list-style-position:inside}
+.brief .adds-d .adds{margin-top:4px}
 .brief summary h3{display:inline}
 .brief li{margin:2px 0}
 .brief li b{color:var(--ink);font-weight:600}
@@ -54,18 +74,6 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .layout{display:flex;flex-direction:column;gap:14px}
 .stage{display:flex;flex-direction:column;gap:10px;min-width:0}
 .stage>*{flex-shrink:0}
-/* wide screens: the parameter console scrolls on its own; the map + telemetry column is sized to fit one screen */
-/* Desktop: the whole lab is one screen. Left: map + telemetry (what you watch).
-   Right: level, brief and parameter tabs (what you change), each scrolling on its own. */
-@media (min-width:961px) and (min-height:600px){
-  body{padding-block:12px}
-  .layout{display:grid;height:calc(100vh - 24px);grid-template-columns:minmax(0,1.5fr) minmax(360px,1fr);grid-template-rows:minmax(0,1fr);grid-template-areas:"stage right";gap:12px 16px}
-  .right{grid-area:right;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
-  .stage{grid-area:stage;min-height:0;overflow-y:auto;overscroll-behavior:contain}
-  .console{border-radius:6px}
-  .console .tabhead{position:sticky;top:0;z-index:2;background:var(--panel);border-radius:6px 6px 0 0}
-  .mapwrap{width:min(100%,max(480px,calc((100vh - 440px)*1.5)));margin-inline:auto}
-}
 
 .status{display:flex;flex-wrap:wrap;gap:4px 20px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 12px 2px 2px}
 .pill{font-family:var(--f-mono);font-size:1.15rem;font-weight:600;padding:2px 12px;border-radius:5px;letter-spacing:.05em;color:#fff;background:var(--muted);min-width:7.2em;text-align:center}
@@ -176,6 +184,8 @@ details.how summary{cursor:pointer;font-family:var(--f-display);font-weight:600;
 textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;line-height:1.5;background:var(--raise);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:10px;resize:vertical;tab-size:2}
 .codestat{font-family:var(--f-mono);font-size:.78rem}
 .modebar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.appbar .modebar{flex:1 1 auto;min-width:0;flex-wrap:nowrap}
+.appbar #modehint{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .view{display:flex;flex-direction:column;gap:10px;min-width:0}
 .view>*{flex-shrink:0}
 .view[hidden]{display:none}
@@ -259,11 +269,15 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 @media (max-width:760px){.terms dl{grid-template-columns:minmax(0,7em) minmax(0,1fr);gap:5px 10px}}
 .codestat.err{color:var(--bad)} .codestat.ok{color:var(--ok)}
 
-.tele{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
-.tele-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:12px;align-items:start}
-.tele-log{display:flex;flex-direction:column;gap:6px;min-width:0}
-@media (max-width:700px){.tele-grid{grid-template-columns:minmax(0,1fr)}}
+.tele{padding:12px 14px;display:flex;flex-direction:column;gap:10px;container-type:inline-size}
+.tele-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
+.tele-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+@container (min-width:620px){.tele-grid{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}}
+@container (min-width:800px){.tele-grid{grid-template-columns:minmax(0,1.5fr) minmax(0,2fr)}.tele-side{flex-direction:row}.tele-side>*{flex:1 1 0}}
+.tele-log,.tele-met{display:flex;flex-direction:column;gap:6px;min-width:0}
+.tele.folded .tele-grid{display:none}
 .tele-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}
+.tele-title{display:flex;align-items:center;gap:8px;margin-right:auto}
 .plotpick{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .sel.sm{font-size:.8rem;padding:3px 6px}
 #plot{width:100%;height:170px;display:block;border:1px solid var(--line);border-radius:4px;background:var(--map-bg)}
@@ -295,14 +309,48 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .symchips{display:flex;flex-wrap:wrap;gap:4px}.symchips button{font-size:.74rem;padding:2px 7px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--muted);cursor:pointer}.symchips button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
 .nom.hidden,.nom dt.hidden,.nom dd.hidden{display:none}
 
+/* Desktop: the whole lab is one screen. Left: the map, filling what the controls and the dock leave (what you watch).
+   Right: the level brief and the parameter tabs, or the lessons (what you change), scrolling on its own. */
+@media (min-width:961px) and (min-height:600px){
+  body{padding-block:10px}
+  .wrap{max-width:none}
+  .layout{display:grid;height:calc(100vh - 20px);grid-template-columns:minmax(0,1fr) 14px var(--insp-w,minmax(360px,.55fr));grid-template-rows:auto minmax(0,1fr);grid-template-areas:"bar bar bar" "stage split right";gap:10px 0}
+  .layout.insp-off{grid-template-columns:minmax(0,1fr) 0 0}
+  .layout.insp-off>.right,.layout.insp-off>.vsplit{display:none}
+  .appbar{grid-area:bar}
+  .bartools{display:flex}
+  .hsplit,.vsplit{display:block}
+  .vsplit{grid-area:split}
+  .right{grid-area:right;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
+  .stage{grid-area:stage;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+  .console{border-radius:6px}
+  .console .tabhead{position:sticky;top:0;z-index:2;background:var(--panel);border-radius:6px 6px 0 0}
+  /* the map takes what the controls and the dock leave */
+  #simview{height:100%;min-height:520px}
+  .transport{flex-direction:row;flex-wrap:wrap;align-items:center}
+  .transport>.status{flex:1 0 auto}
+  #simview>.mapwrap{flex:1 1 0;min-height:220px;aspect-ratio:auto;width:100%}
+  .tele{height:var(--dock-h,220px);min-height:0;padding:8px 12px 10px;gap:8px}
+  .tele.folded{height:auto}
+  .tele-grid{flex:1 1 0;min-height:0}
+  .tele-grid>*{min-height:0;height:100%}
+  #plot{height:100%;min-height:80px}
+  .tele-side{min-height:0}
+  .tele-log,.tele-met{overflow:hidden;flex:1 1 0;min-height:0}
+  .tele .log{height:auto;flex:1 1 0;min-height:0;max-height:none;resize:none}
+  .tele-met .metrics{flex:1 1 0;min-height:0;overflow-y:auto;align-content:start;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+}
+@media (min-width:961px) and (max-width:1279px){#modehint{display:none}}
+
 /* Phone (≤ 760 px): one column in the order you use it — title, map, a sticky transport bar, telemetry, then the level,
    brief and the console collapsed to its tab row. The wrappers become display:contents, so this is only a CSS reorder
    of the same DOM (scripts, tests and the worker see no difference). */
 @media (max-width:760px){
   body{padding-block:10px 24px}
   .layout{gap:10px}
-  .right,.ctx,.stage,#simview:not([hidden]){display:contents}
-  .top{order:1}
+  .appbar,.right,.ctx,.stage,#simview:not([hidden]){display:contents}
+  .brand{order:1}
+  .appbar h1{font-size:1.75rem}
   .modebar{order:2} #modehint{display:none}
   .mapwrap,#anview{order:3}
   html{scroll-padding-top:116px}   /* jumps (Symbols, Try) land below the sticky transport bar */

@@ -36,12 +36,14 @@ function paintSearch(){
 let lastSearch=null;
 function sizeCanvas(c){const r=c.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);const w=Math.max(1,Math.round(r.width*dpr)),h=Math.max(1,Math.round(r.height*dpr));if(c.width!==w||c.height!==h){c.width=w;c.height=h;}return dpr;}
 const VIEW={z:1,cx:W/2,cy:H/2,follow:false};
-function viewClamp(){const z=VIEW.z,hw=W/(2*z),hh=H/(2*z);VIEW.cx=clamp(VIEW.cx,hw,W-hw);VIEW.cy=clamp(VIEW.cy,hh,H-hh);}
-function viewXform(){const k0=cv.width/W,kz=k0*VIEW.z;return{kz,tx:cv.width/2-VIEW.cx*kz,ty:cv.height/2+VIEW.cy*kz};}
+// The canvas takes whatever shape its panel has; zoom 1 fits the whole world in it (letterboxed), centred.
+const viewK0=()=>Math.min(cv.width/W,cv.height/H);
+function viewClamp(){const kz=viewK0()*VIEW.z,hw=cv.width/(2*kz),hh=cv.height/(2*kz);VIEW.cx=hw>=W/2?W/2:clamp(VIEW.cx,hw,W-hw);VIEW.cy=hh>=H/2?H/2:clamp(VIEW.cy,hh,H-hh);}
+function viewXform(){const kz=viewK0()*VIEW.z;return{kz,tx:cv.width/2-VIEW.cx*kz,ty:cv.height/2+VIEW.cy*kz};}
 function zoomAt(f,sx,sy){   // sx, sy in canvas pixels
   const{kz,tx,ty}=viewXform(),wx=(sx-tx)/kz,wy=(ty-sy)/kz,z2=clamp(VIEW.z*f,1,8);
   if(z2===VIEW.z)return;VIEW.z=z2;if(z2===1){VIEW.cx=W/2;VIEW.cy=H/2;VIEW.follow=false;}
-  else{const kn=cv.width/W*z2;VIEW.cx=wx-(sx-cv.width/2)/kn;VIEW.cy=wy+(sy-cv.height/2)/kn;}
+  else{const kn=viewK0()*z2;VIEW.cx=wx-(sx-cv.width/2)/kn;VIEW.cy=wy+(sy-cv.height/2)/kn;}
   viewClamp();syncViewUI();draw();
 }
 function syncViewUI(){const f=$('#mv-follow');if(f)f.setAttribute('aria-pressed',String(VIEW.follow));const t=$('#mv-fit');if(t)t.disabled=VIEW.z===1;}
@@ -49,8 +51,8 @@ function draw(){
   readTokens();
   if(VIEW.follow&&VIEW.z>1&&S){VIEW.cx=S.robot.x;VIEW.cy=S.robot.y;viewClamp();}
   const dpr=sizeCanvas(cv),{kz,tx,ty}=viewXform(),k=kz,px=n=>n*dpr/k;
-  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=TOK['map-bg'];ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.setTransform(k,0,0,-k,tx,ty);ctx.imageSmoothingEnabled=false;ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=TOK.bg;ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.setTransform(k,0,0,-k,tx,ty);ctx.fillStyle=TOK['map-bg'];ctx.fillRect(0,0,W,H);ctx.imageSmoothingEnabled=false;ctx.lineJoin='round';ctx.lineCap='round';
   // 1 m grid
   ctx.strokeStyle=TOK.grid;ctx.lineWidth=px(1);ctx.beginPath();for(let x=1;x<W;x++){ctx.moveTo(x,0);ctx.lineTo(x,H);}for(let y=1;y<H;y++){ctx.moveTo(0,y);ctx.lineTo(W,y);}ctx.stroke();
   // map
@@ -184,5 +186,5 @@ function ellipse(x,y,Pc){
   const a=Pc[0],b=Pc[1],c=Pc[4];const tr=(a+c)/2,dd=Math.sqrt(Math.max(0,((a-c)/2)**2+b*b));const l1=tr+dd,l2=Math.max(0,tr-dd);const ang=0.5*Math.atan2(2*b,a-c);
   const s=2.4477; // sqrt(chi2_2(0.95))
   ctx.save();ctx.translate(x,y);ctx.rotate(ang);ctx.beginPath();ctx.ellipse(0,0,Math.max(0.02,s*Math.sqrt(l1)),Math.max(0.02,s*Math.sqrt(l2)),0,0,TAU);ctx.restore();
-  ctx.fillStyle=rgba(TOK.rose,0.12);ctx.fill();ctx.strokeStyle=TOK.rose;ctx.lineWidth=1.5*Math.min(window.devicePixelRatio||1,2)/(cv.width/W);ctx.stroke();
+  ctx.fillStyle=rgba(TOK.rose,0.12);ctx.fill();ctx.strokeStyle=TOK.rose;ctx.lineWidth=1.5*Math.min(window.devicePixelRatio||1,2)/viewXform().kz;ctx.stroke();
 }

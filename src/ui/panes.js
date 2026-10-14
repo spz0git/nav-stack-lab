@@ -1,10 +1,12 @@
 
 let tryOpen=false;   // the Try list starts collapsed so the map and telemetry fit on screen
+let briefOpen=true;   // the level's description; folding it is remembered (workspace.js)
 function buildLevels(){
   $('#levels').innerHTML=LEVELS.map((L,i)=>`<button class="lvl" data-i="${i}" aria-pressed="${L===LV}" title="${L.id} ${L.name}">${L.id}</button>`).join('');
   $('#levels').querySelectorAll('.lvl').forEach(b=>b.onclick=()=>loadLevel(+b.dataset.i));
-  $('#brief').innerHTML=`<div><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3><p class="adds">${LV.adds}</p></div><details class="try" ${tryOpen?'open':''}><summary><h3>Try (${LV.tries.length}) · each button sets the lab up and runs</h3></summary><ul>${LV.tries.map((t,i)=>`<li>${t.t}<div class="tries">${t.b.map((x,j)=>`<button class="btn small" data-lt="${i}:${j}">${x[0]}</button>`).join('')}</div></li>`).join('')}</ul></details>`;
+  $('#brief').innerHTML=`<details class="adds-d" ${briefOpen?'open':''}><summary><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3></summary><p class="adds">${LV.adds}</p></details><details class="try" ${tryOpen?'open':''}><summary><h3>Try (${LV.tries.length}) · each button sets the lab up and runs</h3></summary><ul>${LV.tries.map((t,i)=>`<li>${t.t}<div class="tries">${t.b.map((x,j)=>`<button class="btn small" data-lt="${i}:${j}">${x[0]}</button>`).join('')}</div></li>`).join('')}</ul></details>`;
   $('#brief .try').ontoggle=e=>{tryOpen=e.target.open;};
+  $('#brief .adds-d').ontoggle=e=>{briefOpen=e.target.open;wsSave();};
   $('#brief').querySelectorAll('[data-lt]').forEach(b=>b.onclick=()=>{const[i,j]=b.dataset.lt.split(':').map(Number);tryGo(LV.tries[i].b[j][1]);});
 }
 async function tryGo(cfg){

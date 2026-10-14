@@ -96,6 +96,37 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .mapview button{width:28px;height:28px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:5px;font-size:1rem;line-height:1;cursor:pointer;opacity:.85}
 .mapview button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 .mapview button:disabled{opacity:.4;cursor:default}
+.mapview button svg,.maptools button svg{display:block;margin:auto}
+.mapview button[aria-expanded="true"]{background:var(--ink);color:var(--panel)}
+/* map tools (7.3): what a tap does, always visible on the map */
+.maptools{position:absolute;top:8px;left:8px;z-index:3;display:flex;align-items:center;gap:2px;padding:2px;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.maptools button{width:30px;height:28px;border:0;border-radius:4px;background:transparent;color:var(--muted);padding:0}
+.maptools button:hover{color:var(--ink);background:var(--raise)}
+.maptools button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.mt-sep{width:1px;align-self:stretch;margin:3px 3px;background:var(--line)}
+.toolhint{position:absolute;top:46px;left:8px;z-index:3;max-width:min(420px,calc(100% - 60px));font-size:.78rem;line-height:1.35;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:5px;padding:4px 9px;pointer-events:none}
+.toolhint[hidden]{display:none}
+#map[data-tool="select"]{cursor:pointer}#map[data-tool="kidnap"],#map[data-tool="beacon"],#map[data-tool="wp"],#map[data-tool="pose"]{cursor:crosshair}
+/* Select: the pinned card */
+.selcard{position:absolute;left:8px;bottom:30px;z-index:3;width:min(300px,calc(100% - 60px));background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:6px;padding:6px 10px 8px;box-shadow:0 2px 10px rgba(0,0,0,.15);font-size:.8rem}
+.selcard[hidden]{display:none}
+.selhead{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:var(--f-display);font-size:.95rem}
+.selhead .ibtn{padding:0 7px;font-size:1rem}
+.selcard dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 10px;margin:4px 0 0}
+.selcard dt{color:var(--muted)}.selcard dd{margin:0;font-family:var(--f-mono);font-size:.76rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+/* Layers: the display list next to the view buttons */
+.layerpop{position:absolute;top:8px;right:46px;z-index:5;width:min(360px,calc(100% - 60px));max-height:calc(100% - 16px);overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:8px 10px;font-size:.84rem}
+.layerpop[hidden]{display:none}
+.lp-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}.lp-head b{font-family:var(--f-display);font-size:1rem}.lp-head .linkbtn{margin-left:auto;font-size:.78rem}
+.lp-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 8px;align-items:start;padding:5px 0 5px 6px;border-top:1px solid var(--line);border-left:3px solid var(--sys,transparent);cursor:pointer}
+.lp-row input{margin-top:3px;accent-color:var(--accent)}
+.lp-name{font-weight:500}.lp-name small{display:block;font-weight:400;font-size:.74rem;color:var(--muted)}
+.lp-st{grid-column:2;font-family:var(--f-mono);font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lp-st::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--line);vertical-align:1px}
+.lp-st.live::before{background:var(--ok)}.lp-st.idle::before{background:var(--warn)}
+.lp-row.off .lp-name{color:var(--muted)}
+.lp-foot{margin:6px 0 0;font-size:.74rem;color:var(--muted)}
+.tl-opt{white-space:nowrap}
 .maptip{position:absolute;z-index:4;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:5px 8px;font-size:.78rem;line-height:1.4;box-shadow:0 2px 8px rgba(0,0,0,.15);max-width:240px}
 .mapwrap{position:relative;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--map-bg);aspect-ratio:3/2;max-width:100%;touch-action:manipulation}
 #map{display:block;width:100%;height:100%}
@@ -193,7 +224,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .scrub[data-state="replay"] .tl-time{color:var(--accent)}
 /* the transport's parts sit where they are used: the status strip above the map, the timeline under it */
 .transport{display:contents}
-#status{order:0}.tapctl{order:1}#firstrun{order:2}#simview>.mapwrap{order:3}.timeline{order:4}.hsplit{order:5}.tele{order:6}
+#status{order:0}#firstrun{order:2}#simview>.mapwrap{order:3}.timeline{order:4}.hsplit{order:5}.tele{order:6}
 .status .kv b.replay{color:var(--accent)}
 .st-replay{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:var(--accent-ink);border-radius:4px;padding:1px 7px;align-self:center}
 .bad{color:var(--bad)}
@@ -388,7 +419,6 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .scrub{flex:0 0 auto}
   .scrub[data-state="live-running"],.scrub[data-state="empty"]{display:none}
   .tl-time{min-width:0}
-  .tapctl{order:6}
   #firstrun{order:8}
   .tele{order:9}
   .levels{order:10}
@@ -404,8 +434,14 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .transport .btn{padding:6px 10px}
   .transport .btn.primary{min-width:64px}
   .transport .sel.speed{flex:1 1 auto;min-width:0}
-  .tapctl .sel{flex:1 1 auto;order:1} .tapctl .lbl{order:0} .tapctl .btn{order:2} .tapctl .check{order:3}
   .tab{padding:8px 7px 7px;font-size:.9rem}
+  .mapwrap{aspect-ratio:auto;display:flex;flex-direction:column}
+  #map{aspect-ratio:3/2;height:auto}
+  .maptools{position:static;border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;padding:3px 4px;gap:4px}
+  .maptools button{width:40px;height:34px}
+  .mapview{top:50px}
+  .toolhint{top:50px;max-width:calc(100% - 64px)}
+  .layerpop{top:50px;right:44px;max-height:calc(100% - 58px)}
   .console.collapsed #panes{display:none}
   .console.collapsed .tabs{border-bottom:0}
   .console.collapsed .tab[aria-selected="true"]{color:var(--muted);border-bottom-color:transparent}
@@ -467,22 +503,9 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
         <div class="scrub" id="scrub">
           <div class="tl-track" id="tl-track"><div class="tl-marks" id="tl-marks" aria-hidden="true"></div><input type="range" id="scrubr" min="0" max="0" value="0" aria-label="Time in the recorded run" title="Drag to review the run (pauses). , and . step 0.1 s. Run or Step continues from the live state."></div>
           <span class="kv tl-time" id="scrubt"></span><button class="btn small" id="scrub-live" hidden title="Back to the live state (End)">Live</button>
+          <label class="check sm tl-opt" title="Pause the simulation when the robot touches an obstacle or a person"><input type="checkbox" id="pausec"><span>Pause on contact</span></label>
         </div>
       </div>
-      </div>
-      <div class="controls tapctl">
-        <label class="check sm" title="Pause the simulation when the robot touches an obstacle or a person"><input type="checkbox" id="pausec"><span>Pause on contact</span></label>
-        <span class="ctl-sep"></span>
-        <label class="lbl" for="tapsel">Tap map</label>
-        <select class="sel" id="tapsel">
-          <option value="wp">Add goal</option>
-          <option value="pose">Goal with heading (drag)</option>
-          <option value="goal">Replace all goals</option>
-          <option value="beacon">Switch a beacon on/off</option>
-        </select>
-        <button class="btn" id="clearwp" title="Remove every goal">Clear goals</button>
-        <span class="ctl-sep"></span>
-        <button class="btn" id="kidnapb" title="Then tap the map where the robot should be teleported (the estimator is not told)" aria-pressed="false">Kidnap…</button>
       </div>
       <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across six levels. <b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
       <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll to zoom; drag to pan."></canvas>
@@ -4814,6 +4837,7 @@ function draw(){
   robotShape(S.est.x,S.est.y,S.est.th,false,px);
   robotShape(S.robot.x,S.robot.y,S.robot.th,true,px);
   drawHoverGhost(px);   // the robot at the time hovered on the timeline or the plot (replay.js)
+  drawSelection(px);   // the Select tool's pick (maptools.js)
   // text overlays in screen space
   ctx.setTransform(1,0,0,1,0,0);
   const toS=(x,y)=>[x*k+tx,ty-y*k];
@@ -5123,7 +5147,7 @@ M = diag(σ_v², σ_ω²)  (assumed noise × filter scale)</div>
 H = [−Δx/√q  −Δy/√q   0 ;  Δy/q  −Δx/q  −1]
 S = HΣHᵀ + Q,  K = ΣHᵀS⁻¹,  μ += K(z − ẑ)
 unlabeled: pick min Mahalanobis d² = νᵀS⁻¹ν, gate d² < 9.21 (χ²₂, 99%)</div>
-<p><b>Beacon availability.</b> Switch beacons off (the numbered chips, or Tap map → Switch a beacon on/off) or let them fail at random. While no beacon is in view the EKF and the particle filter only predict, exactly as dead reckoning does, and the ellipse grows; the first reading back pulls the estimate in. Dead reckoning never uses beacons, so the map draws no beacon readings for it. On the map a switched-off beacon is a grey hollow diamond with a stroke; one in a random outage is a hollow diamond.</p>
+<p><b>Beacon availability.</b> Switch beacons off (the numbered chips, or the map's Beacon tool) or let them fail at random. While no beacon is in view the EKF and the particle filter only predict, exactly as dead reckoning does, and the ellipse grows; the first reading back pulls the estimate in. Dead reckoning never uses beacons, so the map draws no beacon readings for it. On the map a switched-off beacon is a grey hollow diamond with a stroke; one in a random outage is a hollow diamond.</p>
 <p><b>Particle filter</b> (Monte Carlo localization) samples the motion model per particle, weights by beacon likelihood with a robust floor, and resamples with the low-variance sampler when N_eff &lt; N/2. Augmented MCL tracks short- and long-term likelihood averages (α_fast = 0.1, α_slow = 0.001) and, when the short-term average drops, replaces up to 25% of particles with poses drawn from the current beacon readings (sensor-resetting localization). That is what recovers from kidnapping.</p>
 <p>With a prior map the particle filter can also score lidar scans (likelihood field, 24 beams, σ = 0.2 m, tempered by 0.4 because beams are correlated). Beacons alone are sparse; walls are everywhere.</p>
 <p>Like AMCL, the filter skips sensor updates until the robot has moved about 5 cm (or turned about 0.1 rad). Updating while parked would resample the same evidence over and over and collapse the particle set.</p>
@@ -5165,7 +5189,7 @@ margin 0.15 m · analytic expansion: a Reeds–Shepp shot to the goal every 10 e
 <p><b>Space-time A*</b> (diff-drive) searches (x, y, t) on a 0.2 m grid with moves to the 8 neighbours or a wait, each costing its time at the reference speed. A cell is blocked at a time when a tracked agent's predicted disc, inflated by the robot radius and the clearance margin, covers it; past the prediction horizon only the static map counts. The path geometry goes to the tracker and the speed planner keeps the schedule.</p>
 <p><b>Steering margin.</b> Planning at 100% of δ_max produces full-lock arcs. A tracker that starts such an arc slightly off has no steering left to correct with. By default the planners use 85%. Push it to 100% and watch the parking legs fail.</p>
 <p>The two heuristics cover each other's blind spots. The 2D term sees walls but not turning; the Reeds–Shepp term sees turning but not walls. Collision checks use the car footprint (three covering circles) on the costmap distance field.</p>
-<p>To give a goal a heading, use <b>Tap map to → Add posed goal</b> and drag in the direction the car should face. Goals without a heading are accepted at any heading.</p>
+<p>To give a goal a heading, use the map's <b>Goal with heading</b> tool and drag in the direction the car should face. Goals without a heading are accepted at any heading.</p>
 <p><b>Agents and the global plan.</b> The global plan ignores them on purpose: people move faster than a global plan stays valid, and the speed planner handles them. Only when it reports an agent blocking the path does the replan add that agent's predicted positions over the next 2 s to the costmap, for that one plan.</p>`,
  ctl:`<p><b>Pure pursuit</b> steers toward a carrot point an arc length L ahead on the path.</p>
 <div class="eq">L = L₀ + k·v,   α = angle to carrot in body frame
@@ -5289,7 +5313,7 @@ const TIPS={loc:'Which estimator produces the pose the planner and controller us
  plan:'Global planner on the costmap. Reeds–Shepp and Hybrid A* are car-only.',planPct:'Fraction of the steering limit the planner may use. The rest is margin for the tracker.',eps:'Heuristic weight. Above 1 the search is faster and the path up to ε times longer.',hybH:'Which heuristic guides Hybrid A*.',revOK:'Allow reverse legs with cusps.',revPen:'Cost multiplier on reverse distance.',gearPen:'Fixed cost for each change of direction.',rrtIt:'Samples per RRT* run.',smooth:'Shortcut the path with line-of-sight checks.',agPlan:'When the speed planner cannot avoid an agent, replan around its predicted positions.',
  ctl:'Path tracker that turns the plan into speed and steering.',vcruise:'Speed the reference profile aims for on straights.',spd:'How path trackers and MPC react to tracked agents. Ignore: not at all. Reactive stop: brake for hits in the corridor ahead (path trackers). Speed planning: ST-graph speed profile against the predictions; it caps a path tracker\'s speed and is MPC\'s reference.',stMarg:'Clearance the speed planner keeps from predicted agents.',ppL0:'Lookahead distance at zero speed.',ppK:'Extra lookahead per m/s of speed.',alat:'Lateral acceleration cap that slows the robot in curves.',rwKth:'Heading-error gain of rear-wheel feedback. Higher damps more.',rwKe:'Lateral-error gain of rear-wheel feedback. Higher is stiffer.',stanK:'Stanley cross-track gain.',kp:'Proportional gain on heading error to the carrot.',ki:'Integral gain; removes steady error but adds phase lag.',kd:'Derivative gain on heading error.',dwaG:'DWA weight on distance and heading to the carrot.',dwaO:'DWA weight on clearance.',dwaV:'DWA weight on speed.',dwaT:'How far DWA rolls each candidate out.',
  mpcMode:'NMPC relinearizes every iteration; LTV linearizes once about the reference.',mpcNp:'Prediction horizon in steps of Δt.',mpcNc:'Free input moves; later moves are held at the last one.',mpcDt:'Prediction step.',mpcIt:'SQP iterations per 50 ms tick, within a 15 ms budget.',mpcQlat:'Penalty on lateral error.',mpcQlon:'Penalty on along-track error.',mpcQth:'Penalty on heading error.',mpcQv:'Penalty on speed error.',mpcQf:'Multiplier on the last step of the horizon.',mpcRa:'Penalty on acceleration input.',mpcRs:'Penalty on steering-rate or angular-acceleration input.',mpcRd:'Penalty on the change between consecutive moves.',mpcRho:'Augmented-Lagrangian penalty for the state constraints.',mpcObs:'Add clearance constraints against lidar points and predicted agents.',mpcMarg:'Extra clearance in the obstacle constraints.',mpcLag:'Model the first-order actuator lag with two more states.',
- model:'Unicycle turns in place; the bicycle model steers front wheels and needs motion to turn.',wheelbase:'Distance between axles.',steerMaxDeg:'Steering limit; sets the minimum turning radius.',steerRate:'How fast the steering angle can change.',vmax:'Speed limit.',wmax:'Turn-rate limit of the unicycle.',accel:'Enforce acceleration limits in the vehicle.',amax:'Linear acceleration limit.',alpha:'Angular acceleration limit.',lag:'First-order actuator time constant.',latency:'Ticks a command waits before reaching the actuators.',biasDeg:'Constant offset between commanded and actual steering angle.',biasW:'Constant offset in turn rate, as from one weak motor.',odoK:'Odometry noise scale.',odoB:'Odometry calibration bias the filters are not told about.',lmK:'Beacon range and bearing noise scale.',bOff:'Beacons switched off send no readings. Also: Tap map → Switch a beacon on/off.',bOut:'Each beacon fails at random and comes back; this is the share of time it is down. Outages have their own random stream, so the sensor noise is unchanged.',bOutLen:'Average length of one outage. A few tenths of a second is a flicker; several seconds is a dead zone.',lmRange:'Beacon sensor range.',clutter:'False beacon detections per scan in unlabeled mode.',lidarSig:'Lidar range noise.',seed:'Seed of the world and sensor noise. Applied on Reset.'};
+ model:'Unicycle turns in place; the bicycle model steers front wheels and needs motion to turn.',wheelbase:'Distance between axles.',steerMaxDeg:'Steering limit; sets the minimum turning radius.',steerRate:'How fast the steering angle can change.',vmax:'Speed limit.',wmax:'Turn-rate limit of the unicycle.',accel:'Enforce acceleration limits in the vehicle.',amax:'Linear acceleration limit.',alpha:'Angular acceleration limit.',lag:'First-order actuator time constant.',latency:'Ticks a command waits before reaching the actuators.',biasDeg:'Constant offset between commanded and actual steering angle.',biasW:'Constant offset in turn rate, as from one weak motor.',odoK:'Odometry noise scale.',odoB:'Odometry calibration bias the filters are not told about.',lmK:'Beacon range and bearing noise scale.',bOff:'Beacons switched off send no readings. Also: the Beacon tool on the map (B).',bOut:'Each beacon fails at random and comes back; this is the share of time it is down. Outages have their own random stream, so the sensor noise is unchanged.',bOutLen:'Average length of one outage. A few tenths of a second is a flicker; several seconds is a dead zone.',lmRange:'Beacon sensor range.',clutter:'False beacon detections per scan in unlabeled mode.',lidarSig:'Lidar range noise.',seed:'Seed of the world and sensor noise. Applied on Reset.'};
 function lvlDefault(k){return k in (LV.cfg||{})?LV.cfg[k]:DEFAULTS[k];}
 function chgMark(f){const d=lvlDefault(f.k);if(d===undefined||P[f.k]===d)return'';const o=f.opts&&(typeof f.opts==='function'?f.opts():f.opts).find(x=>x[0]===d);
   const dv=typeof d==='number'?fmtVal(f,d):typeof d==='boolean'?(d?'on':'off'):o?o[1]:d===''?'none':d;return`<button class="rst" data-reset="${f.k}" title="Back to this level's default (${dv})">↺</button>`;}
@@ -7543,9 +7567,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='0'){$('#mv-fit').click();}
   else if(e.key==='a'||e.key==='A'){setMode(AN.mode==='sim'?'an':'sim');}
 });
-$('#tapsel').onchange=e=>{tapMode=e.target.value;if(tapMode==='beacon')logE('Tap a beacon (diamond) to switch it off or on');$('#kidnapb').setAttribute('aria-pressed','false');cv.style.touchAction=tapMode==='pose'?'none':'manipulation';};
 $('#pausec').onchange=e=>{pauseOnContact=e.target.checked;};
-$('#kidnapb').onclick=()=>{const on=tapMode!=='kidnap';tapMode=on?'kidnap':$('#tapsel').value;$('#kidnapb').setAttribute('aria-pressed',String(on));if(on)logE('Tap the map where the robot should be teleported','warn');};
 $('#legendmore').onclick=()=>showSym('map');
 $('#an-src').onclick=()=>showSource('analysis/model.js');
 function syncAnControls(){
@@ -7575,7 +7597,6 @@ $('#run').onclick=()=>{
 };
 $('#stepb').onclick=async()=>{exitReplay();running=false;if((S.fsm.state==='IDLE')&&remaining().length)startMission();await advance(10);draw();refreshAll();};
 $('#resetb').onclick=()=>{running=false;reset();};
-$('#clearwp').onclick=()=>{WPS=[];S.fsm.queue=[];S.fsm.state='IDLE';S.track=null;S.plan=null;S.ctlViz=null;S.search=null;logE('Goals cleared');draw();refreshAll();};
 const toCanvas=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)/r.width*cv.width,(e.clientY-r.top)/r.height*cv.height];};
 const toWorld=e=>{const[sx,sy]=toCanvas(e),{kz,tx,ty}=viewXform();return[(sx-tx)/kz,(ty-sy)/kz];};
 const toScreen=(x,y)=>{const{kz,tx,ty}=viewXform(),r=cv.getBoundingClientRect();return[(x*kz+tx)*r.width/cv.width,(ty-y*kz)*r.height/cv.height];};
@@ -7606,6 +7627,7 @@ cv.addEventListener('pointerdown',e=>{
   tapAt(x,y,e);
 });
 function tapAt(x,y,e){
+  if(tapMode==='select'){mapSelectAt(x,y);return;}
   const k=cellIdx(x,y);if(k<0)return;
   if(tapMode==='beacon'){const{kz}=viewXform(),r=cv.getBoundingClientRect(),tol=22*(cv.width/r.width)/kz;let best=null;
     for(const b of S.beacons){const d=hyp(x-b.x,y-b.y);if(d<tol&&(!best||d<best[0]))best=[d,b];}
@@ -7614,7 +7636,7 @@ function tapAt(x,y,e){
   const free=LV.truthDist[k]>(isCar()?CAR.width/2+0.05:RR+0.02);
   if(tapMode==='kidnap'){
     if(isCar()?carHits(x,y,S.robot.th,S.shapes,0.02):!free){logE('Cannot place the robot inside an obstacle','warn');return;}
-    kidnapTo([x,y]);tapMode=$('#tapsel').value;$('#kidnapb').setAttribute('aria-pressed','false');return;
+    kidnapTo([x,y]);setTool(toolBefore);return;
   }
   if(!free){logE('That spot is inside an obstacle (or too close for the robot)','warn');return;}
   if(tapMode==='goal'){WPS.forEach(w=>w.done=true);WPS=[{x,y,th:null,done:false}];}
@@ -7629,26 +7651,176 @@ function tapAt(x,y,e){
   $('#mv-key').onclick=()=>{const l=$('#legend'),on=l.hidden;l.hidden=!on;$('#mv-key').setAttribute('aria-pressed',String(on));};
   $('#mv-follow').onclick=()=>{VIEW.follow=!VIEW.follow;if(VIEW.follow&&VIEW.z===1)VIEW.z=2.5;syncViewUI();draw();};syncViewUI();}
 function hideTip(){const t=$('#maptip');if(t&&!t.hidden)t.hidden=true;}
+// Things on the map under a point: [distance, card html, reference]; the Select tool keeps the reference (maptools.js)
+function mapCandidates(x,y){
+  const C=[],rb=S.robot,es=S.est;
+  C.push([hyp(x-rb.x,y-rb.y),()=>`<b>True pose</b><br>${rb.x.toFixed(2)}, ${rb.y.toFixed(2)} m · ${deg(rb.th).toFixed(0)}°<br>v ${rb.v.toFixed(2)} m/s · ${isCar()?`δ ${deg(rb.d).toFixed(0)}°`:`ω ${rb.w.toFixed(2)} rad/s`}`,{k:'robot'}]);
+  if(P.loc!=='truth')C.push([hyp(x-es.x,y-es.y),()=>`<b>Estimate</b> (${({dr:'dead reckoning',ekf:'EKF',pf:'particle filter',slam:'EKF-SLAM',custom:'your code'})[P.loc]})<br>${es.x.toFixed(2)}, ${es.y.toFixed(2)} m · ${deg(es.th).toFixed(0)}°<br>error ${hyp(rb.x-es.x,rb.y-es.y).toFixed(2)} m${S.Pc?` · σ<sub>pos</sub> ${posSigma().toFixed(2)} m`:''}`,{k:'est'}]);
+  WPS.forEach((w,i)=>{const q=S.fsm.queue.indexOf(i);C.push([hyp(x-w.x,y-w.y),()=>`<b>Goal ${q>=0?q+1:i+1}</b> · ${w.done?(w.skipped?'skipped':'reached'):q===0?'active':'queued'}<br>${w.x.toFixed(2)}, ${w.y.toFixed(2)} m${w.th!=null?` · heading ${deg(w.th).toFixed(0)}°`:''}`,{k:'goal',i}]);});
+  S.peds.forEach((p,i)=>C.push([hyp(x-p.x,y-p.y)-0.1,()=>p.car?`<b>Vehicle</b> (ground truth)<br>${p.v.toFixed(2)} m/s${p.v<0.05?' · yielding':''}`:`<b>Person ${i+1}</b> (ground truth)<br>${hyp(p.vx||0,p.vy||0).toFixed(2)} m/s${p.wait>0?' · paused':''}`,{k:'ped',i}]));
+  if(S.agents&&agOn())for(const t of S.agents.tracks)C.push([hyp(x-t.x,y-t.y)-0.1,()=>`<b>Agent #${t.id}</b> · ${t.conf?'confirmed':'tentative'}<br>v ${hyp(t.vx,t.vy).toFixed(2)} m/s · heading ${deg(Math.atan2(t.vy,t.vx)).toFixed(0)}°<br>r ${t.r.toFixed(2)} m · ${t.hits} hits · σ<sub>pos</sub> ${Math.sqrt(Math.max(0,t.pxx)).toFixed(2)} m`,{k:'track',id:t.id}]);
+  for(const b of S.beacons)C.push([hyp(x-b.x,y-b.y),()=>`<b>Beacon ${b.id}</b> · ${beaconsOff().has(b.id)?'switched off':S.bDown&&S.bDown[b.id]?'outage':'on'}<br>${b.x.toFixed(2)}, ${b.y.toFixed(2)} m${tapMode==='beacon'?'<br>tap to switch it '+(beaconsOff().has(b.id)?'on':'off'):''}`,{k:'beacon',id:b.id}]);
+  return C;
+}
+// the nearest candidate within tolPx screen pixels of world point (x, y)
+function mapPick(x,y,tolPx){const{kz}=viewXform(),r=cv.getBoundingClientRect(),tol=tolPx*(cv.width/r.width)/kz;let best=null;for(const c of mapCandidates(x,y))if(c[0]<tol&&(!best||c[0]<best[0]))best=c;return best;}
 // hover cards: nearest of robot, estimate, goals, people, tracks, beacons within 14 px
 function hoverAt(e){
-  if(!S)return;const[x,y]=toWorld(e),{kz}=viewXform(),r=cv.getBoundingClientRect(),tol=14*(cv.width/r.width)/kz;const C=[];
-  const rb=S.robot,es=S.est;
-  C.push([hyp(x-rb.x,y-rb.y),()=>`<b>True pose</b><br>${rb.x.toFixed(2)}, ${rb.y.toFixed(2)} m · ${deg(rb.th).toFixed(0)}°<br>v ${rb.v.toFixed(2)} m/s · ${isCar()?`δ ${deg(rb.d).toFixed(0)}°`:`ω ${rb.w.toFixed(2)} rad/s`}`]);
-  if(P.loc!=='truth')C.push([hyp(x-es.x,y-es.y),()=>`<b>Estimate</b> (${({dr:'dead reckoning',ekf:'EKF',pf:'particle filter',slam:'EKF-SLAM',custom:'your code'})[P.loc]})<br>${es.x.toFixed(2)}, ${es.y.toFixed(2)} m · ${deg(es.th).toFixed(0)}°<br>error ${hyp(rb.x-es.x,rb.y-es.y).toFixed(2)} m${S.Pc?` · σ<sub>pos</sub> ${posSigma().toFixed(2)} m`:''}`]);
-  WPS.forEach((w,i)=>{const q=S.fsm.queue.indexOf(i);C.push([hyp(x-w.x,y-w.y),()=>`<b>Goal ${q>=0?q+1:i+1}</b> · ${w.done?(w.skipped?'skipped':'reached'):q===0?'active':'queued'}<br>${w.x.toFixed(2)}, ${w.y.toFixed(2)} m${w.th!=null?` · heading ${deg(w.th).toFixed(0)}°`:''}`]);});
-  S.peds.forEach((p,i)=>C.push([hyp(x-p.x,y-p.y)-0.1,()=>p.car?`<b>Vehicle</b> (ground truth)<br>${p.v.toFixed(2)} m/s${p.v<0.05?' · yielding':''}`:`<b>Person ${i+1}</b> (ground truth)<br>${hyp(p.vx||0,p.vy||0).toFixed(2)} m/s${p.wait>0?' · paused':''}`]));
-  if(S.agents&&agOn())for(const t of S.agents.tracks)C.push([hyp(x-t.x,y-t.y)-0.1,()=>`<b>Agent #${t.id}</b> · ${t.conf?'confirmed':'tentative'}<br>v ${hyp(t.vx,t.vy).toFixed(2)} m/s · heading ${deg(Math.atan2(t.vy,t.vx)).toFixed(0)}°<br>r ${t.r.toFixed(2)} m · ${t.hits} hits · σ<sub>pos</sub> ${Math.sqrt(Math.max(0,t.pxx)).toFixed(2)} m`]);
-  for(const b of S.beacons)C.push([hyp(x-b.x,y-b.y),()=>`<b>Beacon ${b.id}</b> · ${beaconsOff().has(b.id)?'switched off':S.bDown&&S.bDown[b.id]?'outage':'on'}<br>${b.x.toFixed(2)}, ${b.y.toFixed(2)} m${tapMode==='beacon'?'<br>tap to switch it '+(beaconsOff().has(b.id)?'on':'off'):''}`]);
-  let best=null;for(const c of C)if(c[0]<tol&&(!best||c[0]<best[0]))best=c;
+  if(!S)return;const[x,y]=toWorld(e),r=cv.getBoundingClientRect(),best=mapPick(x,y,14);
   const t=$('#maptip');if(!best){hideTip();return;}
   t.innerHTML=best[1]();t.hidden=false;
   const px=e.clientX-r.left,py=e.clientY-r.top;t.style.left=Math.min(px+14,r.width-t.offsetWidth-6)+'px';t.style.top=Math.max(4,py-t.offsetHeight-10)+'px';
 }
 
+/* ---- ui/maptools.js ---- */
+/* ============================================================
+   Map tools (7.3), as in RViz: a toolbar on the map picks what a tap does (Select, Goal, Goal with heading, Kidnap,
+   Beacon on/off) and the active tool is always visible; Esc returns to Goal. Select pins a card with the live values of
+   the robot, its estimate, a goal, a person, an agent track or a beacon. The Layers button opens the map's display
+   list: a switch and a one-line status for each overlay.
+   ============================================================ */
+const ICON={
+  select:'<path d="M4 2.5l8.5 5-3.8 1.1L6.6 12.6z" fill="currentColor" stroke="none"/>',
+  wp:'<circle cx="8" cy="8" r="5"/><path d="M8 5.2v5.6M5.2 8h5.6"/>',
+  pose:'<circle cx="5" cy="11" r="2.6"/><path d="M7 9l5.5-5.5M8.8 3.5h3.7v3.7"/>',
+  kidnap:'<circle cx="4.2" cy="11.8" r="2.2" fill="currentColor" stroke="none"/><path d="M6 10l4.6-4.6" stroke-dasharray="1.8 1.6"/><circle cx="12" cy="4" r="2.2"/>',
+  beacon:'<path d="M8 2.2l5.2 5.8L8 13.8 2.8 8z"/><path d="M4.4 4.4l7.2 7.2"/>',
+  clear:'<path d="M3 4.6h10M6.4 4.6V3h3.2v1.6M4.6 4.6l.7 8.6h5.4l.7-8.6"/>',
+  layers:'<path d="M8 2.4l5.8 2.9L8 8.2 2.2 5.3z"/><path d="M2.2 8.2L8 11.1l5.8-2.9M2.2 11L8 13.9l5.8-2.9"/>'};
+const svgI=k=>`<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
+const TOOLS=[['select','Select','V','Select: click the robot, its estimate, a goal, a person, a track or a beacon to see its values'],
+  ['wp','Goal','G','Goal: tap the map to add a goal (up to 8 open)'],
+  ['pose','Goal with heading','H','Goal with heading: press and drag the way the robot should face'],
+  ['kidnap','Kidnap','K','Kidnap: tap where to put the robot. The estimator is not told'],
+  ['beacon','Beacon on/off','B','Beacon: tap a diamond to switch it off or on']];
+let toolBefore='wp',toolHintT=0;
+function setTool(id){
+  if(id!=='kidnap')toolBefore=id;tapMode=id;
+  $('#maptools').querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===id)));
+  cv.style.touchAction=id==='pose'?'none':'manipulation';cv.dataset.tool=id;
+  const h=$('#toolhint'),T=TOOLS.find(t=>t[0]===id);h.textContent=T[3];h.hidden=id==='wp';clearTimeout(toolHintT);
+  if(id!=='wp'&&id!=='kidnap')toolHintT=setTimeout(()=>{h.hidden=true;},5000);   // Kidnap is one tap and then gone, so its hint stays
+  if(id==='kidnap')logE('Tap the map where the robot should be teleported','warn');
+}
+{const bar=document.createElement('div');bar.className='maptools';bar.id='maptools';bar.setAttribute('role','toolbar');bar.setAttribute('aria-label','Map tools');
+ bar.innerHTML=TOOLS.map(([id,name,key])=>`<button type="button" data-tool="${id}" aria-pressed="false" aria-label="${name}" title="${name} (${key})">${svgI(id)}</button>`).join('')+
+   `<span class="mt-sep"></span><button type="button" id="clearwp" aria-label="Clear goals" title="Remove every goal">${svgI('clear')}</button>`;
+ const hint=document.createElement('div');hint.className='toolhint';hint.id='toolhint';hint.hidden=true;hint.setAttribute('aria-live','polite');
+ const mw=$('.mapwrap');mw.insertBefore(hint,mw.firstChild);mw.insertBefore(bar,mw.firstChild);
+ bar.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool===tapMode&&b.dataset.tool!=='wp'?'wp':b.dataset.tool));}
+$('#clearwp').onclick=()=>{WPS=[];S.fsm.queue=[];S.fsm.state='IDLE';S.track=null;S.plan=null;S.ctlViz=null;S.search=null;if(SEL&&SEL.k==='goal')SEL=null;logE('Goals cleared');draw();refreshAll();};
+setTool('wp');
+
+/* ---------- Select: a pinned card with live values ---------- */
+let SEL=null;
+function mapSelectAt(x,y){const best=mapPick(x,y,18);SEL=best?best[2]:null;renderSelection();draw();}
+// the selected thing in the shown state (live, or the replayed frame), or null when it no longer exists
+function selResolve(V){
+  if(!SEL)return null;const k=SEL.k;
+  if(k==='robot')return V.robot;if(k==='est')return P.loc==='truth'?null:V.est;
+  if(k==='goal')return WPS[SEL.i]||null;if(k==='ped')return V.peds[SEL.i]||null;
+  if(k==='track')return V.agents&&V.agents.tracks.find(t=>t.id===SEL.id)||null;
+  if(k==='beacon')return S.beacons.find(b=>b.id===SEL.id)||null;return null;
+}
+function selCard(V){
+  const o=selResolve(V);if(!o)return null;const r=V.robot,e=V.est,f2=v=>(+v).toFixed(2),row=(a,b)=>`<dt>${a}</dt><dd>${b}</dd>`;
+  const LOCN={truth:'ground truth',dr:'dead reckoning',ekf:'EKF',pf:'particle filter',slam:'EKF-SLAM',custom:'your code'};
+  switch(SEL.k){
+    case'robot':return['True pose',row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('heading',`${deg(o.th).toFixed(1)}°`)+row('speed',`${f2(o.v)} m/s`)+
+      (isCar()?row('steering δ',`${deg(o.d).toFixed(1)}°`):row('turn rate ω',`${f2(o.w)} rad/s`))+row('command',`${f2(V.cmd.v)} m/s · ${isCar()?deg(V.cmd.steer||0).toFixed(1)+'°':f2(V.cmd.w)+' rad/s'}`)+
+      row('contact',o.contact||o.pedContact?'<span class="bad">yes</span>':'no')];
+    case'est':{const P3=V.Pc,sd=i=>P3?Math.sqrt(Math.max(0,P3[i])):null;
+      return[`Estimate · ${LOCN[P.loc]||P.loc}`,row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('heading',`${deg(o.th).toFixed(1)}°`)+
+      row('error',`${f2(hyp(r.x-o.x,r.y-o.y))} m · ${deg(Math.abs(wrap(r.th-o.th))).toFixed(1)}°`)+
+      (P3?row('σ x · y · θ',`${f2(sd(0))} · ${f2(sd(4))} m · ${deg(sd(8)).toFixed(1)}°`):'')+
+      (V===S&&S.pf?row('particles',`N_eff ${S.pf.neff.toFixed(0)} of ${S.pf.N}`):'')];}
+    case'goal':{const q=S.fsm.queue.indexOf(SEL.i);return[`Goal ${q>=0?q+1:SEL.i+1}`,row('status',o.done?(o.skipped?'skipped':'reached'):q===0?'active':'queued')+
+      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+(o.th!=null?row('heading',`${deg(o.th).toFixed(0)}°`):'')+row('distance',`${f2(hyp(r.x-o.x,r.y-o.y))} m from the robot`)];}
+    case'ped':return[o.car?'Vehicle (ground truth)':`Person ${SEL.i+1} (ground truth)`,row('position',`${f2(o.x)}, ${f2(o.y)} m`)+
+      row('speed',`${f2(o.car?o.v:hyp(o.vx||0,o.vy||0))} m/s${o.wait>0?' · paused':''}`)+row('distance',`${f2(Math.max(0,hyp(r.x-o.x,r.y-o.y)-(o.r||0.3)))} m to the robot's centre, minus its radius`)];
+    case'track':{const pr=agOn()?agPred(o,P.agT):null;return[`Agent track #${o.id}`,row('status',o.conf?'confirmed':'tentative')+row('position',`${f2(o.x)}, ${f2(o.y)} m`)+
+      row('velocity',`${f2(hyp(o.vx,o.vy))} m/s · ${deg(Math.atan2(o.vy,o.vx)).toFixed(0)}°`)+row('radius',`${f2(o.r)} m`)+row('hits',String(o.hits))+
+      row('σ position',`${f2(Math.sqrt(Math.max(0,o.pxx)))} m`)+(pr?row(`in ${P.agT} s`,`${f2(pr[0])}, ${f2(pr[1])} m (r ${f2(pr[2])})`):'')];}
+    case'beacon':{const d=hyp(r.x-o.x,r.y-o.y);return[`Beacon ${o.id}`,row('status',beaconsOff().has(o.id)?'switched off':V.bDown&&V.bDown[o.id]?'in an outage':'on')+
+      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('range',`${f2(d)} m from the robot${d>P.lmRange?' (beyond the '+P.lmRange+' m sensor range)':''}`)];}
+  }
+  return null;
+}
+{const c=document.createElement('div');c.className='selcard';c.id='selcard';c.hidden=true;c.setAttribute('aria-live','polite');
+ c.innerHTML='<div class="selhead"><b id="sel-title"></b><button type="button" class="ibtn" id="sel-x" aria-label="Clear the selection" title="Clear the selection (Esc)">×</button></div><dl id="sel-body"></dl>';
+ $('.mapwrap').appendChild(c);$('#sel-x').onclick=()=>{SEL=null;renderSelection();draw();};}
+function renderSelection(){
+  const c=$('#selcard');if(!SEL||!S){c.hidden=true;return;}
+  const f=replayFrame(),card=selCard(f?frameView(f):S);if(!card){c.hidden=true;return;}
+  c.hidden=false;$('#sel-title').textContent=card[0];$('#sel-body').innerHTML=card[1];
+}
+// a dashed ring around the selected thing (drawn in world coordinates by draw())
+function drawSelection(px){
+  const o=selResolve(S);if(!o||o.x==null)return;const rr=SEL.k==='ped'||SEL.k==='track'?(o.r||0.3)+px(6):px(14);
+  ctx.save();ctx.strokeStyle=TOK.accent;ctx.lineWidth=px(2);ctx.setLineDash([px(4),px(3)]);ctx.beginPath();ctx.arc(o.x,o.y,Math.max(rr,px(12)),0,TAU);ctx.stroke();ctx.restore();
+}
+
+/* ---------- Layers: the map's display list, with a status line per overlay ---------- */
+const LAYER_DEFS=[['belief','Belief','Particles or the 95 % covariance ellipse','loc'],['beam','Beacon readings','Rays from the estimate','loc'],['trail','Trails','Solid = truth, dashed = estimate','loc'],
+  ['lidar','Lidar hits','As perceived','per'],['cost','Costmap','Inflation','per'],['ghost','True-map outline','Over the built map','per'],['agents','Agents','Tracks, predictions, ego positions at the same times','per'],
+  ['search','Planner search','A* closed set, Hybrid A* nodes or the RRT* tree','plan'],['dwa','Local plan','DWA rollouts, MPC prediction and reference','ctl'],['look','Lookahead','The path tracker\'s carrot','ctl'],
+  ['ghostrun','Previous run','Ghost trail and ghost plot series','']];
+// [has something to draw now?, status text]
+function layerStatus(k){
+  const tr=P.loc==='truth',ctlTr=['pp','rwf','stanley','pid'].includes(P.ctl);
+  switch(k){
+    case'belief':return S.pf?[1,`${S.pf.N} particles`]:S.Pc?[1,'95 % ellipse']:[0,tr?'ground truth has no belief':'no covariance yet'];
+    case'beam':return tr||P.loc==='dr'?[0,`${tr?'ground truth':'dead reckoning'} uses no beacons`]:[1,`${S.lastZ.length} readings this scan`];
+    case'trail':return S.trailT.length>1?[1,`${S.trailT.length} points`]:[0,'starts when the robot moves'];
+    case'lidar':return S.scanPts.length?[1,`${S.scanPts.length} hits`]:[0,'no scan yet'];
+    case'cost':return[1,`inflation ${P.infl} m`];
+    case'ghost':return P.per==='mapping'?[1,'over the lidar map']:[0,'only with lidar mapping (Perceive)'];
+    case'agents':return agOn()?[1,`${S.agents?S.agents.tracks.length:0} tracks`]:[0,'agent tracking is off (Perceive)'];
+    case'search':return S.search?[1,S.planStats?`${S.planStats.name} · ${S.planStats.exp||0} ${S.planStats.name==='RRT*'?'nodes':'expansions'}`:'last search']:[0,'no search to show (straight line or no plan yet)'];
+    case'dwa':return P.ctl==='dwa'||P.ctl==='mpc'?[S.ctlViz?1:0,P.ctl==='mpc'?'MPC prediction':'DWA rollouts']:[0,'only DWA and MPC'];
+    case'look':return ctlTr?[S.ctlViz&&S.ctlViz.carrot?1:0,'carrot of the path tracker']:[0,'only the path trackers'];
+    case'ghostrun':return GHOST&&GHOST.level===LV.id?[1,GHOST.label]:[0,'no previous run on this level'];
+  }
+  return[0,''];
+}
+function layerPopHTML(){
+  return`<div class="lp-head"><b>Layers</b><span class="lbl">${layersEdited?'your choice':'set by the tab'}</span>${layersEdited?`<button type="button" class="linkbtn" id="lp-auto">Let each tab choose</button>`:''}</div>`+
+    LAYER_DEFS.map(([k,name,sub,sys])=>{const[has,st]=layerStatus(k),on=!!LAYERS[k];
+      return`<label class="lp-row${on?'':' off'}"${sys?` data-sys="${sys}"`:''}><input type="checkbox" data-layer="${k}" ${on?'checked':''}><span class="lp-name">${name}<small>${sub}</small></span><span class="lp-st ${on&&has?'live':on?'idle':''}" title="${esc(st)}">${esc(st)}</span></label>`;}).join('')+
+    `<p class="lp-foot">Drawing only; nothing here changes the simulation.</p>`;
+}
+let lpKey='';
+function renderLayerPop(force){
+  const p=$('#layerpop');if(!p||p.hidden)return;
+  const key=LAYER_DEFS.map(([k])=>(LAYERS[k]?1:0)+layerStatus(k).join('/')).join('|')+layersEdited;if(key===lpKey&&!force)return;lpKey=key;
+  const foc=document.activeElement&&p.contains(document.activeElement)?document.activeElement.dataset.layer:null;
+  p.innerHTML=layerPopHTML();
+  p.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;layersEdited=true;renderLayerPop(true);if(activeTab==='view')renderAllPanes();draw();});
+  const au=$('#lp-auto');if(au)au.onclick=()=>{layersEdited=false;layersKey='';applyTabLayers(true);renderLayerPop(true);if(activeTab==='view')renderAllPanes();};
+  if(foc){const el=p.querySelector(`input[data-layer="${foc}"]`);if(el)el.focus();}
+}
+function toggleLayerPop(on){
+  const p=$('#layerpop'),b=$('#mv-layers');on=on==null?p.hidden:on;p.hidden=!on;b.setAttribute('aria-expanded',String(on));
+  if(on){renderLayerPop(true);const f=p.querySelector('input');if(f)f.focus();}
+}
+{const b=document.createElement('button');b.id='mv-layers';b.type='button';b.title='Layers: what the map draws (L)';b.setAttribute('aria-label','Layers');b.setAttribute('aria-expanded','false');b.setAttribute('aria-controls','layerpop');b.innerHTML=svgI('layers');
+ const vb=$('.mapview');vb.insertBefore(b,$('#mv-key'));b.onclick=()=>toggleLayerPop();
+ const p=document.createElement('div');p.className='layerpop';p.id='layerpop';p.hidden=true;p.setAttribute('role','dialog');p.setAttribute('aria-label','Map layers');$('.mapwrap').appendChild(p);
+ document.addEventListener('pointerdown',e=>{if(!p.hidden&&!p.contains(e.target)&&!b.contains(e.target))toggleLayerPop(false);},true);}
+
+/* ---------- keys: V G H K B pick a tool, L opens Layers, Esc closes Layers, clears the selection, returns to Goal ---------- */
+document.addEventListener('keydown',e=>{
+  const t=e.target,tag=t&&t.tagName;if(e.metaKey||e.ctrlKey||e.altKey||tag==='TEXTAREA')return;
+  if(e.key==='Escape'){if(!$('#layerpop').hidden){toggleLayerPop(false);$('#mv-layers').focus();return;}if(SEL){SEL=null;renderSelection();draw();return;}if(tapMode!=='wp')setTool('wp');return;}
+  if(tag==='INPUT'&&t.type!=='range'&&t.type!=='checkbox'||tag==='TEXTAREA'||tag==='SELECT'||AN.mode!=='sim')return;
+  const k=e.key.toLowerCase(),T=TOOLS.find(x=>x[2].toLowerCase()===k);
+  if(T){e.preventDefault();setTool(T[0]);}else if(k==='l'){e.preventDefault();toggleLayerPop();}
+});
+
 /* ---- ui/loop.js ---- */
 
 /* ---------- main loop ---------- */
-function refreshAll(){renderStatus();renderMetrics();renderLog();fsmRefresh();}
+function refreshAll(){renderStatus();renderMetrics();renderLog();fsmRefresh();renderSelection();renderLayerPop();}
 let lastTs=0,acc=0,frame=0;
 function loop(ts){
   const dt=Math.min(0.1,(ts-lastTs)/1000||0);lastTs=ts;
@@ -7718,7 +7890,7 @@ wsApply();
 /* ---- ui/boot.js ---- */
 
 /* ---------- boot ---------- */
-UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{buildLevels();applyTabLayers(true);renderAllPanes();};UI.mode=()=>AN.mode;
+UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{SEL=null;buildLevels();applyTabLayers(true);renderAllPanes();};UI.mode=()=>AN.mode;
 buildTabs();loadLevel(0);{const c=configFromHash();if(c){try{applyConfig(c);logE('Setup restored from the link','ok');}catch(e){logE('Could not restore the setup from the link: '+e.message,'warn');}}}syncModeUI();renderLearn();lessonFromHash()||chapterFromHash();readTokens();draw();drawPlot();
 requestAnimationFrame(loop);
 window.__an={AN,anCompute,GLOSS,LESSON_TERMS,glossMark,lessonTerms,LESSONS_EXTRA,LESSON_GROUPS,spdCompute,runStepTest,runInjection,setMode,setUIMode,openLesson,lessonBack,openChapter,chapterBack,get lessonOpen(){return lessonOpen;},lessonGo,LESSONS,stepMetrics,Ljw,anBuild};window.__nav={scatter:()=>scatterParticles(),kidnapTo,get S(){return S;},P,LEVELS,loadLevel,advance,setParam,get WPS(){return WPS;},toScreen:(x,y)=>toScreen(x,y),get VIEW(){return VIEW;},get GHOST(){return GHOST;},LAYERS,EXP,expCSV,configURL,get LV(){return LV;},SLOTS,slotLoad,slamLandmarks,tryGo};

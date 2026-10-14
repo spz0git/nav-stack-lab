@@ -33,6 +33,7 @@ function runLabel(){
   return`${names[P.ctl]||P.ctl} · seed ${P.seed}${d.length?' · '+d.slice(0,3).join(', ')+(d.length>3?' …':''):''}`;
 }
 function keepGhost(){
+  if(S)UI.runEnded();   // the page keeps a copy (runs library); S and the frames are still the finished run's here
   if(S&&S.t>1&&S.trailT.length>5)GHOST={level:LV.id,label:runLabel(),trailT:S.trailT.filter(Boolean),plot:S.plot.slice(),t:S.t};
   REC.frames=[];
 }

@@ -56,6 +56,7 @@ function palItems(){
   act('addplot','Add a plot',()=>{const i=addPane([]);if(i!=null)openSigBrowser(i,$('#plotcol').querySelector(`.ppane[data-p="${i}"] [data-add]`));});
   act('whole','Plots: whole run',()=>$('#pl-all').click());act('csv','Save the run as CSV',()=>$('#pl-csv').click(),'','every signal, 10 Hz');act('png','Save the plots as PNG',()=>$('#pl-png').click());
   act('link','Copy a link to this setup',copySetupLink);act('changed','Changed settings and saved setups…',()=>toggleChanged(true));
+  act('runs','Runs: keep, compare, export…',()=>{if(AN.mode!=='sim')setUIMode('sim');toggleRuns(true);});
   act('src','View the source',()=>showSource('core/step.js'));
   for(const s of settingFields()){if(s.k==='seed'&&!SCHEMA[s.tab].includes(s.f))continue;
     add('p:'+s.k,plain(s.f.label),`Setting · ${TAB_NAME[s.tab]}`,SYS[s.tab]?s.tab:'',()=>goToField(s.k),fieldValText(s.f,P[s.k])+(chgMark(s.f)?' · changed':''));

@@ -209,6 +209,7 @@ function runLabel(){
   return`${names[P.ctl]||P.ctl} · seed ${P.seed}${d.length?' · '+d.slice(0,3).join(', ')+(d.length>3?' …':''):''}`;
 }
 function keepGhost(){
+  if(S)UI.runEnded();   // the page keeps a copy (runs library); S and the frames are still the finished run's here
   if(S&&S.t>1&&S.trailT.length>5)GHOST={level:LV.id,label:runLabel(),trailT:S.trailT.filter(Boolean),plot:S.plot.slice(),t:S.t};
   REC.frames=[];
 }
@@ -221,7 +222,7 @@ function keepGhost(){
 let LV=LEVELS[0], S=null, WPS=[];
 let running=false, pauseOnContact=false;
 // What the simulation core needs from a user interface. The page overrides these; a worker leaves them as no-ops.
-const UI={draw(){},refresh(){},invalidate(){},levelChanged(){},slotStatus(){},mode:()=>'sim'};
+const UI={draw(){},refresh(){},invalidate(){},levelChanged(){},slotStatus(){},runEnded(){},mode:()=>'sim'};   // runEnded: the run is about to be cleared (record.js)
 const dirty={occ:true,cost:true,search:true};
 
 function prepLevel(L){

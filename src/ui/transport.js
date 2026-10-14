@@ -3,10 +3,13 @@
 let speed=1, tapMode='wp', plotCh='pos', plotCh2='none', poseDrag=null;
 function seg(el,opts,get,set){el.innerHTML=opts.map(([v,l])=>`<button data-v="${v}" aria-pressed="${String(get())===String(v)}">${l}</button>`).join('');
   el.querySelectorAll('button').forEach(b=>b.onclick=()=>{set(b.dataset.v);el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.v===String(get()))));});}
-seg($('#speed'),[[0.25,'¼×'],[0.5,'½×'],[1,'1×'],[2,'2×'],[4,'4×'],[8,'8×']],()=>speed,v=>speed=+v);
-const SPEEDS=[0.25,0.5,1,2,4,8];function setSpeed(v){speed=v;seg($('#speed'),[[0.25,'¼×'],[0.5,'½×'],[1,'1×'],[2,'2×'],[4,'4×'],[8,'8×']],()=>speed,v=>speed=+v);}
+// playback speed: a compact menu in the timeline ([ and ] step through it)
+const SPEEDS=[0.25,0.5,1,2,4,8],SPEED_L={0.25:'¼×',0.5:'½×',1:'1×',2:'2×',4:'4×',8:'8×'};
+$('#speed').innerHTML=SPEEDS.map(v=>`<option value="${v}">${SPEED_L[v]}</option>`).join('');$('#speed').value=String(speed);
+$('#speed').onchange=e=>{speed=+e.target.value;};
+function setSpeed(v){speed=v;$('#speed').value=String(v);}
 document.addEventListener('keydown',e=>{
-  const t=e.target,tag=t&&t.tagName;if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||e.metaKey||e.ctrlKey||e.altKey)return;
+  const t=e.target,tag=t&&t.tagName;if(tag==='INPUT'&&t.type!=='range'||tag==='TEXTAREA'||tag==='SELECT'||e.metaKey||e.ctrlKey||e.altKey)return;
   if(e.key===' '){e.preventDefault();$('#run').click();}
   else if(e.key==='n'||e.key==='N')$('#stepb').click();
   else if(e.key==='r'||e.key==='R')$('#resetb').click();

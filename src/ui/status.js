@@ -2,14 +2,15 @@
 /* ---------- status & metrics ---------- */
 // Status strip: the state as a coloured chip (grey ready/idle, amber plan, green drive, blue done, red stuck/lost/contact), then large figures
 const STATE_CLS={IDLE:'idle',PLAN:'plan',DRIVE:'drive',NO_PATH:'bad',DONE:'done',LOST:'bad'};
+// While the timeline replays a moment, the strip shows that moment (the recorded frame), marked "replay"
 function renderStatus(){
-  const F=S.fsm,r=S.robot,e=S.est,ep=hyp(r.x-e.x,r.y-e.y),done=WPS.filter(w=>w.done).length,nc=S.coll+S.collPed;
-  const ready=!running&&S.t===0&&(F.state==='DRIVE'||F.state==='PLAN'),contact=r.contact||r.pedContact;
+  const f=replayFrame(),V=f||S,F=V.fsm,r=V.robot,e=V.est,ep=hyp(r.x-e.x,r.y-e.y),done=f?f.done.filter(d=>d[0]).length:WPS.filter(w=>w.done).length,nc=V.coll+V.collPed;
+  const ready=!f&&!running&&S.t===0&&(F.state==='DRIVE'||F.state==='PLAN'),contact=r.contact||r.pedContact;
   const st=contact?'CONTACT':ready?'READY':F.state.replace('_',' '),cls=contact?'bad':ready?'ready':STATE_CLS[F.state];
   const cell=(k,v,c='',tip='')=>`<span class="kv"${tip?` title="${tip}"`:''}><span>${k}</span><b class="${c}">${v}</b></span>`;
   $('#status').innerHTML=`<span class="pill ${cls}">${st}</span>${F.state==='IDLE'&&WPS.length===0?`<span class="st-note">tap the map to add goals</span>`:''}`+
-   cell('t',`${S.t.toFixed(1)} s`)+cell('goals',`${done}/${WPS.length}`)+cell('pose error',`${ep.toFixed(2)} m`,ep>0.5?'bad':'','Distance between the true pose and the estimate')+
-   cell('collisions',String(nc),nc?'bad':'',`${S.coll} static, ${S.collPed} people`)+(isCar()?cell('gear · steer',`${r.v<-0.01?'R':r.v>0.01?'D':'–'} · ${deg(r.d).toFixed(0)}°`):'');
+   cell('t',`${V.t.toFixed(1)} s`,f?'replay':'',f?'Replaying a recorded moment; Live or Run returns to the live state':'')+cell('goals',`${done}/${f?f.done.length:WPS.length}`)+cell('pose error',`${ep.toFixed(2)} m`,ep>0.5?'bad':'','Distance between the true pose and the estimate')+
+   cell('collisions',String(nc),nc?'bad':'',`${V.coll} static, ${V.collPed} people`)+(isCar()?cell('gear · steer',`${r.v<-0.01?'R':r.v>0.01?'D':'–'} · ${deg(r.d).toFixed(0)}°`):'')+(f?`<span class="st-replay" title="The page shows a recorded moment. Live or Run returns to the live state.">replay</span>`:'');
   $('#run').textContent=running?'Pause':'Run';
 }
 function renderMetrics(){

@@ -167,7 +167,30 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .exptab{overflow-x:auto}.exptab table{border-collapse:collapse;font-size:.78rem;width:100%}.exptab th,.exptab td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.exptab th:first-child,.exptab td:first-child{text-align:left;white-space:normal;min-width:140px}.exptab th{font-weight:600;color:var(--muted);font-size:.72rem}
 .expchart{width:100%;height:200px;display:block;border:1px solid var(--line);border-radius:4px;background:var(--map-bg)}
 #cfg-json{width:100%;font-family:var(--f-mono);font-size:.74rem;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--ink);padding:6px;box-sizing:border-box}
-.scrub{display:flex;gap:8px;align-items:center;font-size:.8rem}.scrub input[type=range]{flex:1 1 auto;min-width:0}.scrub[hidden]{display:none}
+/* timeline (7.2): transport buttons, then the recorded run as a track with event marks; it drives every view */
+.timeline{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.timeline>.controls{flex:0 0 auto}
+.scrub{display:flex;gap:10px;align-items:center;font-size:.8rem;flex:1 1 280px;min-width:0}
+.tl-track{position:relative;flex:1 1 auto;min-width:80px;height:28px}
+.tl-track::before{content:"";position:absolute;left:8px;right:8px;top:12px;height:4px;border-radius:2px;background:var(--line)}
+.tl-marks{position:absolute;inset:0 8px;pointer-events:none}
+.tl-m{position:absolute;top:7px;height:14px;width:2px;margin-left:-1px;border-radius:1px;background:var(--muted)}
+.tl-m.plan{background:var(--accent);top:9px;height:10px}.tl-m.goal{background:var(--ok)}.tl-m.contact{background:var(--bad);top:3px;height:22px;width:3px}.tl-m.loc{background:var(--rose)}.tl-m.warn{background:var(--warn)}
+#scrubr{position:absolute;inset:0;width:100%;height:100%;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+#scrubr::-webkit-slider-runnable-track{background:transparent;height:28px}
+#scrubr::-moz-range-track{background:transparent}
+#scrubr::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;margin-top:6px;border-radius:50%;background:var(--accent);border:2px solid var(--panel);box-shadow:0 0 0 1px var(--accent)}
+#scrubr::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid var(--panel)}
+#scrubr:disabled{cursor:default}#scrubr:disabled::-webkit-slider-thumb{background:var(--line);box-shadow:none}
+.scrub[data-state="empty"] .tl-time{color:var(--muted)}
+.tl-time{font-family:var(--f-mono);font-size:.78rem;white-space:nowrap;min-width:9em;text-align:right;color:var(--ink)}
+.sel.speed{font-family:var(--f-mono);padding:6px 4px 6px 8px}
+.scrub[data-state="replay"] .tl-time{color:var(--accent)}
+/* the transport's parts sit where they are used: the status strip above the map, the timeline under it */
+.transport{display:contents}
+#status{order:0}.tapctl{order:1}#firstrun{order:2}#simview>.mapwrap{order:3}.timeline{order:4}.hsplit{order:5}.tele{order:6}
+.status .kv b.replay{color:var(--accent)}
+.st-replay{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:var(--accent-ink);border-radius:4px;padding:1px 7px;align-self:center}
 .bad{color:var(--bad)}
 .field .row{display:flex;justify-content:space-between;gap:10px;font-size:.88rem}
 .field output{color:var(--accent);font-size:.82rem}
@@ -286,7 +309,9 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .metrics dt{font-size:.72rem;letter-spacing:.02em;color:var(--muted);white-space:nowrap}
 .metrics dd{margin:0;font-family:var(--f-mono);font-size:.82rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .log{list-style:none;margin:0;padding:0;font-family:var(--f-mono);font-size:.74rem;height:146px;min-height:60px;max-height:60vh;resize:vertical;overflow-y:auto;display:flex;flex-direction:column;gap:3px}
-.log li{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;color:var(--ink)}
+.log li{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;color:var(--ink);cursor:pointer;border-radius:3px}
+.log li:hover{background:var(--raise)}
+.log li.later{opacity:.38}
 .log li span{color:var(--muted);text-align:right}
 .log li.warn{color:var(--warn)} .log li.bad{color:var(--bad)} .log li.ok{color:var(--ok)}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
@@ -327,8 +352,6 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .console .tabhead{position:sticky;top:0;z-index:2;background:var(--panel);border-radius:6px 6px 0 0}
   /* the map takes what the controls and the dock leave */
   #simview{height:100%;min-height:520px}
-  .transport{flex-direction:row;flex-wrap:wrap;align-items:center}
-  .transport>.status{flex:1 0 auto}
   #simview>.mapwrap{flex:1 1 0;min-height:220px;aspect-ratio:auto;width:100%}
   .tele{height:var(--dock-h,220px);min-height:0;padding:8px 12px 10px;gap:8px}
   .tele.folded{height:auto}
@@ -355,9 +378,12 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .mapwrap,#anview{order:3}
   html{scroll-padding-top:116px}   /* jumps (Symbols, Try) land below the sticky transport bar */
   /* full-bleed bar without widening the page: the background and its bottom rule are shadows, clipped to the bar's height */
-  .transport{order:5;position:sticky;top:0;z-index:6;gap:6px;padding:6px 0 7px;background:var(--bg);box-shadow:0 0 0 100vmax var(--bg),0 1px 0 100vmax var(--line);clip-path:inset(0 -100vmax -1px)}
+  .transport{display:flex;flex-direction:column;order:5;position:sticky;top:0;z-index:6;gap:6px;padding:6px 0 7px;background:var(--bg);box-shadow:0 0 0 100vmax var(--bg),0 1px 0 100vmax var(--line);clip-path:inset(0 -100vmax -1px)}
+  .timeline{flex-direction:column;align-items:stretch;gap:6px}
+  .scrub{flex:0 0 auto}
+  .scrub[data-state="live-running"],.scrub[data-state="empty"]{display:none}
+  .tl-time{min-width:0}
   .tapctl{order:6}
-  #scrub{order:7}
   #firstrun{order:8}
   .tele{order:9}
   .levels{order:10}
@@ -372,8 +398,7 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .transport .controls{flex-wrap:nowrap;gap:6px}
   .transport .btn{padding:6px 10px}
   .transport .btn.primary{min-width:64px}
-  .transport .seg{flex:1 1 auto;flex-wrap:nowrap;min-width:0}
-  .transport .seg button{padding:6px 0;min-width:0}
+  .transport .sel.speed{flex:1 1 auto;min-width:0}
   .tapctl .sel{flex:1 1 auto;order:1} .tapctl .lbl{order:0} .tapctl .btn{order:2} .tapctl .check{order:3}
   .tab{padding:8px 7px 7px;font-size:.9rem}
   .console.collapsed #panes{display:none}

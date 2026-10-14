@@ -172,7 +172,30 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .exptab{overflow-x:auto}.exptab table{border-collapse:collapse;font-size:.78rem;width:100%}.exptab th,.exptab td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.exptab th:first-child,.exptab td:first-child{text-align:left;white-space:normal;min-width:140px}.exptab th{font-weight:600;color:var(--muted);font-size:.72rem}
 .expchart{width:100%;height:200px;display:block;border:1px solid var(--line);border-radius:4px;background:var(--map-bg)}
 #cfg-json{width:100%;font-family:var(--f-mono);font-size:.74rem;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--ink);padding:6px;box-sizing:border-box}
-.scrub{display:flex;gap:8px;align-items:center;font-size:.8rem}.scrub input[type=range]{flex:1 1 auto;min-width:0}.scrub[hidden]{display:none}
+/* timeline (7.2): transport buttons, then the recorded run as a track with event marks; it drives every view */
+.timeline{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.timeline>.controls{flex:0 0 auto}
+.scrub{display:flex;gap:10px;align-items:center;font-size:.8rem;flex:1 1 280px;min-width:0}
+.tl-track{position:relative;flex:1 1 auto;min-width:80px;height:28px}
+.tl-track::before{content:"";position:absolute;left:8px;right:8px;top:12px;height:4px;border-radius:2px;background:var(--line)}
+.tl-marks{position:absolute;inset:0 8px;pointer-events:none}
+.tl-m{position:absolute;top:7px;height:14px;width:2px;margin-left:-1px;border-radius:1px;background:var(--muted)}
+.tl-m.plan{background:var(--accent);top:9px;height:10px}.tl-m.goal{background:var(--ok)}.tl-m.contact{background:var(--bad);top:3px;height:22px;width:3px}.tl-m.loc{background:var(--rose)}.tl-m.warn{background:var(--warn)}
+#scrubr{position:absolute;inset:0;width:100%;height:100%;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+#scrubr::-webkit-slider-runnable-track{background:transparent;height:28px}
+#scrubr::-moz-range-track{background:transparent}
+#scrubr::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;margin-top:6px;border-radius:50%;background:var(--accent);border:2px solid var(--panel);box-shadow:0 0 0 1px var(--accent)}
+#scrubr::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid var(--panel)}
+#scrubr:disabled{cursor:default}#scrubr:disabled::-webkit-slider-thumb{background:var(--line);box-shadow:none}
+.scrub[data-state="empty"] .tl-time{color:var(--muted)}
+.tl-time{font-family:var(--f-mono);font-size:.78rem;white-space:nowrap;min-width:9em;text-align:right;color:var(--ink)}
+.sel.speed{font-family:var(--f-mono);padding:6px 4px 6px 8px}
+.scrub[data-state="replay"] .tl-time{color:var(--accent)}
+/* the transport's parts sit where they are used: the status strip above the map, the timeline under it */
+.transport{display:contents}
+#status{order:0}.tapctl{order:1}#firstrun{order:2}#simview>.mapwrap{order:3}.timeline{order:4}.hsplit{order:5}.tele{order:6}
+.status .kv b.replay{color:var(--accent)}
+.st-replay{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:var(--accent-ink);border-radius:4px;padding:1px 7px;align-self:center}
 .bad{color:var(--bad)}
 .field .row{display:flex;justify-content:space-between;gap:10px;font-size:.88rem}
 .field output{color:var(--accent);font-size:.82rem}
@@ -291,7 +314,9 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .metrics dt{font-size:.72rem;letter-spacing:.02em;color:var(--muted);white-space:nowrap}
 .metrics dd{margin:0;font-family:var(--f-mono);font-size:.82rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .log{list-style:none;margin:0;padding:0;font-family:var(--f-mono);font-size:.74rem;height:146px;min-height:60px;max-height:60vh;resize:vertical;overflow-y:auto;display:flex;flex-direction:column;gap:3px}
-.log li{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;color:var(--ink)}
+.log li{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;color:var(--ink);cursor:pointer;border-radius:3px}
+.log li:hover{background:var(--raise)}
+.log li.later{opacity:.38}
 .log li span{color:var(--muted);text-align:right}
 .log li.warn{color:var(--warn)} .log li.bad{color:var(--bad)} .log li.ok{color:var(--ok)}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
@@ -332,8 +357,6 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .console .tabhead{position:sticky;top:0;z-index:2;background:var(--panel);border-radius:6px 6px 0 0}
   /* the map takes what the controls and the dock leave */
   #simview{height:100%;min-height:520px}
-  .transport{flex-direction:row;flex-wrap:wrap;align-items:center}
-  .transport>.status{flex:1 0 auto}
   #simview>.mapwrap{flex:1 1 0;min-height:220px;aspect-ratio:auto;width:100%}
   .tele{height:var(--dock-h,220px);min-height:0;padding:8px 12px 10px;gap:8px}
   .tele.folded{height:auto}
@@ -360,9 +383,12 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .mapwrap,#anview{order:3}
   html{scroll-padding-top:116px}   /* jumps (Symbols, Try) land below the sticky transport bar */
   /* full-bleed bar without widening the page: the background and its bottom rule are shadows, clipped to the bar's height */
-  .transport{order:5;position:sticky;top:0;z-index:6;gap:6px;padding:6px 0 7px;background:var(--bg);box-shadow:0 0 0 100vmax var(--bg),0 1px 0 100vmax var(--line);clip-path:inset(0 -100vmax -1px)}
+  .transport{display:flex;flex-direction:column;order:5;position:sticky;top:0;z-index:6;gap:6px;padding:6px 0 7px;background:var(--bg);box-shadow:0 0 0 100vmax var(--bg),0 1px 0 100vmax var(--line);clip-path:inset(0 -100vmax -1px)}
+  .timeline{flex-direction:column;align-items:stretch;gap:6px}
+  .scrub{flex:0 0 auto}
+  .scrub[data-state="live-running"],.scrub[data-state="empty"]{display:none}
+  .tl-time{min-width:0}
   .tapctl{order:6}
-  #scrub{order:7}
   #firstrun{order:8}
   .tele{order:9}
   .levels{order:10}
@@ -377,8 +403,7 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
   .transport .controls{flex-wrap:nowrap;gap:6px}
   .transport .btn{padding:6px 10px}
   .transport .btn.primary{min-width:64px}
-  .transport .seg{flex:1 1 auto;flex-wrap:nowrap;min-width:0}
-  .transport .seg button{padding:6px 0;min-width:0}
+  .transport .sel.speed{flex:1 1 auto;min-width:0}
   .tapctl .sel{flex:1 1 auto;order:1} .tapctl .lbl{order:0} .tapctl .btn{order:2} .tapctl .check{order:3}
   .tab{padding:8px 7px 7px;font-size:.9rem}
   .console.collapsed #panes{display:none}
@@ -432,11 +457,17 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
       <div id="simview" class="view">
       <div class="transport" id="transport">
       <div class="status" id="status"></div>
-      <div class="controls">
-        <button class="btn primary" id="run" title="Space">Run</button>
-        <button class="btn" id="stepb" title="Advance 0.5 s (N)">Step</button>
-        <button class="btn" id="resetb" title="R">Reset</button>
-        <div class="seg" id="speed" aria-label="Simulation speed" title="[ and ] change speed"></div>
+      <div class="timeline" id="timeline">
+        <div class="controls">
+          <button class="btn primary" id="run" title="Space">Run</button>
+          <button class="btn" id="stepb" title="Advance 0.5 s (N)">Step</button>
+          <button class="btn" id="resetb" title="R">Reset</button>
+          <select class="sel speed" id="speed" aria-label="Simulation speed" title="Simulation speed ([ and ] change it)"></select>
+        </div>
+        <div class="scrub" id="scrub">
+          <div class="tl-track" id="tl-track"><div class="tl-marks" id="tl-marks" aria-hidden="true"></div><input type="range" id="scrubr" min="0" max="0" value="0" aria-label="Time in the recorded run" title="Drag to review the run (pauses). , and . step 0.1 s. Run or Step continues from the live state."></div>
+          <span class="kv tl-time" id="scrubt"></span><button class="btn small" id="scrub-live" hidden title="Back to the live state (End)">Live</button>
+        </div>
       </div>
       </div>
       <div class="controls tapctl">
@@ -2498,7 +2529,7 @@ function metrics(){
   let cte=null;
   if(S.track&&S.fsm.state==='DRIVE'){cte=project(r.x,r.y,false).d;S.cteSq+=cte*cte;S.cteN++;}
   if(S.Pc&&S.tick%4===1){const Pi=m3inv(S.Pc);if(Pi){const v=[ex,ey,eth];let q=0;for(let a=0;a<3;a++)for(let b=0;b<3;b++)q+=v[a]*Pi[a*3+b]*v[b];S.nees.push(q);if(S.nees.length>100)S.nees.shift();}}
-  if(S.tick%2===0){S.plot.push({t:S.t,ex,ey,ep,eth,sp:S.Pc?Math.sqrt(Math.max(0,S.Pc[0]+S.Pc[4])):null,sx:S.Pc?Math.sqrt(Math.max(0,S.Pc[0])):null,sth:S.Pc?Math.sqrt(Math.max(0,S.Pc[8])):null,cte,vc:S.cmd.v,va:r.v,tc:isCar()?deg(S.cmd.steer||0):S.cmd.w,ta:isCar()?deg(r.d):r.w});if(S.plot.length>300)S.plot.shift();}
+  if(S.tick%2===0){S.plot.push({t:S.t,ex,ey,ep,eth,sp:S.Pc?Math.sqrt(Math.max(0,S.Pc[0]+S.Pc[4])):null,sx:S.Pc?Math.sqrt(Math.max(0,S.Pc[0])):null,sth:S.Pc?Math.sqrt(Math.max(0,S.Pc[8])):null,cte,vc:S.cmd.v,va:r.v,tc:isCar()?deg(S.cmd.steer||0):S.cmd.w,ta:isCar()?deg(r.d):r.w});if(S.plot.length>3000)S.plot.shift();}   // 5 min at 10 Hz, as long as the replay frames (record.js)
   if(S.tick%4===0){S.trailT.push([r.x,r.y]);S.trailE.push([e.x,e.y]);if(S.trailT.length>1500){S.trailT.shift();S.trailE.shift();}}
 }
 let busy=false;
@@ -4584,7 +4615,7 @@ function metrics(){
   let cte=null;
   if(S.track&&S.fsm.state==='DRIVE'){cte=project(r.x,r.y,false).d;S.cteSq+=cte*cte;S.cteN++;}
   if(S.Pc&&S.tick%4===1){const Pi=m3inv(S.Pc);if(Pi){const v=[ex,ey,eth];let q=0;for(let a=0;a<3;a++)for(let b=0;b<3;b++)q+=v[a]*Pi[a*3+b]*v[b];S.nees.push(q);if(S.nees.length>100)S.nees.shift();}}
-  if(S.tick%2===0){S.plot.push({t:S.t,ex,ey,ep,eth,sp:S.Pc?Math.sqrt(Math.max(0,S.Pc[0]+S.Pc[4])):null,sx:S.Pc?Math.sqrt(Math.max(0,S.Pc[0])):null,sth:S.Pc?Math.sqrt(Math.max(0,S.Pc[8])):null,cte,vc:S.cmd.v,va:r.v,tc:isCar()?deg(S.cmd.steer||0):S.cmd.w,ta:isCar()?deg(r.d):r.w});if(S.plot.length>300)S.plot.shift();}
+  if(S.tick%2===0){S.plot.push({t:S.t,ex,ey,ep,eth,sp:S.Pc?Math.sqrt(Math.max(0,S.Pc[0]+S.Pc[4])):null,sx:S.Pc?Math.sqrt(Math.max(0,S.Pc[0])):null,sth:S.Pc?Math.sqrt(Math.max(0,S.Pc[8])):null,cte,vc:S.cmd.v,va:r.v,tc:isCar()?deg(S.cmd.steer||0):S.cmd.w,ta:isCar()?deg(r.d):r.w});if(S.plot.length>3000)S.plot.shift();}   // 5 min at 10 Hz, as long as the replay frames (record.js)
   if(S.tick%4===0){S.trailT.push([r.x,r.y]);S.trailE.push([e.x,e.y]);if(S.trailT.length>1500){S.trailT.shift();S.trailE.shift();}}
 }
 let busy=false;
@@ -4630,10 +4661,13 @@ let logDirty=true;
 
 /* ---- ui/log.js ---- */
 /* ---------- event log rendering ---------- */
+// Each line seeks the timeline to its time; while replaying, lines after the shown moment are dimmed
 function renderLog(){
   if(!logDirty)return;logDirty=false;
-  $('#log').innerHTML=S.log.map(l=>`<li class="${l.cls}"><span>${l.t.toFixed(1)}s</span>${esc(l.msg)}</li>`).join('');
+  const tc=REPLAY.active?shownT():Infinity;
+  $('#log').innerHTML=S.log.map(l=>`<li class="${l.cls}${l.t>tc+1e-6?' later':''}" data-t="${l.t}" title="Show this moment (${l.t.toFixed(1)} s)"><span>${l.t.toFixed(1)}s</span>${esc(l.msg)}</li>`).join('');
 }
+$('#log').addEventListener('click',e=>{const li=e.target.closest('li[data-t]');if(li&&REC.frames.length>1)seekTime(+li.dataset.t);});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ---- ui/map.js ---- */
@@ -4779,6 +4813,7 @@ function draw(){
   // robots
   robotShape(S.est.x,S.est.y,S.est.th,false,px);
   robotShape(S.robot.x,S.robot.y,S.robot.th,true,px);
+  drawHoverGhost(px);   // the robot at the time hovered on the timeline or the plot (replay.js)
   // text overlays in screen space
   ctx.setTransform(1,0,0,1,0,0);
   const toS=(x,y)=>[x*k+tx,ty-y*k];
@@ -4848,7 +4883,8 @@ function drawPlot(){
   const D=S.plot;const padL=44*dpr,padT=10*dpr,padB=18*dpr;let padR=8*dpr;
   pctx.font=`${Math.round(10*dpr)}px ${getComputedStyle(document.body).getPropertyValue('--f-mono')||'monospace'}`;
   if(D.length<2){pctx.fillStyle=TOK.muted;pctx.textAlign='center';pctx.textBaseline='middle';pctx.fillText('Press Run to record telemetry',w/2,h/2);return;}
-  const t1=D[D.length-1].t,t0=Math.max(D[0].t,t1-30);
+  // a 30 s window ending at the live time, or around the moment the timeline shows
+  const tc=shownT(),tEnd=D[D.length-1].t,t1=REPLAY.active?Math.min(tEnd,Math.max(tc+6,D[0].t+30)):tEnd,t0=Math.max(D[0].t,t1-30);
   const C1=chanDef(plotCh),{series,band,sym}=C1;PLOTS.turn=chanDef('turn').label;
   const C2=plotCh2!=='none'&&plotCh2!==plotCh&&plotCh2!=='st'?chanDef(plotCh2):null;
   const range=(C)=>{let lo=Infinity,hi=-Infinity;for(const d of D){if(d.t<t0)continue;for(const s of C.series){const v=s.k(d);if(v==null)continue;lo=Math.min(lo,v);hi=Math.max(hi,v);}if(C.band){const b=C.band(d);if(b!=null){lo=Math.min(lo,C.sym?-b:0);hi=Math.max(hi,b);}}}
@@ -4874,21 +4910,39 @@ function drawPlot(){
     pctx.setLineDash([]);pctx.fillStyle=TOK.rose;pctx.textAlign='right';pctx.textBaseline='bottom';pctx.fillText('ghost: '+GHOST.label.slice(0,48),w-padR-2*dpr,h-2*dpr);}
   for(const s of series){pctx.strokeStyle=s.c;pctx.lineWidth=1.6*dpr;pctx.beginPath();let up=true;for(const d of D){if(d.t<t0)continue;const v=s.k(d);if(v==null){up=true;continue;}if(up){pctx.moveTo(X(d.t),Y(v));up=false;}else pctx.lineTo(X(d.t),Y(v));}pctx.stroke();}
   if(plotCh==='v'||plotCh==='turn'){pctx.textAlign='right';pctx.textBaseline='top';pctx.fillStyle=TOK.accent;pctx.fillText('command',w-padR-60*dpr,padT);pctx.fillStyle=TOK.ink;pctx.fillText('actual',w-padR-2*dpr,padT);}
+  plotGeom={t0,t1,padL,padR,w,dpr};
+  // time cursors: the replayed moment (solid) and a hover (dashed) from the timeline or this plot, with the values there
+  const cur=(t,dash)=>{if(t==null||t<t0-1e-6||t>t1+1e-6)return false;pctx.strokeStyle=dash?TOK.muted:TOK.ink;pctx.lineWidth=1*dpr;pctx.setLineDash(dash?[3*dpr,3*dpr]:[]);pctx.beginPath();pctx.moveTo(X(t),padT);pctx.lineTo(X(t),h-padB);pctx.stroke();pctx.setLineDash([]);return true;};
+  if(REPLAY.active)cur(tc,false);
+  const th=CURSOR.hover!=null?CURSOR.hover:REPLAY.active?tc:null;
+  if(CURSOR.hover!=null)cur(CURSOR.hover,true);
+  if(th!=null&&th>=t0&&th<=t1){let best=null;for(const d of D){if(!best||Math.abs(d.t-th)<Math.abs(best.t-th))best=d;}
+    if(best){const val=series.map(s=>{const v=s.k(best);return v==null?'—':fmt(v)+(s.name?' '+s.name:'');}).join(' · ');
+      pctx.font=`${Math.round(10*dpr)}px ${getComputedStyle(document.body).getPropertyValue('--f-mono')||'monospace'}`;pctx.fillStyle=TOK.ink;pctx.textAlign='left';pctx.textBaseline='top';
+      const x=Math.min(X(th)+5*dpr,w-padR-pctx.measureText(`${best.t.toFixed(1)} s: ${val}`).width-4*dpr);pctx.fillText(`${best.t.toFixed(1)} s: ${val}`,Math.max(padL+4*dpr,x),padT+(band?14*dpr:2*dpr));}}
 }
+let plotGeom=null;
+// hover the plot: a time cursor here and the robot at that time on the map; click: show that moment
+{const tAt=e=>{const g=plotGeom;if(!g||plotCh==='st')return null;const r=pv.getBoundingClientRect(),x=(e.clientX-r.left)*g.dpr;if(x<g.padL||x>g.w-g.padR)return null;return g.t0+(x-g.padL)/Math.max(1e-6,g.w-g.padL-g.padR)*(g.t1-g.t0);};
+ pv.addEventListener('pointermove',e=>{const t=tAt(e);if(t!==CURSOR.hover){CURSOR.hover=t;hoverChanged();}});
+ pv.addEventListener('pointerleave',()=>{if(CURSOR.hover!=null){CURSOR.hover=null;hoverChanged();}});
+ pv.addEventListener('click',e=>{const t=tAt(e);if(t!=null&&REC.frames.length>1)seekTime(t);});
+ pv.title='Hover: the robot at that time on the map · click: show that moment';}
 
 /* ---- ui/status.js ---- */
 
 /* ---------- status & metrics ---------- */
 // Status strip: the state as a coloured chip (grey ready/idle, amber plan, green drive, blue done, red stuck/lost/contact), then large figures
 const STATE_CLS={IDLE:'idle',PLAN:'plan',DRIVE:'drive',NO_PATH:'bad',DONE:'done',LOST:'bad'};
+// While the timeline replays a moment, the strip shows that moment (the recorded frame), marked "replay"
 function renderStatus(){
-  const F=S.fsm,r=S.robot,e=S.est,ep=hyp(r.x-e.x,r.y-e.y),done=WPS.filter(w=>w.done).length,nc=S.coll+S.collPed;
-  const ready=!running&&S.t===0&&(F.state==='DRIVE'||F.state==='PLAN'),contact=r.contact||r.pedContact;
+  const f=replayFrame(),V=f||S,F=V.fsm,r=V.robot,e=V.est,ep=hyp(r.x-e.x,r.y-e.y),done=f?f.done.filter(d=>d[0]).length:WPS.filter(w=>w.done).length,nc=V.coll+V.collPed;
+  const ready=!f&&!running&&S.t===0&&(F.state==='DRIVE'||F.state==='PLAN'),contact=r.contact||r.pedContact;
   const st=contact?'CONTACT':ready?'READY':F.state.replace('_',' '),cls=contact?'bad':ready?'ready':STATE_CLS[F.state];
   const cell=(k,v,c='',tip='')=>`<span class="kv"${tip?` title="${tip}"`:''}><span>${k}</span><b class="${c}">${v}</b></span>`;
   $('#status').innerHTML=`<span class="pill ${cls}">${st}</span>${F.state==='IDLE'&&WPS.length===0?`<span class="st-note">tap the map to add goals</span>`:''}`+
-   cell('t',`${S.t.toFixed(1)} s`)+cell('goals',`${done}/${WPS.length}`)+cell('pose error',`${ep.toFixed(2)} m`,ep>0.5?'bad':'','Distance between the true pose and the estimate')+
-   cell('collisions',String(nc),nc?'bad':'',`${S.coll} static, ${S.collPed} people`)+(isCar()?cell('gear · steer',`${r.v<-0.01?'R':r.v>0.01?'D':'–'} · ${deg(r.d).toFixed(0)}°`):'');
+   cell('t',`${V.t.toFixed(1)} s`,f?'replay':'',f?'Replaying a recorded moment; Live or Run returns to the live state':'')+cell('goals',`${done}/${f?f.done.length:WPS.length}`)+cell('pose error',`${ep.toFixed(2)} m`,ep>0.5?'bad':'','Distance between the true pose and the estimate')+
+   cell('collisions',String(nc),nc?'bad':'',`${V.coll} static, ${V.collPed} people`)+(isCar()?cell('gear · steer',`${r.v<-0.01?'R':r.v>0.01?'D':'–'} · ${deg(r.d).toFixed(0)}°`):'')+(f?`<span class="st-replay" title="The page shows a recorded moment. Live or Run returns to the live state.">replay</span>`:'');
   $('#run').textContent=running?'Pause':'Run';
 }
 function renderMetrics(){
@@ -7379,28 +7433,68 @@ function configFromHash(){
 
 /* ---- ui/replay.js ---- */
 /* ============================================================
-   Replay: scrub through the recorded frames of the current run while paused
+   Timeline (7.2): one time cursor for the whole page. The track under the map spans the recorded frames of the
+   current run (10 Hz, up to 5 minutes) with the run's events as marks. Dragging it, clicking the plot or an event
+   log line pauses and replays that moment: map, status strip, plot and log all show it. Hovering the track or the
+   plot shows a time cursor in the plot and the robot at that time on the map. Run or Step continues from the live state.
    ============================================================ */
 const REPLAY={active:false,i:0};
+const CURSOR={hover:null};   // hovered time [s] on the track or the plot, or null
 function replayFrame(){return REPLAY.active&&REC.frames.length?REC.frames[clamp(REPLAY.i,0,REC.frames.length-1)]:null;}
+// the time the page is showing: the replayed frame's, or the live one
+function shownT(){const f=replayFrame();return f?f.t:S?S.t:0;}
+function frameAt(t){const F=REC.frames;let lo=0,hi=F.length-1;if(hi<0)return-1;while(lo<hi){const m=(lo+hi)>>1;if(F[m].t<t)lo=m+1;else hi=m;}return lo>0&&Math.abs(F[lo-1].t-t)<Math.abs(F[lo].t-t)?lo-1:lo;}
 function drawMaybeReplay(){
   const f=replayFrame();if(!f){draw();return;}
   const live=S;S=frameView(f);try{draw();}finally{S=live;}
 }
-function syncScrub(){
-  const sc=$('#scrub');if(!sc)return;const n=REC.frames.length;
-  const show=!running&&n>10&&AN.mode==='sim';sc.hidden=!show;if(!show){REPLAY.active=false;return;}
-  const r=$('#scrubr');r.max=n-1;if(!REPLAY.active){r.value=n-1;}
-  const f=REC.frames[REPLAY.active?clamp(REPLAY.i,0,n-1):n-1];
-  $('#scrubt').textContent=`${f.t.toFixed(1)} s${REPLAY.active?' · replay':' · live'}`;
-  $('#scrub-live').hidden=!REPLAY.active;
+// Jump to a time: pause, replay the nearest recorded frame
+function seekTime(t){
+  const i=frameAt(t);if(i<0)return;
+  running=false;REPLAY.active=true;REPLAY.i=i;logDirty=true;
+  syncScrub();drawMaybeReplay();drawPlot();refreshAll();
 }
-function exitReplay(){if(REPLAY.active){REPLAY.active=false;syncScrub();draw();}}
-{const w=document.createElement('div');w.className='scrub';w.id='scrub';w.hidden=true;
- w.innerHTML=`<span class="lbl" title="Drag to review the run. Run or Step continues from the live state.">Replay</span><input type="range" id="scrubr" min="0" max="0" value="0" aria-label="Replay position"><span class="kv" id="scrubt"></span><button class="btn small" id="scrub-live" hidden>Live</button>`;
- const mw=$('.mapwrap');mw.parentNode.insertBefore(w,mw.nextSibling);
- $('#scrubr').oninput=e=>{REPLAY.active=true;REPLAY.i=+e.target.value;syncScrub();drawMaybeReplay();};
- $('#scrub-live').onclick=exitReplay;}
+function seekFrame(i){const n=REC.frames.length;if(!n)return;seekTime(REC.frames[clamp(i,0,n-1)].t);}
+function exitReplay(){if(REPLAY.active){REPLAY.active=false;logDirty=true;syncScrub();draw();drawPlot();refreshAll();}}
+// Event marks: what a log line means for the timeline
+const TL_KINDS=[[/^(Plan|Replan)\b/,'plan','plan'],[/^Reached goal|^Mission complete/,'goal','goal'],[/Collision|walked into|contact/i,'contact','contact'],
+  [/kidnapped|Scattered|Relocali[sz]ed|Position σ/,'loc','localization'],[/no path|Skipping goal|Speed planner|stuck/i,'warn','warning']];
+function tlKind(msg){for(const[re,k,name]of TL_KINDS)if(re.test(msg))return[k,name];return null;}
+let tlKey='';
+function syncScrub(){
+  const sc=$('#scrub');if(!sc||!S)return;const F=REC.frames,n=F.length;
+  sc.dataset.state=n<2?'empty':REPLAY.active?'replay':running?'live-running':'live';
+  const r=$('#scrubr');r.max=Math.max(0,n-1);r.disabled=n<2;
+  if(!REPLAY.active)r.value=Math.max(0,n-1);else r.value=clamp(REPLAY.i,0,n-1);
+  const f=n?F[REPLAY.active?clamp(REPLAY.i,0,n-1):n-1]:null,tEnd=n?F[n-1].t:0;
+  $('#scrubt').textContent=n<2?'no recording yet':REPLAY.active?`${f.t.toFixed(1)} / ${tEnd.toFixed(1)} s · replay`:`${S.t.toFixed(1)} s · live`;
+  $('#scrub-live').hidden=!REPLAY.active;
+  // marks: redrawn when the log or the recorded span changes
+  const t0=n?F[0].t:0,span=Math.max(1e-6,tEnd-t0),key=S.log.length+'|'+(S.log[0]&&S.log[0].t)+'|'+t0.toFixed(1)+'|'+tEnd.toFixed(0);
+  if(key!==tlKey){tlKey=key;
+    $('#tl-marks').innerHTML=n<2?'':S.log.map(l=>{const k=tlKind(l.msg);if(!k||l.t<t0-1e-6||l.t>tEnd+1e-6)return'';return`<i class="tl-m ${k[0]}" style="left:${(100*(l.t-t0)/span).toFixed(2)}%" title="${l.t.toFixed(1)} s · ${esc(l.msg)}"></i>`;}).join('');}
+}
+{const r=$('#scrubr');
+ r.oninput=e=>{seekFrame(+e.target.value);};
+ // , and . step one frame (0.1 s); Home/End go to the start and back to live
+ r.addEventListener('keydown',e=>{if(e.key==='End'){e.preventDefault();exitReplay();}});
+ $('#scrub-live').onclick=exitReplay;
+ const tr=$('#tl-track');
+ tr.addEventListener('pointermove',e=>{const F=REC.frames;if(F.length<2)return;const b=r.getBoundingClientRect(),u=clamp((e.clientX-b.left)/b.width,0,1);
+   CURSOR.hover=F[0].t+u*(F[F.length-1].t-F[0].t);tr.title=`${CURSOR.hover.toFixed(1)} s`;hoverChanged();});
+ tr.addEventListener('pointerleave',()=>{CURSOR.hover=null;hoverChanged();});}
+document.addEventListener('keydown',e=>{
+  const t=e.target,tag=t&&t.tagName;if(tag==='INPUT'&&t.type!=='range'||tag==='TEXTAREA'||tag==='SELECT'||e.metaKey||e.ctrlKey||e.altKey)return;
+  if(e.key===','||e.key==='.'){const n=REC.frames.length;if(n<2||AN.mode!=='sim')return;e.preventDefault();seekFrame((REPLAY.active?REPLAY.i:n-1)+(e.key==='.'?1:-1));}
+});
+// A hover elsewhere on the page (track or plot) redraws the plot cursor and the robot at that time on the map
+let hoverQ=0;
+function hoverChanged(){if(!hoverQ)hoverQ=requestAnimationFrame(()=>{hoverQ=0;if(AN.mode!=='sim'||!S)return;drawMaybeReplay();drawPlot();});}
+// the robot (true pose) and the estimate at the hovered time, drawn faintly on the map
+function drawHoverGhost(px){
+  if(CURSOR.hover==null||!REC.frames.length)return;const f=REC.frames[frameAt(CURSOR.hover)];if(!f)return;
+  ctx.save();ctx.globalAlpha=0.38;robotShape(f.est.x,f.est.y,f.est.th,false,px);robotShape(f.robot.x,f.robot.y,f.robot.th,true,px);ctx.restore();
+}
 
 /* ---- ui/source.js ---- */
 /* ---------- source viewer: the page shows its own modules ---------- */
@@ -7433,10 +7527,13 @@ function fillSource(file){const t=sourceIndex()[file]||'';$('#src-pre').textCont
 let speed=1, tapMode='wp', plotCh='pos', plotCh2='none', poseDrag=null;
 function seg(el,opts,get,set){el.innerHTML=opts.map(([v,l])=>`<button data-v="${v}" aria-pressed="${String(get())===String(v)}">${l}</button>`).join('');
   el.querySelectorAll('button').forEach(b=>b.onclick=()=>{set(b.dataset.v);el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.v===String(get()))));});}
-seg($('#speed'),[[0.25,'¼×'],[0.5,'½×'],[1,'1×'],[2,'2×'],[4,'4×'],[8,'8×']],()=>speed,v=>speed=+v);
-const SPEEDS=[0.25,0.5,1,2,4,8];function setSpeed(v){speed=v;seg($('#speed'),[[0.25,'¼×'],[0.5,'½×'],[1,'1×'],[2,'2×'],[4,'4×'],[8,'8×']],()=>speed,v=>speed=+v);}
+// playback speed: a compact menu in the timeline ([ and ] step through it)
+const SPEEDS=[0.25,0.5,1,2,4,8],SPEED_L={0.25:'¼×',0.5:'½×',1:'1×',2:'2×',4:'4×',8:'8×'};
+$('#speed').innerHTML=SPEEDS.map(v=>`<option value="${v}">${SPEED_L[v]}</option>`).join('');$('#speed').value=String(speed);
+$('#speed').onchange=e=>{speed=+e.target.value;};
+function setSpeed(v){speed=v;$('#speed').value=String(v);}
 document.addEventListener('keydown',e=>{
-  const t=e.target,tag=t&&t.tagName;if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||e.metaKey||e.ctrlKey||e.altKey)return;
+  const t=e.target,tag=t&&t.tagName;if(tag==='INPUT'&&t.type!=='range'||tag==='TEXTAREA'||tag==='SELECT'||e.metaKey||e.ctrlKey||e.altKey)return;
   if(e.key===' '){e.preventDefault();$('#run').click();}
   else if(e.key==='n'||e.key==='N')$('#stepb').click();
   else if(e.key==='r'||e.key==='R')$('#resetb').click();

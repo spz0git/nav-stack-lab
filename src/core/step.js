@@ -26,7 +26,7 @@ function metrics(){
   let cte=null;
   if(S.track&&S.fsm.state==='DRIVE'){cte=project(r.x,r.y,false).d;S.cteSq+=cte*cte;S.cteN++;}
   if(S.Pc&&S.tick%4===1){const Pi=m3inv(S.Pc);if(Pi){const v=[ex,ey,eth];let q=0;for(let a=0;a<3;a++)for(let b=0;b<3;b++)q+=v[a]*Pi[a*3+b]*v[b];S.nees.push(q);if(S.nees.length>100)S.nees.shift();}}
-  if(S.tick%2===0){S.plot.push({t:S.t,ex,ey,ep,eth,sp:S.Pc?Math.sqrt(Math.max(0,S.Pc[0]+S.Pc[4])):null,sx:S.Pc?Math.sqrt(Math.max(0,S.Pc[0])):null,sth:S.Pc?Math.sqrt(Math.max(0,S.Pc[8])):null,cte,vc:S.cmd.v,va:r.v,tc:isCar()?deg(S.cmd.steer||0):S.cmd.w,ta:isCar()?deg(r.d):r.w});if(S.plot.length>300)S.plot.shift();}
+  if(S.tick%2===0){S.plot.push({t:S.t,ex,ey,ep,eth,sp:S.Pc?Math.sqrt(Math.max(0,S.Pc[0]+S.Pc[4])):null,sx:S.Pc?Math.sqrt(Math.max(0,S.Pc[0])):null,sth:S.Pc?Math.sqrt(Math.max(0,S.Pc[8])):null,cte,vc:S.cmd.v,va:r.v,tc:isCar()?deg(S.cmd.steer||0):S.cmd.w,ta:isCar()?deg(r.d):r.w});if(S.plot.length>3000)S.plot.shift();}   // 5 min at 10 Hz, as long as the replay frames (record.js)
   if(S.tick%4===0){S.trailT.push([r.x,r.y]);S.trailE.push([e.x,e.y]);if(S.trailT.length>1500){S.trailT.shift();S.trailE.shift();}}
 }
 let busy=false;

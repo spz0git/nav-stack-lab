@@ -17,7 +17,8 @@ function drawPlot(){
   const D=S.plot;const padL=44*dpr,padT=10*dpr,padB=18*dpr;let padR=8*dpr;
   pctx.font=`${Math.round(10*dpr)}px ${getComputedStyle(document.body).getPropertyValue('--f-mono')||'monospace'}`;
   if(D.length<2){pctx.fillStyle=TOK.muted;pctx.textAlign='center';pctx.textBaseline='middle';pctx.fillText('Press Run to record telemetry',w/2,h/2);return;}
-  const t1=D[D.length-1].t,t0=Math.max(D[0].t,t1-30);
+  // a 30 s window ending at the live time, or around the moment the timeline shows
+  const tc=shownT(),tEnd=D[D.length-1].t,t1=REPLAY.active?Math.min(tEnd,Math.max(tc+6,D[0].t+30)):tEnd,t0=Math.max(D[0].t,t1-30);
   const C1=chanDef(plotCh),{series,band,sym}=C1;PLOTS.turn=chanDef('turn').label;
   const C2=plotCh2!=='none'&&plotCh2!==plotCh&&plotCh2!=='st'?chanDef(plotCh2):null;
   const range=(C)=>{let lo=Infinity,hi=-Infinity;for(const d of D){if(d.t<t0)continue;for(const s of C.series){const v=s.k(d);if(v==null)continue;lo=Math.min(lo,v);hi=Math.max(hi,v);}if(C.band){const b=C.band(d);if(b!=null){lo=Math.min(lo,C.sym?-b:0);hi=Math.max(hi,b);}}}
@@ -43,4 +44,21 @@ function drawPlot(){
     pctx.setLineDash([]);pctx.fillStyle=TOK.rose;pctx.textAlign='right';pctx.textBaseline='bottom';pctx.fillText('ghost: '+GHOST.label.slice(0,48),w-padR-2*dpr,h-2*dpr);}
   for(const s of series){pctx.strokeStyle=s.c;pctx.lineWidth=1.6*dpr;pctx.beginPath();let up=true;for(const d of D){if(d.t<t0)continue;const v=s.k(d);if(v==null){up=true;continue;}if(up){pctx.moveTo(X(d.t),Y(v));up=false;}else pctx.lineTo(X(d.t),Y(v));}pctx.stroke();}
   if(plotCh==='v'||plotCh==='turn'){pctx.textAlign='right';pctx.textBaseline='top';pctx.fillStyle=TOK.accent;pctx.fillText('command',w-padR-60*dpr,padT);pctx.fillStyle=TOK.ink;pctx.fillText('actual',w-padR-2*dpr,padT);}
+  plotGeom={t0,t1,padL,padR,w,dpr};
+  // time cursors: the replayed moment (solid) and a hover (dashed) from the timeline or this plot, with the values there
+  const cur=(t,dash)=>{if(t==null||t<t0-1e-6||t>t1+1e-6)return false;pctx.strokeStyle=dash?TOK.muted:TOK.ink;pctx.lineWidth=1*dpr;pctx.setLineDash(dash?[3*dpr,3*dpr]:[]);pctx.beginPath();pctx.moveTo(X(t),padT);pctx.lineTo(X(t),h-padB);pctx.stroke();pctx.setLineDash([]);return true;};
+  if(REPLAY.active)cur(tc,false);
+  const th=CURSOR.hover!=null?CURSOR.hover:REPLAY.active?tc:null;
+  if(CURSOR.hover!=null)cur(CURSOR.hover,true);
+  if(th!=null&&th>=t0&&th<=t1){let best=null;for(const d of D){if(!best||Math.abs(d.t-th)<Math.abs(best.t-th))best=d;}
+    if(best){const val=series.map(s=>{const v=s.k(best);return v==null?'—':fmt(v)+(s.name?' '+s.name:'');}).join(' · ');
+      pctx.font=`${Math.round(10*dpr)}px ${getComputedStyle(document.body).getPropertyValue('--f-mono')||'monospace'}`;pctx.fillStyle=TOK.ink;pctx.textAlign='left';pctx.textBaseline='top';
+      const x=Math.min(X(th)+5*dpr,w-padR-pctx.measureText(`${best.t.toFixed(1)} s: ${val}`).width-4*dpr);pctx.fillText(`${best.t.toFixed(1)} s: ${val}`,Math.max(padL+4*dpr,x),padT+(band?14*dpr:2*dpr));}}
 }
+let plotGeom=null;
+// hover the plot: a time cursor here and the robot at that time on the map; click: show that moment
+{const tAt=e=>{const g=plotGeom;if(!g||plotCh==='st')return null;const r=pv.getBoundingClientRect(),x=(e.clientX-r.left)*g.dpr;if(x<g.padL||x>g.w-g.padR)return null;return g.t0+(x-g.padL)/Math.max(1e-6,g.w-g.padL-g.padR)*(g.t1-g.t0);};
+ pv.addEventListener('pointermove',e=>{const t=tAt(e);if(t!==CURSOR.hover){CURSOR.hover=t;hoverChanged();}});
+ pv.addEventListener('pointerleave',()=>{if(CURSOR.hover!=null){CURSOR.hover=null;hoverChanged();}});
+ pv.addEventListener('click',e=>{const t=tAt(e);if(t!=null&&REC.frames.length>1)seekTime(t);});
+ pv.title='Hover: the robot at that time on the map · click: show that moment';}

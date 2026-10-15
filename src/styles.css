@@ -283,6 +283,10 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .bchips-all{display:flex;gap:14px;margin-top:4px}
 @media (max-width:760px){.bchips button{min-width:2.6rem;padding:9px 4px}}
 .an-exp{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.an-legend{display:flex;flex-wrap:wrap;gap:3px 14px;margin:2px 0 0;font-size:.76rem;color:var(--muted)}.an-legend sub{font-size:.7em}
+.lg-i{display:inline-flex;align-items:center;gap:6px}.lg-s{display:inline-block;width:18px;height:0;border-top:2px solid var(--c);flex:none}
+.lg-s.dash{border-top-style:dashed}.lg-s.dot2{border-top-style:dotted}.lg-s.dot{width:8px;height:8px;border:0;border-radius:50%;background:var(--c)}
+.lg-s.x{width:10px;height:10px;border:0;background:linear-gradient(45deg,transparent 42%,var(--c) 42% 58%,transparent 58%),linear-gradient(-45deg,transparent 42%,var(--c) 42% 58%,transparent 58%)}
 .an-play{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:.8rem}.an-play[hidden]{display:none}.an-play input[type=range]{flex:1 1 140px;min-width:100px;accent-color:var(--amber)}.an-pt{min-width:7.5em;color:var(--muted);order:9;flex:1 1 100%}
 .an-msg{font-size:.82rem;color:var(--muted);flex:1 1 220px}
 .an-foot{font-size:.78rem}

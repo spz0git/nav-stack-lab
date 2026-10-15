@@ -135,5 +135,5 @@ and Zenodo read.
 
 ## Licence
 
-See [LICENSE](LICENSE). The vendored converter `tools/vendor/temml` and the embedded typefaces in `src/fonts/` keep
+MIT, see [LICENSE](LICENSE). The vendored converter `tools/vendor/temml` and the embedded typefaces in `src/fonts/` keep
 their own licences (MIT and SIL OFL 1.1); [NOTICE](NOTICE) lists them.

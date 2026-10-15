@@ -1,5 +1,15 @@
+// the odometry sliders in physical units, at the cruise speed driving straight (model: odometry() in core/vehicle.js)
+function odoInfo(){
+  const v=anV0(),e=odoErr(v),deg=x=>x*180/Math.PI,at=`At ${v.toFixed(2)} m/s: `;
+  if(!P.odoK&&!P.odoB)return at+'no error. Dead reckoning on these readings matches the truth.';
+  const noise=P.odoK?`each 50 ms reading is off by σ ${e.sv.toFixed(2)} m/s in speed and ${e.sw.toFixed(2)} rad/s (${deg(e.sw).toFixed(1)}°/s) in turn rate, at random.`:'no random error.';
+  const bias=P.odoB?` Bias: speed reads ${(2*P.odoB).toFixed(1)} % high (+${(100*e.bv).toFixed(1)} cm/s), turn rate +${e.bw.toFixed(3)} rad/s (${deg(e.bw).toFixed(2)}°/s), always the same way → about ${Math.round(60*deg(e.bw))}° of heading drift per minute.`:' No bias.';
+  return at+noise+bias;
+}
 const SCHEMA={
  loc:[{k:'loc',type:'seg',label:'Estimator',opts:[['truth','Ground truth'],['dr','Dead reckoning'],['ekf','EKF'],['pf','Particle filter'],['slam','EKF-SLAM'],['custom','Your code']]},
+      {type:'info',text:()=>'Odometry is perfect on this level (noise and bias 0), so dead reckoning matches the truth exactly.',show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
+      {type:'btn',label:'Add odometry noise and bias (×1)',act:()=>{setParam('odoK',1,false);setParam('odoB',1,false);renderAllPanes();},show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
       {type:'info',text:()=>`EKF-SLAM estimates the beacon positions too: ${S&&S.slam?S.slam.n:0} mapped. The map starts empty; the first reading of each beacon places it.`,show:()=>P.loc==='slam'},
       {type:'info',text:()=>SLOTS.loc.worker?'Your localizer is loaded (Code tab).':'Load a localizer in the Code tab; until then the estimate stays at the start pose.',show:()=>P.loc==='custom'},
       {k:'assoc',type:'seg',label:'Beacon association',opts:[['known','Known IDs'],['unknown','Unlabeled']],show:()=>filt()||P.loc==='slam'},
@@ -9,8 +19,6 @@ const SCHEMA={
       {k:'filtK',label:'Filter\'s assumed motion noise',min:0.25,max:6,step:0.25,unit:'× true',show:()=>P.loc!=='truth'},
       {type:'btn',label:'Scatter particles',act:()=>scatterParticles(),show:pf_},
       {type:'info',text:()=>'Dead reckoning never uses the beacons: it integrates odometry only, so its error and ellipse only grow. Switch to EKF or the particle filter to see beacons pull the estimate back.',show:()=>P.loc==='dr'},
-      {type:'info',text:()=>'Odometry is perfect on this level (noise and bias 0), so dead reckoning matches the truth exactly.',show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
-      {type:'btn',label:'Add odometry noise and bias (×1)',act:()=>{setParam('odoK',1,false);setParam('odoB',1,false);renderAllPanes();},show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
       {type:'info',text:()=>'Ground truth: the estimate is the true pose, so the beacons and their on/off state change nothing here (L1, L2 and L6 start this way). Pick EKF or Particle filter to see what the beacons are worth.',show:()=>P.loc==='truth'},
       {type:'btn',label:'Use the EKF (beacons only)',act:()=>{setParam('loc','ekf',false);renderAllPanes();},show:()=>P.loc==='truth'},
       {type:'beacons',label:'Beacons on (tap to switch one off)'},
@@ -103,8 +111,9 @@ const SCHEMA={
       {k:'vehicles',type:'bool',label:'Other vehicles drive the lanes',show:()=>!!(LV.cars&&LV.cars.length)},
       {k:'biasDeg',label:'Steering misalignment (bias)',min:-5,max:5,step:0.25,unit:'°',show:isCar},
       {k:'biasW',label:'Turn-rate bias (e.g. weak motor)',min:-0.3,max:0.3,step:0.01,unit:'rad/s',show:()=>!isCar()},
-      {k:'odoK',label:'Odometry noise',min:0,max:3,step:0.1,unit:'×'},
-      {k:'odoB',label:'Odometry calibration bias',min:0,max:3,step:0.1,unit:'×'},
+      {k:'odoK',label:'Odometry noise (× base σ)',min:0,max:3,step:0.1,unit:'×'},
+      {k:'odoB',label:'Odometry calibration bias (× base bias)',min:0,max:3,step:0.1,unit:'×'},
+      {type:'info',text:odoInfo},
       {k:'lmK',label:'Beacon range/bearing noise',min:0,max:3,step:0.1,unit:'×'},
       {k:'lmRange',label:'Beacon sensor range',min:2,max:15,step:0.5,unit:'m'},
       {k:'clutter',label:'False beacon detections per scan (unlabeled mode)',min:0,max:3,step:0.1},

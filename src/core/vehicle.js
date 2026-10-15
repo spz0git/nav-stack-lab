@@ -43,4 +43,6 @@ function odometry(){
   S.odo={v:vb+sigV(r.v,r.w,k)*g.n(), w:wb+sigW(r.v,r.w,k)*g.n()};
 }
 const assumedK=()=>P.filtK*Math.max(P.odoK,0.25);
+// odometry error when driving straight at v, for the UI and notes: random σ per reading and the fixed bias (as in odometry())
+const odoErr=v=>({sv:sigV(v,0,P.odoK),sw:sigW(v,0,P.odoK),bv:0.02*P.odoB*v,bw:0.01*P.odoB*v});
 const sigR=()=>0.08*Math.max(P.lmK,0.25), sigB=()=>0.03*Math.max(P.lmK,0.25);

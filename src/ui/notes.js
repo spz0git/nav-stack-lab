@@ -117,9 +117,11 @@ the speed at t = 0.2 s caps the tracker's speed; the commanded curvature is kept
 x' = x + (v/ω)(sin(θ + ωΔt) − sin θ),  y' = y − (v/ω)(cos(θ + ωΔt) − cos θ),  θ' = θ + ωΔt   (straight line if ω ≈ 0)
 command → saturate → first-order lag τ → rate limits → integrate
 lag: u ← u + (u_cmd − u)(1 − e^(−Δt/τ))  for v and ω;   with acceleration limits on: |v̇| ≤ a_max, |ω̇| ≤ α_max</div>
-<p><b>Odometry</b> reports the applied velocity with noise and an optional calibration bias, which models a wheel-radius mismatch. Filters model the noise but not the bias.</p>
-<div class="eq">σ_v = k (0.1|v| + 0.02)      σ_ω = k (0.2|ω| + 0.1|v| + 0.02)
-bias: v·(1 + 0.02 b),  ω + 0.01 b·v</div>
+<p><b>Odometry</b> reports the applied speed and turn rate every 50 ms tick with two kinds of error. k is the <b>noise</b> slider and b the <b>calibration bias</b> slider; ×1 is the base model below.</p>
+<div class="eq">v_meas = v·(1 + 0.02 b) + σ_v ε₁,     σ_v = k (0.1|v| + 0.02) m/s
+ω_meas = ω + 0.01 b·v + σ_ω ε₂,      σ_ω = k (0.2|ω| + 0.1|v| + 0.02) rad/s
+ε₁, ε₂ ~ N(0, 1), fresh every tick;   the filters assume k_filter = (assumed motion noise) × max(k, 0.25) and b = 0</div>
+<p><b>Noise</b> is random and new every tick, so it partly averages out: the heading error it leaves grows like a random walk (σ_θ ∝ √t). At 0.8 m/s straight, ×1 is σ 0.10 m/s in speed and 0.10 rad/s (5.7°/s) in turn rate per reading. <b>Bias</b> models a wheel-radius mismatch: the same error every tick, in the same direction, so it never averages. Heading drift grows linearly in time and the position error it causes quadratically. At 0.8 m/s, ×1 is +1.6 cm/s and +0.008 rad/s (0.46°/s), about 28° of heading per minute. The filters model the noise (the Localize tab scales their assumption) but are never told about the bias, so only beacons or lidar can correct it.</p>
 <p><b>Beacons:</b> range σ = 0.08 m, bearing σ = 0.03 rad (× noise scale), line-of-sight required. <b>Collisions</b> stop translation. The diff-drive robot can still turn in place.</p>
 <p><b>Car-like (kinematic bicycle)</b>, pose at the rear-axle center.</p>
 <div class="eq">ẋ = v cos θ,  ẏ = v sin θ,  θ̇ = v tan δ / L

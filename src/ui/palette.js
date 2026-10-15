@@ -93,7 +93,7 @@ let palFocus=null;
 function openPalette(){
   let d=$('#palette');
   if(!d){d=document.createElement('div');d.id='palette';d.className='palette';d.hidden=true;
-    d.innerHTML=`<div class="pal-box" role="dialog" aria-modal="true" aria-label="Search"><div class="pal-in"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4L14 14"/></svg><input id="pal-q" type="text" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" placeholder="Search settings, actions, lessons, chapters, symbols, signals…" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></div><ul id="pal-list" role="listbox" aria-label="Results"></ul><p class="pal-hint" id="pal-hint"></p></div>`;
+    d.innerHTML=`<div class="pal-box" role="dialog" aria-modal="true" aria-label="Search"><div class="pal-in"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4L14 14"/></svg><input id="pal-q" type="text" role="combobox" aria-label="Search" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" placeholder="Search settings, actions, lessons, chapters, symbols, signals…" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></div><ul id="pal-list" role="listbox" aria-label="Results"></ul><p class="pal-hint" id="pal-hint"></p></div>`;
     document.body.appendChild(d);
     d.addEventListener('pointerdown',e=>{if(e.target===d)closePalette();});
     const q=$('#pal-q');q.oninput=()=>{PAL.q=q.value;PAL.sel=0;palRender();};

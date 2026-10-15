@@ -28,5 +28,5 @@
 - Before committing: `./build.sh`, then from `tests/`: `python3 test.py` (L1–L5 regression summary must not change unless
   intended), `python3 p5test.py` (all Try buttons, ERRORS must be []), `python3 tles.py` (lessons), `python3 chtest.py` (companion notes),
   `python3 dyntest.py` (the car with tyre slip against chapter 1's theory, Analyze against the simulator; FAILS must be []).
-- Design notes, known limits and next steps live in `docs/roadmap.md`; keep it in sync with the project doc
-  `claude/nav-stack-lab-roadmap.md` in the "Robot sim" project.
+- Design notes, known limits and next steps live in `docs/roadmap.md`. The GitHub repo is the only reference: there are
+  no copies elsewhere (Claude projects, docs) to keep in sync.

@@ -5,6 +5,9 @@ from playwright.async_api import async_playwright
 #  2. steady circles: r/δ = v / (L + K_us v²) within 2 % (forward; reverse against the linear model with v_x < 0)
 #  3. step steer above v_ch on the slippery preset: the yaw-rate overshoot and peak time of the linear model (ζ < 1)
 #  4. missions: L6 with both presets (low speed, reverse legs) completes without collisions or NaN
+#  7. the MPC with the tyre model (P.mpcDyn, core/mpc.js): with stiff tyres it drives the kinematic MPC's line on L7;
+#     on the moose test the kinematic MPC hits the box and the tyre model passes; Analyze with its v_y and r gains
+#     against the simulator (injection, step), the Nyquist count, and the worker core
 # The L1–L5 regression (test.py) is the check that the default car and unicycle did not change.
 PRESETS={'grippy':{'mass':10,'Iz':0.9,'lf':0.27,'Cf':500,'Cr':700,'mu':0.9},
          'slippery':{'mass':10,'Iz':0.9,'lf':0.27,'Cf':40,'Cr':90,'mu':0.25}}
@@ -176,6 +179,34 @@ async def main():
         same={k:(ws.get(k),pgr[k]) for k in ['goalsDone','coll','cteRMS','dist']}   # t differs: the worker checks DONE every 40 ticks
         print('  L1, slippery, 1.5 m/s: worker vs page',same,wk.get('error') or '')
         if wk.get('error') or any(a!=b for a,b in same.values()): fails.append('worker and page differ for the dynamic car')
+
+        print('== 7. MPC with the tyre model in its prediction (L7, the moose test)')
+        stiffT={'Cf':1e6,'Cr':1e6,'mu':1e4}
+        a=await pg.evaluate(MISSION,{'lvl':6,'set':stiffT,'secs':20});c=await pg.evaluate(MISSION,{'lvl':6,'set':{**stiffT,'mpcDyn':True},'secs':20})
+        n=min(len(a['path']),len(c['path']));gap=max(math.dist(a['path'][i][:2],c['path'][i][:2]) for i in range(n))
+        print(f"  stiff tyres: kinematic MPC {a['done']} in {a['t']} s, tyre-model MPC {c['done']} in {c['t']} s, max gap {gap*100:.3f} cm")
+        if gap>0.01 or a['done']!='1/1' or c['done']!='1/1': fails.append(f'tyre-model MPC with stiff tyres: gap {gap*100:.2f} cm, {a["done"]} / {c["done"]}')
+        for name,st,want in [('kinematic MPC',{},'hit'),('tyre-model MPC',{'mpcDyn':True},'pass'),('kinematic car',{'veh':'car'},'pass'),('tyre model, 4 m/s',{'mpcDyn':True,'vcruise':4},'pass')]:
+            r=await pg.evaluate(MISSION,{'lvl':6,'set':st,'secs':20})
+            print(f'  moose test, {name}:',{k:v for k,v in r.items() if k not in('path','cmds')})
+            ok=(r['coll']>0) if want=='hit' else (r['coll']==0 and r['done']=='1/1')
+            if not ok or r['nan']: fails.append(f'moose test {name}: {r["done"]}, {r["coll"]} collisions (expected to {want})')
+        AN7=r'''async ({lvl,set}) => {const N=window.__nav,A=window.__an;N.loadLevel(lvl);for(const [k,v] of Object.entries(set))N.setParam(k,v,false);
+          A.AN.dirty=true;const R=A.anCompute();A.AN.injAmp='small';await A.runInjection();
+          const F=A.AN.meas.freq||[];let dB=0,dph=0;for(const q of F){const m=A.Ljw(R.M,q.w);const a=20*Math.log10(q.mag/Math.hypot(m[0],m[1]));let p=(q.ph-Math.atan2(m[1],m[0]))*180/Math.PI;p=((p+540)%360)-180;dB=Math.max(dB,Math.abs(a));dph=Math.max(dph,Math.abs(p));}
+          A.AN.stepKind='offset';A.AN.stepAmp=0.05;A.runStepTest();const sm=A.stepMetrics(A.AN.meas.step.data,'offset');
+          return {v0:R.M.v0,Kvy:R.M.K.vy,Kr:R.M.K.r,stable:R.stable,PM:R.F.pm,zeta:R.zeta,n:F.length,dB,dph,OSlin:R.smOff.overshoot,OSsim:sm.overshoot,N:R.F.Ncw,P:R.F.P,unst:R.unstableZ};}'''
+        for lvl,st in [(6,{}),(6,{'mpcDyn':True}),(6,{'mpcDyn':True,'vcruise':2}),(0,{'veh':'dyn',**PRESETS['slippery'],'vmax':4,'vcruise':1.5,'ctl':'mpc','mpcDyn':True}),(0,{'veh':'dyn',**PRESETS['grippy'],'vmax':4,'vcruise':3,'ctl':'mpc','mpcDyn':True})]:
+            r=await pg.evaluate(AN7,{'lvl':lvl,'set':st})
+            kv=f"K_vy {r['Kvy']:.3f}, K_r {r['Kr']:.3f}" if r['Kvy'] is not None else 'no tyre gains'
+            print(f"  L{lvl+1} {st.get('mpcDyn') and 'tyre model' or 'kinematic '} v {r['v0']:.1f}: {kv}, PM {r['PM'] or 0:.0f}°, ζ {r['zeta'] or 0:.2f} · injection vs model over {r['n']} freqs: {r['dB']:.2f} dB, {r['dph']:.1f}° · step overshoot {r['OSlin']:.1f} % model / {r['OSsim']:.1f} % sim · Nyquist N + P {r['N']+r['P']} vs {r['unst']}")
+            if st.get('mpcDyn') and r['Kvy'] is None: fails.append('Analyze did not read the tyre-model gains')
+            if r['n']<5 or r['dB']>0.5 or r['dph']>3 or abs(r['OSlin']-r['OSsim'])>0.5 or r['N']+r['P']!=r['unst']: fails.append(f"Analyze L{lvl+1} {st}: {r['dB']:.2f} dB / {r['dph']:.1f}°, overshoot {r['OSlin']:.1f} vs {r['OSsim']:.1f}")
+        job={'level':6,'overrides':{'mpcDyn':True},'seed':7,'secs':20}
+        wk=await pg.evaluate(WK,job);pgr=await pg.evaluate(PG,job);ws=wk.get('summary',{})
+        same={k:(ws.get(k),pgr[k]) for k in ['goalsDone','coll','cteRMS','dist']}
+        print('  L7, tyre-model MPC: worker vs page',same,wk.get('error') or '')
+        if wk.get('error') or any(a!=b for a,b in same.values()): fails.append('worker and page differ for the tyre-model MPC')
 
         print('== 4. L6 missions (low speed, reverse legs) with both presets')
         for name,pr in PRESETS.items():

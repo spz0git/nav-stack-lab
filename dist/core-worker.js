@@ -79,6 +79,8 @@ const PARKING=(()=>{const s=[...BORDER,Rc(4,9.45,16,0.3)];
   for(const x of[4,7.2,9.7,12.5,15.5])s.push(Rc(x,0.3,1.0,0.56));   // 2.2 m parallel slot at x 5.0–7.2
   s.push(Ci(9,4.6,0.35),Ci(13,4.6,0.35),Ci(17,4.6,0.35),Rc(20.6,2.4,1.2,1.2));
   return s;})();
+// Moose test: a 3.2 m road with barriers, a box in the right lane, then one in the left lane (a slalom)
+const MOOSE=[...BORDER,Rc(0.2,6.1,23.6,0.3),Rc(0.2,9.6,23.6,0.3),Rc(8,6.4,0.6,1.5),Rc(15,8.1,0.6,1.5)];
 const LEVELS=[
  {id:'L1',name:'Open floor',
   adds:'Perfect pose and a known map, a few pillars, straight-line paths. Everything is ideal except the controller, so this is where you tune tracking.',
@@ -119,6 +121,7 @@ const LEVELS=[
    {t:'<b>Mission:</b> follow the replans in the event log as rooms are discovered.',b:[['Run',{tab:'mis'}]]},
    {t:'<b>Perceive:</b> set unknown space to lethal. Goals in unexplored rooms become unreachable, which is the gap frontier-based exploration fills.',b:[['Unknown = lethal',{set:{unknownAs:'lethal'},tab:'per'}]]},
    {t:'<b>Localize:</b> switch to dead reckoning and watch the map smear: mapping inherits pose error.',b:[['Dead reckoning',{set:{loc:'dr'},tab:'loc'}]]},
+   {t:'<b>Control:</b> the path tracker never reads the lidar; it follows a path planned on the map. With dead reckoning and the odometry bias doubled the map smears, and pure pursuit hits walls that are plainly in its scan (2 collisions). The lidar safety stop caps the speed for scan points on the arc it commands: no contact, but the robot still stops short of the goals the smeared map has wrong (1 of 4 either way).',b:[['Dead reckoning, bias ×2',{set:{loc:'dr',odoB:1},tab:'loc'}],['Same, safety stop on',{set:{loc:'dr',odoB:1,guard:true},tab:'ctl'}]]},
    {t:'<b>Layers:</b> hide the true-map ghost and judge the map as the robot sees it.',b:[['Hide the ghost',{layers:{ghost:false},tab:'view',keep:true}]]},
    {t:'<b>Control:</b> MPC with obstacle constraints handles the tight rooms. Switch it to LTV, which cannot take nonconvex obstacle constraints, and watch it clip the table.',b:[['MPC',{set:{ctl:'mpc'},tab:'ctl'}],['LTV',{set:{ctl:'mpc',mpcMode:'ltv'},tab:'ctl'}]]}],
   shapes:BUILDING,
@@ -161,6 +164,17 @@ const LEVELS=[
   cars:[{loop:[[3,12.4],[21,12.4],[21,6.6],[3,6.6]],v:0.6,s0:0.55}],
   start:[2,4,Math.PI/2],wps:[[10.5,15.3,-Math.PI/2],[15.5,8.35,Math.PI/2],[5.8,0.68,0],[2,13]],
   cfg:{model:'car',loc:'truth',per:'oracle',mis:'sequential',plan:'hybrid',ctl:'rwf',odoK:0,odoB:0,accel:false,lag:0,assoc:'known',clutter:0,replan:0,vcruise:0.6,ppL0:0.4,ppK:0.3,agents:'lidar',spd:'st'},layers:{cost:false}},
+ {id:'L7',name:'Moose test',
+  adds:'Speed. The car with tyre slip, on the slippery floor, enters a two-lane road at 3.5 m/s, above its characteristic speed of 2.6 m/s. A box blocks the right lane, a second one the left lane 7 m on: swerve left, then back (a slalom like the moose test). The map is known and the plan is fixed; what decides the run is whether the controller\'s model knows the tyres. The MPC starts with the kinematic model.',
+  tries:[
+   {t:'<b>Control:</b> the kinematic MPC drives into the first box. It starts the swerve at 1.35 s and steers up to 15°, expecting <i>v</i> tan δ / <i>L</i> of yaw rate, and gets about a third of it: 0.65 m right of its path at 2.4 s, it hits the box. Tick Tyre model in the prediction: the MPC knows the car turns at 40 % of what its wheels point, so it starts at 0.8 s, steers up to 21°, and passes both boxes, 0.40 m off the path at worst. The plots show the yaw rate <i>r</i> against <i>v</i> tan δ / <i>L</i>, and the cross-track error.',b:[['Kinematic MPC',{layers:{slip:true},tab:'ctl',panes:[['yawr','yawk'],['cte']]}],['Tyre model in the MPC',{set:{mpcDyn:true},layers:{slip:true},tab:'ctl',panes:[['yawr','yawk'],['cte']]}]]},
+   {t:'<b>Vehicle:</b> the car the kinematic model describes. The same MPC, plan and speed get through with at most 11° of steering and 0.18 m of cross-track error.',b:[['Kinematic car',{set:{veh:'car'},layers:{slip:true},tab:'veh',plot:'cte'}]]},
+   {t:'<b>Control:</b> entry speed. At 2.5 m/s, just below <i>v</i><sub>ch</sub>, the kinematic MPC gets through, but 0.98 m off its path on the way back and with an off-path replan; with the tyre model the MPC takes 4 m/s, the car\'s top speed, 0.47 m off at worst.',b:[['2.5 m/s, kinematic MPC',{set:{vcruise:2.5},layers:{slip:true},tab:'ctl',plot:'cte'}],['4 m/s, tyre model',{set:{vcruise:4,mpcDyn:true},layers:{slip:true},tab:'ctl',plot:'cte'}]]},
+   {t:'<b>Vehicle:</b> grippy tyres (characteristic speed 11.5 m/s). At 4 m/s the car turns at 89 % of <i>v</i> tan δ / <i>L</i>, nearly kinematic, and the kinematic MPC passes, 0.24 m off at worst.',b:[['Grippy, 4 m/s',{set:{Cf:500,Cr:700,mu:0.9,vcruise:4},layers:{slip:true},tab:'veh',plot:'cte'}]]},
+   {t:'<b>Control:</b> the path trackers at 3.5 m/s. Pure pursuit and rear-wheel feedback hit the first box, as the kinematic MPC does. Stanley gets through, but 0.98 m off its path, with the steering at its lock and an off-path replan.',b:[['Pure pursuit',{set:{ctl:'pp'},layers:{slip:true},tab:'ctl',plot:'cte'}],['Rear-wheel feedback',{set:{ctl:'rwf'},layers:{slip:true},tab:'ctl',plot:'cte'}],['Stanley',{set:{ctl:'stanley'},layers:{slip:true},tab:'ctl',plot:'cte'}]]}],
+  shapes:MOOSE,beacons:[[4,6.45],[12,6.45],[20,6.45],[6,9.55],[14,9.55],[22,9.55]],peds:[],
+  start:[1.2,7.2,0],wps:[[22.5,7.2,0]],
+  cfg:{model:'car',carPhys:'dyn',mass:10,Iz:0.9,lf:0.27,Cf:40,Cr:90,mu:0.25,loc:'truth',per:'oracle',mis:'sequential',plan:'hybrid',revOK:false,ctl:'mpc',odoK:0,odoB:0,accel:true,amax:3,lag:0,assoc:'known',clutter:0,replan:0,vcruise:3.5,vmax:4,alat:8,agents:'off',spd:'none'},layers:{cost:false}},
 ];
 
 /* ---- core/params.js ---- */
@@ -169,9 +183,9 @@ const LEVELS=[
    Parameters
    ============================================================ */
 const DEFAULTS={loc:'truth',assoc:'known',npart:400,inject:true,pfLidar:true,filtK:1,per:'oracle',unknownAs:'free',infl:0.6,
-  mis:'sequential',replan:0,lostGuard:false,rwKth:3.0,rwKe:6.0,latency:0,biasDeg:0,biasW:0,mpcMode:'nmpc',mpcNp:20,mpcNc:10,mpcDt:0.1,mpcIt:3,mpcQlat:20,mpcQlon:4,mpcQth:6,mpcQv:2,mpcQf:5,mpcRa:0.3,mpcRs:0.3,mpcRd:1.0,mpcRho:200,mpcObs:true,mpcMarg:0.1,mpcLag:false,planPct:85,model:'diff',carPhys:'kin',mass:10,Iz:0.9,lf:0.27,Cf:500,Cr:700,mu:0.9,gyro:false,wheelbase:0.6,steerMaxDeg:32,steerRate:1.5,revOK:true,revPen:2.0,gearPen:2.0,hybH:'both',stanK:2.0,plan:'astar',eps:1,smooth:true,rrtIt:1500,ctl:'pp',vcruise:0.8,ppL0:0.5,ppK:0.5,alat:0.6,
+  mis:'sequential',replan:0,lostGuard:false,rwKth:3.0,rwKe:6.0,latency:0,biasDeg:0,biasW:0,mpcMode:'nmpc',mpcNp:20,mpcNc:10,mpcDt:0.1,mpcIt:3,mpcQlat:20,mpcQlon:4,mpcQth:6,mpcQv:2,mpcQf:5,mpcRa:0.3,mpcRs:0.3,mpcRd:1.0,mpcRho:200,mpcObs:true,mpcMarg:0.1,mpcLag:false,mpcDyn:false,planPct:85,model:'diff',carPhys:'kin',mass:10,Iz:0.9,lf:0.27,Cf:500,Cr:700,mu:0.9,gyro:false,wheelbase:0.6,steerMaxDeg:32,steerRate:1.5,revOK:true,revPen:2.0,gearPen:2.0,hybH:'both',stanK:2.0,plan:'astar',eps:1,smooth:true,rrtIt:1500,ctl:'pp',vcruise:0.8,ppL0:0.5,ppK:0.5,alat:0.6,
   kp:2.0,ki:0,kd:0.15,dwaG:1.0,dwaO:0.6,dwaV:0.4,dwaT:1.6,vmax:1.0,wmax:1.8,accel:false,amax:0.8,alpha:3.0,lag:0,
-  odoK:0,odoB:0,lmK:1,lmRange:7,clutter:0,bOff:'',bOut:0,bOutLen:1,lidarSig:0.02,seed:7,agents:'off',agPred:'cv',agT:4,agGrow:0.1,agSigA:0.8,spd:'none',stMarg:0.3,agPlan:true,people:'scripted',sensLat:0,vehicles:true};
+  odoK:0,odoB:0,lmK:1,lmRange:7,clutter:0,bOff:'',bOut:0,bOutLen:1,lidarSig:0.02,seed:7,agents:'off',agPred:'cv',agT:4,agGrow:0.1,agSigA:0.8,spd:'none',stMarg:0.3,agPlan:true,people:'scripted',sensLat:0,vehicles:true,guard:false};
 const P={...DEFAULTS};
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
 const vehOf=(m,c)=>m!=='car'?'diff':c==='dyn'?'dyn':'car';
@@ -806,6 +820,13 @@ function buildCostmap(){
   for(let i=0;i<NC;i++){cm.lethal[i]=d[i]<LETHAL?1:0;const q=(LETHAL+inf-d[i])/inf;cm.pen[i]=d[i]<LETHAL?1:(q>0?q*q:0);}
   dirty.cost=true;
 }
+// Why a goal cell is lethal, for the planners' log line: under the cautious policy, unexplored cells are obstacles,
+// so a goal in or next to unseen space is blocked by the unknown, not by anything the lidar saw
+function goalBlocked(gx,gy){
+  if(P.per==='mapping'&&P.unknownAs==='lethal'){const i0=cellI(gx),j0=cellI(gy),n=Math.ceil(LETHAL/RES);
+    for(let j=j0-n;j<=j0+n;j++)for(let i=i0-n;i<=i0+n;i++){if(i<0||j<0||i>=GW||j>=GH)continue;if(Math.abs(S.lo[j*GW+i])<0.05)return'goal is in unexplored space, and unknown space is lethal (Perceive): nothing explores, so the robot stays where it can see';}}
+  return null;
+}
 function nearestFree(s){
   const seen=new Uint8Array(NC);const q=[s];seen[s]=1;
   for(let h=0;h<q.length&&h<6000;h++){const u=q[h];if(!S.cm.lethal[u])return u;const ui=u%GW,uj=(u/GW)|0;
@@ -852,7 +873,7 @@ function pathLen(p){let L=0;for(let i=1;i<p.length;i++)L+=hyp(p[i][0]-p[i-1][0],
 function astar(sx,sy,gx,gy){
   let s=cellIdx(sx,sy),g=cellIdx(gx,gy);
   if(s<0||g<0)return{ok:false,reason:'outside the map'};
-  if(S.cm.lethal[g])return{ok:false,reason:'goal is inside an inflated obstacle'};
+  if(S.cm.lethal[g])return{ok:false,reason:goalBlocked(gx,gy)||'goal is inside an inflated obstacle'};
   if(S.cm.lethal[s]){s=nearestFree(s);if(s<0)return{ok:false,reason:'start is enclosed'};}
   const tr={},R=gridSearch(s,g,P.eps,tr);
   S.search={type:'astar',closed:R.closed};
@@ -868,7 +889,7 @@ function astar(sx,sy,gx,gy){
 }
 function rrtstar(sx,sy,gx,gy){
   const g=S.rngA,cm=S.cm;
-  const gk=cellIdx(gx,gy);if(gk<0||cm.lethal[gk])return{ok:false,reason:'goal is inside an inflated obstacle'};
+  const gk=cellIdx(gx,gy);if(gk<0||cm.lethal[gk])return{ok:false,reason:(gk>=0&&goalBlocked(gx,gy))||'goal is inside an inflated obstacle'};
   const X=[sx],Y=[sy],Pa=[-1],Co=[0],step=0.6,gam=8,Pa0=[-1],QX=[sx],QY=[sy],rew=[];   // Pa0, QX/QY, rew: for playback
   for(let it=0;it<P.rrtIt;it++){
     let qx,qy;if(g.u()<0.1){qx=gx;qy=gy;}else{qx=g.u()*W;qy=g.u()*H;}
@@ -985,8 +1006,8 @@ function hybridAstar(e,wp){
   const goalTh=wp.th!=null?wp.th:null,q1=[wp.x,wp.y,goalTh];
   const part=carLen()/3,rc=Math.hypot(part/2,CAR.width/2),offs=[0,1,2].map(i=>-CAR.rear+part*(i+0.5));
   const clearAt=(x,y,th)=>{const c=Math.cos(th),s=Math.sin(th);let m=Infinity;for(const o of offs){const k=cellIdx(x+o*c,y+o*s);if(k<0)return -1;const d=dist[k]-rc;if(d<m)m=d;}return m;};
-  if(goalTh!=null&&clearAt(wp.x,wp.y,goalTh)<MARG)return{ok:false,reason:'the goal pose overlaps an obstacle'};
-  if(goalTh==null&&cellIdx(wp.x,wp.y)>=0&&dist[cellIdx(wp.x,wp.y)]<CAR.width/2+MARG)return{ok:false,reason:'goal is too close to an obstacle for the car'};
+  if(goalTh!=null&&clearAt(wp.x,wp.y,goalTh)<MARG)return{ok:false,reason:goalBlocked(wp.x,wp.y)||'the goal pose overlaps an obstacle'};
+  if(goalTh==null&&cellIdx(wp.x,wp.y)>=0&&dist[cellIdx(wp.x,wp.y)]<CAR.width/2+MARG)return{ok:false,reason:goalBlocked(wp.x,wp.y)||'goal is too close to an obstacle for the car'};
   const startClear=clearAt(e.x,e.y,e.th);
   const h2=holoField(wp.x,wp.y,dist,CAR.width/2+0.02);
   const h2At=(x,y)=>{const k=cellIdx(x,y);if(k<0)return Infinity;const v=h2[k];return isFinite(v)?v:hyp(x-wp.x,y-wp.y)+20;};
@@ -1321,15 +1342,39 @@ function ctlDWA(){
 /* ---- core/mpc.js ---- */
 function mpcModel(){
   const car=isCar(),L=P.wheelbase,lag=P.mpcLag&&P.lag>0,tau=P.lag,sMax=car?steerMax():P.wmax;
+  const dyn=mpcTyres(),iy=lag?7:5;   // tyre model: v_y and r appended after the other states
   const sat=s=>clamp(s,-sMax,sMax);   // the actuator saturates; the model does too
+  const G=dyn?mpcDynGeom():null;
   const f=(x,u,dt)=>{
     const v=x[3],s=x[4],w=car?v*Math.tan(s)/L:s,thm=x[2]+0.5*w*dt;
-    const o=[x[0]+v*Math.cos(thm)*dt,x[1]+v*Math.sin(thm)*dt,x[2]+w*dt,0,0];
-    if(lag){const a=1-Math.exp(-dt/tau);o[3]=v+(x[5]-v)*a;o[4]=sat(s+(x[6]-s)*a);o.push(x[5]+u[0]*dt,sat(x[6]+u[1]*dt));}
+    const o=dyn?mpcDynPose(x,v,s,dt,G,iy):[x[0]+v*Math.cos(thm)*dt,x[1]+v*Math.sin(thm)*dt,x[2]+w*dt,0,0];
+    if(lag){const a=1-Math.exp(-dt/tau);o[3]=v+(x[5]-v)*a;o[4]=sat(s+(x[6]-s)*a);o[5]=x[5]+u[0]*dt;o[6]=sat(x[6]+u[1]*dt);}
     else{o[3]=v+u[0]*dt;o[4]=sat(s+u[1]*dt);}
     return o;
   };
-  return{n:lag?7:5,f,car,lag};
+  return{n:iy+(dyn?2:0),f,car,lag,dyn,iy};
+}
+// The prediction with tyre slip (P.mpcDyn on the car with tyre slip): the simulator's dynamic bicycle model (dynF in
+// vehicle.js: linear tyres clipped at μF_z, the same low-speed blend to the kinematic car), stepped MPC_DSUB times per
+// prediction step with one linearly implicit Euler stage (L-stable, so grippy tyres reduce to the kinematic car), and
+// the rear axle moved with the new velocities. Speed and steering are held over the step, as in the kinematic model.
+const MPC_DSUB=5,mpcTyres=()=>isDyn()&&!!P.mpcDyn;
+function mpcDynGeom(){const G=dynGeom();G.ff=P.mu*G.m*GRAV*G.lr/G.L;G.fr=P.mu*G.m*GRAV*G.lf/G.L;return G;}
+function mpcDynPose(x,vx,de,dt,G,iy){
+  G.td=Math.tan(de);const h=dt/MPC_DSUB,rk=vx*G.td/G.L,yk=G.lr*rk,wB=clamp((Math.abs(vx)-0.15)/0.15,0,1),f0=[0,0],fa=[0,0],fb=[0,0];
+  let vy=x[iy],yr=x[iy+1],px=x[0],py=x[1],th=x[2];
+  for(let i=0;i<MPC_DSUB;i++){
+    if(wB>0){
+      dynF(vy,yr,vx,de,G,f0);
+      const e1=1e-6*(1+Math.abs(vy)),e2=1e-6*(1+Math.abs(yr));dynF(vy+e1,yr,vx,de,G,fa);dynF(vy,yr+e2,vx,de,G,fb);
+      const m11=1-h*(fa[0]-f0[0])/e1,m12=-h*(fb[0]-f0[0])/e2,m21=-h*(fa[1]-f0[1])/e1,m22=1-h*(fb[1]-f0[1])/e2,d=m11*m22-m12*m21;
+      vy+=h*(m22*f0[0]-m12*f0[1])/d;yr+=h*(m11*f0[1]-m21*f0[0])/d;
+      if(wB<1){vy=wB*vy+(1-wB)*yk;yr=wB*yr+(1-wB)*rk;}
+    }else{vy=yk;yr=rk;}
+    const tm=th+0.5*yr*h,ly=vy-G.lr*yr,c=Math.cos(tm),sn=Math.sin(tm);
+    px+=(vx*c-ly*sn)*h;py+=(vx*sn+ly*c)*h;th+=yr*h;
+  }
+  const o=[px,py,th,0,0];o[iy]=vy;o[iy+1]=yr;return o;
 }
 // Central-difference Jacobians A = ∂f/∂x, B = ∂f/∂u. Not forward differences: the steering state saturates at ±s_max, and a
 // forward step from +s_max is clipped, which reads as zero sensitivity to steering at full left lock (the solver then cannot unwind it)
@@ -1390,11 +1435,14 @@ function ctlMPC(){
   // after any interruption (replan tick, controller switch) start again from the measured actuator state
   const LC=(S.mpcCmd&&S.mpcCmd.tick===S.tick-1)?S.mpcCmd:{v:S.odo.v,steer:S.robot.d,w:S.odo.w};
   if(M.lag)x0.push(LC.v||0,car?(LC.steer||0):(LC.w||0));
+  if(M.dyn)x0.push(S.robot.vy||0,S.robot.r||0);   // v_y and r as a gyro and a sideslip estimator would give them (here: the true values)
   // reference states (θ unwrapped next to the robot) and the inputs that would produce them
   const Xr=[],Ur=[];let thp=x0[2];
   for(let k=0;k<=Np;k++){const th=thp+wrap(ref[k].th-thp);thp=th;
     const sr=car?dir*Math.atan(P.wheelbase*ref[k].kap):ref[k].v*ref[k].kap;
-    const xr=[ref[k].x,ref[k].y,th,ref[k].v,sr];if(M.lag)xr.push(xr[3],xr[4]);Xr.push(xr);}
+    const xr=[ref[k].x,ref[k].y,th,ref[k].v,sr];if(M.lag)xr.push(xr[3],xr[4]);
+    if(M.dyn){const rr=ref[k].v*Math.tan(sr)/P.wheelbase;xr.push(dynGeom().lr*rr,rr);}   // no slip on the reference
+    Xr.push(xr);}
   for(let k=0;k<Np;k++)Ur.push([(Xr[k+1][3]-Xr[k][3])/dt,(Xr[k+1][4]-Xr[k][4])/dt]);
   // bounds and constraints
   const aMax=P.accel?P.amax:3,rMax=car?P.steerRate:(P.accel?P.alpha:8);
@@ -1419,7 +1467,7 @@ function ctlMPC(){
   const brk=[];
   if(agM){let xb=x0.slice();for(let k=0;k<=Np;k++){if(k)xb=M.f(xb,[clamp(-(M.lag?xb[5]:xb[3])/dt,-aMax,aMax),0],dt);brk.push(offs.map(o=>Math.max(0,agCons(k,xb,o)[0])));}}
   // warm start: shift the previous solution by one sim tick
-  const sig=`${P.mpcMode}|${Np}|${Nc}|${dt}|${n}|${nc}|${P.model}|${S.pathId}`;
+  const sig=`${P.mpcMode}|${Np}|${Nc}|${dt}|${n}|${nc}|${P.model}|${M.dyn}|${S.pathId}`;
   let W=S.mpc;
   if(!W||W.sig!==sig){W=S.mpc={sig,U:new Float64Array(nU),lam:new Float64Array(Np*nc),uPrev:[0,0]};
     for(let j=0;j<Nc;j++){W.U[2*j]=Ur[j][0];W.U[2*j+1]=Ur[j][1];}}
@@ -1505,7 +1553,29 @@ function ctlMPC(){
 function builtinCmd(){const c=builtinRaw();
   // car: hold speed until the wheels have turned close to the commanded angle (dry steering at cusps)
   if(isCar()&&c.steer!=null&&P.ctl!=='mpc'){const de=Math.abs(c.steer-S.robot.d);if(de>0.1)c.v*=clamp(1-(de-0.1)/0.25,0,1);}
-  return agSpeedCap(c);}
+  return lidarGuard(agSpeedCap(c));}
+// Lidar safety stop for the path trackers (P.guard), like a robot's collision monitor: they follow the path and never read
+// the lidar, so a wall the map has wrong (drift, a late scan) or a corner cut on the swing round it is hit side-on.
+// Sweep the footprint along the commanded arc against this scan's points (placed with the estimate, so their positions
+// relative to the robot are as measured) and cap the speed at what stops before the first point closer than MARGIN
+// that the arc approaches. DWA and MPC check the scan themselves.
+const GUARD_CTL=['pp','pid','stanley','rwf'],GUARD_MARG=0.05;
+function lidarGuard(c){
+  S.guard=null;
+  if(!P.guard||!GUARD_CTL.includes(P.ctl)||S.fsm.state!=='DRIVE'||!S.track)return c;
+  const v=c.v||0,sp=Math.abs(v);if(sp<1e-3)return c;
+  const e=S.est,A=P.accel?P.amax:0.8,D=Math.min(3,sp*sp/(2*A)+0.4),pts=S.scanPts.filter(p=>hyp(p[0]-e.x,p[1]-e.y)<D+1);
+  if(!pts.length)return c;
+  const k=isCar()?Math.tan(c.steer!=null?c.steer:0)/P.wheelbase:(c.w||0)/v;   // curvature per metre driven (signed with v)
+  const clear=(x,y,th)=>{let m=Infinity;for(const[cx,cy,r]of fpCircles(x,y,th))for(const p of pts){const d=hyp(p[0]-cx,p[1]-cy)-r;if(d<m)m=d;}return m;};
+  const c0=clear(e.x,e.y,e.th),dir=Math.sign(v);let x=e.x,y=e.y,th=e.th,free=D;
+  for(let s=0.05;s<=D+1e-9;s+=0.05){const n=integ(x,y,th,dir,dir*k,0.05);x=n.x;y=n.y;th=n.th;const cl=clear(x,y,th);
+    if(cl<GUARD_MARG&&cl<c0-0.005){free=s-0.05;break;}}
+  const vm=Math.sqrt(2*A*Math.max(0,free-0.05));if(sp<=vm)return c;
+  const f=vm/sp;S.guard={free,v:vm};
+  if(!S.guardLogT||S.t-S.guardLogT>3){S.guardLogT=S.t;logE(`Safety stop: lidar points ${free.toFixed(2)} m ahead on the commanded arc · speed capped at ${vm.toFixed(2)} m/s`,'warn');}
+  const o={...c,v:v*f};if(!isCar()&&o.w!=null)o.w=c.w*f;return o;
+}
 // At a goal with a heading (unicycle): stop and turn in place, proportional on the heading error, within the turn-rate limit
 function alignCmd(){const wp=WPS[S.fsm.queue[0]],err=wp&&wp.th!=null?wrap(wp.th-S.est.th):0;S.ctlViz=null;
   const wm=Math.min(P.wmax,1.5);return{v:0,w:Math.sign(err)*clamp(2.5*Math.abs(err),0.15,wm)};}
@@ -2032,7 +2102,7 @@ function stAstar(sx,sy,gx,gy){
   const si=ci(sx),sj=cj(sy),gi=ci(gx),gj=cj(gy);
   // static lethal on the coarse grid: any fine lethal cell inside
   const leth=new Uint8Array(gw*gh);for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){let b=0;for(let a=0;a<CW&&!b;a++)for(let c=0;c<CW&&!b;c++)if(S.cm.lethal[(j*CW+a)*GW+i*CW+c])b=1;leth[j*gw+i]=b;}
-  if(leth[gj*gw+gi])return{ok:false,reason:'goal is inside an inflated obstacle'};
+  if(leth[gj*gw+gi])return{ok:false,reason:goalBlocked(gx,gy)||'goal is inside an inflated obstacle'};
   // agent discs per time slice
   const ags=agList(40),marg=P.stMarg,discs=[];for(let k=0;k<nt;k++){const t=k*dtc;discs.push(ags.map(a=>{const q=agPred(a,Math.min(t,T));return[q[0],q[1],q[2]+RR+marg];}));}
   const blocked=(i,j,k)=>{if(k>=nt)return false;const x=(i+0.5)*cw,y=(j+0.5)*cw;for(const d of discs[k])if(hyp(x-d[0],y-d[1])<d[2])return true;return false;};

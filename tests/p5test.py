@@ -20,7 +20,7 @@ async def main():
             await pg.keyboard.press('Space'); await pg.click('#tab-learn'); await pg.wait_for_timeout(50)
         print('lesson tries run:',len(ids),'errors:',bad)
         # level tries
-        for lvl in range(6):
+        for lvl in range(await pg.evaluate("window.__nav.LEVELS.length")):
             await pg.evaluate(f"window.__nav.loadLevel({lvl})"); await pg.wait_for_timeout(100)
             nb=await pg.evaluate("window.__nav.LV.tries.reduce((a,t)=>a+t.b.length,0)")
             for i in range(await pg.evaluate("window.__nav.LV.tries.length")):

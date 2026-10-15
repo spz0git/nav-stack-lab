@@ -28,6 +28,13 @@ function buildCostmap(){
   for(let i=0;i<NC;i++){cm.lethal[i]=d[i]<LETHAL?1:0;const q=(LETHAL+inf-d[i])/inf;cm.pen[i]=d[i]<LETHAL?1:(q>0?q*q:0);}
   dirty.cost=true;
 }
+// Why a goal cell is lethal, for the planners' log line: under the cautious policy, unexplored cells are obstacles,
+// so a goal in or next to unseen space is blocked by the unknown, not by anything the lidar saw
+function goalBlocked(gx,gy){
+  if(P.per==='mapping'&&P.unknownAs==='lethal'){const i0=cellI(gx),j0=cellI(gy),n=Math.ceil(LETHAL/RES);
+    for(let j=j0-n;j<=j0+n;j++)for(let i=i0-n;i<=i0+n;i++){if(i<0||j<0||i>=GW||j>=GH)continue;if(Math.abs(S.lo[j*GW+i])<0.05)return'goal is in unexplored space, and unknown space is lethal (Perceive): nothing explores, so the robot stays where it can see';}}
+  return null;
+}
 function nearestFree(s){
   const seen=new Uint8Array(NC);const q=[s];seen[s]=1;
   for(let h=0;h<q.length&&h<6000;h++){const u=q[h];if(!S.cm.lethal[u])return u;const ui=u%GW,uj=(u/GW)|0;

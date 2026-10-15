@@ -256,6 +256,8 @@ const GLOSS={
  firstorder:['first-order actuator','Its response approaches the command exponentially: transfer function 1/(τ<i>s</i> + 1).','',['first-order actuator']],
  tau:['τ','Actuator time constant: the time to cover 63 % of a step.','s',['τ']],
  mpc:['MPC','Model predictive control: optimizes the next commands over a horizon with a model of the vehicle, applies the first, repeats every tick.','',['MPC']],
+ moose:['moose test','A swerve round an obstacle into the other lane and back at a set entry speed (ISO 3888-2, the elk test): a test of what the tyres and the controller can do together near the grip limit.','',['moose test']],
+ tyrempc:['tyre model in the prediction','The MPC predicts with the dynamic bicycle model (sideslip <i>v</i><sub>y</sub> and yaw rate <i>r</i> as states) instead of the kinematic car (Control tab, car with tyre slip only).','',['Tyre model in the prediction','tyre model']],
  predmodel:['prediction model','The model MPC uses to predict how the vehicle responds to its commands.','',['prediction model']],
  Kc:['<i>K</i><sub>c</sub>','MPC gain on its own commanded value, used when the lag is modeled.','',['K_c']],
  stepdist:['step disturbance','A constant push that starts suddenly; here, an actuator bias.','',['step disturbance']],
@@ -337,6 +339,7 @@ const LESSON_TERMS={
  'When the wheels don\'t go where they point':'dynbike tyreslip slipang cornstiff understeer kus vch yawr v delta Lwb sideslip odometry deadreck gyro tracker cruise alatcap',
  'Running out of grip':'mug ay alatcap curv tyreslip slipang understeer fulllock tracker cruise kus',
  'Gain scheduling breaks above v_ch':'gainsched vch plantgain yawmode pp Ld rwf kth wc pm zeta Ms overshoot steptest kus v0c',
+ 'The moose test: an MPC that knows the tyres':'moose mpc predmodel tyrempc dynbike vch kus understeer yawr yawmode mug sideslip zeta pm Ms overshoot steptest wc cruise alatcap',
  'Curves: does the straight-line analysis hold?':'opoint findiff thdot gpl uc u0 edot v0c the pp rwf curv feedforward stanley pid offset steptest steerrate',
 };
 const lessonTerms=L=>(LESSON_TERMS[L.t]||'').split(' ').filter(id=>GLOSS[id]);

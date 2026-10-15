@@ -15,15 +15,18 @@ const PRESETS=[
     PANES.length=0;PANES.push({sigs:['ep','sp'],off:new Set()},{sigs:['nees'],off:new Set()},{sigs:['neff','zn'],off:new Set()});renderPanes();setMetView('values');}],
   ['cmp','Compare runs','Whole run in every plot, cross-track and speed added, the Runs panel open',()=>{setUIMode('sim');PANES.length=0;PANES.push({sigs:['cte'],off:new Set()},{sigs:['va','vc'],off:new Set()});renderPanes();TW.all=true;TW.end=null;syncTW();drawPlot();toggleRuns(true);}],
   ['map','Map only','Hide the panel and fold the dock',()=>{setUIMode('sim');wsInspector(false);wsDock(false);}]];
+function vmMark(){document.querySelectorAll('#viewmenu [data-preset]').forEach(x=>x.setAttribute('aria-current',String(x.dataset.preset===WS.preset)));}
 {const tools=$('#bartools'),b=document.createElement('button');b.type='button';b.id='tg-view';b.className='ibtn';b.setAttribute('aria-expanded','false');b.setAttribute('aria-controls','viewmenu');b.title='Dock, panel and layout presets';b.innerHTML='View ▾';
  const m=document.createElement('div');m.id='viewmenu';m.className='viewmenu';m.hidden=true;m.setAttribute('role','dialog');m.setAttribute('aria-label','View');
- m.innerHTML=`<p class="vm-h">Show</p><div class="vm-tg"></div><p class="vm-h">Layouts</p>${PRESETS.map(([id,name,sub])=>`<button type="button" class="vm-item" data-preset="${id}"><b>${name}</b><span>${sub}</span></button>`).join('')}<p class="vm-h">Help</p><button type="button" class="vm-item" id="vm-keys"><b>Keyboard shortcuts</b><span>?</span></button>`;
+ m.innerHTML=`<p class="vm-h">Show</p><div class="vm-tg"></div><p class="vm-h">Layouts</p>${PRESETS.map(([id,name,sub])=>`<button type="button" class="vm-item" data-preset="${id}"><b>${name}<i class="vm-cur">current</i></b><span>${sub}</span></button>`).join('')}<p class="vm-h">Help</p><button type="button" class="vm-item" id="vm-keys"><b>Keyboard shortcuts</b><span>?</span></button>`;
  tools.appendChild(b);document.body.appendChild(m);
  const tg=m.querySelector('.vm-tg');tg.appendChild($('#tg-dock'));tg.appendChild($('#tg-insp'));
  const place=()=>{const r=b.getBoundingClientRect();m.style.top=(r.bottom+6)+'px';m.style.right=Math.max(8,innerWidth-r.right)+'px';};
  b.onclick=()=>{const on=m.hidden;m.hidden=!on;b.setAttribute('aria-expanded',String(on));if(on){place();m.querySelector('button').focus();}};
  const close=()=>{m.hidden=true;b.setAttribute('aria-expanded','false');};
- m.querySelectorAll('[data-preset]').forEach(x=>x.onclick=()=>{close();const P2=PRESETS.find(p=>p[0]===x.dataset.preset);P2[3]();toast(`Layout: ${P2[1]}`);});
+ // which layout was applied last is marked (and remembered); showing or hiding the dock or the panel by hand clears the mark
+ m.querySelectorAll('[data-preset]').forEach(x=>x.onclick=()=>{close();const P2=PRESETS.find(p=>p[0]===x.dataset.preset);P2[3]();WS.preset=P2[0];wsSave();vmMark();toast(`Layout: ${P2[1]}`);});
+ ['#tg-dock','#tg-insp','#dock-fold'].forEach(id=>$(id).addEventListener('click',()=>{WS.preset=null;wsSave();vmMark();}));
  $('#vm-keys').onclick=()=>{close();showKeys();};
  document.addEventListener('pointerdown',e=>{if(!m.hidden&&!m.contains(e.target)&&!b.contains(e.target))close();},true);
  m.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();close();b.focus();}});}

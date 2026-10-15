@@ -101,8 +101,8 @@ function wirePane(t){
   if(t==='code')wireCode();
   if(t==='exp')wireExp(pane);
   if(t==='sym')wireSym(pane);
-  if(t==='view'){const g=$('#ghost-clear');if(g)g.onclick=()=>{GHOST=null;renderAllPanes();draw();};}
-  if(t==='view'){pane.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;const fresh=!layersEdited;layersEdited=true;if(fresh)renderAllPanes();draw();});
+  if(t==='view'){const g=$('#ghost-clear');if(g)g.onclick=()=>forgetGhost();}
+  if(t==='view'){pane.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;renderGhostChip();const fresh=!layersEdited;layersEdited=true;if(fresh)renderAllPanes();draw();});
     const au=$('#layers-auto');if(au)au.onclick=()=>{layersEdited=false;layersKey='';renderAllPanes();};}
 }
 let replanDebounce=null;

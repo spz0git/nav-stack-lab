@@ -411,7 +411,7 @@ function actuate(){
    at low speed with grippy tyres), so one tick is DYN_SUB substeps of a 2-stage Rosenbrock method (ROS2: second order,
    L-stable, so stiff tyres converge to the kinematic car instead of blowing up). The pose stays at the rear axle,
    whose body-frame velocity is (v_x, v_y − l_r r); each substep moves it with the new velocities (semi-implicit). */
-const DYN_SUB=10,GRAV=9.81,ROS_G=1+Math.SQRT1_2;
+const DYN_SUB=20,GRAV=9.81,ROS_G=1+Math.SQRT1_2;
 function dynGeom(){const L=P.wheelbase,lf=clamp(P.lf,0.05*L,0.95*L);return{L,lf,lr:L-lf,m:P.mass,Iz:P.Iz};}
 // Steady-state quantities for the UI and the analysis: understeer gradient, characteristic speed, friction limit
 function dynInfo(){const{L,lf,lr,m}=dynGeom(),K=m/L*(lr/P.Cf-lf/P.Cr);return{K,vch:K>0?Math.sqrt(L/K):null,vcrit:K<0?Math.sqrt(-L/K):null,aMax:P.mu*GRAV,L,lf,lr};}

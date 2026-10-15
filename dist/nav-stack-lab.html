@@ -1158,7 +1158,7 @@ function actuate(){
    at low speed with grippy tyres), so one tick is DYN_SUB substeps of a 2-stage Rosenbrock method (ROS2: second order,
    L-stable, so stiff tyres converge to the kinematic car instead of blowing up). The pose stays at the rear axle,
    whose body-frame velocity is (v_x, v_y − l_r r); each substep moves it with the new velocities (semi-implicit). */
-const DYN_SUB=10,GRAV=9.81,ROS_G=1+Math.SQRT1_2;
+const DYN_SUB=20,GRAV=9.81,ROS_G=1+Math.SQRT1_2;
 function dynGeom(){const L=P.wheelbase,lf=clamp(P.lf,0.05*L,0.95*L);return{L,lf,lr:L-lf,m:P.mass,Iz:P.Iz};}
 // Steady-state quantities for the UI and the analysis: understeer gradient, characteristic speed, friction limit
 function dynInfo(){const{L,lf,lr,m}=dynGeom(),K=m/L*(lr/P.Cf-lf/P.Cr);return{K,vch:K>0?Math.sqrt(L/K):null,vcrit:K<0?Math.sqrt(-L/K):null,aMax:P.mu*GRAV,L,lf,lr};}
@@ -3322,7 +3322,7 @@ function actuate(){
    at low speed with grippy tyres), so one tick is DYN_SUB substeps of a 2-stage Rosenbrock method (ROS2: second order,
    L-stable, so stiff tyres converge to the kinematic car instead of blowing up). The pose stays at the rear axle,
    whose body-frame velocity is (v_x, v_y − l_r r); each substep moves it with the new velocities (semi-implicit). */
-const DYN_SUB=10,GRAV=9.81,ROS_G=1+Math.SQRT1_2;
+const DYN_SUB=20,GRAV=9.81,ROS_G=1+Math.SQRT1_2;
 function dynGeom(){const L=P.wheelbase,lf=clamp(P.lf,0.05*L,0.95*L);return{L,lf,lr:L-lf,m:P.mass,Iz:P.Iz};}
 // Steady-state quantities for the UI and the analysis: understeer gradient, characteristic speed, friction limit
 function dynInfo(){const{L,lf,lr,m}=dynGeom(),K=m/L*(lr/P.Cf-lf/P.Cr);return{K,vch:K>0?Math.sqrt(L/K):null,vcrit:K<0?Math.sqrt(-L/K):null,aMax:P.mu*GRAV,L,lf,lr};}
@@ -6096,6 +6096,24 @@ const pMul=(a,b)=>{const r=new Array(a.length+b.length-1).fill(0);for(let i=0;i<
 const pAdd=(a,b)=>{const n=Math.max(a.length,b.length),r=[];for(let i=0;i<n;i++)r.push((a[i]||0)+(b[i]||0));return r;};
 const pScale=(a,k)=>a.map(v=>v*k);
 function pEval(p,s){let r=[0,0];for(let i=p.length-1;i>=0;i--)r=Cx.add(Cx.mul(r,s),[p[i],0]);return r;}
+// matrix exponential of a small real matrix: scaling and squaring with a Taylor series
+function expm(A){
+  const n=A.length,mm=(X,Y)=>X.map(r=>Y[0].map((_,j)=>r.reduce((s,x,l)=>s+x*Y[l][j],0)));
+  let nrm=0;for(const r of A)nrm=Math.max(nrm,r.reduce((s,x)=>s+Math.abs(x),0));
+  const k=nrm>0.5?Math.ceil(Math.log2(nrm/0.5)):0,X=A.map(r=>r.map(x=>x*Math.pow(2,-k)));
+  let E=X.map((r,i)=>r.map((_,j)=>i===j?1:0)),T=E;
+  for(let m=1;m<=16;m++){T=mm(T,X).map(r=>r.map(x=>x/m));E=E.map((r,i)=>r.map((x,j)=>x+T[i][j]));}
+  for(let i=0;i<k;i++)E=mm(E,E);
+  return E;
+}
+// solve A x = b for a small complex matrix (entries [re, im]) by Gaussian elimination with partial pivoting
+function cxSolve(A,b){
+  const n=A.length,M=A.map((r,i)=>r.map(v=>v.slice()).concat([b[i].slice()]));
+  for(let c=0;c<n;c++){let p=c;for(let i=c+1;i<n;i++)if(Cx.abs(M[i][c])>Cx.abs(M[p][c]))p=i;[M[c],M[p]]=[M[p],M[c]];
+    for(let i=c+1;i<n;i++){const f=Cx.div(M[i][c],M[c][c]);for(let j=c;j<=n;j++)M[i][j]=Cx.sub(M[i][j],Cx.mul(f,M[c][j]));}}
+  const x=new Array(n);for(let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s=Cx.sub(s,Cx.mul(M[i][j],x[j]));x[i]=Cx.div(s,M[i][i]);}
+  return x;
+}
 // roots (Aberth–Ehrlich); zero roots split off exactly
 function pRoots(p){
   let a=p.slice();while(a.length>1&&Math.abs(a[a.length-1])<1e-14*Math.max(...a.map(Math.abs)))a.pop();
@@ -6169,7 +6187,7 @@ function benchSettle(B){   // run to the operating point: on a curve, or with an
 }
 function makeBench(v0,y0,th0){
   const B={t:0,tick:0,rngW:makeRng(1),rngA:makeRng(2),shapes:[],peds:[],beacons:benchBeacons(),
-    robot:{x:0,y:y0,th:th0,v:v0,w:0,wa:0,d:0,contact:false,pedContact:false},
+    robot:{x:0,y:y0,th:th0,v:v0,w:0,wa:0,d:0,vy:0,r:0,contact:false,pedContact:false},
     cmd:{v:v0,w:0,steer:0},cmdQ:[],odo:{v:v0,w:0},est:{x:0,y:y0,th:th0},Pc:null,pf:null,scanPts:[],lastZ:[],
     fsm:{state:'DRIVE',queue:[0],lastPlanT:0,lastBlockT:0,prog:{t:0,x:0,y:0},fails:0},
     track:null,plan:null,segIdx:0,pathId:100000,search:null,ctlViz:null,ctlState:{I:0,prev:null},
@@ -6212,10 +6230,23 @@ function anGains(v0){
   }finally{AN.useEst=est;}
 }
 
+// ---- the car with tyre slip: δ → [v_y, r] by the linear bicycle model at v₀ (dynLin, core/vehicle.js), θ̇ₑ = r and
+// ė = v₀ θₑ + v_y − l_r r (the rear axle's sideways velocity). The exact discretization of [v_y, r, θₑ, e] over one
+// tick with δ held (ZOH) drives the 20 Hz loop (stepLin) and L(e^{sT}) (Lparts); the continuous polynomials
+// (yaw rate G_r = nr/det, lateral velocity G_vy = nvy/det) give the transfer function's text and open-loop poles ----
+function dynPlant(v0){
+  const{A,B}=dynLin(v0),lr=dynInfo().lr,[[a,b],[c,d]]=A,[b1,b2]=B;
+  const E=expm([[a,b,0,0,b1],[c,d,0,0,b2],[0,1,0,0,0],[1,-lr,v0,0,0],[0,0,0,0,0]].map(r=>r.map(x=>x*DT)));
+  const nr=[c*b1-a*b2,b2],nvy=[b*b2-d*b1,b1],det=[a*d-b*c,-(a+d),1];
+  // u → e and u → θₑ as numerators over s²·det: PE = v₀ nr + s (nvy − l_r nr), PT = s nr
+  return{A,B,lr,nr,nvy,det,P:pRoots(det).filter(z=>z[0]>1e-9).length,PE:pAdd(pScale(nr,v0),pMul([0,1],pAdd(nvy,pScale(nr,-lr)))),PT:pMul([0,1],nr),
+    Phi:E.slice(0,4).map(r=>r.slice(0,4)),Gam:E.slice(0,4).map(r=>r[4])};
+}
+
 // ---- model: L(s) = N(s)/D(s) · e^{−sT_d} · M(s);  M = 1/(1 − K_u e^{−sT}) for the MPC ----
 function anBuild(){
   const ctl=anCtl(),car=isCar(),T=DT,v0=anV0(),g=car?v0/P.wheelbase:1,tau=P.lag,nL=latN();
-  const M={ctl,car,T,v0,g,tau,aL:tau>0?1-Math.exp(-T/tau):1,nL,Td:T/2+nL*T,kind:'none'};
+  const M={ctl,car,T,v0,g,tau,aL:tau>0?1-Math.exp(-T/tau):1,nL,Td:T/2+nL*T,kind:'none',dyn:car&&isDyn()?dynPlant(v0):null};
   if(!anSupported())return M;
   const actD=tau>0?[1,tau]:[1];
   if(ctl==='pid'){M.kind='pid';M.Ld=Math.max(0.1,P.ppL0+P.ppK*v0);const Cn=[P.ki,P.kp,P.kd];
@@ -6224,6 +6255,10 @@ function anBuild(){
     // u̇ = −(K_e e + K_θ θₑ + K_s s + K_c s_cmd) + K_u u̇_prev ;  s_cmd = ∫u̇ ;  s = s_cmd/(τs+1)
     M.N=pAdd(pMul([0,0,K.c],actD),[g*K.e*v0,g*K.th,K.s]);M.D=pMul([0,0,0,1],actD);M.Ne=[g*K.e*v0];}
   else{const K=anGains(v0);M.kind='static';M.Ke=K.e;M.Kth=K.th;M.ess=K.ess;M.N=[g*K.e*v0,g*K.th];M.D=pMul([0,0,1],actD);M.Ne=[g*K.e*v0];}
+  if(M.dyn){const{PE,PT,det}=M.dyn,K=M.K;   // the same loops with the tyres' yaw dynamics in the plant
+    if(M.kind==='static'){M.N=pAdd(pScale(PE,M.Ke),pScale(PT,M.Kth));M.D=pMul(pMul([0,0,1],det),actD);M.Ne=pScale(PE,M.Ke);}
+    else if(M.kind==='pid'){const Cn=[P.ki,P.kp,P.kd];M.N=pMul(Cn,pAdd(pScale(PE,1/M.Ld),PT));M.D=pMul(pMul([0,0,0,1],det),actD);M.Ne=pMul(Cn,pScale(PE,1/M.Ld));}
+    else{M.N=pAdd(pAdd(pMul(pMul([0,0,K.c],actD),det),pMul([0,0,K.s],det)),pAdd(pScale(PE,K.e),pScale(PT,K.th)));M.D=pMul(pMul([0,0,0,1],det),actD);M.Ne=pScale(PE,K.e);}}
   return M;
 }
 // Loop transfer at complex s. The vehicle is continuous (two integrators) behind a zero-order hold
@@ -6234,7 +6269,11 @@ function Lparts(M,s){
   const g=M.g,v=M.v0,zi=Cx.exp(Cx.scale(s,-M.T)),one=[1,0],s2=Cx.mul(s,s);
   const zh=Cx.exp(Cx.scale(s,-M.T/2)),lat=Cx.exp(Cx.scale(s,-M.nL*M.T));   // hold delay T/2 on vehicle paths; latency on everything through the actuator
   const lag=M.tau>0?Cx.div([M.aL,0],Cx.sub(one,Cx.scale(zi,1-M.aL))):one;
-  const plantE=Cx.mul(zh,Cx.div([g*v,0],s2)),plantTh=Cx.mul(zh,Cx.div([g,0],s));   // u → e and u → θₑ
+  let plantE=Cx.mul(zh,Cx.div([g*v,0],s2)),plantTh=Cx.mul(zh,Cx.div([g,0],s));   // u → e and u → θₑ
+  if(M.dyn){   // car with tyre slip: the exact sampled plant C (zI − Φ)⁻¹ Γ, z = e^{sT} (it holds δ over the tick itself, so no T/2;
+    // the hold-as-delay approximation above is good for two integrators but not for tyre poles near the Nyquist frequency)
+    const D=M.dyn,z=Cx.exp(Cx.scale(s,M.T)),X=cxSolve(D.Phi.map((r,i)=>r.map((x,j)=>i===j?[z[0]-x,z[1]]:[-x,0])),D.Gam.map(x=>[x,0]));
+    plantTh=X[2];plantE=X[3];}
   let L,Le;
   if(M.kind==='static'){const A=Cx.mul(lag,lat);L=Cx.mul(A,Cx.add(Cx.scale(plantE,M.Ke),Cx.scale(plantTh,M.Kth)));Le=Cx.mul(A,Cx.scale(plantE,M.Ke));}
   else if(M.kind==='pid'){const T=M.T,omz=Cx.sub(one,zi),C=Cx.add(Cx.add([P.kp,0],Cx.div([P.ki*T,0],omz)),Cx.scale(omz,P.kd/T));
@@ -6249,11 +6288,13 @@ function Ls(M,s){return Lparts(M,s).L;}
 function Ljw(M,w){return Ls(M,[0,w]);}
 
 // ---- exact discrete loop at the simulation rate (ZOH, sample delay, latency queue) ----
-function linLayout(M){let i=3;const L={y:0,psi:1,sa:2};if(M.kind==='mpc')L.sc=i++;if(M.kind==='pid'){if(P.ki!==0)L.I=i++;L.pv=i++;}if(M.kind==='mpc')L.up=i++;L.q0=i;L.n=i+M.nL+1;return L;}
+function linLayout(M){let i=3;const L={y:0,psi:1,sa:2};if(M.dyn){L.vy=i++;L.r=i++;}if(M.kind==='mpc')L.sc=i++;if(M.kind==='pid'){if(P.ki!==0)L.I=i++;L.pv=i++;}if(M.kind==='mpc')L.up=i++;L.q0=i;L.n=i+M.nL+1;return L;}
 function stepLin(M,L,X,k,d,r){
   const T=M.T,v0=M.v0,g=M.g,x=X.slice();
   const sa=x[L.sa]+(x[L.q0]-x[L.sa])*M.aL;x[L.sa]=sa;
-  const se=sa+d,psi=x[L.psi];x[L.psi]=psi+g*se*T;x[L.y]=x[L.y]+v0*(psi*T+0.5*g*se*T*T);
+  const se=sa+d,psi=x[L.psi];
+  if(M.dyn){const D=M.dyn,z=[x[L.vy],x[L.r],psi,x[L.y]],o=[L.vy,L.r,L.psi,L.y];for(let i=0;i<4;i++){let s=D.Gam[i]*se;for(let j=0;j<4;j++)s+=D.Phi[i][j]*z[j];x[o[i]]=s;}}
+  else{x[L.psi]=psi+g*se*T;x[L.y]=x[L.y]+v0*(psi*T+0.5*g*se*T*T);}
   for(let j=0;j<M.nL;j++)x[L.q0+j]=x[L.q0+j+1];
   const e=x[L.y]-r,th=x[L.psi];let c;
   if(M.kind==='static')c=-k*(M.Ke*e+M.Kth*th);
@@ -6297,11 +6338,12 @@ function anFreq(M){
   const dm=(pm!=null&&wc)?(pm*Math.PI/180)/wc:null;
   // Nyquist: change of arg(1+L) along the indented contour (clockwise); P = 0 open-loop RHP poles
   const argAlong=list=>{let tot=0,prev=null;for(const s of list){const a=Cx.arg(Cx.add([1,0],Ls(M,s)));if(prev!=null){let d=a-prev;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;tot+=d;}prev=a;}return tot;};
-  const eps=1e-3,up=[];for(let i=0;i<=3000;i++)up.push([0,Math.pow(10,Math.log10(eps)+i*(5-Math.log10(eps))/3000)]);
+  // the car with tyre slip uses the exact sampled plant, which repeats every 2π/T: its contour is the unit circle (ω up to π/T)
+  const eps=1e-3,wTop=M.dyn?Math.log10(Math.PI/M.T):5,up=[];for(let i=0;i<=3000;i++)up.push([0,Math.pow(10,Math.log10(eps)+i*(wTop-Math.log10(eps))/3000)]);
   const arc=[];for(let i=0;i<=400;i++){const ph=-Math.PI/2+Math.PI*i/400;arc.push([eps*Math.cos(ph),eps*Math.sin(ph)]);}
-  const dTot=2*argAlong(up)+argAlong(arc),Ncw=Math.round(-dTot/(2*Math.PI));
-  if(Ncw!==0&&gmN!=null){gm=gmN;w180=w180N;}   // unstable: negative GM = gain reduction needed
-  return{pts,wc,pm,gm,w180,ms,dm,Ncw,wN};
+  const dTot=2*argAlong(up)+argAlong(arc),Ncw=Math.round(-dTot/(2*Math.PI)),Pol=M.dyn?M.dyn.P:0;   // P: open-loop unstable poles (an oversteering car above v_crit)
+  if(Ncw+Pol!==0&&gmN!=null){gm=gmN;w180=w180N;}   // unstable: negative GM = gain reduction needed
+  return{pts,wc,pm,gm,w180,ms,dm,Ncw,P:Pol,wN};
 }
 function anCompute(){
   const M=anBuild();const R={M};if(M.kind==='none'){AN.res=R;return R;}
@@ -6568,7 +6610,7 @@ function drawNyq(R){
   c.strokeStyle=TOK.bad;c.lineWidth=2.5*dpr;const s=6*dpr;c.beginPath();c.moveTo(X(-1)-s,Y(0)-s);c.lineTo(X(-1)+s,Y(0)+s);c.moveTo(X(-1)-s,Y(0)+s);c.lineTo(X(-1)+s,Y(0)-s);c.stroke();
   label(G,'−1',X(-1)-8*dpr,Y(0)-6*dpr,TOK.bad,'right','bottom');
   if(AN.meas.freq){c.fillStyle=TOK.amber;for(const q of AN.meas.freq){const u=map(q.L);c.beginPath();c.arc(X(u[0]),Y(u[1]),3.2*dpr,0,TAU);c.fill();}}
-  const ok=F.Ncw===0;label(G,`N = ${F.Ncw} encirclement${Math.abs(F.Ncw)===1?'':'s'} of −1 · Z = N + P = ${F.Ncw}  →  ${ok?'stable':'unstable'}`,6*dpr,h-4*dpr,ok?TOK.ok:TOK.bad,'left','bottom');
+  const Z=F.Ncw+(F.P||0),ok=Z===0;label(G,`N = ${F.Ncw} encirclement${Math.abs(F.Ncw)===1?'':'s'} of −1 · Z = N + P = ${F.P?`${F.Ncw} + ${F.P} = `:''}${Z}  →  ${ok?'stable':'unstable'}`,6*dpr,h-4*dpr,ok?TOK.ok:TOK.bad,'left','bottom');
   label(G,lg?'radius log₂(1+|L|): −1 and the unit circle stay in place':'linear scale',6*dpr,4*dpr,TOK.muted,'left','top');
 }
 function drawStep(R){
@@ -6626,8 +6668,8 @@ function blockDiagram(R){
   ${box(118,190,'Controller',C.length>34?C.slice(0,34)+'…':C)}${ar(308,330)}
   ${box(330,92,'e^(−sT_d)',`T_d ${fmt(M.Td*1000,0)} ms`)}${ar(422,442)}
   ${box(442,116,'Actuator',act)}${ar(558,578)}
-  ${box(578,92,'Heading',car?`v/L · 1/s`:'1/s')}${ar(670,690)}
-  ${box(690,92,'Lateral',`v/s, v ${fmt(M.v0)}`)}${ar(782,830)}<text x="836" y="46" class="bd-s" text-anchor="start">e</text>
+  ${box(578,92,M.dyn?'Tyres, heading':'Heading',M.dyn?'G_r(s) · 1/s':car?`v/L · 1/s`:'1/s')}${ar(670,690)}
+  ${box(690,92,'Lateral',M.dyn?`(v + slide)/s`:`v/s, v ${fmt(M.v0)}`)}${ar(782,830)}<text x="836" y="46" class="bd-s" text-anchor="start">e</text>
   <polyline points="806,42 806,92 86,92 86,52" class="bd-l" fill="none"/><path d="M86 52 l-4 7 h8 z" class="bd-a"/>
   <polyline points="680,42 680,80 213,80 213,62" class="bd-l bd-dash" fill="none"/><text x="446" y="76" class="bd-s">θₑ</text><text x="446" y="88" class="bd-s">e</text></svg>`;
 }
@@ -6724,7 +6766,9 @@ function anStory(R){
   else{const K=M.K,f=x=>fmt(Math.abs(x)*180/Math.PI,0);ctl=`MPC replans every tick, but near this situation it acts like a feedback on the <i>rate</i> of ${car?'steering':'turning'}: it changes the ${car?'steering angle':'turn rate'} by about <b>${f(K.e*0.1)}°/s${car?'':'²'}</b> for every 10 cm of offset and <b>${f(K.th*d10)}°/s${car?'':'²'}</b> for every 10° of heading error, and backs off in proportion to the ${car?'steering':'turning'} it already has (gains read from the MPC by finite differences).`;}
   const sw=v*Math.sin(d10)*100,Td=M.Td*1000;
   h+=`<p><b>The controller</b> (${ctlN}): ${ctl}</p>`;
-  h+=`<p><b>The vehicle.</b> ${car?`The heading turns at v·tan δ / L = ${fmt(v/P.wheelbase,2)} rad/s per radian of steering (wheelbase ${fmt(P.wheelbase,2)} m)`:'The heading turns at the commanded rate'}; pointing 10° away from the path at ${fmt(v)} m/s drifts it sideways at <b>${fmt(sw,0)} cm/s</b>. So offset builds up from heading error, and heading from steering: two integrations, which is why the loop can overshoot.</p>`;
+  if(M.dyn){const D=dynInfo(),Gr=M.dyn.nr[0]/M.dyn.det[0],md=dynModes(v);
+    h+=`<p><b>The vehicle: a car with tyre slip.</b> A tyre pushes sideways only by slipping, so steering does not set the turn rate directly: the front tyres must slip before they push, and the yaw rate follows the steering through the car's own yaw mode (${md.text}). It settles at <b>${fmt(Gr,2)} rad/s per radian of steering</b>, ${fmt(100*Gr/M.g,0)} % of what the kinematic car would do (v/L = ${fmt(M.g,2)}): this car ${D.K>0?`understeers (K<sub>us</sub> ${fmt(D.K,4)} rad per m/s², characteristic speed ${fmt(D.vch,2)} m/s)`:D.K<0?`oversteers (critical speed ${fmt(D.vcrit,2)} m/s)`:'is neutral'}. While it turns, the rear axle also slides sideways. Pointing 10° away from the path still drifts it sideways at <b>${fmt(sw,0)} cm/s</b>. So offset builds up from heading, heading from yaw rate, and yaw rate from steering through the tyres: the two integrations of the kinematic car plus a lag, which costs phase. The model holds while the tyres stay below their grip limit of μg = ${fmt(D.aMax,2)} m/s².</p>`;}
+  else h+=`<p><b>The vehicle.</b> ${car?`The heading turns at v·tan δ / L = ${fmt(v/P.wheelbase,2)} rad/s per radian of steering (wheelbase ${fmt(P.wheelbase,2)} m)`:'The heading turns at the commanded rate'}; pointing 10° away from the path at ${fmt(v)} m/s drifts it sideways at <b>${fmt(sw,0)} cm/s</b>. So offset builds up from heading error, and heading from steering: two integrations, which is why the loop can overshoot.</p>`;
   h+=`<p><b>Delays.</b> The ${car?'wheels':'motors'} act on a measurement about <b>${fmt(Td,0)} ms</b> old (half of the 50 ms control tick${M.nL?` plus ${fmt(M.nL*DT*1000,0)} ms of latency`:''})${M.tau>0?`, and the actuator follows its command with a lag τ = ${fmt(M.tau,2)} s`:''}. Delay is what eventually makes a fast controller oscillate.</p>`;
   return h;
 }
@@ -6752,7 +6796,17 @@ function anPzCaption(R){
 function anApplyWhatIf(){const wi=AN.wi;if(!wi)return;const set=wi.set;AN.wi=null;
   if(set.ctl&&set.ctl!==P.ctl)setParam('ctl',set.ctl,false);for(const[k,v]of Object.entries(set))if(k!=='ctl')setParam(k,v,false);
   logE(`Analyze: applied ${wi.setTxt}${set.ctl&&set.ctl!=='rwf'?'':''}`);renderAllPanes();anInvalidate();renderAnalysis();}
+// the car with tyre slip: the plant in numbers (yaw rate per steering angle, with the tyres' yaw mode)
+function anDynTF(M){
+  const D=M.dyn,pn=p=>p.map(x=>fmt(x,2)),[n0,n1]=pn(D.nr),[d0,d1]=pn(D.det),[m0,m1]=pn(D.nvy),Gr0=D.nr[0]/D.det[0],md=dynModes(M.v0);
+  return`<p><b>The plant with tyre slip.</b> Steering does not set the yaw rate directly; the tyres do, through the car's own yaw mode: G<sub>r</sub>(s) = r/δ = (${n1} s + ${n0}) / (s² + ${d1} s + ${d0}), and the lateral velocity G<sub>vy</sub>(s) = (${m1} s + ${m0}) / (same). Then θ̇ₑ = r and ė = v₀ θₑ + v<sub>y</sub> − l<sub>r</sub> r (the rear axle slides sideways at v<sub>y</sub> − l<sub>r</sub> r), so the vehicle part of L(s) is K<sub>e</sub>·(v₀ G<sub>r</sub>/s + G<sub>vy</sub> − l<sub>r</sub> G<sub>r</sub>)/s + K<sub>θ</sub>·G<sub>r</sub>/s. Steady gain G<sub>r</sub>(0) = ${fmt(Gr0,2)} 1/s against the kinematic v₀/L = ${fmt(M.g,2)} (${fmt(100*Gr0/M.g,0)} %); yaw mode ${md.text}. The 20 Hz loop uses the exact sampled plant (δ held over each tick), not the T/2 delay.</p>`;
+}
 function anTF(R){
+  const M=R.M,g=M.g,v=M.v0,lag=M.tau>0?` · 1/(${fmt(M.tau,2)}s + 1)`:'',dl=`e<sup>−${fmt(M.Td,3)}s</sup>`;
+  if(M.dyn)return anDynTF(M)+anTFkin(R).replace('<p><b>Transfer function.</b> ','<p><b>Transfer function, if the car were kinematic</b> (for comparison): ').replace('the exact 20 Hz loop with the delay gives','the exact 20 Hz loop with the delay and the tyres gives');
+  return anTFkin(R);
+}
+function anTFkin(R){
   const M=R.M,g=M.g,v=M.v0,lag=M.tau>0?` · 1/(${fmt(M.tau,2)}s + 1)`:'',dl=`e<sup>−${fmt(M.Td,3)}s</sup>`;
   let h='<p><b>Transfer function.</b> ';
   if(M.kind==='static'){const a=g*M.Kth,b=g*v*M.Ke,wn=Math.sqrt(Math.max(0,b)),z=wn>0?a/(2*wn):0;
@@ -6778,7 +6832,7 @@ function renderAnalysis(){
   if(AN.loop==='spd')return renderSpeed();
   if(AN.dirty||!AN.res){anCompute();AN.dirty=false;AN.wi=null;}
   const R=AN.res,M=R.M,ctlN=CTL_NAMES[anCtl()]||P.ctl;
-  $('#an-op').innerHTML=`<b>${isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · ${anR()?`left turn R ${anR()} m`:'straight path'} at ${fmt(M.v0)} m/s · settings come from the Control and Vehicle tabs`;
+  $('#an-op').innerHTML=`<b>${isDyn()?'Car with tyre slip':isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · ${anR()?`left turn R ${anR()} m`:'straight path'} at ${fmt(M.v0)} m/s · settings come from the Control and Vehicle tabs`;
   if(M.kind==='none'){$('#an-body').hidden=true;$('#an-none').hidden=false;
     $('#an-none').innerHTML=`<p><b>${ctlN}</b> has no linear model to analyze. ${P.ctl==='dwa'?'DWA picks the best of a grid of sampled commands, so its output is piecewise constant in the state and has no meaningful derivative.':'Your code runs as a black box in a worker.'} Pick pure pursuit, rear-wheel feedback, Stanley (car), PID or MPC in the Control tab.</p>`;return;}
   $('#an-body').hidden=false;$('#an-none').hidden=true;
@@ -6801,7 +6855,7 @@ function renderAnalysis(){
 function renderSpeed(){
   if(AN.dirty||!AN.resSpd){spdCompute();AN.dirty=false;}
   const R=AN.resSpd,M=R.M,ctlN=CTL_NAMES[anCtl()]||P.ctl,ms=AN.meas.spd;
-  $('#an-op').innerHTML=`<b>${isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · speed loop at ${fmt(M.v0)} m/s`;
+  $('#an-op').innerHTML=`<b>${isDyn()?'Car with tyre slip':isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · speed loop at ${fmt(M.v0)} m/s`;
   if(M.kind==='none'){$('#an-body').hidden=true;$('#an-none').hidden=false;$('#an-none').innerHTML=`<p><b>${ctlN}</b> runs as a black box. Pick a built-in tracker.</p>`;return;}
   $('#an-body').hidden=false;$('#an-none').hidden=true;
   const mpc=M.kind==='mpc',sm=R.smOff,msm=ms?spdMetrics(ms.data):null,amp=AN.spdAmp||0.2;
@@ -8008,7 +8062,7 @@ const LIVE={
   wc:()=>{const R=liveRes();return R?liveF(R.F.wc):'—';},pm:()=>{const R=liveRes();return R?liveF(R.F.pm,1):'—';},
   dm:()=>{const R=liveRes();return R?liveF(R.F.dm):'—';},gm:()=>{const R=liveRes();return R?liveF(R.F.gm,1):'—';},
   w180:()=>{const R=liveRes();return R?liveF(R.F.w180,1):'—';},ms:()=>{const R=liveRes();return R?liveF(R.F.ms):'—';},
-  nyq:()=>{const R=liveRes();if(!R)return'—';const N=R.F.Ncw,Z=N;return`N = ${N}, P = 0, Z = ${Z} → ${R.stable?'stable':'unstable'}`;},
+  nyq:()=>{const R=liveRes();if(!R)return'—';const N=R.F.Ncw,Pl=R.F.P||0,Z=N+Pl;return`N = ${N}, P = ${Pl}, Z = ${Z} → ${R.stable?'stable':'unstable'}`;},
   zeta:()=>{const R=liveRes();return R?liveF(R.zeta):'—';},wn:()=>{const R=liveRes();return R?liveF(R.wn):'—';},
   dom:()=>{const R=liveRes();return R&&R.dom?`${liveF(R.dom[0])} ± ${liveF(R.dom[1])}j`:'—';},
   os:()=>{const R=liveRes();return R?liveF(R.smOff.overshoot,1):'—';},settle:()=>{const R=liveRes();return R?liveF(R.smOff.settle,1):'—';},

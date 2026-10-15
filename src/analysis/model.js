@@ -27,7 +27,7 @@ function benchSettle(B){   // run to the operating point: on a curve, or with an
 }
 function makeBench(v0,y0,th0){
   const B={t:0,tick:0,rngW:makeRng(1),rngA:makeRng(2),shapes:[],peds:[],beacons:benchBeacons(),
-    robot:{x:0,y:y0,th:th0,v:v0,w:0,wa:0,d:0,contact:false,pedContact:false},
+    robot:{x:0,y:y0,th:th0,v:v0,w:0,wa:0,d:0,vy:0,r:0,contact:false,pedContact:false},
     cmd:{v:v0,w:0,steer:0},cmdQ:[],odo:{v:v0,w:0},est:{x:0,y:y0,th:th0},Pc:null,pf:null,scanPts:[],lastZ:[],
     fsm:{state:'DRIVE',queue:[0],lastPlanT:0,lastBlockT:0,prog:{t:0,x:0,y:0},fails:0},
     track:null,plan:null,segIdx:0,pathId:100000,search:null,ctlViz:null,ctlState:{I:0,prev:null},
@@ -70,10 +70,23 @@ function anGains(v0){
   }finally{AN.useEst=est;}
 }
 
+// ---- the car with tyre slip: δ → [v_y, r] by the linear bicycle model at v₀ (dynLin, core/vehicle.js), θ̇ₑ = r and
+// ė = v₀ θₑ + v_y − l_r r (the rear axle's sideways velocity). The exact discretization of [v_y, r, θₑ, e] over one
+// tick with δ held (ZOH) drives the 20 Hz loop (stepLin) and L(e^{sT}) (Lparts); the continuous polynomials
+// (yaw rate G_r = nr/det, lateral velocity G_vy = nvy/det) give the transfer function's text and open-loop poles ----
+function dynPlant(v0){
+  const{A,B}=dynLin(v0),lr=dynInfo().lr,[[a,b],[c,d]]=A,[b1,b2]=B;
+  const E=expm([[a,b,0,0,b1],[c,d,0,0,b2],[0,1,0,0,0],[1,-lr,v0,0,0],[0,0,0,0,0]].map(r=>r.map(x=>x*DT)));
+  const nr=[c*b1-a*b2,b2],nvy=[b*b2-d*b1,b1],det=[a*d-b*c,-(a+d),1];
+  // u → e and u → θₑ as numerators over s²·det: PE = v₀ nr + s (nvy − l_r nr), PT = s nr
+  return{A,B,lr,nr,nvy,det,P:pRoots(det).filter(z=>z[0]>1e-9).length,PE:pAdd(pScale(nr,v0),pMul([0,1],pAdd(nvy,pScale(nr,-lr)))),PT:pMul([0,1],nr),
+    Phi:E.slice(0,4).map(r=>r.slice(0,4)),Gam:E.slice(0,4).map(r=>r[4])};
+}
+
 // ---- model: L(s) = N(s)/D(s) · e^{−sT_d} · M(s);  M = 1/(1 − K_u e^{−sT}) for the MPC ----
 function anBuild(){
   const ctl=anCtl(),car=isCar(),T=DT,v0=anV0(),g=car?v0/P.wheelbase:1,tau=P.lag,nL=latN();
-  const M={ctl,car,T,v0,g,tau,aL:tau>0?1-Math.exp(-T/tau):1,nL,Td:T/2+nL*T,kind:'none'};
+  const M={ctl,car,T,v0,g,tau,aL:tau>0?1-Math.exp(-T/tau):1,nL,Td:T/2+nL*T,kind:'none',dyn:car&&isDyn()?dynPlant(v0):null};
   if(!anSupported())return M;
   const actD=tau>0?[1,tau]:[1];
   if(ctl==='pid'){M.kind='pid';M.Ld=Math.max(0.1,P.ppL0+P.ppK*v0);const Cn=[P.ki,P.kp,P.kd];
@@ -82,6 +95,10 @@ function anBuild(){
     // u̇ = −(K_e e + K_θ θₑ + K_s s + K_c s_cmd) + K_u u̇_prev ;  s_cmd = ∫u̇ ;  s = s_cmd/(τs+1)
     M.N=pAdd(pMul([0,0,K.c],actD),[g*K.e*v0,g*K.th,K.s]);M.D=pMul([0,0,0,1],actD);M.Ne=[g*K.e*v0];}
   else{const K=anGains(v0);M.kind='static';M.Ke=K.e;M.Kth=K.th;M.ess=K.ess;M.N=[g*K.e*v0,g*K.th];M.D=pMul([0,0,1],actD);M.Ne=[g*K.e*v0];}
+  if(M.dyn){const{PE,PT,det}=M.dyn,K=M.K;   // the same loops with the tyres' yaw dynamics in the plant
+    if(M.kind==='static'){M.N=pAdd(pScale(PE,M.Ke),pScale(PT,M.Kth));M.D=pMul(pMul([0,0,1],det),actD);M.Ne=pScale(PE,M.Ke);}
+    else if(M.kind==='pid'){const Cn=[P.ki,P.kp,P.kd];M.N=pMul(Cn,pAdd(pScale(PE,1/M.Ld),PT));M.D=pMul(pMul([0,0,0,1],det),actD);M.Ne=pMul(Cn,pScale(PE,1/M.Ld));}
+    else{M.N=pAdd(pAdd(pMul(pMul([0,0,K.c],actD),det),pMul([0,0,K.s],det)),pAdd(pScale(PE,K.e),pScale(PT,K.th)));M.D=pMul(pMul([0,0,0,1],det),actD);M.Ne=pScale(PE,K.e);}}
   return M;
 }
 // Loop transfer at complex s. The vehicle is continuous (two integrators) behind a zero-order hold
@@ -92,7 +109,11 @@ function Lparts(M,s){
   const g=M.g,v=M.v0,zi=Cx.exp(Cx.scale(s,-M.T)),one=[1,0],s2=Cx.mul(s,s);
   const zh=Cx.exp(Cx.scale(s,-M.T/2)),lat=Cx.exp(Cx.scale(s,-M.nL*M.T));   // hold delay T/2 on vehicle paths; latency on everything through the actuator
   const lag=M.tau>0?Cx.div([M.aL,0],Cx.sub(one,Cx.scale(zi,1-M.aL))):one;
-  const plantE=Cx.mul(zh,Cx.div([g*v,0],s2)),plantTh=Cx.mul(zh,Cx.div([g,0],s));   // u → e and u → θₑ
+  let plantE=Cx.mul(zh,Cx.div([g*v,0],s2)),plantTh=Cx.mul(zh,Cx.div([g,0],s));   // u → e and u → θₑ
+  if(M.dyn){   // car with tyre slip: the exact sampled plant C (zI − Φ)⁻¹ Γ, z = e^{sT} (it holds δ over the tick itself, so no T/2;
+    // the hold-as-delay approximation above is good for two integrators but not for tyre poles near the Nyquist frequency)
+    const D=M.dyn,z=Cx.exp(Cx.scale(s,M.T)),X=cxSolve(D.Phi.map((r,i)=>r.map((x,j)=>i===j?[z[0]-x,z[1]]:[-x,0])),D.Gam.map(x=>[x,0]));
+    plantTh=X[2];plantE=X[3];}
   let L,Le;
   if(M.kind==='static'){const A=Cx.mul(lag,lat);L=Cx.mul(A,Cx.add(Cx.scale(plantE,M.Ke),Cx.scale(plantTh,M.Kth)));Le=Cx.mul(A,Cx.scale(plantE,M.Ke));}
   else if(M.kind==='pid'){const T=M.T,omz=Cx.sub(one,zi),C=Cx.add(Cx.add([P.kp,0],Cx.div([P.ki*T,0],omz)),Cx.scale(omz,P.kd/T));
@@ -107,11 +128,13 @@ function Ls(M,s){return Lparts(M,s).L;}
 function Ljw(M,w){return Ls(M,[0,w]);}
 
 // ---- exact discrete loop at the simulation rate (ZOH, sample delay, latency queue) ----
-function linLayout(M){let i=3;const L={y:0,psi:1,sa:2};if(M.kind==='mpc')L.sc=i++;if(M.kind==='pid'){if(P.ki!==0)L.I=i++;L.pv=i++;}if(M.kind==='mpc')L.up=i++;L.q0=i;L.n=i+M.nL+1;return L;}
+function linLayout(M){let i=3;const L={y:0,psi:1,sa:2};if(M.dyn){L.vy=i++;L.r=i++;}if(M.kind==='mpc')L.sc=i++;if(M.kind==='pid'){if(P.ki!==0)L.I=i++;L.pv=i++;}if(M.kind==='mpc')L.up=i++;L.q0=i;L.n=i+M.nL+1;return L;}
 function stepLin(M,L,X,k,d,r){
   const T=M.T,v0=M.v0,g=M.g,x=X.slice();
   const sa=x[L.sa]+(x[L.q0]-x[L.sa])*M.aL;x[L.sa]=sa;
-  const se=sa+d,psi=x[L.psi];x[L.psi]=psi+g*se*T;x[L.y]=x[L.y]+v0*(psi*T+0.5*g*se*T*T);
+  const se=sa+d,psi=x[L.psi];
+  if(M.dyn){const D=M.dyn,z=[x[L.vy],x[L.r],psi,x[L.y]],o=[L.vy,L.r,L.psi,L.y];for(let i=0;i<4;i++){let s=D.Gam[i]*se;for(let j=0;j<4;j++)s+=D.Phi[i][j]*z[j];x[o[i]]=s;}}
+  else{x[L.psi]=psi+g*se*T;x[L.y]=x[L.y]+v0*(psi*T+0.5*g*se*T*T);}
   for(let j=0;j<M.nL;j++)x[L.q0+j]=x[L.q0+j+1];
   const e=x[L.y]-r,th=x[L.psi];let c;
   if(M.kind==='static')c=-k*(M.Ke*e+M.Kth*th);
@@ -155,11 +178,12 @@ function anFreq(M){
   const dm=(pm!=null&&wc)?(pm*Math.PI/180)/wc:null;
   // Nyquist: change of arg(1+L) along the indented contour (clockwise); P = 0 open-loop RHP poles
   const argAlong=list=>{let tot=0,prev=null;for(const s of list){const a=Cx.arg(Cx.add([1,0],Ls(M,s)));if(prev!=null){let d=a-prev;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;tot+=d;}prev=a;}return tot;};
-  const eps=1e-3,up=[];for(let i=0;i<=3000;i++)up.push([0,Math.pow(10,Math.log10(eps)+i*(5-Math.log10(eps))/3000)]);
+  // the car with tyre slip uses the exact sampled plant, which repeats every 2π/T: its contour is the unit circle (ω up to π/T)
+  const eps=1e-3,wTop=M.dyn?Math.log10(Math.PI/M.T):5,up=[];for(let i=0;i<=3000;i++)up.push([0,Math.pow(10,Math.log10(eps)+i*(wTop-Math.log10(eps))/3000)]);
   const arc=[];for(let i=0;i<=400;i++){const ph=-Math.PI/2+Math.PI*i/400;arc.push([eps*Math.cos(ph),eps*Math.sin(ph)]);}
-  const dTot=2*argAlong(up)+argAlong(arc),Ncw=Math.round(-dTot/(2*Math.PI));
-  if(Ncw!==0&&gmN!=null){gm=gmN;w180=w180N;}   // unstable: negative GM = gain reduction needed
-  return{pts,wc,pm,gm,w180,ms,dm,Ncw,wN};
+  const dTot=2*argAlong(up)+argAlong(arc),Ncw=Math.round(-dTot/(2*Math.PI)),Pol=M.dyn?M.dyn.P:0;   // P: open-loop unstable poles (an oversteering car above v_crit)
+  if(Ncw+Pol!==0&&gmN!=null){gm=gmN;w180=w180N;}   // unstable: negative GM = gain reduction needed
+  return{pts,wc,pm,gm,w180,ms,dm,Ncw,P:Pol,wN};
 }
 function anCompute(){
   const M=anBuild();const R={M};if(M.kind==='none'){AN.res=R;return R;}

@@ -1,7 +1,8 @@
 # Screenshots and UI checks for the car with tyre slip (Vehicle → Car, dynamic): the Vehicle tab with the presets and
 # the info line, the sideslip arrow on the map, plots of a_y against μg and of the yaw rate against v tanδ / L, and the
 # Control health light, at 1440×900 and 390×844, light and dark.
-# Usage (from tests/, after ./build.sh): python3 shots_dyn.py <out-dir>
+# Usage (from tests/, after ./build.sh): python3 shots_dyn.py <out-dir>            the Simulate set (step B)
+#                                          python3 shots_dyn.py --analyze <out-dir>  Analyze with the slippery car at 2 m/s (step C)
 import asyncio, os, sys
 from playwright.async_api import async_playwright
 SIZES={'desk':(1440,900),'phone':(390,844)}
@@ -43,12 +44,30 @@ async def shot(b,out,size,dark,checks):
         checks['link_has']=[k for k in ['model=car','carPhys=dyn','Cf=40','mu=0.25'] if k in url]
     checks.setdefault('errors',[]).extend(errs)
     await ctx.close()
+async def analyze(b,out,size,dark,checks):
+    w,h=SIZES[size]
+    ctx=await b.new_context(viewport={'width':w,'height':h},device_scale_factor=2 if size=='phone' else 1,color_scheme='dark' if dark else 'light',is_mobile=size=='phone',has_touch=size=='phone')
+    pg=await ctx.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
+    await pg.goto('file://'+os.path.abspath('wrapped.html')); await pg.wait_for_timeout(700)
+    await pg.evaluate("()=>{const N=window.__nav;N.loadLevel(0);N.setParam('veh','dyn',false);for(const [k,v] of Object.entries({Cf:40,Cr:90,mu:0.25,vmax:4,vcruise:2}))N.setParam(k,v,false);window.__an.setMode('an');}")
+    await pg.wait_for_timeout(500)
+    await pg.screenshot(path=os.path.join(out,f"{size}-dyn-an{'-dark' if dark else ''}.png"))
+    if size=='desk' and not dark:
+        await pg.evaluate("()=>{const d=document.querySelector('#an-adv');if(d)d.open=true;}"); await pg.wait_for_timeout(400)
+        await pg.evaluate("document.querySelector('#an-tf').scrollIntoView({block:'start'})"); await pg.wait_for_timeout(200)
+        await pg.screenshot(path=os.path.join(out,'desk-dyn-an-tf.png'))
+        checks['story']=await pg.evaluate(r"document.querySelector('#an-story').textContent.match(/The vehicle[^]*?μg = [0-9.]+ m\/s²/)?.[0]")
+        checks['tf']=await pg.evaluate("document.querySelector('#an-tf').textContent.slice(0,400)")
+        checks['op']=await pg.evaluate("document.querySelector('#an-op').textContent")
+    checks.setdefault('errors',[]).extend(errs)
+    await ctx.close()
 async def main():
-    out=sys.argv[1]; os.makedirs(out,exist_ok=True); checks={}
+    an='--analyze' in sys.argv; args=[a for a in sys.argv[1:] if a!='--analyze']
+    out=args[0]; os.makedirs(out,exist_ok=True); checks={}
     async with async_playwright() as p:
         b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
         for size in SIZES:
-            for dark in (False,True): await shot(b,out,size,dark,checks)
+            for dark in (False,True): await (analyze if an else shot)(b,out,size,dark,checks)
         await b.close()
     for k,v in checks.items(): print(k,':',v)
 asyncio.run(main())

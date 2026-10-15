@@ -137,6 +137,33 @@ async def main():
             print(f"     simulator: overshoot {om:.1f} % at {tm:.2f} s · linear model with the same δ(t): {ol:.1f} % at {tl:.2f} s · steady r {rs[-1]:.4f} vs {rl[-1]:.4f}")
             if abs(om-ol)>max(0.1*abs(ol),0.5) or abs(tm-tl)>0.051 or om<1: fails.append(f'step steer v {v}: overshoot {om:.1f} vs {ol:.1f} %')
 
+        print('== 5. Analyze: the linear model with the tyres against the nonlinear simulator')
+        AN_JS=r'''async ({set}) => {const N=window.__nav,A=window.__an;N.loadLevel(0);for(const [k,v] of Object.entries(set))N.setParam(k,v,false);
+          A.AN.dirty=true;const R=A.anCompute();A.AN.injAmp='small';await A.runInjection();
+          const F=A.AN.meas.freq||[];let dB=0,dph=0;for(const q of F){const m=A.Ljw(R.M,q.w);const a=20*Math.log10(q.mag/Math.hypot(m[0],m[1]));let p=(q.ph-Math.atan2(m[1],m[0]))*180/Math.PI;p=((p+540)%360)-180;dB=Math.max(dB,Math.abs(a));dph=Math.max(dph,Math.abs(p));}
+          A.AN.stepKind='offset';A.AN.stepAmp=0.05;A.runStepTest();const sm=A.stepMetrics(A.AN.meas.step.data,'offset');
+          const pol=R.olp.filter(p=>Math.hypot(p[0],p[1])>1e-6).map(p=>p[0].toFixed(1)+(Math.abs(p[1])>1e-6?(p[1]>0?'+':'-')+Math.abs(p[1]).toFixed(1)+'j':''));
+          return {v0:R.M.v0,dyn:!!R.M.dyn,stable:R.stable,PM:R.F.pm,wc:R.F.wc,zeta:R.zeta,n:F.length,dB,dph,OSlin:R.smOff.overshoot,OSsim:sm.overshoot,TSlin:R.smOff.settle,TSsim:sm.settle,olp:pol};}'''
+        for name,pr,ctl,v in [('slippery',PRESETS['slippery'],'pp',1.0),('slippery',PRESETS['slippery'],'pp',2.0),('slippery',PRESETS['slippery'],'rwf',2.0),
+                              ('slippery',PRESETS['slippery'],'stanley',2.0),('slippery',PRESETS['slippery'],'pid',1.5),('slippery',PRESETS['slippery'],'mpc',1.5),
+                              ('slippery',PRESETS['slippery'],'pp',3.0),('grippy',PRESETS['grippy'],'pp',1.0),('grippy',PRESETS['grippy'],'rwf',2.0)]:
+            r=await pg.evaluate(AN_JS,{'set':{'veh':'dyn',**pr,'vmax':4,'vcruise':v,'ctl':ctl}})
+            print(f"  {name:8s} {ctl:7s} v {r['v0']:.1f}: {'stable' if r['stable'] else 'UNSTABLE'}, PM {r['PM'] or 0:.0f}°, ω_c {r['wc'] or 0:.2f}, ζ {r['zeta'] or 0:.2f} · injection vs model over {r['n']} freqs: {r['dB']:.2f} dB, {r['dph']:.1f}° · step 5 cm: overshoot {r['OSlin']:.1f} % model / {r['OSsim']:.1f} % sim, settle {r['TSlin']:.2f} / {r['TSsim']:.2f} s · open-loop poles {r['olp']}")
+            # a loop with almost no phase margin rings at its crossover, and a lock-in near −1 measures that, not L: reported, not checked
+            if not r['dyn'] or r['n']<5 or (r['PM'] or 0)>15 and (r['dB']>0.5 or r['dph']>3): fails.append(f"Analyze {name} {ctl} v {v}: {r['dB']:.2f} dB / {r['dph']:.1f}°")
+
+        # the Nyquist count (Z = N + P, with P the plant's own unstable poles) against the closed-loop eigenvalues
+        NYQ_JS=r'''async ({set}) => {const N=window.__nav,A=window.__an;N.loadLevel(0);for(const [k,v] of Object.entries(set))N.setParam(k,v,false);
+          A.AN.dirty=true;const R=A.anCompute();return {unst:R.unstableZ,N:R.F.Ncw,P:R.F.P};}'''
+        bad=[];n=0;over={'mass':10,'Iz':0.9,'lf':0.27,'Cf':90,'Cr':40,'mu':0.25}   # oversteering: v_crit 3.4 m/s
+        for pr in [PRESETS['slippery'],PRESETS['grippy'],over]:
+            for ctl in ['pp','rwf','stanley','pid','mpc']:
+                for v in [1,2,4]:
+                    r=await pg.evaluate(NYQ_JS,{'set':{'veh':'dyn',**pr,'vmax':4,'vcruise':v,'ctl':ctl}});n+=1
+                    if r['N']+r['P']!=r['unst']: bad.append((pr['Cf'],ctl,v,r))
+        print(f'  Nyquist Z = N + P against the eigenvalues: {n} cases (three tyre sets, one oversteering, five trackers, 1–4 m/s), mismatches {bad}')
+        if bad: fails.append('Nyquist count disagrees with the eigenvalues')
+
         print('== 4. L6 missions (low speed, reverse legs) with both presets')
         for name,pr in PRESETS.items():
             r=await pg.evaluate(MISSION,{'lvl':5,'set':{**pr,'carPhys':'dyn'},'secs':300})

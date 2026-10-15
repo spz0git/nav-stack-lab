@@ -49,7 +49,7 @@ const LIVE={
   wc:()=>{const R=liveRes();return R?liveF(R.F.wc):'—';},pm:()=>{const R=liveRes();return R?liveF(R.F.pm,1):'—';},
   dm:()=>{const R=liveRes();return R?liveF(R.F.dm):'—';},gm:()=>{const R=liveRes();return R?liveF(R.F.gm,1):'—';},
   w180:()=>{const R=liveRes();return R?liveF(R.F.w180,1):'—';},ms:()=>{const R=liveRes();return R?liveF(R.F.ms):'—';},
-  nyq:()=>{const R=liveRes();if(!R)return'—';const N=R.F.Ncw,Z=N;return`N = ${N}, P = 0, Z = ${Z} → ${R.stable?'stable':'unstable'}`;},
+  nyq:()=>{const R=liveRes();if(!R)return'—';const N=R.F.Ncw,Pl=R.F.P||0,Z=N+Pl;return`N = ${N}, P = ${Pl}, Z = ${Z} → ${R.stable?'stable':'unstable'}`;},
   zeta:()=>{const R=liveRes();return R?liveF(R.zeta):'—';},wn:()=>{const R=liveRes();return R?liveF(R.wn):'—';},
   dom:()=>{const R=liveRes();return R&&R.dom?`${liveF(R.dom[0])} ± ${liveF(R.dom[1])}j`:'—';},
   os:()=>{const R=liveRes();return R?liveF(R.smOff.overshoot,1):'—';},settle:()=>{const R=liveRes();return R?liveF(R.smOff.settle,1):'—';},

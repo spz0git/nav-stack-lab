@@ -189,6 +189,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .learncol.reading .how-body p{max-width:none}
 .learncol.reading .tries{margin-top:6px}
 .pane{padding:14px;display:flex;flex-direction:column;gap:12px}
+.pane .fhead{margin:2px 0 -4px;padding-top:10px;border-top:1px solid var(--line)}   /* a group of settings inside a tab */
 .field{display:flex;flex-direction:column;gap:5px}
 .rst{border:0;background:none;color:var(--accent);cursor:pointer;font-size:.9rem;padding:0 4px;line-height:1}
 .field.chg>.row label,.field.chg>.lbl,.check.chg span{color:var(--accent)}

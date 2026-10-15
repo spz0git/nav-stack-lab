@@ -53,6 +53,7 @@ function selCard(V){
   switch(SEL.k){
     case'robot':return['True pose',row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('heading',`${deg(o.th).toFixed(1)}°`)+row('speed',`${f2(o.v)} m/s`)+
       (isCar()?row('steering δ',`${deg(o.d).toFixed(1)}°`):row('turn rate ω',`${f2(o.w)} rad/s`))+row('command',`${f2(V.cmd.v)} m/s · ${isCar()?deg(V.cmd.steer||0).toFixed(1)+'°':f2(V.cmd.w)+' rad/s'}`)+
+      (isDyn()?(q=>row('slip',`β ${deg(q.beta).toFixed(1)}° · α_f ${deg(q.af).toFixed(1)}° · α_r ${deg(q.ar).toFixed(1)}°`)+row('yaw rate',`${f2(o.r||0)} rad/s (kinematic ${f2(o.wk||0)})`)+row('a_y',`${f2(Math.abs(q.ay))} of ${f2(P.mu*GRAV)} m/s² (μg)`))(dynSlip(o)):'')+
       row('contact',o.contact||o.pedContact?'<span class="bad">yes</span>':'no')];
     case'est':{const P3=V.Pc,sd=i=>P3?Math.sqrt(Math.max(0,P3[i])):null;
       return[`Estimate · ${LOCN[P.loc]||P.loc}`,row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('heading',`${deg(o.th).toFixed(1)}°`)+
@@ -90,7 +91,7 @@ function drawSelection(px){
 /* ---------- Layers: the map's display list, with a status line per overlay ---------- */
 const LAYER_DEFS=[['belief','Belief','Particles or the 95 % covariance ellipse','loc'],['beam','Beacon readings','Rays from the estimate','loc'],['trail','Trails','Solid = truth, dashed = estimate','loc'],
   ['lidar','Lidar hits','As perceived','per'],['cost','Costmap','Inflation','per'],['ghost','True-map outline','Over the built map','per'],['agents','Agents','Tracks, predictions, ego positions at the same times','per'],
-  ['search','Planner search','A* closed set, Hybrid A* nodes or the RRT* tree','plan'],['dwa','Local plan','DWA rollouts, MPC prediction and reference','ctl'],['look','Lookahead','The path tracker\'s carrot','ctl'],
+  ['search','Planner search','A* closed set, Hybrid A* nodes or the RRT* tree','plan'],['dwa','Local plan','DWA rollouts, MPC prediction and reference','ctl'],['look','Lookahead','The path tracker\'s carrot','ctl'],['slip','Sideslip','Velocity at the centre of mass against the heading','ctl'],
   ['ghostrun','Previous run','Ghost trail and ghost plot series','']];
 // [has something to draw now?, status text]
 function layerStatus(k){
@@ -106,6 +107,7 @@ function layerStatus(k){
     case'search':return S.search?[1,S.planStats?`${S.planStats.name} · ${S.planStats.exp||0} ${S.planStats.name==='RRT*'?'nodes':'expansions'}`:'last search']:[0,'no search to show (straight line or no plan yet)'];
     case'dwa':return P.ctl==='dwa'||P.ctl==='mpc'?[S.ctlViz?1:0,P.ctl==='mpc'?'MPC prediction':'DWA rollouts']:[0,'only DWA and MPC'];
     case'look':return ctlTr?[S.ctlViz&&S.ctlViz.carrot?1:0,'carrot of the path tracker']:[0,'only the path trackers'];
+    case'slip':return isDyn()?[Math.abs(S.robot.v)>0.05?1:0,`β ${deg(dynSlip(S.robot).beta).toFixed(1)}°`]:[0,'only the car with tyre slip (Vehicle)'];
     case'ghostrun':return GHOST&&GHOST.level===LV.id?[1,GHOST.label]:[0,'no previous run on this level'];
   }
   return[0,''];

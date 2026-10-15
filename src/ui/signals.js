@@ -6,6 +6,7 @@
 function nearestIdx(A,t){let lo=0,hi=A.length-1;if(hi<0)return-1;while(lo<hi){const m=(lo+hi)>>1;if(A[m].t<t)lo=m+1;else hi=m;}return lo>0&&Math.abs(A[lo-1].t-t)<Math.abs(A[lo].t-t)?lo-1:lo;}
 const FSM_CODE={IDLE:0,PLAN:1,DRIVE:2,NO_PATH:3,LOST:4,DONE:5};
 const turnU=()=>isCar()?'°':'rad/s';
+const dynF_=(f,k)=>f.sig&&f.sig.dyn?f.sig.dyn[k]:null;
 // [id, name, unit (string or function), subsystem, source ('p' telemetry sample, 'f' replay frame), value getter]
 const SIGNALS=[
   ['ep','Position error','m','loc','p',d=>d.ep],['ex','x error','m','loc','p',d=>d.ex],['ey','y error','m','loc','p',d=>d.ey],
@@ -22,7 +23,11 @@ const SIGNALS=[
   ['mpcMs','MPC solve time','ms','ctl','f',f=>f.sig&&f.sig.mpcMs],['mpcIt','MPC iterations','','ctl','f',f=>f.sig&&f.sig.mpcIt],['mpcJ','MPC cost J','','ctl','f',f=>f.sig&&f.sig.mpcJ],
   ['x','True x','m','','f',f=>f.robot.x],['y','True y','m','','f',f=>f.robot.y],['th','True heading','°','','f',f=>deg(f.robot.th)],
   ['estx','Estimate x','m','loc','f',f=>f.est.x],['esty','Estimate y','m','loc','f',f=>f.est.y],
-  ['coll','Collisions (total)','','','f',f=>f.coll+f.collPed]];
+  ['coll','Collisions (total)','','','f',f=>f.coll+f.collPed],
+  // the car with tyre slip (Vehicle → Car, dynamic); empty for the other vehicles
+  ['beta','Sideslip β at the centre of mass','°','','f',f=>dynF_(f,'beta')],['yawr','Yaw rate r','rad/s','','f',f=>dynF_(f,'r')],
+  ['yawk','Kinematic yaw rate v tanδ / L','rad/s','','f',f=>dynF_(f,'rk')],['ay','Lateral acceleration a_y','m/s²','','f',f=>dynF_(f,'ay')],
+  ['mug','Grip limit μg','m/s²','','f',f=>dynF_(f,'mug')],['af','Front slip angle α_f','°','','f',f=>dynF_(f,'af')],['ar','Rear slip angle α_r','°','','f',f=>dynF_(f,'ar')]];
 const SIG=Object.fromEntries(SIGNALS.map(([id,name,unit,sys,src,get])=>[id,{id,name,unit,sys,src,get}]));
 const SIG_GROUPS=[['loc','Localization'],['per','Perception'],['plan','Mission'],['ctl','Control'],['','Vehicle and world']];
 const sigUnit=g=>typeof g.unit==='function'?g.unit():g.unit;

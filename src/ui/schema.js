@@ -6,6 +6,14 @@ function odoInfo(){
   const bias=P.odoB?` Bias: speed reads ${(2*P.odoB).toFixed(1)} % high (+${(100*e.bv).toFixed(1)} cm/s), turn rate +${e.bw.toFixed(3)} rad/s (${deg(e.bw).toFixed(2)}°/s), always the same way → about ${Math.round(60*deg(e.bw))}° of heading drift per minute.`:' No bias.';
   return at+noise+bias;
 }
+// the car with tyre slip in numbers (model: dynStep() in core/vehicle.js; theory: chapter 1 §4–5)
+function dynInfoText(){
+  const D=dynInfo(),v=Math.min(P.vcruise,P.vmax),K=D.K,kind=Math.abs(K)<1e-5?'neutral steer':K>0?'understeer':'oversteer';
+  const sp=K>0?`characteristic speed v_ch ${D.vch.toFixed(2)} m/s (r/δ peaks there, at half of v/L)`:K<0?`critical speed v_crit ${D.vcrit.toFixed(2)} m/s (the yaw motion is unstable above it)`:'no characteristic speed';
+  return`K_us ${K.toFixed(4)} rad/(m/s²) (${(K*180/Math.PI).toFixed(2)}° per m/s²): ${kind} · ${sp} · grip limit μg ${D.aMax.toFixed(2)} m/s². At the cruise speed ${v.toFixed(2)} m/s: r/δ is ${(100*D.L/(D.L+K*v*v)).toFixed(0)} % of v/L, the yaw mode has ${dynModes(v).text}, and the grip runs out on turns tighter than ${(v*v/D.aMax).toFixed(2)} m (the car steers down to ${minTurnR().toFixed(2)} m).`;
+}
+const dynPresetOn=n=>Object.entries(DYN_PRESETS[n]).every(([k,v])=>P[k]===v);
+function dynPreset(n){for(const[k,v]of Object.entries(DYN_PRESETS[n]))setParam(k,v,false);renderAllPanes();}
 const SCHEMA={
  loc:[{k:'loc',type:'seg',label:'Estimator',opts:[['truth','Ground truth'],['dr','Dead reckoning'],['ekf','EKF'],['pf','Particle filter'],['slam','EKF-SLAM'],['custom','Your code']]},
       {type:'info',text:()=>'Odometry is perfect on this level (noise and bias 0), so dead reckoning matches the truth exactly.',show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
@@ -94,12 +102,21 @@ const SCHEMA={
       {k:'mpcMarg',label:'Obstacle margin',min:0,max:0.5,step:0.01,unit:'m',show:()=>mpc_()&&P.mpcMode==='nmpc'&&P.mpcObs},
       {k:'mpcLag',type:'bool',label:'Include actuator lag τ in the prediction model (adds 2 states)',show:mpc_},
       {type:'info',text:()=>`Input bounds come from Vehicle: |a| ≤ ${(P.accel?P.amax:3).toFixed(2)} m/s², ${isCar()?`|δ̇| ≤ ${P.steerRate.toFixed(1)} rad/s`:`|α| ≤ ${(P.accel?P.alpha:8).toFixed(1)} rad/s²`}. ${P.accel?'':'Acceleration limits are off, so the model assumes 3 m/s². '}${P.mpcLag&&!(P.lag>0)?'Lag τ is 0 in Vehicle, so the lag model is inactive.':''}`,show:mpc_}],
- veh:[{k:'model',type:'seg',label:'Kinematic model',opts:[['diff','Unicycle (diff-drive)'],['car','Car-like (bicycle)']]},
+ veh:[{k:'veh',type:'seg',label:'Vehicle model',opts:[['diff','Unicycle (diff-drive)'],['car','Car (kinematic)'],['dyn','Car (dynamic: tyre slip)']]},
+      {type:'info',text:()=>'The car with tyre slip (dynamic bicycle model, chapter 1 §4): a tyre pushes sideways only by slipping, so the car turns less than its wheels point, and no more than the grip allows. Planners, trackers and the MPC still assume the kinematic car.',show:isDyn},
       {k:'wheelbase',label:'Wheelbase L',min:0.3,max:1.2,step:0.05,unit:'m',show:isCar},
       {k:'steerMaxDeg',label:'Max steering angle δ_max',min:15,max:45,step:1,unit:'°',show:isCar},
       {type:'info',text:()=>`Minimum turning radius L / tan δ_max = ${minTurnR().toFixed(2)} m · body ${carLen().toFixed(2)} × ${CAR.width.toFixed(2)} m`,show:isCar},
       {k:'steerRate',label:'Steering rate limit',min:0.2,max:4,step:0.1,unit:'rad/s',show:isCar},
-      {k:'vmax',label:'Max speed v_max (reverse: half; car reverse ≤ 0.35)',min:0.3,max:2,step:0.05,unit:'m/s'},
+      {type:'btns',label:'Tyres',items:()=>[['Grippy',()=>dynPreset('grippy'),dynPresetOn('grippy'),'Realistic tyres: C_f 500, C_r 700 N/rad, μ 0.9; kinematic-like below 2 m/s'],['Slippery floor',()=>dynPreset('slippery'),dynPresetOn('slippery'),'Soft tyres on a slippery floor: C_f 40, C_r 90 N/rad, μ 0.25; v_ch 2.6 m/s']],show:isDyn},
+      {k:'mass',label:'Mass m',min:2,max:40,step:1,unit:'kg',show:isDyn},
+      {k:'Iz',label:'Yaw inertia I_z',min:0.1,max:5,step:0.05,unit:'kg·m²',show:isDyn},
+      {k:'lf',label:'Front axle to centre of mass l_f',min:0.05,max:()=>+(P.wheelbase-0.05).toFixed(2),step:0.01,unit:'m',show:isDyn},
+      {k:'Cf',label:'Front cornering stiffness C_f',min:10,max:2000,step:5,unit:'N/rad',show:isDyn},
+      {k:'Cr',label:'Rear cornering stiffness C_r',min:10,max:2000,step:5,unit:'N/rad',show:isDyn},
+      {k:'mu',label:'Friction coefficient μ',min:0.05,max:1.5,step:0.05,show:isDyn},
+      {type:'info',text:dynInfoText,show:isDyn},
+      {k:'vmax',label:'Max speed v_max (reverse: half; car reverse ≤ 0.35)',min:0.3,max:()=>isDyn()?4:2,step:0.05,unit:'m/s'},
       {k:'wmax',label:'Max turn rate ω_max',min:0.3,max:4,step:0.1,unit:'rad/s',show:()=>!isCar()},
       {k:'accel',type:'bool',label:'Acceleration limits'},
       {k:'amax',label:'Linear accel',min:0.1,max:3,step:0.05,unit:'m/s²',show:()=>P.accel},
@@ -114,6 +131,7 @@ const SCHEMA={
       {k:'odoK',label:'Odometry noise (× base σ)',min:0,max:3,step:0.1,unit:'×'},
       {k:'odoB',label:'Odometry calibration bias (× base bias)',min:0,max:3,step:0.1,unit:'×'},
       {type:'info',text:odoInfo},
+      {k:'gyro',type:'bool',label:'Yaw-rate gyro in the odometry (off: turn rate from the steering encoder, v tan δ / L, so tyre slip reads as odometry error)',show:isDyn},
       {k:'lmK',label:'Beacon range/bearing noise',min:0,max:3,step:0.1,unit:'×'},
       {k:'lmRange',label:'Beacon sensor range',min:2,max:15,step:0.5,unit:'m'},
       {k:'clutter',label:'False beacon detections per scan (unlabeled mode)',min:0,max:3,step:0.1},

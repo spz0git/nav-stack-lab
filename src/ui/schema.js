@@ -71,7 +71,7 @@ const SCHEMA={
       {type:'info',text:()=>P.ctl==='mpc'?'MPC adds a clearance constraint per footprint circle and step against the nearest predicted agent (NMPC with obstacle constraints); with speed planning its reference also follows the ST profile.':'DWA checks each rollout against the agents\' predicted positions at the same time step.',show:()=>(P.ctl==='dwa'||P.ctl==='mpc')&&agOn()},
       {k:'ppL0',label:'Lookahead L<sub>0</sub>',min:0.1,max:2.5,step:0.05,unit:'m',show:()=>P.ctl==='pp'||P.ctl==='pid'},
       {k:'ppK',label:'Lookahead gain k (L = L<sub>0</sub> + k·v)',min:0,max:2,step:0.05,unit:'s',show:()=>P.ctl==='pp'||P.ctl==='pid'},
-      {k:'alat',label:'Lateral accel limit',min:0.1,max:2,step:0.05,unit:'m/s²',show:()=>P.ctl==='pp'||P.ctl==='stanley'||P.ctl==='rwf'||P.ctl==='mpc'},
+      {k:'alat',label:'Lateral accel limit',min:0.1,max:()=>isDyn()?8:2,step:0.05,unit:'m/s²',show:()=>P.ctl==='pp'||P.ctl==='stanley'||P.ctl==='rwf'||P.ctl==='mpc'},
       {k:'rwKth',label:'Heading gain k_θ',min:0,max:6,step:0.1,unit:'1/m',show:()=>P.ctl==='rwf'},
       {k:'rwKe',label:'Lateral gain k_e',min:0,max:12,step:0.1,unit:'1/m²',show:()=>P.ctl==='rwf'},
       {k:'stanK',label:'Stanley gain k',min:0.1,max:8,step:0.1,show:()=>P.ctl==='stanley'},

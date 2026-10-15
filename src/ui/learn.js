@@ -60,6 +60,7 @@ function renderLearn(){
   v.querySelectorAll('.chapter-open').forEach(b=>b.onclick=()=>openChapter(b.dataset.ch));
   v.querySelectorAll('a.chref').forEach(a=>a.onclick=e=>{e.preventDefault();const m=/^#notes=([\w-]+)(?:\/([\w-]+))?$/.exec(a.getAttribute('href'));   // "Derivation: chapter 2 §4" links in lessons
     if(!m)return;try{history.replaceState(null,'',a.getAttribute('href'));}catch(_){}openChapter(m[1],m[2]);});
+  v.querySelectorAll('a.lsref').forEach(a=>a.onclick=e=>{e.preventDefault();const m=/^#lesson=(\w+):(\d+)$/.exec(a.getAttribute('href'));if(m)openLesson(`${m[1]}:${+m[2]-1}`);});   // links to another lesson
   v.querySelectorAll('details.lesson>summary').forEach(s=>s.onclick=e=>{e.preventDefault();const id=s.parentNode.dataset.l;if(lessonOpen===id)lessonBack();else openLesson(id);});
   v.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':'),id=g+':'+i;if(lessonOpen!==id)openLesson(id);
     const cfg=lessonItem(id).L.tries[+j][1];

@@ -31,6 +31,11 @@ const LIVE={
   // vehicle models (chapter 1)
   wheelbase:()=>liveF(P.wheelbase,2),steerMaxDeg:()=>String(P.steerMaxDeg),ayPlan:()=>liveF(anV0()**2/planR(),2),ayFrac:()=>liveF(100*anV0()**2/planR()/Math.max(0.01,P.alat),0),
   betaMax:()=>liveF(Math.atan(0.5*Math.tan(steerMax()))*180/Math.PI,1),
+  // the car with tyre slip (chapter 1 §4–6), from the current tyre settings whichever vehicle is selected
+  vehNow:()=>isDyn()?'the car with tyre slip':isCar()?'the kinematic car':'the unicycle',
+  dynM:()=>liveF(P.mass,0),dynIz:()=>liveF(P.Iz,2),dynLf:()=>liveF(dynInfo().lf,2),dynLr:()=>liveF(dynInfo().lr,2),dynCf:()=>liveF(P.Cf,0),dynCr:()=>liveF(P.Cr,0),dynMu:()=>liveF(P.mu,2),
+  Kus:()=>liveF(dynInfo().K,4),KusDeg:()=>liveF(dynInfo().K*180/Math.PI,2),vch:()=>{const D=dynInfo();return D.vch?liveF(D.vch,2):D.vcrit?`none (it oversteers; critical speed ${liveF(D.vcrit,2)} m/s)`:'none (neutral steer)';},
+  mug:()=>liveF(P.mu*GRAV,2),grPct:()=>{const D=dynInfo(),v=anV0();return liveF(100*D.L/(D.L+D.K*v*v),0);},yawMode:()=>dynModes(anV0()).text,Rgrip:()=>liveF(anV0()**2/(P.mu*GRAV),2),
   // path trackers (chapter 5)
   rwKe:()=>liveF(P.rwKe,1),rwKth:()=>liveF(P.rwKth,1),stanK:()=>liveF(P.stanK,1),alat:()=>liveF(P.alat,2),
   wnRwf:()=>liveF(anV0()*Math.sqrt(P.rwKe)),zetaRwf:()=>liveF(P.rwKth/(2*Math.sqrt(P.rwKe))),

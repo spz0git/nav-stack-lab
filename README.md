@@ -34,7 +34,7 @@ lesson may carry questions `q: [[question, answer], …]`.
 
 ## Source layout
 
-One page, built from these modules by `node build.mjs` (Node 18+, no dependencies).
+One page, built from these modules by `node build.mjs` (Node 18+, no dependencies). The built page has no runtime dependency either: the four typefaces are embedded from `src/fonts/` (SIL OFL), so it makes no network request after it has loaded.
 The modules share one scope (they are concatenated in `manifest.json` order inside an IIFE),
 so a function defined in `core/planning.js` can be called from `ui/map.js` without imports.
 
@@ -42,6 +42,7 @@ so a function defined in `core/planning.js` can be called from `ui/map.js` witho
 src/
   index.html        page markup; /*__CSS__*/, /*__JS__*/ and /*__WORKER__*/ are filled by the build
   styles.css
+  fonts/            the typefaces (woff2 Latin subsets, SIL OFL) embedded by the build; fonts.json lists them
   manifest.json     the module order (declaration order matters for const/let)
   core/             the simulation; no DOM. Talks to the page only through the UI hook object in state.js
     constants.js    world size, grid, helpers, footprint geometry

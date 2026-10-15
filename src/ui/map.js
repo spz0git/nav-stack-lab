@@ -34,6 +34,7 @@ function paintSearch(){
   g.putImageData(im,0,0);
 }
 let lastSearch=null;
+const SP={on:false,tr:null,n:0,play:false,last:0,dur:6,key:'',gen:0,paintKey:''};   // search playback (maptools.js)
 function sizeCanvas(c){const r=c.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);const w=Math.max(1,Math.round(r.width*dpr)),h=Math.max(1,Math.round(r.height*dpr));if(c.width!==w||c.height!==h){c.width=w;c.height=h;}return dpr;}
 const VIEW={z:1,cx:W/2,cy:H/2,follow:false};
 // The canvas takes whatever shape its panel has; zoom 1 fits the whole world in it (letterboxed), centred.
@@ -63,7 +64,9 @@ function draw(){
   }else{ctx.fillStyle=TOK.obst;for(const s of S.shapes){shapePath(s);ctx.fill();}}
   if(LAYERS.cost){if(dirty.cost){paintCost();dirty.cost=false;}ctx.drawImage(costCv,0,0,W,H);}
   // search
-  if(LAYERS.search&&S.search){
+  if(SP.on&&running)searchPlayEnd();   // Run ends a playback
+  if(SP.on)drawSearchPlay(px);
+  else if(LAYERS.search&&S.search){
     if(S.search!==lastSearch||dirty.search){paintSearch();lastSearch=S.search;dirty.search=false;}
     if(S.search.type==='astar')ctx.drawImage(srchCv,0,0,W,H);
     else if(S.search.type==='hybrid'){const q=S.search.pts,s=px(1.6);ctx.fillStyle=rgba(TOK.accent,0.35);for(let i=0;i<q.length;i+=2)ctx.fillRect(q[i]-s/2,q[i+1]-s/2,s,s);}
@@ -95,7 +98,7 @@ function draw(){
   // lidar (perceived points)
   if(LAYERS.lidar){ctx.fillStyle=TOK.amber;for(const p of S.scanPts){ctx.fillRect(p[0]-px(1.5),p[1]-px(1.5),px(3),px(3));}}
   // global path: forward legs solid, reverse legs dashed, finished legs faded
-  if(S.plan){S.plan.segs.forEach((g,i)=>{ctx.globalAlpha=i<S.segIdx?0.3:1;ctx.strokeStyle=g.dir>0?TOK.accent:TOK.warn;ctx.lineWidth=px(i===S.segIdx?2.4:1.6);
+  if(S.plan&&!(SP.on&&SP.n<SP.tr.n)){S.plan.segs.forEach((g,i)=>{ctx.globalAlpha=i<S.segIdx?0.3:1;ctx.strokeStyle=g.dir>0?TOK.accent:TOK.warn;ctx.lineWidth=px(i===S.segIdx?2.4:1.6);
     if(g.dir<0)ctx.setLineDash([px(5),px(3)]);polyline(g.pts);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;});}
   // DWA rollouts
   if(LAYERS.dwa&&S.ctlViz&&S.ctlViz.pred){const V=S.ctlViz;

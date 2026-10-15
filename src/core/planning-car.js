@@ -39,15 +39,15 @@ function hybridAstar(e,wp){
   const key=(x,y,th)=>{const i=Math.floor(x/XY),j=Math.floor(y/XY);if(i<0||j<0||i>=NX||j>=HY.NY)return -1;return (j*NX+i)*NT+(((Math.round(th/(TAU/NT))%NT)+NT)%NT);};
   const steers=[-dm,-dm/2,0,dm/2,dm],dirs=P.revOK?[1,-1]:[1];
   const s0=key(e.x,e.y,e.th);if(s0<0)return{ok:false,reason:'start is outside the map'};
-  let viz,exp,fin,tail,shots;
+  let viz,exp,fin,tail,shots,pix,im;   // pix: each expansion's parent, as an index into the expansion order (playback)
   // lenient: within 1 m of the start, primitives need only startClear − RES (one grid cell below the start's reading)
   const search=lenient=>{
     B.g[s0]=0;B.par[s0]=-1;B.x[s0]=e.x;B.y[s0]=e.y;B.th[s0]=e.th;B.dir[s0]=0;B.st[s0]=S.robot.d||0;
     const heap=new Heap();heap.push(s0,P.eps*hAt(e.x,e.y,e.th));
-    viz=[];exp=0;fin=-1;tail=null;shots=0;
+    viz=[];exp=0;fin=-1;tail=null;shots=0;pix=[];im=new Map();
     while(heap.size&&exp<BUDGET){
       const u=heap.pop();if(B.closed[u])continue;B.closed[u]=1;exp++;
-      const x=B.x[u],y=B.y[u],th=B.th[u];if(viz.length<40000)viz.push(x,y);
+      const x=B.x[u],y=B.y[u],th=B.th[u];im.set(u,exp-1);if(viz.length<40000){viz.push(x,y);const pu=B.par[u];pix.push(pu>=0&&im.has(pu)?im.get(pu):-1);}
       const dg=hyp(x-wp.x,y-wp.y);
       if(dg<0.15&&(goalTh==null||Math.abs(wrap(th-goalTh))<0.12)){fin=u;break;}   // inside the arrival tolerance
       // analytic expansion: try a Reeds–Shepp shot to the goal
@@ -82,7 +82,7 @@ function hybridAstar(e,wp){
   // slot fails. Such a start gets the same leniency, but only when the strict search runs out of nodes.
   search(startClear<MARG);
   if(fin<0&&exp<BUDGET&&startClear>=MARG&&startClear-RES<MARG){hyBuf();search(true);}
-  S.search={type:'hybrid',pts:viz};
+  S.search={type:'hybrid',pts:viz};S.searchTrace={type:'pts',name:'Hybrid A*',n:viz.length/2,pts:viz,pix,cell:0};
   if(fin<0)return{ok:false,reason:exp>=BUDGET?`search budget of ${BUDGET} expansions used up`:'no kinematically feasible route',exp};
   // rebuild: re-simulate each primitive from its parent pose
   const chain=[];for(let k=fin;k!==s0&&k>=0;k=B.par[k])chain.push(k);chain.reverse();

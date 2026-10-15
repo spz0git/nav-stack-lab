@@ -58,6 +58,7 @@ const SCHEMA={
       {k:'replan',label:'Periodic replan (0 = event-driven only)',min:0,max:5,step:0.5,unit:'s'},
       {k:'lostGuard',type:'bool',label:'Stop when position σ exceeds 1 m (diff-drive also turns in place)'}],
  plan:[{k:'plan',type:'seg',label:'Global planner',opts:()=>[['straight','Straight line'],['astar','A*'],['rrtstar','RRT*'],...(isCar()?[['rs','Reeds–Shepp'],['hybrid','Hybrid A*']]:[['stastar','Space-time A*']]),['custom','Your code']]},
+      {type:'btn',label:'Step through the last search',act:()=>searchPlayStart(true),show:()=>!!(S&&S.searchTrace&&S.searchTrace.n)},
        {type:'info',text:()=>'Space-time A* plans (x, y, t) on a 0.2 m grid against the agents\' predicted positions over the prediction horizon, and waits when that is cheaper than a detour. It needs agent tracking (Perceive).',show:()=>P.plan==='stastar'},
        {type:'info',text:()=>SLOTS.plan.worker?'Your planner is loaded (Code tab).':'Load a planner in the Code tab; until then every plan fails.',show:()=>P.plan==='custom'},
        {type:'info',text:()=>'A* and RRT* plan for a point with clearance. They ignore the car\'s heading, body and turning radius.',show:()=>isCar()&&(P.plan==='astar'||P.plan==='rrtstar')},

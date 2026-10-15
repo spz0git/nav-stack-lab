@@ -151,6 +151,51 @@ function renderGhostChip(){
 }
 {const c=document.createElement('div');c.id='ghostchip';c.className='ghostchip';c.hidden=true;$('.mapwrap').appendChild(c);}
 
+/* ---------- the planner's search, step by step: the last plan's expansion order (S.searchTrace) played back on the map.
+   The sim pauses while it plays; Run (or Done) returns to the finished search. ---------- */
+function searchPlayStart(auto){
+  const tr=S.searchTrace;if(!tr||!tr.n)return false;
+  running=false;SP.on=true;SP.tr=tr;SP.n=0;SP.gen++;SP.play=!!auto;SP.last=performance.now();LAYERS.search=true;
+  renderSearchChip();draw();if(SP.play)requestAnimationFrame(spTick);return true;
+}
+function searchPlayEnd(){SP.on=false;SP.play=false;SP.tr=null;dirty.search=true;lastSearch=null;renderSearchChip();draw();}
+function spTick(now){if(!SP.on||!SP.play)return;const N=SP.tr.n;SP.n=Math.min(N,SP.n+(now-SP.last)/1000*Math.max(1,N/SP.dur));SP.last=now;
+  if(SP.n>=N)SP.play=false;renderSearchChip();draw();if(SP.play)requestAnimationFrame(spTick);}
+function spGo(n){SP.n=clamp(Math.round(n),0,SP.tr.n);SP.play=false;renderSearchChip();draw();}
+function renderSearchChip(){
+  const c=$('#searchchip');if(!c)return;c.hidden=!SP.on;if(!SP.on){SP.key='';return;}
+  const tr=SP.tr,N=tr.n,n=Math.floor(SP.n),wh=tr.type==='rrt'?'node':'expansion';
+  let extra='';if(tr.type==='grid'&&n>0){let f=0;const ca=tr.closedAt,oa=tr.openAt;for(let k=0;k<NC;k++)if(oa[k]>=0&&oa[k]<=n&&!(ca[k]>0&&ca[k]<=n))f++;extra=` · frontier ${f}`;}
+  const txt=`${tr.name} · ${wh} ${n} of ${N}${extra}${n>=N?' · done':''}`;
+  if(!c.firstChild||SP.key!==N+'|'+tr.name){SP.key=N+'|'+tr.name;
+    c.innerHTML=`<span class="sp-t" id="sp-t"></span><span class="sp-b"><button type="button" class="ibtn" data-sp="0" title="Back to the start" aria-label="Back to the start">⏮</button><button type="button" class="ibtn" data-sp="-1" title="One ${wh} back" aria-label="One ${wh} back">◀</button><button type="button" class="ibtn" data-sp="p" id="sp-p" aria-label="Play or pause"></button><button type="button" class="ibtn" data-sp="1" title="One ${wh} forward" aria-label="One ${wh} forward">▶</button><button type="button" class="ibtn" data-sp="N" title="To the end" aria-label="To the end">⏭</button></span><input type="range" id="sp-r" min="0" max="${N}" step="1" aria-label="Search step"><button type="button" class="linkbtn" id="sp-x" title="Back to the finished search; Run drives">Done</button>`;
+    c.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{const a=b.dataset.sp,n0=Math.floor(SP.n);
+      if(a==='p'){if(SP.n>=SP.tr.n)SP.n=0;SP.play=!SP.play;SP.last=performance.now();if(SP.play)requestAnimationFrame(spTick);renderSearchChip();}
+      else spGo(a==='0'?0:a==='N'?SP.tr.n:n0+(+a));});
+    $('#sp-r').oninput=e=>spGo(+e.target.value);$('#sp-x').onclick=searchPlayEnd;}
+  $('#sp-t').textContent=txt;$('#sp-p').textContent=SP.play?'❚❚':'▷';$('#sp-p').title=SP.play?'Pause':'Play';const r=$('#sp-r');if(+r.value!==n)r.value=String(n);
+}
+{const c=document.createElement('div');c.id='searchchip';c.className='searchchip';c.hidden=true;c.setAttribute('role','group');c.setAttribute('aria-label','Planner search playback');$('.mapwrap').after(c);}   // under the map, so it never covers the search
+// draw the search as it stood after n steps: expanded set, frontier (A*), the newest node and its way back to the start
+function drawSearchPlay(px){
+  const tr=SP.tr,n=Math.floor(SP.n);if(!tr)return;const A=TOK.accent;
+  const back=(pts)=>{ctx.strokeStyle=A;ctx.lineWidth=px(2.4);ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();};
+  const cur=(x,y,r)=>{ctx.fillStyle=TOK.bad;ctx.strokeStyle=TOK['map-bg'];ctx.lineWidth=px(1.5);ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();ctx.stroke();};
+  if(tr.type==='grid'){
+    const key=SP.gen+'|'+n;if(SP.paintKey!==key){SP.paintKey=key;const g=srchCv.getContext('2d'),im=g.createImageData(GW,GH),d=im.data,Ac=rgb(A),Fc=rgb(TOK.amber),ca=tr.closedAt,oa=tr.openAt;
+      for(let k=0;k<NC;k++){const cl=ca[k]>0&&ca[k]<=n,op=!cl&&oa[k]>=0&&oa[k]<=n;if(!cl&&!op)continue;const C=cl?Ac:Fc;d[k*4]=C[0];d[k*4+1]=C[1];d[k*4+2]=C[2];d[k*4+3]=cl?70:190;}
+      g.putImageData(im,0,0);lastSearch=null;}
+    ctx.drawImage(srchCv,0,0,W,H);
+    if(n>0){const u=tr.order[n-1],pts=[];for(let k=u,i=0;k>=0&&i<NC;k=tr.par[k],i++)pts.push(center(k));back(pts);const c=center(u);cur(c[0],c[1],px(4));}}
+  else if(tr.type==='pts'){const q=tr.pts,s=tr.cell?tr.cell*0.8:px(2);ctx.fillStyle=rgba(A,0.4);for(let i=0;i<n;i++)ctx.fillRect(q[2*i]-s/2,q[2*i+1]-s/2,s,s);
+    if(n>0){const pts=[];for(let i=n-1,k=0;i>=0&&k<100000;i=tr.pix[i],k++)pts.push([q[2*i],q[2*i+1]]);back(pts);cur(q[2*(n-1)],q[2*(n-1)+1],px(4));}}
+  else{const{X,Y,Pa0,QX,QY,rew}=tr,m=Math.max(1,n),Pa=Pa0.slice(0,m);for(let k=0;k<rew.length;k+=2)if(rew[k]<m)Pa[rew[k+1]]=rew[k];
+    ctx.strokeStyle=rgba(A,0.45);ctx.lineWidth=px(1);ctx.beginPath();for(let i=1;i<m;i++){ctx.moveTo(X[i],Y[i]);ctx.lineTo(X[Pa[i]],Y[Pa[i]]);}ctx.stroke();
+    if(m>1){const i=m-1;ctx.setLineDash([px(3),px(3)]);ctx.strokeStyle=TOK.rose;ctx.lineWidth=px(1.2);ctx.beginPath();ctx.moveTo(X[Pa[i]],Y[Pa[i]]);ctx.lineTo(QX[i],QY[i]);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=TOK.rose;ctx.beginPath();ctx.arc(QX[i],QY[i],px(3),0,TAU);ctx.fill();   // the random sample this node grew toward
+      const pts=[];for(let k=i,c=0;k>=0&&c<m;k=Pa[k],c++)pts.push([X[k],Y[k]]);back(pts);cur(X[i],Y[i],px(4));}}
+}
+
 /* ---------- keys: V G H K B pick a tool, L opens Layers, Esc closes Layers, clears the selection, returns to Goal ---------- */
 document.addEventListener('keydown',e=>{
   const t=e.target,tag=t&&t.tagName;if(e.metaKey||e.ctrlKey||e.altKey||tag==='TEXTAREA')return;

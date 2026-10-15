@@ -826,18 +826,19 @@ function segClear(ax,ay,bx,by,margin,allowExit){
    Motion planning: straight line / A* / RRT*
    ============================================================ */
 const NB=[[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,SQ2],[1,-1,SQ2],[-1,1,SQ2],[-1,-1,SQ2]];
-function gridSearch(s,g,eps){
+function gridSearch(s,g,eps,tr){   // tr: an object to receive the expansion order (closedAt, openAt: 1-based step)
   const cm=S.cm,gs=new Float32Array(NC).fill(Infinity),par=new Int32Array(NC).fill(-1),closed=new Uint8Array(NC),heap=new Heap();
   const gi=g>=0?g%GW:0,gj=g>=0?(g/GW)|0:0;
   const h=(i,j)=>{if(g<0)return 0;const dx=Math.abs(i-gi),dy=Math.abs(j-gj);return (Math.max(dx,dy)+(SQ2-1)*Math.min(dx,dy))*RES*eps;};
   gs[s]=0;heap.push(s,h(s%GW,(s/GW)|0));let exp=0,found=false;
-  while(heap.size){const u=heap.pop();if(closed[u])continue;closed[u]=1;exp++;if(u===g){found=true;break;}
+  if(tr){tr.order=new Int32Array(NC);tr.closedAt=new Int32Array(NC);tr.openAt=new Int32Array(NC).fill(-1);tr.openAt[s]=0;}
+  while(heap.size){const u=heap.pop();if(closed[u])continue;closed[u]=1;exp++;if(tr){tr.order[exp-1]=u;tr.closedAt[u]=exp;}if(u===g){found=true;break;}
     const ui=u%GW,uj=(u/GW)|0;
     for(const[di,dj,c]of NB){const vi=ui+di,vj=uj+dj;if(vi<0||vj<0||vi>=GW||vj>=GH)continue;const v=vj*GW+vi;
       if(cm.lethal[v]||closed[v])continue;
       if(di&&dj&&(cm.lethal[uj*GW+vi]||cm.lethal[vj*GW+ui]))continue;
       const ng=gs[u]+c*RES*(1+PENW*cm.pen[v]);
-      if(ng<gs[v]){gs[v]=ng;par[v]=u;heap.push(v,ng+h(vi,vj));}}}
+      if(ng<gs[v]){gs[v]=ng;par[v]=u;heap.push(v,ng+h(vi,vj));if(tr&&tr.openAt[v]<0)tr.openAt[v]=exp;}}}
   return{gs,par,closed,exp,found};
 }
 const center=k=>[(k%GW+.5)*RES,(((k/GW)|0)+.5)*RES];
@@ -853,8 +854,9 @@ function astar(sx,sy,gx,gy){
   if(s<0||g<0)return{ok:false,reason:'outside the map'};
   if(S.cm.lethal[g])return{ok:false,reason:'goal is inside an inflated obstacle'};
   if(S.cm.lethal[s]){s=nearestFree(s);if(s<0)return{ok:false,reason:'start is enclosed'};}
-  const R=gridSearch(s,g,P.eps);
+  const tr={},R=gridSearch(s,g,P.eps,tr);
   S.search={type:'astar',closed:R.closed};
+  S.searchTrace={type:'grid',name:'A*',n:R.exp,order:tr.order,closedAt:tr.closedAt,openAt:tr.openAt,par:R.par};   // for step-by-step playback
   if(!R.found)return{ok:false,reason:'no route in the current costmap',exp:R.exp};
   const cells=[];for(let k=g;k>=0;k=R.par[k])cells.push(k);cells.reverse();
   // keep only turning points
@@ -867,7 +869,7 @@ function astar(sx,sy,gx,gy){
 function rrtstar(sx,sy,gx,gy){
   const g=S.rngA,cm=S.cm;
   const gk=cellIdx(gx,gy);if(gk<0||cm.lethal[gk])return{ok:false,reason:'goal is inside an inflated obstacle'};
-  const X=[sx],Y=[sy],Pa=[-1],Co=[0],step=0.6,gam=8;
+  const X=[sx],Y=[sy],Pa=[-1],Co=[0],step=0.6,gam=8,Pa0=[-1],QX=[sx],QY=[sy],rew=[];   // Pa0, QX/QY, rew: for playback
   for(let it=0;it<P.rrtIt;it++){
     let qx,qy;if(g.u()<0.1){qx=gx;qy=gy;}else{qx=g.u()*W;qy=g.u()*H;}
     let ni=0,nd=Infinity;for(let i=0;i<X.length;i++){const d=(X[i]-qx)**2+(Y[i]-qy)**2;if(d<nd){nd=d;ni=i;}}
@@ -880,14 +882,14 @@ function rrtstar(sx,sy,gx,gy){
     if(segClear(X[ni],Y[ni],nx,ny,LETHAL+0.05,ni===0)){bp=ni;bc=Co[ni]+hyp(nx-X[ni],ny-Y[ni]);}
     for(const i of near){const c=Co[i]+hyp(nx-X[i],ny-Y[i]);if(c<bc&&segClear(X[i],Y[i],nx,ny,LETHAL+0.05,i===0)){bc=c;bp=i;}}
     if(bp<0)continue;
-    X.push(nx);Y.push(ny);Pa.push(bp);Co.push(bc);
-    for(const i of near){if(i===bp||i===0)continue;const c=bc+hyp(nx-X[i],ny-Y[i]);if(c<Co[i]&&segClear(nx,ny,X[i],Y[i],LETHAL+0.05,false)){Pa[i]=n;Co[i]=c;}}
+    X.push(nx);Y.push(ny);Pa.push(bp);Co.push(bc);Pa0.push(bp);QX.push(qx);QY.push(qy);
+    for(const i of near){if(i===bp||i===0)continue;const c=bc+hyp(nx-X[i],ny-Y[i]);if(c<Co[i]&&segClear(nx,ny,X[i],Y[i],LETHAL+0.05,false)){Pa[i]=n;Co[i]=c;rew.push(n,i);}}
   }
   // connect best node to goal (walk parents for true cost)
   let best=-1,bc=Infinity;
   for(let i=0;i<X.length;i++){const dg=hyp(X[i]-gx,Y[i]-gy);if(dg>1.0)continue;if(!segClear(X[i],Y[i],gx,gy,LETHAL+0.05,i===0))continue;
     let c=dg,k=i;while(Pa[k]>=0){c+=hyp(X[k]-X[Pa[k]],Y[k]-Y[Pa[k]]);k=Pa[k];}if(c<bc){bc=c;best=i;}}
-  S.search={type:'rrt',X,Y,Pa};
+  S.search={type:'rrt',X,Y,Pa};S.searchTrace={type:'rrt',name:'RRT*',n:X.length,X,Y,Pa0,QX,QY,rew};
   if(best<0)return{ok:false,reason:`no connection to the goal after ${P.rrtIt} samples`,exp:X.length};
   let pts=[[gx,gy]];for(let k=best;k>=0;k=Pa[k])pts.push([X[k],Y[k]]);pts.reverse();
   if(P.smooth)pts=smoothPath(pts);
@@ -994,15 +996,15 @@ function hybridAstar(e,wp){
   const key=(x,y,th)=>{const i=Math.floor(x/XY),j=Math.floor(y/XY);if(i<0||j<0||i>=NX||j>=HY.NY)return -1;return (j*NX+i)*NT+(((Math.round(th/(TAU/NT))%NT)+NT)%NT);};
   const steers=[-dm,-dm/2,0,dm/2,dm],dirs=P.revOK?[1,-1]:[1];
   const s0=key(e.x,e.y,e.th);if(s0<0)return{ok:false,reason:'start is outside the map'};
-  let viz,exp,fin,tail,shots;
+  let viz,exp,fin,tail,shots,pix,im;   // pix: each expansion's parent, as an index into the expansion order (playback)
   // lenient: within 1 m of the start, primitives need only startClear − RES (one grid cell below the start's reading)
   const search=lenient=>{
     B.g[s0]=0;B.par[s0]=-1;B.x[s0]=e.x;B.y[s0]=e.y;B.th[s0]=e.th;B.dir[s0]=0;B.st[s0]=S.robot.d||0;
     const heap=new Heap();heap.push(s0,P.eps*hAt(e.x,e.y,e.th));
-    viz=[];exp=0;fin=-1;tail=null;shots=0;
+    viz=[];exp=0;fin=-1;tail=null;shots=0;pix=[];im=new Map();
     while(heap.size&&exp<BUDGET){
       const u=heap.pop();if(B.closed[u])continue;B.closed[u]=1;exp++;
-      const x=B.x[u],y=B.y[u],th=B.th[u];if(viz.length<40000)viz.push(x,y);
+      const x=B.x[u],y=B.y[u],th=B.th[u];im.set(u,exp-1);if(viz.length<40000){viz.push(x,y);const pu=B.par[u];pix.push(pu>=0&&im.has(pu)?im.get(pu):-1);}
       const dg=hyp(x-wp.x,y-wp.y);
       if(dg<0.15&&(goalTh==null||Math.abs(wrap(th-goalTh))<0.12)){fin=u;break;}   // inside the arrival tolerance
       // analytic expansion: try a Reeds–Shepp shot to the goal
@@ -1037,7 +1039,7 @@ function hybridAstar(e,wp){
   // slot fails. Such a start gets the same leniency, but only when the strict search runs out of nodes.
   search(startClear<MARG);
   if(fin<0&&exp<BUDGET&&startClear>=MARG&&startClear-RES<MARG){hyBuf();search(true);}
-  S.search={type:'hybrid',pts:viz};
+  S.search={type:'hybrid',pts:viz};S.searchTrace={type:'pts',name:'Hybrid A*',n:viz.length/2,pts:viz,pix,cell:0};
   if(fin<0)return{ok:false,reason:exp>=BUDGET?`search budget of ${BUDGET} expansions used up`:'no kinematically feasible route',exp};
   // rebuild: re-simulate each primitive from its parent pose
   const chain=[];for(let k=fin;k!==s0&&k>=0;k=B.par[k])chain.push(k);chain.reverse();
@@ -1109,7 +1111,7 @@ function doPlan(reason){
   const F=S.fsm;
   if(!F.queue.length){F.state='DONE';S.track=null;S.plan=null;return;}
   const agL=reason==='agent blocking'&&P.plan!=='stastar'&&agCostLayer();   // predicted agents enter the costmap for this plan only
-  const wp=WPS[F.queue[0]],e=S.est,t0=performance.now();let res;
+  const wp=WPS[F.queue[0]],e=S.est,t0=performance.now();let res;S.searchTrace=null;
   if(P.plan==='custom'){customPlanStart(wp,reason);if(agL)buildCostmap();return;}
   if(P.plan==='straight')res={ok:true,pts:[[e.x,e.y],[wp.x,wp.y]],exp:0};
   else if(P.plan==='astar')res=astar(e.x,e.y,wp.x,wp.y);
@@ -2050,6 +2052,8 @@ function stAstar(sx,sy,gx,gy){
       const vkey=key(vi,vj,vk),ng=g+c*dtc*(1+(di===0&&dj===0?0.2:0))+(S.cm.pen[(vj*CW)*GW+vi*CW]||0)*0.3*dtc;
       if(ng<(gsc.has(vkey)?gsc.get(vkey):Infinity)){gsc.set(vkey,ng);par.set(vkey,u);heap.push(vkey,ng+h(vi,vj));}}}
   S.search={type:'hybrid',pts:[...closed].slice(0,4000).flatMap(u=>[(u%gw+0.5)*cw,(((u/gw)|0)%gh+0.5)*cw])};
+  {const ord=[...closed],ix=new Map();ord.forEach((u,i)=>ix.set(u,i));   // playback: every expansion, with its parent's index
+    S.searchTrace={type:'pts',name:'Space-time A*',n:ord.length,pts:ord.flatMap(u=>[(u%gw+0.5)*cw,(((u/gw)|0)%gh+0.5)*cw]),pix:ord.map(u=>par.has(u)&&ix.has(par.get(u))?ix.get(par.get(u)):-1),cell:cw};}
   if(found==null)return{ok:false,reason:'no space-time route within the horizon',exp};
   const cells=[];for(let u=found;u!=null;u=par.get(u))cells.push(u);cells.reverse();
   const pts=[[sx,sy]];let prev=null;for(const u of cells){const i=u%gw,j=((u/gw)|0)%gh;if(prev&&prev[0]===i&&prev[1]===j)continue;prev=[i,j];pts.push([(i+0.5)*cw,(j+0.5)*cw]);}

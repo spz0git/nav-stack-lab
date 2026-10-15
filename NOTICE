@@ -1,0 +1,19 @@
+Nav Stack Lab
+Copyright (c) 2026 szaf
+
+This repository includes third-party software and fonts under their own licences:
+
+- tools/vendor/temml: Temml, TeX-to-MathML converter, by Ron Kok.
+  MIT License (see tools/vendor/temml/LICENSE). Used at build time only; nothing of it ships in the page.
+- src/fonts/barlow-*.woff2, src/fonts/barlow-semi-condensed-*.woff2: Barlow and Barlow Semi Condensed,
+  Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow).
+  SIL Open Font License 1.1 (src/fonts/OFL-barlow.txt). Embedded in the built page.
+- src/fonts/jetbrains-mono-*.woff2: JetBrains Mono, Copyright 2020 The JetBrains Mono Project Authors
+  (https://github.com/JetBrains/JetBrainsMono). SIL Open Font License 1.1 (src/fonts/OFL-jetbrainsmono.txt).
+  Embedded in the built page.
+- src/fonts/stix-two-text-*.woff2: STIX Two Text, Copyright 2001-2021 The STIX Fonts Project Authors
+  (https://github.com/stipub/stixfonts). SIL Open Font License 1.1 (src/fonts/OFL-stixtwotext.txt).
+  Embedded in the built page.
+
+The lessons and chapters cite their sources inline (Rajamani; Hoffmann et al. 2007; Paden et al. 2016; Helbing and
+Molnár 1995; Karaman and Frazzoli 2011; Dolgov et al. 2010; Thrun, Burgard and Fox, Probabilistic Robotics).

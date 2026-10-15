@@ -6,7 +6,9 @@ What a maintainer does that a contributor does not: cut a release, keep the demo
 ## Where the page is served
 
 - **GitHub Pages**, https://spz0git.github.io/nav-stack-lab/, is the public demo. A workflow deploys `dist/` from
-  `main` on every push (`.github/workflows/pages.yml`), so merging a PR updates the demo; nothing to do by hand.
+  `main` on every push (`.github/workflows/pages.yml`: `nav-stack-lab.html` is served as `index.html` and under its
+  own name, with `core-worker.js` beside it), so merging a PR updates the demo; nothing to do by hand. One-time
+  setup: Settings → Pages → Source: GitHub Actions. Pages needs a public repository on a free plan.
 - **The claude.ai artifact**, https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7, is the page the owner opens on
   desktop and phone. It is republished by hand (below). The artifact host wraps the page in its own document
   skeleton, so inside it the Content-Security-Policy meta is ignored (one console notice) and `lang` is merged onto
@@ -17,8 +19,10 @@ What a maintainer does that a contributor does not: cut a release, keep the demo
 1. On the branch: `./build.sh`, then from `tests/` run `test.py`, `p5test.py`, `tles.py`, `chtest.py` and
    `dyntest.py`, or `python3 tests/run_all.py` for all five; `npm test` runs the Node golden test (10 s) and `npm run test:all` both. The L1–L5 summary of
    `test.py` must not change unless the change intends it; `p5test`, `chtest` and `dyntest` must report no errors.
-2. Commit the rebuilt `dist/` with the source change so page and commit match. Open a PR; CI builds, checks that the
-   committed `dist/` equals a fresh build, and runs the Node golden tests.
+2. Commit the rebuilt `dist/` with the source change so page and commit match. Open a PR; CI
+   (`.github/workflows/ci.yml`) builds, checks that the committed `dist/` equals a fresh build, and runs the Node
+   golden tests. The browser gate runs nightly and on demand (`.github/workflows/browser-tests.yml`, Actions → Browser
+   tests → Run workflow); run it locally before merging anything that touches the page.
 3. Merge. Pages deploys on its own.
 4. Bump the version label: set `version`, `date` and a short `note` in `src/version.json`, rebuild, commit. The label
    in the header (`v30 · 2026-10-15`) is the one users quote in bug reports. When the live artifact is republished the

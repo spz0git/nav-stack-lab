@@ -51,7 +51,7 @@ function reset(){
   S={t:0,tick:0,rngW:makeRng(P.seed*7919+1),rngA:makeRng(P.seed*104729+3),rngB:makeRng(P.seed*7907+11),bDown:null,
     shapes:LV.shapes,peds:LV.peds.map(p=>({...p,s:p.s0||0,dir:1,x:p.a[0],y:p.a[1],r:0.3})),
     beacons:LV.beacons.map((b,i)=>({id:i,x:b[0],y:b[1]})),
-    robot:{x:st[0],y:st[1],th:st[2],v:0,w:0,d:0,contact:false,pedContact:false},
+    robot:{x:st[0],y:st[1],th:st[2],v:0,w:0,d:0,vy:0,r:0,contact:false,pedContact:false},
     cmd:{v:0,w:0,steer:0},cmdQ:[],odo:{v:0,w:0},plan:null,segIdx:0,mpc:null,mpcStats:null,est:{x:st[0],y:st[1],th:st[2]},Pc:null,pf:null,
     lo:new Float32Array(NC),cm:{occ:new Uint8Array(NC),dist:null,lethal:new Uint8Array(NC),pen:new Float32Array(NC)},
     scan:null,scanPts:[],lastZ:[],

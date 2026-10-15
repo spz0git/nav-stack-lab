@@ -768,6 +768,7 @@ function integ(x,y,th,v,w,dt){
   return {x:x+r*(Math.sin(th2)-Math.sin(th)),y:y-r*(Math.cos(th2)-Math.cos(th)),th:wrap(th2)};
 }
 const isCar=()=>P.model==='car';
+const isDyn=()=>isCar()&&P.carPhys==='dyn';   // car with tyre slip (dynamic bicycle model, vehicle.js)
 const steerMax=()=>P.steerMaxDeg*Math.PI/180;
 const minTurnR=()=>P.wheelbase/Math.tan(steerMax());
 const planSteer=()=>steerMax()*P.planPct/100, planR=()=>P.wheelbase/Math.tan(planSteer());   // planners keep steering margin for feedback
@@ -914,7 +915,7 @@ const LEVELS=[
    Parameters
    ============================================================ */
 const DEFAULTS={loc:'truth',assoc:'known',npart:400,inject:true,pfLidar:true,filtK:1,per:'oracle',unknownAs:'free',infl:0.6,
-  mis:'sequential',replan:0,lostGuard:false,rwKth:3.0,rwKe:6.0,latency:0,biasDeg:0,biasW:0,mpcMode:'nmpc',mpcNp:20,mpcNc:10,mpcDt:0.1,mpcIt:3,mpcQlat:20,mpcQlon:4,mpcQth:6,mpcQv:2,mpcQf:5,mpcRa:0.3,mpcRs:0.3,mpcRd:1.0,mpcRho:200,mpcObs:true,mpcMarg:0.1,mpcLag:false,planPct:85,model:'diff',wheelbase:0.6,steerMaxDeg:32,steerRate:1.5,revOK:true,revPen:2.0,gearPen:2.0,hybH:'both',stanK:2.0,plan:'astar',eps:1,smooth:true,rrtIt:1500,ctl:'pp',vcruise:0.8,ppL0:0.5,ppK:0.5,alat:0.6,
+  mis:'sequential',replan:0,lostGuard:false,rwKth:3.0,rwKe:6.0,latency:0,biasDeg:0,biasW:0,mpcMode:'nmpc',mpcNp:20,mpcNc:10,mpcDt:0.1,mpcIt:3,mpcQlat:20,mpcQlon:4,mpcQth:6,mpcQv:2,mpcQf:5,mpcRa:0.3,mpcRs:0.3,mpcRd:1.0,mpcRho:200,mpcObs:true,mpcMarg:0.1,mpcLag:false,planPct:85,model:'diff',carPhys:'kin',mass:10,Iz:0.9,lf:0.27,Cf:500,Cr:700,mu:0.9,gyro:false,wheelbase:0.6,steerMaxDeg:32,steerRate:1.5,revOK:true,revPen:2.0,gearPen:2.0,hybH:'both',stanK:2.0,plan:'astar',eps:1,smooth:true,rrtIt:1500,ctl:'pp',vcruise:0.8,ppL0:0.5,ppK:0.5,alat:0.6,
   kp:2.0,ki:0,kd:0.15,dwaG:1.0,dwaO:0.6,dwaV:0.4,dwaT:1.6,vmax:1.0,wmax:1.8,accel:false,amax:0.8,alpha:3.0,lag:0,
   odoK:0,odoB:0,lmK:1,lmRange:7,clutter:0,bOff:'',bOut:0,bOutLen:1,lidarSig:0.02,seed:7,agents:'off',agPred:'cv',agT:4,agGrow:0.1,agSigA:0.8,spd:'none',stMarg:0.3,agPlan:true,people:'scripted',sensLat:0,vehicles:true};
 const P={...DEFAULTS};
@@ -1015,7 +1016,7 @@ function reset(){
   S={t:0,tick:0,rngW:makeRng(P.seed*7919+1),rngA:makeRng(P.seed*104729+3),rngB:makeRng(P.seed*7907+11),bDown:null,
     shapes:LV.shapes,peds:LV.peds.map(p=>({...p,s:p.s0||0,dir:1,x:p.a[0],y:p.a[1],r:0.3})),
     beacons:LV.beacons.map((b,i)=>({id:i,x:b[0],y:b[1]})),
-    robot:{x:st[0],y:st[1],th:st[2],v:0,w:0,d:0,contact:false,pedContact:false},
+    robot:{x:st[0],y:st[1],th:st[2],v:0,w:0,d:0,vy:0,r:0,contact:false,pedContact:false},
     cmd:{v:0,w:0,steer:0},cmdQ:[],odo:{v:0,w:0},plan:null,segIdx:0,mpc:null,mpcStats:null,est:{x:st[0],y:st[1],th:st[2]},Pc:null,pf:null,
     lo:new Float32Array(NC),cm:{occ:new Uint8Array(NC),dist:null,lethal:new Uint8Array(NC),pen:new Float32Array(NC)},
     scan:null,scanPts:[],lastZ:[],
@@ -1059,7 +1060,7 @@ function kidnapTo(p){   // p = [x, y] or null for a free spot far from the robot
   const r=S.robot;let best=null;
   if(!p){for(let i=0;i<400;i++){const x=1+S.rngA.u()*(W-2),y=1+S.rngA.u()*(H-2),k=cellIdx(x,y);if(k<0||LV.truthDist[k]<0.8)continue;const d=hyp(x-r.x,y-r.y);if(d>6&&(!best||d>best[2]))best=[x,y,d];if(best&&best[2]>12)break;}
     if(!best)return;p=best;}
-  r.x=p[0];r.y=p[1];r.v=0;r.w=0;r.d=0;r.contact=false;S.trailT.push(null);
+  r.x=p[0];r.y=p[1];r.v=0;r.w=0;r.d=0;r.vy=0;r.r=0;r.contact=false;S.trailT.push(null);
   logE(`Robot kidnapped to (${p[0].toFixed(1)}, ${p[1].toFixed(1)}). The estimate was not told.`,'bad');UI.draw();UI.refresh();
 }
 function loadLevel(i){
@@ -1084,7 +1085,8 @@ function setParam(k,v,live){
   if(k==='bOff'){const n=beaconsOff().size,u=beaconUse();logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)${u?`; note: ${u}`:''}`:'All beacons on',n&&u&&P.loc!=='custom'?'warn':'');}
   if(k==='bOut'&&!live)logE(v>0?`Random beacon outages: each beacon down ${v} % of the time`:'Random beacon outages off');
   if(k==='seed'&&!live)logE(`Seed ${v} takes effect on Reset`);
-  if(k==='model'){S.robot.d=0;S.robot.w=0;S.cmd={v:0,w:0,steer:0};
+  if(k==='carPhys'){S.robot.vy=0;S.robot.r=0;logE(v==='dyn'?'Car → dynamic (tyre slip)':'Car → kinematic (no slip)');}
+  if(k==='model'){S.robot.d=0;S.robot.w=0;S.robot.vy=0;S.robot.r=0;S.cmd={v:0,w:0,steer:0};
     if(v==='diff'){if(P.plan==='rs'||P.plan==='hybrid')P.plan='astar';if(P.ctl==='stanley')P.ctl='pp';}
     else if(P.plan!=='rs')P.plan='hybrid';
     logE(v==='car'?'Vehicle → car-like (bicycle) · planner → Hybrid A*':'Vehicle → unicycle (diff-drive)');requestReplan('vehicle model changed');}
@@ -1107,7 +1109,7 @@ function advanceMission(){missionTick();UI.draw();UI.refresh();}
    Vehicle: actuator + unicycle integration
    ============================================================ */
 function actuate(){
-  const r=S.robot,c=S.cmd;
+  const r=S.robot,c=S.cmd;let dyn=null;
   let vt=clamp(c.v,-0.5*P.vmax,P.vmax),wt;
   if(isCar()){
     // bicycle: command (v, δ) → lag → accel limit → steering-rate limit → ω = v tanδ / L
@@ -1116,6 +1118,7 @@ function actuate(){
     if(P.accel)vt=clamp(vt,r.v-P.amax*DT,r.v+P.amax*DT);
     r.d=clamp(st,r.d-P.steerRate*DT,r.d+P.steerRate*DT);
     wt=vt*Math.tan(r.d+(P.biasDeg||0)*Math.PI/180)/P.wheelbase;   // misalignment: the wheels sit biasDeg off what the encoder reads
+    if(isDyn()){r.wk=wt;dyn=dynStep(r,vt,r.d+(P.biasDeg||0)*Math.PI/180);wt=dyn.r;}   // tyre slip: the yaw rate is a state, wt only what the encoders imply
   }else{
     const wa=r.wa??r.w;   // actuator state (turn rate the motors are trying to produce)
     wt=clamp(c.w,-P.wmax,P.wmax);
@@ -1123,13 +1126,13 @@ function actuate(){
     if(P.accel){vt=clamp(vt,r.v-P.amax*DT,r.v+P.amax*DT);wt=clamp(wt,wa-P.alpha*DT,wa+P.alpha*DT);}
     r.wa=wt;wt+=P.biasW||0;   // bias: e.g. one weaker motor
   }
-  const n=integ(r.x,r.y,r.th,vt,wt,DT);
+  const n=dyn||integ(r.x,r.y,r.th,vt,wt,DT);
   if(bodyHits(n.x,n.y,n.th,S.shapes)){
-    if(!isCar())r.th=wrap(r.th+wt*DT); r.v=0; r.w=isCar()?0:wt;
+    if(!isCar())r.th=wrap(r.th+wt*DT); r.v=0; r.w=isCar()?0:wt; if(dyn){r.vy=0;r.r=0;}
     if(!r.contact&&Math.abs(vt)>0.01){S.coll++;logE('Collision with static obstacle','bad');S.halt=true;}
     r.contact=true;
   }else{
-    S.dist+=hyp(n.x-r.x,n.y-r.y); r.x=n.x;r.y=n.y;r.th=n.th;r.v=vt;r.w=wt;
+    S.dist+=hyp(n.x-r.x,n.y-r.y); r.x=n.x;r.y=n.y;r.th=n.th;r.v=vt;r.w=wt;if(dyn){r.vy=dyn.vy;r.r=dyn.r;}
     if(r.contact&&!bodyHits(r.x,r.y,r.th,S.shapes,0.05))r.contact=false;
   }
   let pc=false;if(isCar())pc=S.peds.length>0&&carHits(r.x,r.y,r.th,pedShapes());else for(const c of pedShapes())if(hyp(c.x-r.x,c.y-r.y)<RR+c.r)pc=true;
@@ -1138,13 +1141,68 @@ function actuate(){
   r.pedContact=pc;
 }
 
+/* ---------- car with tyre slip: the dynamic bicycle model (chapter 1 §4) ----------
+   States at the centre of mass: lateral velocity v_y and yaw rate r; the forward speed v_x comes from the
+   longitudinal chain above. Slip angles α_f = tanδ − (v_y + l_f r)/v_x, α_r = −(v_y − l_r r)/v_x (chapter 1's
+   small-angle model with tanδ for δ, so that stiff tyres give exactly the kinematic r = v tanδ / L; sign-flipped in
+   reverse, so the tyres always oppose sliding), linear tyres F = C·α clipped at μ·F_z with static loads. Passing
+   through standstill (v_x changes sign within a tick when there are no acceleration limits) starts from v_y = r = 0. Below |v_x| 0.3 m/s the slip angles lose meaning (they divide by v_x), so the state blends to the kinematic
+   one (r = v tanδ / L, v_y = l_r r), fully kinematic below 0.15 m/s. The yaw mode is fast (time constants of a few ms
+   at low speed with grippy tyres), so one tick is DYN_SUB substeps of a 2-stage Rosenbrock method (ROS2: second order,
+   L-stable, so stiff tyres converge to the kinematic car instead of blowing up). The pose stays at the rear axle,
+   whose body-frame velocity is (v_x, v_y − l_r r); each substep moves it with the new velocities (semi-implicit). */
+const DYN_SUB=10,GRAV=9.81,ROS_G=1+Math.SQRT1_2;
+function dynGeom(){const L=P.wheelbase,lf=clamp(P.lf,0.05*L,0.95*L);return{L,lf,lr:L-lf,m:P.mass,Iz:P.Iz};}
+// Steady-state quantities for the UI and the analysis: understeer gradient, characteristic speed, friction limit
+function dynInfo(){const{L,lf,lr,m}=dynGeom(),K=m/L*(lr/P.Cf-lf/P.Cr);return{K,vch:K>0?Math.sqrt(L/K):null,vcrit:K<0?Math.sqrt(-L/K):null,aMax:P.mu*GRAV,L,lf,lr};}
+// Lateral dynamics at forward speed vx and wheel angle de: o = [v̇_y, ṙ]; also returns slip angles and forces in T
+function dynF(vy,yr,vx,de,G,o,T){
+  const sg=vx<0?-1:1,af=sg*(G.td-(vy+G.lf*yr)/vx),ar=-sg*(vy-G.lr*yr)/vx;
+  const Ff=clamp(P.Cf*af,-G.ff,G.ff),Fr=clamp(P.Cr*ar,-G.fr,G.fr),Fc=Ff*Math.cos(de);
+  o[0]=(Fc+Fr)/G.m-vx*yr;o[1]=(G.lf*Fc-G.lr*Fr)/G.Iz;
+  if(T){T.af=af;T.ar=ar;T.Ff=Ff;T.Fr=Fr;}
+  return o;
+}
+function dynStep(r,vx,de){
+  const G=dynGeom();G.ff=P.mu*G.m*GRAV*G.lr/G.L;G.fr=P.mu*G.m*GRAV*G.lf/G.L;G.td=Math.tan(de);
+  const h=DT/DYN_SUB,rk=vx*G.td/G.L,yk=G.lr*rk,wB=clamp((Math.abs(vx)-0.15)/0.15,0,1);
+  let vy=r.vy||0,yr=r.r||0,x=r.x,y=r.y,th=r.th;if(vx*r.v<0){vy=0;yr=0;}const f0=[0,0],f1=[0,0],fa=[0,0],fb=[0,0];
+  for(let i=0;i<DYN_SUB;i++){
+    if(wB>0){
+      dynF(vy,yr,vx,de,G,f0);
+      // Jacobian by differences, then M = I − γhJ and its inverse (2×2)
+      const e1=1e-6*(1+Math.abs(vy)),e2=1e-6*(1+Math.abs(yr));dynF(vy+e1,yr,vx,de,G,fa);dynF(vy,yr+e2,vx,de,G,fb);
+      const gh=ROS_G*h,m11=1-gh*(fa[0]-f0[0])/e1,m12=-gh*(fb[0]-f0[0])/e2,m21=-gh*(fa[1]-f0[1])/e1,m22=1-gh*(fb[1]-f0[1])/e2,dt=m11*m22-m12*m21;
+      const sol=(a,b)=>[(m22*a-m12*b)/dt,(m11*b-m21*a)/dt];
+      const k1=sol(f0[0],f0[1]);dynF(vy+h*k1[0],yr+h*k1[1],vx,de,G,f1);
+      const k2=sol(f1[0]-2*k1[0],f1[1]-2*k1[1]);
+      vy+=h*(1.5*k1[0]+0.5*k2[0]);yr+=h*(1.5*k1[1]+0.5*k2[1]);
+      if(wB<1){vy=wB*vy+(1-wB)*yk;yr=wB*yr+(1-wB)*rk;}
+    }else{vy=yk;yr=rk;}
+    const n=integ(x,y,th,vx,yr,h),ly=(vy-G.lr*yr)*h,tm=th+0.5*yr*h;   // arc of the rear axle plus its sideways slide
+    x=n.x-ly*Math.sin(tm);y=n.y+ly*Math.cos(tm);th=n.th;
+  }
+  return{x,y,th,vy,r:yr};
+}
+// Slip state of the current motion (UI signals): slip angles, sideslip at the CoM, lateral acceleration
+function dynSlip(rb){
+  const G=dynGeom();G.ff=P.mu*G.m*GRAV*G.lr/G.L;G.fr=P.mu*G.m*GRAV*G.lf/G.L;
+  const vx=rb.v,de=(rb.d||0)+(P.biasDeg||0)*Math.PI/180,T={},o=[0,0];
+  if(Math.abs(vx)<0.05)return{af:0,ar:0,beta:0,ay:0,Ff:0,Fr:0};
+  G.td=Math.tan(de);dynF(rb.vy||0,rb.r||0,vx,de,G,o,T);
+  return{af:T.af,ar:T.ar,beta:Math.atan2(rb.vy||0,Math.abs(vx)),ay:(T.Ff*Math.cos(de)+T.Fr)/G.m,Ff:T.Ff,Fr:T.Fr};
+}
+
 /* ---------- odometry model ---------- */
 const sigV=(v,w,k)=>k*(0.1*Math.abs(v)+0.02);
 const sigW=(v,w,k)=>k*(0.2*Math.abs(w)+0.1*Math.abs(v)+0.02);
 function odometry(){
   const r=S.robot,g=S.rngW,k=P.odoK;
-  const vb=r.v*(1+0.02*P.odoB), wb=r.w+0.01*P.odoB*r.v;
-  S.odo={v:vb+sigV(r.v,r.w,k)*g.n(), w:wb+sigW(r.v,r.w,k)*g.n()};
+  // the car with tyre slip measures ω from the wheels and the steering encoder (v tanδ / L), so slip is odometry error;
+  // a yaw-rate gyro (P.gyro) reports the true yaw rate instead
+  const w=isDyn()&&!P.gyro&&r.wk!=null?r.wk:r.w;
+  const vb=r.v*(1+0.02*P.odoB), wb=w+0.01*P.odoB*r.v;
+  S.odo={v:vb+sigV(r.v,w,k)*g.n(), w:wb+sigW(r.v,w,k)*g.n()};
 }
 const assumedK=()=>P.filtK*Math.max(P.odoK,0.25);
 // odometry error when driving straight at v, for the UI and notes: random σ per reading and the fixed bias (as in odometry())
@@ -2852,6 +2910,7 @@ function integ(x,y,th,v,w,dt){
   return {x:x+r*(Math.sin(th2)-Math.sin(th)),y:y-r*(Math.cos(th2)-Math.cos(th)),th:wrap(th2)};
 }
 const isCar=()=>P.model==='car';
+const isDyn=()=>isCar()&&P.carPhys==='dyn';   // car with tyre slip (dynamic bicycle model, vehicle.js)
 const steerMax=()=>P.steerMaxDeg*Math.PI/180;
 const minTurnR=()=>P.wheelbase/Math.tan(steerMax());
 const planSteer=()=>steerMax()*P.planPct/100, planR=()=>P.wheelbase/Math.tan(planSteer());   // planners keep steering margin for feedback
@@ -2998,7 +3057,7 @@ const LEVELS=[
    Parameters
    ============================================================ */
 const DEFAULTS={loc:'truth',assoc:'known',npart:400,inject:true,pfLidar:true,filtK:1,per:'oracle',unknownAs:'free',infl:0.6,
-  mis:'sequential',replan:0,lostGuard:false,rwKth:3.0,rwKe:6.0,latency:0,biasDeg:0,biasW:0,mpcMode:'nmpc',mpcNp:20,mpcNc:10,mpcDt:0.1,mpcIt:3,mpcQlat:20,mpcQlon:4,mpcQth:6,mpcQv:2,mpcQf:5,mpcRa:0.3,mpcRs:0.3,mpcRd:1.0,mpcRho:200,mpcObs:true,mpcMarg:0.1,mpcLag:false,planPct:85,model:'diff',wheelbase:0.6,steerMaxDeg:32,steerRate:1.5,revOK:true,revPen:2.0,gearPen:2.0,hybH:'both',stanK:2.0,plan:'astar',eps:1,smooth:true,rrtIt:1500,ctl:'pp',vcruise:0.8,ppL0:0.5,ppK:0.5,alat:0.6,
+  mis:'sequential',replan:0,lostGuard:false,rwKth:3.0,rwKe:6.0,latency:0,biasDeg:0,biasW:0,mpcMode:'nmpc',mpcNp:20,mpcNc:10,mpcDt:0.1,mpcIt:3,mpcQlat:20,mpcQlon:4,mpcQth:6,mpcQv:2,mpcQf:5,mpcRa:0.3,mpcRs:0.3,mpcRd:1.0,mpcRho:200,mpcObs:true,mpcMarg:0.1,mpcLag:false,planPct:85,model:'diff',carPhys:'kin',mass:10,Iz:0.9,lf:0.27,Cf:500,Cr:700,mu:0.9,gyro:false,wheelbase:0.6,steerMaxDeg:32,steerRate:1.5,revOK:true,revPen:2.0,gearPen:2.0,hybH:'both',stanK:2.0,plan:'astar',eps:1,smooth:true,rrtIt:1500,ctl:'pp',vcruise:0.8,ppL0:0.5,ppK:0.5,alat:0.6,
   kp:2.0,ki:0,kd:0.15,dwaG:1.0,dwaO:0.6,dwaV:0.4,dwaT:1.6,vmax:1.0,wmax:1.8,accel:false,amax:0.8,alpha:3.0,lag:0,
   odoK:0,odoB:0,lmK:1,lmRange:7,clutter:0,bOff:'',bOut:0,bOutLen:1,lidarSig:0.02,seed:7,agents:'off',agPred:'cv',agT:4,agGrow:0.1,agSigA:0.8,spd:'none',stMarg:0.3,agPlan:true,people:'scripted',sensLat:0,vehicles:true};
 const P={...DEFAULTS};
@@ -3099,7 +3158,7 @@ function reset(){
   S={t:0,tick:0,rngW:makeRng(P.seed*7919+1),rngA:makeRng(P.seed*104729+3),rngB:makeRng(P.seed*7907+11),bDown:null,
     shapes:LV.shapes,peds:LV.peds.map(p=>({...p,s:p.s0||0,dir:1,x:p.a[0],y:p.a[1],r:0.3})),
     beacons:LV.beacons.map((b,i)=>({id:i,x:b[0],y:b[1]})),
-    robot:{x:st[0],y:st[1],th:st[2],v:0,w:0,d:0,contact:false,pedContact:false},
+    robot:{x:st[0],y:st[1],th:st[2],v:0,w:0,d:0,vy:0,r:0,contact:false,pedContact:false},
     cmd:{v:0,w:0,steer:0},cmdQ:[],odo:{v:0,w:0},plan:null,segIdx:0,mpc:null,mpcStats:null,est:{x:st[0],y:st[1],th:st[2]},Pc:null,pf:null,
     lo:new Float32Array(NC),cm:{occ:new Uint8Array(NC),dist:null,lethal:new Uint8Array(NC),pen:new Float32Array(NC)},
     scan:null,scanPts:[],lastZ:[],
@@ -3143,7 +3202,7 @@ function kidnapTo(p){   // p = [x, y] or null for a free spot far from the robot
   const r=S.robot;let best=null;
   if(!p){for(let i=0;i<400;i++){const x=1+S.rngA.u()*(W-2),y=1+S.rngA.u()*(H-2),k=cellIdx(x,y);if(k<0||LV.truthDist[k]<0.8)continue;const d=hyp(x-r.x,y-r.y);if(d>6&&(!best||d>best[2]))best=[x,y,d];if(best&&best[2]>12)break;}
     if(!best)return;p=best;}
-  r.x=p[0];r.y=p[1];r.v=0;r.w=0;r.d=0;r.contact=false;S.trailT.push(null);
+  r.x=p[0];r.y=p[1];r.v=0;r.w=0;r.d=0;r.vy=0;r.r=0;r.contact=false;S.trailT.push(null);
   logE(`Robot kidnapped to (${p[0].toFixed(1)}, ${p[1].toFixed(1)}). The estimate was not told.`,'bad');UI.draw();UI.refresh();
 }
 function loadLevel(i){
@@ -3168,7 +3227,8 @@ function setParam(k,v,live){
   if(k==='bOff'){const n=beaconsOff().size,u=beaconUse();logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)${u?`; note: ${u}`:''}`:'All beacons on',n&&u&&P.loc!=='custom'?'warn':'');}
   if(k==='bOut'&&!live)logE(v>0?`Random beacon outages: each beacon down ${v} % of the time`:'Random beacon outages off');
   if(k==='seed'&&!live)logE(`Seed ${v} takes effect on Reset`);
-  if(k==='model'){S.robot.d=0;S.robot.w=0;S.cmd={v:0,w:0,steer:0};
+  if(k==='carPhys'){S.robot.vy=0;S.robot.r=0;logE(v==='dyn'?'Car → dynamic (tyre slip)':'Car → kinematic (no slip)');}
+  if(k==='model'){S.robot.d=0;S.robot.w=0;S.robot.vy=0;S.robot.r=0;S.cmd={v:0,w:0,steer:0};
     if(v==='diff'){if(P.plan==='rs'||P.plan==='hybrid')P.plan='astar';if(P.ctl==='stanley')P.ctl='pp';}
     else if(P.plan!=='rs')P.plan='hybrid';
     logE(v==='car'?'Vehicle → car-like (bicycle) · planner → Hybrid A*':'Vehicle → unicycle (diff-drive)');requestReplan('vehicle model changed');}
@@ -3191,7 +3251,7 @@ function advanceMission(){missionTick();UI.draw();UI.refresh();}
    Vehicle: actuator + unicycle integration
    ============================================================ */
 function actuate(){
-  const r=S.robot,c=S.cmd;
+  const r=S.robot,c=S.cmd;let dyn=null;
   let vt=clamp(c.v,-0.5*P.vmax,P.vmax),wt;
   if(isCar()){
     // bicycle: command (v, δ) → lag → accel limit → steering-rate limit → ω = v tanδ / L
@@ -3200,6 +3260,7 @@ function actuate(){
     if(P.accel)vt=clamp(vt,r.v-P.amax*DT,r.v+P.amax*DT);
     r.d=clamp(st,r.d-P.steerRate*DT,r.d+P.steerRate*DT);
     wt=vt*Math.tan(r.d+(P.biasDeg||0)*Math.PI/180)/P.wheelbase;   // misalignment: the wheels sit biasDeg off what the encoder reads
+    if(isDyn()){r.wk=wt;dyn=dynStep(r,vt,r.d+(P.biasDeg||0)*Math.PI/180);wt=dyn.r;}   // tyre slip: the yaw rate is a state, wt only what the encoders imply
   }else{
     const wa=r.wa??r.w;   // actuator state (turn rate the motors are trying to produce)
     wt=clamp(c.w,-P.wmax,P.wmax);
@@ -3207,13 +3268,13 @@ function actuate(){
     if(P.accel){vt=clamp(vt,r.v-P.amax*DT,r.v+P.amax*DT);wt=clamp(wt,wa-P.alpha*DT,wa+P.alpha*DT);}
     r.wa=wt;wt+=P.biasW||0;   // bias: e.g. one weaker motor
   }
-  const n=integ(r.x,r.y,r.th,vt,wt,DT);
+  const n=dyn||integ(r.x,r.y,r.th,vt,wt,DT);
   if(bodyHits(n.x,n.y,n.th,S.shapes)){
-    if(!isCar())r.th=wrap(r.th+wt*DT); r.v=0; r.w=isCar()?0:wt;
+    if(!isCar())r.th=wrap(r.th+wt*DT); r.v=0; r.w=isCar()?0:wt; if(dyn){r.vy=0;r.r=0;}
     if(!r.contact&&Math.abs(vt)>0.01){S.coll++;logE('Collision with static obstacle','bad');S.halt=true;}
     r.contact=true;
   }else{
-    S.dist+=hyp(n.x-r.x,n.y-r.y); r.x=n.x;r.y=n.y;r.th=n.th;r.v=vt;r.w=wt;
+    S.dist+=hyp(n.x-r.x,n.y-r.y); r.x=n.x;r.y=n.y;r.th=n.th;r.v=vt;r.w=wt;if(dyn){r.vy=dyn.vy;r.r=dyn.r;}
     if(r.contact&&!bodyHits(r.x,r.y,r.th,S.shapes,0.05))r.contact=false;
   }
   let pc=false;if(isCar())pc=S.peds.length>0&&carHits(r.x,r.y,r.th,pedShapes());else for(const c of pedShapes())if(hyp(c.x-r.x,c.y-r.y)<RR+c.r)pc=true;
@@ -3222,13 +3283,68 @@ function actuate(){
   r.pedContact=pc;
 }
 
+/* ---------- car with tyre slip: the dynamic bicycle model (chapter 1 §4) ----------
+   States at the centre of mass: lateral velocity v_y and yaw rate r; the forward speed v_x comes from the
+   longitudinal chain above. Slip angles α_f = tanδ − (v_y + l_f r)/v_x, α_r = −(v_y − l_r r)/v_x (chapter 1's
+   small-angle model with tanδ for δ, so that stiff tyres give exactly the kinematic r = v tanδ / L; sign-flipped in
+   reverse, so the tyres always oppose sliding), linear tyres F = C·α clipped at μ·F_z with static loads. Passing
+   through standstill (v_x changes sign within a tick when there are no acceleration limits) starts from v_y = r = 0. Below |v_x| 0.3 m/s the slip angles lose meaning (they divide by v_x), so the state blends to the kinematic
+   one (r = v tanδ / L, v_y = l_r r), fully kinematic below 0.15 m/s. The yaw mode is fast (time constants of a few ms
+   at low speed with grippy tyres), so one tick is DYN_SUB substeps of a 2-stage Rosenbrock method (ROS2: second order,
+   L-stable, so stiff tyres converge to the kinematic car instead of blowing up). The pose stays at the rear axle,
+   whose body-frame velocity is (v_x, v_y − l_r r); each substep moves it with the new velocities (semi-implicit). */
+const DYN_SUB=10,GRAV=9.81,ROS_G=1+Math.SQRT1_2;
+function dynGeom(){const L=P.wheelbase,lf=clamp(P.lf,0.05*L,0.95*L);return{L,lf,lr:L-lf,m:P.mass,Iz:P.Iz};}
+// Steady-state quantities for the UI and the analysis: understeer gradient, characteristic speed, friction limit
+function dynInfo(){const{L,lf,lr,m}=dynGeom(),K=m/L*(lr/P.Cf-lf/P.Cr);return{K,vch:K>0?Math.sqrt(L/K):null,vcrit:K<0?Math.sqrt(-L/K):null,aMax:P.mu*GRAV,L,lf,lr};}
+// Lateral dynamics at forward speed vx and wheel angle de: o = [v̇_y, ṙ]; also returns slip angles and forces in T
+function dynF(vy,yr,vx,de,G,o,T){
+  const sg=vx<0?-1:1,af=sg*(G.td-(vy+G.lf*yr)/vx),ar=-sg*(vy-G.lr*yr)/vx;
+  const Ff=clamp(P.Cf*af,-G.ff,G.ff),Fr=clamp(P.Cr*ar,-G.fr,G.fr),Fc=Ff*Math.cos(de);
+  o[0]=(Fc+Fr)/G.m-vx*yr;o[1]=(G.lf*Fc-G.lr*Fr)/G.Iz;
+  if(T){T.af=af;T.ar=ar;T.Ff=Ff;T.Fr=Fr;}
+  return o;
+}
+function dynStep(r,vx,de){
+  const G=dynGeom();G.ff=P.mu*G.m*GRAV*G.lr/G.L;G.fr=P.mu*G.m*GRAV*G.lf/G.L;G.td=Math.tan(de);
+  const h=DT/DYN_SUB,rk=vx*G.td/G.L,yk=G.lr*rk,wB=clamp((Math.abs(vx)-0.15)/0.15,0,1);
+  let vy=r.vy||0,yr=r.r||0,x=r.x,y=r.y,th=r.th;if(vx*r.v<0){vy=0;yr=0;}const f0=[0,0],f1=[0,0],fa=[0,0],fb=[0,0];
+  for(let i=0;i<DYN_SUB;i++){
+    if(wB>0){
+      dynF(vy,yr,vx,de,G,f0);
+      // Jacobian by differences, then M = I − γhJ and its inverse (2×2)
+      const e1=1e-6*(1+Math.abs(vy)),e2=1e-6*(1+Math.abs(yr));dynF(vy+e1,yr,vx,de,G,fa);dynF(vy,yr+e2,vx,de,G,fb);
+      const gh=ROS_G*h,m11=1-gh*(fa[0]-f0[0])/e1,m12=-gh*(fb[0]-f0[0])/e2,m21=-gh*(fa[1]-f0[1])/e1,m22=1-gh*(fb[1]-f0[1])/e2,dt=m11*m22-m12*m21;
+      const sol=(a,b)=>[(m22*a-m12*b)/dt,(m11*b-m21*a)/dt];
+      const k1=sol(f0[0],f0[1]);dynF(vy+h*k1[0],yr+h*k1[1],vx,de,G,f1);
+      const k2=sol(f1[0]-2*k1[0],f1[1]-2*k1[1]);
+      vy+=h*(1.5*k1[0]+0.5*k2[0]);yr+=h*(1.5*k1[1]+0.5*k2[1]);
+      if(wB<1){vy=wB*vy+(1-wB)*yk;yr=wB*yr+(1-wB)*rk;}
+    }else{vy=yk;yr=rk;}
+    const n=integ(x,y,th,vx,yr,h),ly=(vy-G.lr*yr)*h,tm=th+0.5*yr*h;   // arc of the rear axle plus its sideways slide
+    x=n.x-ly*Math.sin(tm);y=n.y+ly*Math.cos(tm);th=n.th;
+  }
+  return{x,y,th,vy,r:yr};
+}
+// Slip state of the current motion (UI signals): slip angles, sideslip at the CoM, lateral acceleration
+function dynSlip(rb){
+  const G=dynGeom();G.ff=P.mu*G.m*GRAV*G.lr/G.L;G.fr=P.mu*G.m*GRAV*G.lf/G.L;
+  const vx=rb.v,de=(rb.d||0)+(P.biasDeg||0)*Math.PI/180,T={},o=[0,0];
+  if(Math.abs(vx)<0.05)return{af:0,ar:0,beta:0,ay:0,Ff:0,Fr:0};
+  G.td=Math.tan(de);dynF(rb.vy||0,rb.r||0,vx,de,G,o,T);
+  return{af:T.af,ar:T.ar,beta:Math.atan2(rb.vy||0,Math.abs(vx)),ay:(T.Ff*Math.cos(de)+T.Fr)/G.m,Ff:T.Ff,Fr:T.Fr};
+}
+
 /* ---------- odometry model ---------- */
 const sigV=(v,w,k)=>k*(0.1*Math.abs(v)+0.02);
 const sigW=(v,w,k)=>k*(0.2*Math.abs(w)+0.1*Math.abs(v)+0.02);
 function odometry(){
   const r=S.robot,g=S.rngW,k=P.odoK;
-  const vb=r.v*(1+0.02*P.odoB), wb=r.w+0.01*P.odoB*r.v;
-  S.odo={v:vb+sigV(r.v,r.w,k)*g.n(), w:wb+sigW(r.v,r.w,k)*g.n()};
+  // the car with tyre slip measures ω from the wheels and the steering encoder (v tanδ / L), so slip is odometry error;
+  // a yaw-rate gyro (P.gyro) reports the true yaw rate instead
+  const w=isDyn()&&!P.gyro&&r.wk!=null?r.wk:r.w;
+  const vb=r.v*(1+0.02*P.odoB), wb=w+0.01*P.odoB*r.v;
+  S.odo={v:vb+sigV(r.v,w,k)*g.n(), w:wb+sigW(r.v,w,k)*g.n()};
 }
 const assumedK=()=>P.filtK*Math.max(P.odoK,0.25);
 // odometry error when driving straight at v, for the UI and notes: random σ per reading and the fixed bias (as in odometry())
@@ -9035,7 +9151,7 @@ wsApply();
 UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{SEL=null;buildLevels();applyTabLayers(true);renderAllPanes();};UI.mode=()=>AN.mode;
 buildTabs();loadLevel(0);{const c=configFromHash();if(c){try{applyConfig(c);logE('Setup restored from the link','ok');}catch(e){logE('Could not restore the setup from the link: '+e.message,'warn');}}}syncModeUI();renderLearn();lessonFromHash()||chapterFromHash();readTokens();draw();drawPlot();
 requestAnimationFrame(loop);
-window.__an={AN,anCompute,GLOSS,LESSON_TERMS,glossMark,lessonTerms,LESSONS_EXTRA,LESSON_GROUPS,spdCompute,runStepTest,runInjection,setMode,setUIMode,openLesson,lessonBack,openChapter,chapterBack,get lessonOpen(){return lessonOpen;},lessonGo,LESSONS,stepMetrics,Ljw,anBuild};window.__runs={RUNS,runSnapshot,runImport,runExportJSON:r=>{const{_S,id,...run}=r;return JSON.stringify({format:'nav-stack-lab-run',version:1,run});}};window.__plots={TW,runCSV,plotsImage,PANES,addPane,SIGNALS,sigAt,timeWindow};window.__nav={scatter:()=>scatterParticles(),kidnapTo,get S(){return S;},P,LEVELS,loadLevel,advance,setParam,get WPS(){return WPS;},toScreen:(x,y)=>toScreen(x,y),get VIEW(){return VIEW;},get GHOST(){return GHOST;},LAYERS,EXP,expCSV,configURL,get LV(){return LV;},SLOTS,slotLoad,slamLandmarks,tryGo};
+window.__an={AN,anCompute,GLOSS,LESSON_TERMS,glossMark,lessonTerms,LESSONS_EXTRA,LESSON_GROUPS,spdCompute,runStepTest,runInjection,setMode,setUIMode,openLesson,lessonBack,openChapter,chapterBack,get lessonOpen(){return lessonOpen;},lessonGo,LESSONS,stepMetrics,Ljw,anBuild};window.__runs={RUNS,runSnapshot,runImport,runExportJSON:r=>{const{_S,id,...run}=r;return JSON.stringify({format:'nav-stack-lab-run',version:1,run});}};window.__plots={TW,runCSV,plotsImage,PANES,addPane,SIGNALS,sigAt,timeWindow};window.__nav={scatter:()=>scatterParticles(),kidnapTo,get S(){return S;},P,LEVELS,loadLevel,advance,setParam,get WPS(){return WPS;},toScreen:(x,y)=>toScreen(x,y),get VIEW(){return VIEW;},get GHOST(){return GHOST;},LAYERS,EXP,expCSV,configURL,get LV(){return LV;},SLOTS,slotLoad,slamLandmarks,tryGo,actuate,dynInfo,dynSlip};
 
 })();
 </script>

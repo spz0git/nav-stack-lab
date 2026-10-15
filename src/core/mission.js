@@ -22,6 +22,7 @@ function startMission(){
   const names={sequential:'in order',greedy:'greedy nearest',optimal:'optimal'};
   logE(`Mission: ${F.queue.length} goal${F.queue.length>1?'s':''}, ${names[P.mis]}${r.cost!=null?` · cost ${r.cost.toFixed(1)}`:''}`);
 }
+const POSE_PLANNERS=['hybrid','rs','custom'],ALIGN_TOL=0.035;   // planners that take the goal heading; unicycle alignment tolerance [rad]
 const PLAN_NAMES={straight:'Straight',astar:'A*',rrtstar:'RRT*',rs:'Reeds–Shepp',hybrid:'Hybrid A*',stastar:'Space-time A*',custom:'Your code'};
 function doPlan(reason){
   const F=S.fsm;
@@ -70,9 +71,18 @@ function missionTick(){
       lastSeg=S.segIdx>=S.plan.segs.length-1;
     }
   }
-  const posed=isCar()&&wp.th!=null,headOK=!posed||Math.abs(wrap(e.th-wp.th))<0.2;
+  // A goal with a heading: the car's pose planners (Hybrid A*, Reeds–Shepp, your code) arrive with it; the unicycle
+  // drives to the point and then turns in place (F.align) until the estimate faces the goal heading within ALIGN_TOL.
+  // Point planners on the car cannot honour it, so the heading is reported and not waited for.
+  const posed=wp.th!=null&&(!isCar()||POSE_PLANNERS.includes(P.plan));
+  if(wp.th!=null&&isCar()&&!posed&&F.headWarn!==F.queue[0]){F.headWarn=F.queue[0];logE(`${PLAN_NAMES[P.plan]} plans to a point and ignores the goal heading; Hybrid A* or Reeds–Shepp arrive with it`,'warn');}
+  const hErr=posed?Math.abs(wrap(e.th-wp.th)):0,headOK=!posed||hErr<(isCar()?0.2:ALIGN_TOL);
   const legDone=!isCar()||!S.track||(S.track.total-project(e.x,e.y,true).s<0.08);
-  if(lastSeg&&headOK&&legDone&&hyp(e.x-wp.x,e.y-wp.y)<(posed?0.2:ARRIVE)){
+  const near=hyp(e.x-wp.x,e.y-wp.y)<(posed&&isCar()?0.2:ARRIVE);
+  if(posed&&!isCar()&&lastSeg&&near&&!headOK&&!F.align){F.align=true;F.prog={t:S.t,x:e.x,y:e.y};logE(`At goal ${wpLabel(F.queue[0])}: turning in place to ${deg(wp.th).toFixed(0)}° (${deg(hErr).toFixed(0)}° to go)`);}
+  if(F.align&&(!near||!posed)){F.align=false;}
+  if(F.align){if(!headOK)return;}
+  if(lastSeg&&headOK&&legDone&&near){F.align=false;
     const te=hyp(S.robot.x-wp.x,S.robot.y-wp.y),he=posed?Math.abs(deg(wrap(S.robot.th-wp.th))):0;
     logE(`Reached goal ${wpLabel(F.queue[0])} by estimate · true error ${te.toFixed(2)} m${posed?` · ${he.toFixed(0)}°`:''}`,(te>0.5||he>20)?'warn':'ok');
     wp.done=true;F.queue.shift();F.stuckN=0;S.ctlState={I:0,prev:null};

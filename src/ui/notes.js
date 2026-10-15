@@ -33,6 +33,7 @@ DRIVE → PLAN on: path blocked in costmap · off path (estimate &gt; 1 m from i
                  skip after 3) · periodic timer
 DRIVE → LOST if guard on and σ_pos > 1 m; LOST → PLAN when σ_pos &lt; 0.4 m</div>
 <p><b>Arrival is declared on the estimate</b> (0.25 m). The log reports the true distance at that moment, so localization error shows up as missed goals.</p>
+<p><b>Goals with a heading</b> (map tool H: press and drag the way the robot should face; the goal shows an arrow). The unicycle drives to the point, then stops and turns in place, ω = 2.5·(θ<sub>goal</sub> − θ̂) within the turn-rate limit, until the estimate is within 2° of the heading. The car arrives posed with Hybrid A* or Reeds–Shepp (within 0.2 m and 11°); A*, RRT* and Straight plan to a point, so the car reports the heading and does not wait for it.</p>
 <p><b>Ordering.</b> Greedy and Optimal build a cost matrix by running Dijkstra on the costmap from the robot and every goal. Optimal solves the open-path TSP by branch-and-bound enumeration, fine up to about 8 waypoints.</p>`,
  plan:`<p><b>Straight line</b> ignores obstacles. The event-driven blocked-path check is disabled for it, so it fails honestly.</p>
 <p><b>A*</b> on the 0.1 m costmap grid, 8-connected, no corner cutting.</p>

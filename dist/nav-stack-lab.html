@@ -1725,6 +1725,7 @@ function startMission(){
   const names={sequential:'in order',greedy:'greedy nearest',optimal:'optimal'};
   logE(`Mission: ${F.queue.length} goal${F.queue.length>1?'s':''}, ${names[P.mis]}${r.cost!=null?` · cost ${r.cost.toFixed(1)}`:''}`);
 }
+const POSE_PLANNERS=['hybrid','rs','custom'],ALIGN_TOL=0.035;   // planners that take the goal heading; unicycle alignment tolerance [rad]
 const PLAN_NAMES={straight:'Straight',astar:'A*',rrtstar:'RRT*',rs:'Reeds–Shepp',hybrid:'Hybrid A*',stastar:'Space-time A*',custom:'Your code'};
 function doPlan(reason){
   const F=S.fsm;
@@ -1773,9 +1774,18 @@ function missionTick(){
       lastSeg=S.segIdx>=S.plan.segs.length-1;
     }
   }
-  const posed=isCar()&&wp.th!=null,headOK=!posed||Math.abs(wrap(e.th-wp.th))<0.2;
+  // A goal with a heading: the car's pose planners (Hybrid A*, Reeds–Shepp, your code) arrive with it; the unicycle
+  // drives to the point and then turns in place (F.align) until the estimate faces the goal heading within ALIGN_TOL.
+  // Point planners on the car cannot honour it, so the heading is reported and not waited for.
+  const posed=wp.th!=null&&(!isCar()||POSE_PLANNERS.includes(P.plan));
+  if(wp.th!=null&&isCar()&&!posed&&F.headWarn!==F.queue[0]){F.headWarn=F.queue[0];logE(`${PLAN_NAMES[P.plan]} plans to a point and ignores the goal heading; Hybrid A* or Reeds–Shepp arrive with it`,'warn');}
+  const hErr=posed?Math.abs(wrap(e.th-wp.th)):0,headOK=!posed||hErr<(isCar()?0.2:ALIGN_TOL);
   const legDone=!isCar()||!S.track||(S.track.total-project(e.x,e.y,true).s<0.08);
-  if(lastSeg&&headOK&&legDone&&hyp(e.x-wp.x,e.y-wp.y)<(posed?0.2:ARRIVE)){
+  const near=hyp(e.x-wp.x,e.y-wp.y)<(posed&&isCar()?0.2:ARRIVE);
+  if(posed&&!isCar()&&lastSeg&&near&&!headOK&&!F.align){F.align=true;F.prog={t:S.t,x:e.x,y:e.y};logE(`At goal ${wpLabel(F.queue[0])}: turning in place to ${deg(wp.th).toFixed(0)}° (${deg(hErr).toFixed(0)}° to go)`);}
+  if(F.align&&(!near||!posed)){F.align=false;}
+  if(F.align){if(!headOK)return;}
+  if(lastSeg&&headOK&&legDone&&near){F.align=false;
     const te=hyp(S.robot.x-wp.x,S.robot.y-wp.y),he=posed?Math.abs(deg(wrap(S.robot.th-wp.th))):0;
     logE(`Reached goal ${wpLabel(F.queue[0])} by estimate · true error ${te.toFixed(2)} m${posed?` · ${he.toFixed(0)}°`:''}`,(te>0.5||he>20)?'warn':'ok');
     wp.done=true;F.queue.shift();F.stuckN=0;S.ctlState={I:0,prev:null};
@@ -2116,9 +2126,13 @@ function builtinCmd(){const c=builtinRaw();
   // car: hold speed until the wheels have turned close to the commanded angle (dry steering at cusps)
   if(isCar()&&c.steer!=null&&P.ctl!=='mpc'){const de=Math.abs(c.steer-S.robot.d);if(de>0.1)c.v*=clamp(1-(de-0.1)/0.25,0,1);}
   return agSpeedCap(c);}
+// At a goal with a heading (unicycle): stop and turn in place, proportional on the heading error, within the turn-rate limit
+function alignCmd(){const wp=WPS[S.fsm.queue[0]],err=wp&&wp.th!=null?wrap(wp.th-S.est.th):0;S.ctlViz=null;
+  const wm=Math.min(P.wmax,1.5);return{v:0,w:Math.sign(err)*clamp(2.5*Math.abs(err),0.15,wm)};}
 function builtinRaw(){
   if(S.fsm.state==='LOST'){S.ctlViz=null;return{v:0,w:Math.min(0.6,P.wmax)};}
   if(S.fsm.state!=='DRIVE'||!S.track){S.ctlViz=null;return{v:0,w:0};}
+  if(S.fsm.align)return alignCmd();
   if(P.ctl==='pp')return ctlPP(); if(P.ctl==='pid')return ctlPID(); if(P.ctl==='dwa')return ctlDWA(); if(P.ctl==='stanley')return ctlStanley(); if(P.ctl==='rwf')return ctlRWF(); if(P.ctl==='mpc')return ctlMPC();
   return{v:0,w:0};
 }
@@ -2720,7 +2734,7 @@ async function advance(n){
       postSense();
       if(P.agPred==='custom'&&S.scanTick===S.tick&&agOn())await customPredict();
       agentsPlan();
-      const cmd=P.ctl==='custom'?await customCmd():builtinCmd();
+      const cmd=P.ctl==='custom'&&!S.fsm.align?await customCmd():builtinCmd();
       applyCmd(normCmd(cmd));
       agPost();
       recFrame();
@@ -3781,6 +3795,7 @@ function startMission(){
   const names={sequential:'in order',greedy:'greedy nearest',optimal:'optimal'};
   logE(`Mission: ${F.queue.length} goal${F.queue.length>1?'s':''}, ${names[P.mis]}${r.cost!=null?` · cost ${r.cost.toFixed(1)}`:''}`);
 }
+const POSE_PLANNERS=['hybrid','rs','custom'],ALIGN_TOL=0.035;   // planners that take the goal heading; unicycle alignment tolerance [rad]
 const PLAN_NAMES={straight:'Straight',astar:'A*',rrtstar:'RRT*',rs:'Reeds–Shepp',hybrid:'Hybrid A*',stastar:'Space-time A*',custom:'Your code'};
 function doPlan(reason){
   const F=S.fsm;
@@ -3829,9 +3844,18 @@ function missionTick(){
       lastSeg=S.segIdx>=S.plan.segs.length-1;
     }
   }
-  const posed=isCar()&&wp.th!=null,headOK=!posed||Math.abs(wrap(e.th-wp.th))<0.2;
+  // A goal with a heading: the car's pose planners (Hybrid A*, Reeds–Shepp, your code) arrive with it; the unicycle
+  // drives to the point and then turns in place (F.align) until the estimate faces the goal heading within ALIGN_TOL.
+  // Point planners on the car cannot honour it, so the heading is reported and not waited for.
+  const posed=wp.th!=null&&(!isCar()||POSE_PLANNERS.includes(P.plan));
+  if(wp.th!=null&&isCar()&&!posed&&F.headWarn!==F.queue[0]){F.headWarn=F.queue[0];logE(`${PLAN_NAMES[P.plan]} plans to a point and ignores the goal heading; Hybrid A* or Reeds–Shepp arrive with it`,'warn');}
+  const hErr=posed?Math.abs(wrap(e.th-wp.th)):0,headOK=!posed||hErr<(isCar()?0.2:ALIGN_TOL);
   const legDone=!isCar()||!S.track||(S.track.total-project(e.x,e.y,true).s<0.08);
-  if(lastSeg&&headOK&&legDone&&hyp(e.x-wp.x,e.y-wp.y)<(posed?0.2:ARRIVE)){
+  const near=hyp(e.x-wp.x,e.y-wp.y)<(posed&&isCar()?0.2:ARRIVE);
+  if(posed&&!isCar()&&lastSeg&&near&&!headOK&&!F.align){F.align=true;F.prog={t:S.t,x:e.x,y:e.y};logE(`At goal ${wpLabel(F.queue[0])}: turning in place to ${deg(wp.th).toFixed(0)}° (${deg(hErr).toFixed(0)}° to go)`);}
+  if(F.align&&(!near||!posed)){F.align=false;}
+  if(F.align){if(!headOK)return;}
+  if(lastSeg&&headOK&&legDone&&near){F.align=false;
     const te=hyp(S.robot.x-wp.x,S.robot.y-wp.y),he=posed?Math.abs(deg(wrap(S.robot.th-wp.th))):0;
     logE(`Reached goal ${wpLabel(F.queue[0])} by estimate · true error ${te.toFixed(2)} m${posed?` · ${he.toFixed(0)}°`:''}`,(te>0.5||he>20)?'warn':'ok');
     wp.done=true;F.queue.shift();F.stuckN=0;S.ctlState={I:0,prev:null};
@@ -4172,9 +4196,13 @@ function builtinCmd(){const c=builtinRaw();
   // car: hold speed until the wheels have turned close to the commanded angle (dry steering at cusps)
   if(isCar()&&c.steer!=null&&P.ctl!=='mpc'){const de=Math.abs(c.steer-S.robot.d);if(de>0.1)c.v*=clamp(1-(de-0.1)/0.25,0,1);}
   return agSpeedCap(c);}
+// At a goal with a heading (unicycle): stop and turn in place, proportional on the heading error, within the turn-rate limit
+function alignCmd(){const wp=WPS[S.fsm.queue[0]],err=wp&&wp.th!=null?wrap(wp.th-S.est.th):0;S.ctlViz=null;
+  const wm=Math.min(P.wmax,1.5);return{v:0,w:Math.sign(err)*clamp(2.5*Math.abs(err),0.15,wm)};}
 function builtinRaw(){
   if(S.fsm.state==='LOST'){S.ctlViz=null;return{v:0,w:Math.min(0.6,P.wmax)};}
   if(S.fsm.state!=='DRIVE'||!S.track){S.ctlViz=null;return{v:0,w:0};}
+  if(S.fsm.align)return alignCmd();
   if(P.ctl==='pp')return ctlPP(); if(P.ctl==='pid')return ctlPID(); if(P.ctl==='dwa')return ctlDWA(); if(P.ctl==='stanley')return ctlStanley(); if(P.ctl==='rwf')return ctlRWF(); if(P.ctl==='mpc')return ctlMPC();
   return{v:0,w:0};
 }
@@ -4810,7 +4838,7 @@ async function advance(n){
       postSense();
       if(P.agPred==='custom'&&S.scanTick===S.tick&&agOn())await customPredict();
       agentsPlan();
-      const cmd=P.ctl==='custom'?await customCmd():builtinCmd();
+      const cmd=P.ctl==='custom'&&!S.fsm.align?await customCmd():builtinCmd();
       applyCmd(normCmd(cmd));
       agPost();
       recFrame();
@@ -4975,9 +5003,12 @@ function draw(){
     ctx.lineWidth=px(active?2.5:1.8);ctx.strokeStyle=w.done?rgba(TOK.muted,0.6):(active?TOK.ok:TOK.ink);ctx.fillStyle=TOK['map-bg'];
     const rw=Math.max(0.32,px(10));ctx.beginPath();ctx.arc(w.x,w.y,rw,0,TAU);ctx.fill();ctx.stroke();
     if(w.done&&!w.skipped){ctx.beginPath();ctx.moveTo(w.x-0.15,w.y);ctx.lineTo(w.x-0.03,w.y-0.12);ctx.lineTo(w.x+0.17,w.y+0.13);ctx.stroke();}
-    if(w.th!=null&&isCar()&&!w.done){ // target pose: ghost body + heading tick
-      ctx.save();ctx.setLineDash([px(3),px(3)]);ctx.strokeStyle=active?TOK.ok:rgba(TOK.ink,0.6);ctx.lineWidth=px(1.3);carPath(w.x,w.y,w.th);ctx.stroke();ctx.restore();
-      ctx.beginPath();ctx.moveTo(w.x+rw*Math.cos(w.th),w.y+rw*Math.sin(w.th));ctx.lineTo(w.x+(rw+0.35)*Math.cos(w.th),w.y+(rw+0.35)*Math.sin(w.th));ctx.stroke();}
+    if(w.th!=null&&!w.done){ // target pose: heading arrow (and the car's ghost body)
+      if(isCar()){ctx.save();ctx.setLineDash([px(3),px(3)]);ctx.strokeStyle=active?TOK.ok:rgba(TOK.ink,0.6);ctx.lineWidth=px(1.3);carPath(w.x,w.y,w.th);ctx.stroke();ctx.restore();}
+      const c=Math.cos(w.th),s=Math.sin(w.th),tip=rw+Math.max(0.4,px(14)),ah=Math.max(0.14,px(5));
+      ctx.beginPath();ctx.moveTo(w.x+rw*c,w.y+rw*s);ctx.lineTo(w.x+tip*c,w.y+tip*s);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(w.x+tip*c,w.y+tip*s);ctx.lineTo(w.x+(tip-ah)*c-ah*0.7*s,w.y+(tip-ah)*s+ah*0.7*c);ctx.lineTo(w.x+(tip-ah)*c+ah*0.7*s,w.y+(tip-ah)*s-ah*0.7*c);ctx.closePath();
+      ctx.fillStyle=ctx.strokeStyle;ctx.fill();}
   });
   if(poseDrag){ctx.strokeStyle=TOK.ok;ctx.lineWidth=px(2);ctx.beginPath();ctx.moveTo(poseDrag.x,poseDrag.y);ctx.lineTo(poseDrag.x2,poseDrag.y2);ctx.stroke();
     if(isCar()&&hyp(poseDrag.x2-poseDrag.x,poseDrag.y2-poseDrag.y)>0.3){ctx.setLineDash([px(3),px(3)]);carPath(poseDrag.x,poseDrag.y,Math.atan2(poseDrag.y2-poseDrag.y,poseDrag.x2-poseDrag.x));ctx.stroke();ctx.setLineDash([]);}}
@@ -5321,6 +5352,7 @@ DRIVE → PLAN on: path blocked in costmap · off path (estimate &gt; 1 m from i
                  skip after 3) · periodic timer
 DRIVE → LOST if guard on and σ_pos > 1 m; LOST → PLAN when σ_pos &lt; 0.4 m</div>
 <p><b>Arrival is declared on the estimate</b> (0.25 m). The log reports the true distance at that moment, so localization error shows up as missed goals.</p>
+<p><b>Goals with a heading</b> (map tool H: press and drag the way the robot should face; the goal shows an arrow). The unicycle drives to the point, then stops and turns in place, ω = 2.5·(θ<sub>goal</sub> − θ̂) within the turn-rate limit, until the estimate is within 2° of the heading. The car arrives posed with Hybrid A* or Reeds–Shepp (within 0.2 m and 11°); A*, RRT* and Straight plan to a point, so the car reports the heading and does not wait for it.</p>
 <p><b>Ordering.</b> Greedy and Optimal build a cost matrix by running Dijkstra on the costmap from the robot and every goal. Optimal solves the open-path TSP by branch-and-bound enumeration, fine up to about 8 waypoints.</p>`,
  plan:`<p><b>Straight line</b> ignores obstacles. The event-driven blocked-path check is disabled for it, so it fails honestly.</p>
 <p><b>A*</b> on the 0.1 m costmap grid, 8-connected, no corner cutting.</p>
@@ -7755,7 +7787,7 @@ function addPosed(x,y,th){
   const ok=isCar()&&th!=null?!carHits(x,y,th,S.shapes,0.05):LV.truthDist[k]>(isCar()?CAR.width/2+0.05:RR+0.02);
   if(!ok){logE('That pose overlaps an obstacle','warn');draw();return;}
   if(remaining().length>=8){logE('Up to 8 open goals','warn');return;}
-  WPS.push({x,y,th,done:false});if(th!=null&&!isCar())logE('Goal heading is only used by the car-like model','warn');
+  WPS.push({x,y,th,done:false});if(th!=null&&!isCar())logE(`Goal ${WPS.length} faces ${deg(th).toFixed(0)}°: the robot turns in place there once it arrives`);
   startMission();doPlan('initial');draw();refreshAll();
 }
 cv.addEventListener('wheel',e=>{e.preventDefault();const[sx,sy]=toCanvas(e);zoomAt(e.deltaY<0?1.2:1/1.2,sx,sy);},{passive:false});

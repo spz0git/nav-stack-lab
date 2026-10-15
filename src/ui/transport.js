@@ -57,7 +57,7 @@ function addPosed(x,y,th){
   const ok=isCar()&&th!=null?!carHits(x,y,th,S.shapes,0.05):LV.truthDist[k]>(isCar()?CAR.width/2+0.05:RR+0.02);
   if(!ok){logE('That pose overlaps an obstacle','warn');draw();return;}
   if(remaining().length>=8){logE('Up to 8 open goals','warn');return;}
-  WPS.push({x,y,th,done:false});if(th!=null&&!isCar())logE('Goal heading is only used by the car-like model','warn');
+  WPS.push({x,y,th,done:false});if(th!=null&&!isCar())logE(`Goal ${WPS.length} faces ${deg(th).toFixed(0)}°: the robot turns in place there once it arrives`);
   startMission();doPlan('initial');draw();refreshAll();
 }
 cv.addEventListener('wheel',e=>{e.preventDefault();const[sx,sy]=toCanvas(e);zoomAt(e.deltaY<0?1.2:1/1.2,sx,sy);},{passive:false});

@@ -132,9 +132,12 @@ function draw(){
     ctx.lineWidth=px(active?2.5:1.8);ctx.strokeStyle=w.done?rgba(TOK.muted,0.6):(active?TOK.ok:TOK.ink);ctx.fillStyle=TOK['map-bg'];
     const rw=Math.max(0.32,px(10));ctx.beginPath();ctx.arc(w.x,w.y,rw,0,TAU);ctx.fill();ctx.stroke();
     if(w.done&&!w.skipped){ctx.beginPath();ctx.moveTo(w.x-0.15,w.y);ctx.lineTo(w.x-0.03,w.y-0.12);ctx.lineTo(w.x+0.17,w.y+0.13);ctx.stroke();}
-    if(w.th!=null&&isCar()&&!w.done){ // target pose: ghost body + heading tick
-      ctx.save();ctx.setLineDash([px(3),px(3)]);ctx.strokeStyle=active?TOK.ok:rgba(TOK.ink,0.6);ctx.lineWidth=px(1.3);carPath(w.x,w.y,w.th);ctx.stroke();ctx.restore();
-      ctx.beginPath();ctx.moveTo(w.x+rw*Math.cos(w.th),w.y+rw*Math.sin(w.th));ctx.lineTo(w.x+(rw+0.35)*Math.cos(w.th),w.y+(rw+0.35)*Math.sin(w.th));ctx.stroke();}
+    if(w.th!=null&&!w.done){ // target pose: heading arrow (and the car's ghost body)
+      if(isCar()){ctx.save();ctx.setLineDash([px(3),px(3)]);ctx.strokeStyle=active?TOK.ok:rgba(TOK.ink,0.6);ctx.lineWidth=px(1.3);carPath(w.x,w.y,w.th);ctx.stroke();ctx.restore();}
+      const c=Math.cos(w.th),s=Math.sin(w.th),tip=rw+Math.max(0.4,px(14)),ah=Math.max(0.14,px(5));
+      ctx.beginPath();ctx.moveTo(w.x+rw*c,w.y+rw*s);ctx.lineTo(w.x+tip*c,w.y+tip*s);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(w.x+tip*c,w.y+tip*s);ctx.lineTo(w.x+(tip-ah)*c-ah*0.7*s,w.y+(tip-ah)*s+ah*0.7*c);ctx.lineTo(w.x+(tip-ah)*c+ah*0.7*s,w.y+(tip-ah)*s-ah*0.7*c);ctx.closePath();
+      ctx.fillStyle=ctx.strokeStyle;ctx.fill();}
   });
   if(poseDrag){ctx.strokeStyle=TOK.ok;ctx.lineWidth=px(2);ctx.beginPath();ctx.moveTo(poseDrag.x,poseDrag.y);ctx.lineTo(poseDrag.x2,poseDrag.y2);ctx.stroke();
     if(isCar()&&hyp(poseDrag.x2-poseDrag.x,poseDrag.y2-poseDrag.y)>0.3){ctx.setLineDash([px(3),px(3)]);carPath(poseDrag.x,poseDrag.y,Math.atan2(poseDrag.y2-poseDrag.y,poseDrag.x2-poseDrag.x));ctx.stroke();ctx.setLineDash([]);}}

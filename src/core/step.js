@@ -51,7 +51,7 @@ async function advance(n){
       postSense();
       if(P.agPred==='custom'&&S.scanTick===S.tick&&agOn())await customPredict();
       agentsPlan();
-      const cmd=P.ctl==='custom'?await customCmd():builtinCmd();
+      const cmd=P.ctl==='custom'&&!S.fsm.align?await customCmd():builtinCmd();
       applyCmd(normCmd(cmd));
       agPost();
       recFrame();

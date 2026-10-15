@@ -63,7 +63,15 @@ $$
 \sigma_v = k\,(0.1\,|v| + 0.02)\ \text{m/s}, \qquad \sigma_\omega = k\,(0.2\,|\omega| + 0.1\,|v| + 0.02)\ \text{rad/s}
 $$
 
-with $k$ the odometry-noise slider (×{{live:odoK}} now). The filter builds its $M$ from the same formula with $k_{\text{filter}} = \text{(assumed motion noise)} \times \max(k, 0.25)$, so the assumed noise follows the true noise by default and can be scaled in the Localize tab; the floor of 0.25 keeps $\Sigma$ growing even on a level whose odometry is perfect, because a filter cannot know that. The calibration bias is a separate thing: the reported speed is $v\,(1 + 0.02\,b)$ and the reported turn rate $\omega + 0.01\,b\,v$, with $b$ the bias slider (×{{live:odoB}} now). It appears nowhere in $M$. That omission is what lesson 1 and the second half of lesson 2 are about.
+with $k$ the odometry-noise slider (×{{live:odoK}} now). The filter builds its $M$ from the same formula with $k_{\text{filter}} = \text{(assumed motion noise)} \times \max(k, 0.25)$, so the assumed noise follows the true noise by default and can be scaled in the Localize tab; the floor of 0.25 keeps $\Sigma$ growing even on a level whose odometry is perfect, because a filter cannot know that. The calibration bias is a separate thing, with $b$ the bias slider (×{{live:odoB}} now). Together with the noise, the readings are
+
+$$
+v_{\text{meas}} = v\,(1 + 0.02\,b) + \sigma_v\,\varepsilon_1, \qquad \omega_{\text{meas}} = \omega + 0.01\,b\,v + \sigma_\omega\,\varepsilon_2, \qquad \varepsilon_1, \varepsilon_2 \sim \mathcal N(0, 1)\ \text{fresh every tick}
+$$
+
+The bias appears nowhere in $M$. That omission is what lesson 1 and the second half of lesson 2 are about.
+
+**In numbers.** Driving straight at 0.8 m/s with both sliders at ×1, each reading is off by $\sigma_v \approx$ 0.10 m/s and $\sigma_\omega \approx$ 0.10 rad/s (5.7°/s) at random. The bias makes the speed read 2 % high (+1.6 cm/s) and adds +0.008 rad/s (0.46°/s) to the turn rate, always in the same direction, about 28° of heading per minute. At the current settings and {{live:v0}} m/s: $\sigma_v$ = {{live:sigv}} m/s, $\sigma_\omega$ = {{live:sigw}} rad/s, bias +{{live:odoBv}} cm/s and +{{live:odoBw}} rad/s, heading drift {{live:odoDrift}}° per minute. The noise partly averages out (its heading error grows like $\sqrt t$), while the bias never does: its heading error grows like $t$ and the position error like $t^2$.
 
 [try: Dead reckoning, L3 | {"sim":true,"level":2,"set":{"loc":"dr"},"tab":"loc","plot":"pos"}] [try: Same, noise ×3 | {"sim":true,"level":2,"set":{"loc":"dr","odoK":3},"tab":"veh","plot":"pos"}]
 

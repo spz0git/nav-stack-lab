@@ -22,7 +22,8 @@ const LIVE={
   // localization (chapter 2)
   loc:()=>({truth:'ground truth',dr:'dead reckoning',ekf:'the EKF',pf:'the particle filter',slam:'EKF-SLAM',custom:'your own code'})[P.loc]||P.loc,
   odoK:()=>liveF(P.odoK,1),odoB:()=>liveF(P.odoB,1),lmRange:()=>liveF(P.lmRange,0),npart:()=>String(P.npart),
-  sigv:()=>liveF(P.odoK*(0.1*anV0()+0.02),3),sigw:()=>liveF(P.odoK*(0.1*anV0()+0.02),3),
+  sigv:()=>liveF(odoErr(anV0()).sv,3),sigw:()=>liveF(odoErr(anV0()).sw,3),
+  odoBv:()=>liveF(100*odoErr(anV0()).bv,1),odoBw:()=>liveF(odoErr(anV0()).bw,3),odoDrift:()=>liveF(60*odoErr(anV0()).bw*180/Math.PI,0),
   // perception (chapter 3): the tracker's steady-state α–β gains from the tracking index λ = σa Δt² / σz
   lidarSig:()=>liveF(P.lidarSig,2),infl:()=>liveF(P.infl,1),agSigA:()=>liveF(P.agSigA,1),agT:()=>liveF(P.agT,1),agGrow:()=>liveF(P.agGrow,2),sensLat:()=>liveF(P.sensLat,2),
   lam:()=>liveF(P.agSigA*0.01/0.1,3),alpha:()=>liveF(abGains().a,2),beta:()=>liveF(abGains().b,3),tauv:()=>{const a=abGains().a;return liveF(0.1/(-Math.log(Math.sqrt(1-a))),1);},

@@ -230,7 +230,7 @@ $$
 g\,(-K_e\,e_{ss} + b) = 0\quad\Rightarrow\quad e_{ss} = \frac{b}{K_e}
 $$
 
-{{live:ess}} cm for 0.1 rad/s with your $K_e$. Pure pursuit has no integrator, so it drives along with a permanent offset of $b L_d^2/(2v_0)$. A longer lookahead makes it worse, quadratically. The PID controller with $k_i > 0$ adds an integrator and removes it; the MPC, whose rate input is itself an integrator, removes it too, which is what the $e_{ss}$ chip shows when you switch controllers.
+{{live:ess}} cm for 0.1 rad/s with your $K_e$. Pure pursuit has no integrator, so it drives along with a permanent offset of $b L_d^2/(2v_0)$. On the car the same equation holds with $u$ the steering angle and $b$ a steering misalignment (Analyze uses 2°, $b$ = 0.0349 rad): $g = v_0/L$ cancels, $e_{ss} = b/K_e$ with $K_e$ in radians of steering per metre, which for pure pursuit is $b L_d^2/(2L)$. A longer lookahead makes it worse, quadratically. The PID controller with $k_i > 0$ adds an integrator and removes it; the MPC, whose rate input is itself an integrator, removes it too, which is what the $e_{ss}$ chip shows when you switch controllers.
 
 [try: Bias response, pure pursuit | {"level":0,"set":{"ctl":"pp"},"test":"step","stepKind":"bias"}] [try: Same with PID, ki = 0.5 | {"level":0,"set":{"ctl":"pid","ki":0.5},"test":"step","stepKind":"bias"}]
 
@@ -297,7 +297,7 @@ The linear loop is exact for small errors on a straight path with a known pose. 
 | Controller | Law near the path | $K_e$ | $K_\theta$ | What is different |
 | --- | --- | --- | --- | --- |
 | Rear-wheel feedback | $\omega = v(\kappa_{ref} - k_\theta\theta_e - k_e e)$ | $v_0 k_e$ | $v_0 k_\theta$ | $\zeta = k_\theta/(2\sqrt{k_e})$ = 0.61 at the defaults, independent of speed; $\omega_n = v_0\sqrt{k_e}$ scales with speed, which is the gain-scheduling lesson |
-| Stanley (car only) | $\delta = \theta_e + \arctan(k e/v)$ at the front axle | $k/v_0$ | 1 | Measured at the front axle, so the plant gains a zero; the app reads the gains numerically |
+| Stanley (car only) | $\delta = -\theta_e - \arctan\big(k e_f/(0.5 + v)\big)$ with the front-axle offset $e_f \approx e + L\theta_e$ | $k/(0.5 + v_0)$ | $1 + kL/(0.5 + v_0)$ | The 0.5 m/s softening keeps the gain finite at low speed, and the front-axle offset adds $kL/(0.5+v_0)$ to the heading gain; the app reads the gains numerically |
 | PID on the pure-pursuit angle | $u = C(z)\,\alpha$, $\alpha = -(e/L_d + \theta_e)$ | $k_p v_0/L_d$ (+ integral) | $k_p$ | $C(z) = k_p + k_i T/(1 - z^{-1}) + k_d(1 - z^{-1})/T$, evaluated at $z = e^{sT}$; $k_i > 0$ adds a third integrator and removes the bias error |
 | MPC | rate $\dot u = -(K_e e + K_\theta\theta_e + K_s s + K_c s_{cmd}) + K_u\dot u_{prev}$ | read numerically | read numerically | The rate input is an integrator $T/(1 - z^{-1})$, so the loop starts at −270°; the memory term $1/(1 - K_u z^{-1})$ and the lag-model switch change what the MPC assumes about the actuator |
 

@@ -41,7 +41,9 @@ function healthNow(f){
   // control
   {const D=S.plot,tE=V.t,win=D.filter(d=>d.t>tE-2&&d.t<=tE+1e-6),lim=isCar()?0.97*P.steerMaxDeg:0.97*P.wmax,sat=win.length?win.filter(d=>d.ta!=null&&Math.abs(d.ta)>=lim).length/win.length:0,
      last=win.length?win[win.length-1]:null,cte=last&&last.cte!=null?Math.abs(last.cte):null,mms=sig?sig.mpcMs:S.mpcStats&&P.ctl==='mpc'?S.mpcStats.ms:null;
+   const dq=!isDyn()?null:f?sig.dyn:dynSig(r),ayF=dq&&dq.mug>0?Math.abs(dq.ay)/dq.mug:0;
    if(r.contact)H.ctl=['bad','contact with an obstacle'];
+   else if(drive&&ayF>0.8)H.ctl=['warn',`near the grip limit: a_y ${Math.abs(dq.ay).toFixed(2)} m/s², ${(100*ayF).toFixed(0)} % of μg (${dq.mug.toFixed(2)} m/s²)`];
    else if(drive&&sat>0.5)H.ctl=['warn',`${isCar()?'steering':'turn rate'} at its limit ${(sat*100).toFixed(0)} % of the last 2 s`];
    else if(P.ctl==='mpc'&&mms!=null&&mms>=13)H.ctl=['warn',`MPC at its 15 ms budget (${mms.toFixed(1)} ms)`];
    else if(!f&&P.ctl==='mpc'&&S.mpcStats&&S.mpcStats.viol>0.05)H.ctl=['warn',`MPC constraints violated by ${S.mpcStats.viol.toFixed(2)}`];

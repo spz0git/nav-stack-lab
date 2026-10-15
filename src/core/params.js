@@ -7,4 +7,10 @@ const DEFAULTS={loc:'truth',assoc:'known',npart:400,inject:true,pfLidar:true,fil
   kp:2.0,ki:0,kd:0.15,dwaG:1.0,dwaO:0.6,dwaV:0.4,dwaT:1.6,vmax:1.0,wmax:1.8,accel:false,amax:0.8,alpha:3.0,lag:0,
   odoK:0,odoB:0,lmK:1,lmRange:7,clutter:0,bOff:'',bOut:0,bOutLen:1,lidarSig:0.02,seed:7,agents:'off',agPred:'cv',agT:4,agGrow:0.1,agSigA:0.8,spd:'none',stMarg:0.3,agPlan:true,people:'scripted',sensLat:0,vehicles:true};
 const P={...DEFAULTS};
+// The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
+const vehOf=(m,c)=>m!=='car'?'diff':c==='dyn'?'dyn':'car';
+Object.defineProperty(P,'veh',{get(){return vehOf(P.model,P.carPhys);},set(v){P.model=v==='diff'?'diff':'car';if(v!=='diff')P.carPhys=v==='dyn'?'dyn':'kin';},enumerable:false});
+// Tyre presets for the car with tyre slip (lab car: L 0.6 m, m 10 kg). Grippy: realistic, kinematic-like below 2 m/s.
+// Slippery floor: soft tyres, v_ch ≈ 2.6 m/s and μg ≈ 2.5 m/s², reached on 1–2 m turns at lab speeds.
+const DYN_PRESETS={grippy:{mass:10,Iz:0.9,lf:0.27,Cf:500,Cr:700,mu:0.9},slippery:{mass:10,Iz:0.9,lf:0.27,Cf:40,Cr:90,mu:0.25}};
 const LAYERS={ghost:true,cost:false,search:true,lidar:true,beam:true,belief:true,trail:true,dwa:true,agents:true,ghostrun:true};

@@ -144,6 +144,7 @@ function draw(){
   // robots
   robotShape(S.est.x,S.est.y,S.est.th,false,px);
   robotShape(S.robot.x,S.robot.y,S.robot.th,true,px);
+  const sg=LAYERS.slip&&isDyn()?slipGeom(S.robot,px):null;if(sg)slipArrow(sg,px);
   drawHoverGhost(px);   // the robot at the time hovered on the timeline or the plot (replay.js)
   drawSelection(px);   // the Select tool's pick (maptools.js)
   // text overlays in screen space
@@ -155,10 +156,25 @@ function draw(){
       ctx.textAlign='center';ctx.textBaseline='middle';for(let k=1;k<=P.agT+1e-6;k++){const q=agPred(t,k);if(P.agPred!=='cv')break;const[qx,qy]=toS(q[0],q[1]);ctx.fillStyle=rgba(TOK.warn,0.9);ctx.fillText(String(k),qx,qy);}}
     ctx.textAlign='center';ctx.textBaseline='middle';for(const m of egoM){const[sx,sy]=toS(m[0],m[1]);ctx.fillStyle=TOK.accent;ctx.fillText(String(m[2]),sx,sy+0.5);}
     ctx.font=`600 ${Math.round(10*dpr)}px ${getComputedStyle(document.body).getPropertyValue('--f-mono')||'monospace'}`;}
+  if(sg&&Math.abs(deg(sg.beta))>=0.5){const[sx,sy]=toS(sg.tx+0.25*sg.ux,sg.ty+0.25*sg.uy);ctx.fillStyle=sg.col;ctx.fillText(`β ${deg(sg.beta).toFixed(1)}°`,sx,sy);}
   WPS.forEach((w,i)=>{if(w.done)return;const q=order.indexOf(i);const[sx,sy]=toS(w.x,w.y);ctx.fillStyle=q===0?TOK.ok:TOK.ink;ctx.fillText(String(q>=0?q+1:i+1),sx,sy+0.5);});
   // scale bar
   const sb=2*k;if(VIEW.z>1){ctx.fillStyle=TOK.muted;ctx.textAlign='right';ctx.fillText(`${VIEW.z.toFixed(1)}×`,cv.width-10*dpr,cv.height-12*dpr);}ctx.strokeStyle=TOK.muted;ctx.lineWidth=1.5*dpr;ctx.beginPath();ctx.moveTo(12*dpr,cv.height-12*dpr);ctx.lineTo(12*dpr+sb,cv.height-12*dpr);ctx.moveTo(12*dpr,cv.height-16*dpr);ctx.lineTo(12*dpr,cv.height-8*dpr);ctx.moveTo(12*dpr+sb,cv.height-16*dpr);ctx.lineTo(12*dpr+sb,cv.height-8*dpr);ctx.stroke();
   ctx.fillStyle=TOK.muted;ctx.textAlign='left';ctx.fillText('2 m',18*dpr+sb,cv.height-12*dpr);
+}
+// The car with tyre slip: the velocity at the centre of mass (arrow; amber near the grip limit) against the heading (dashed),
+// so the sideslip angle β = atan(v_y / v_x) shows on the map
+function slipGeom(rb,px){
+  const v=rb.v||0;if(Math.abs(v)<0.05)return null;
+  const L=P.wheelbase,lr=L-clamp(P.lf,0.05*L,0.95*L),c=Math.cos(rb.th),s=Math.sin(rb.th),cx=rb.x+lr*c,cy=rb.y+lr*s,vy=rb.vy||0,sp=Math.hypot(v,vy);
+  const len=Math.max(px(28),0.6*sp),ux=(v*c-vy*s)/sp,uy=(v*s+vy*c)/sp,q=dynSlip(rb),hot=Math.abs(q.ay)>0.8*P.mu*GRAV;
+  return{cx,cy,c,s,len,ux,uy,tx:cx+len*ux,ty:cy+len*uy,hd:v<0?-1:1,beta:q.beta,col:hot?TOK.warn:TOK.ok};
+}
+function slipArrow(g,px){
+  ctx.save();ctx.lineWidth=px(1.5);ctx.strokeStyle=rgba(TOK.ink,0.6);ctx.setLineDash([px(3),px(3)]);ctx.beginPath();ctx.moveTo(g.cx,g.cy);ctx.lineTo(g.cx+g.hd*g.len*g.c,g.cy+g.hd*g.len*g.s);ctx.stroke();ctx.setLineDash([]);
+  const ah=px(7),{tx,ty,ux,uy}=g;ctx.strokeStyle=ctx.fillStyle=g.col;ctx.lineWidth=px(2.2);ctx.beginPath();ctx.moveTo(g.cx,g.cy);ctx.lineTo(tx,ty);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(tx-ah*ux-ah*0.55*uy,ty-ah*uy+ah*0.55*ux);ctx.lineTo(tx-ah*ux+ah*0.55*uy,ty-ah*uy-ah*0.55*ux);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.arc(g.cx,g.cy,px(2.5),0,TAU);ctx.fill();ctx.restore();
 }
 function shapePath(s){ctx.beginPath();if(s.t==='r')ctx.rect(s.x,s.y,s.w,s.h);else ctx.arc(s.x,s.y,s.r,0,TAU);}
 function polyline(p){ctx.beginPath();let up=true;for(const q of p){if(!q){up=true;continue;}if(up){ctx.moveTo(q[0],q[1]);up=false;}else ctx.lineTo(q[0],q[1]);}}

@@ -15,6 +15,7 @@ function loadLevel(i){
   running=false;reset();UI.levelChanged();UI.invalidate();
 }
 function setParam(k,v,live){
+  if(k==='veh'){const m=v==='diff'?'diff':'car';if(m!==P.model)setParam('model',m,live);if(m==='car')setParam('carPhys',v==='dyn'?'dyn':'kin',live);return;}
   const old=P[k];P[k]=v;if(k.startsWith('mpc')&&S)S.mpc=null;if(old===v&&!['infl','eps','rrtIt','wheelbase','steerMaxDeg','revPen','gearPen','planPct'].includes(k))return;
   if(k==='loc'||k==='npart'){S.locInit=false;if(SLOTS.loc.worker)SLOTS.loc.worker.reset();initLoc(false);logE(`Localization → ${({truth:'ground truth',dr:'dead reckoning',ekf:'EKF',pf:'particle filter',slam:'EKF-SLAM',custom:'your code'})[P.loc]}`);}
   if(k==='assoc'||k==='inject'||k==='filtK'){S.nees=[];}

@@ -49,6 +49,18 @@ const DYN_SUB=10,GRAV=9.81,ROS_G=1+Math.SQRT1_2;
 function dynGeom(){const L=P.wheelbase,lf=clamp(P.lf,0.05*L,0.95*L);return{L,lf,lr:L-lf,m:P.mass,Iz:P.Iz};}
 // Steady-state quantities for the UI and the analysis: understeer gradient, characteristic speed, friction limit
 function dynInfo(){const{L,lf,lr,m}=dynGeom(),K=m/L*(lr/P.Cf-lf/P.Cr);return{K,vch:K>0?Math.sqrt(L/K):null,vcrit:K<0?Math.sqrt(-L/K):null,aMax:P.mu*GRAV,L,lf,lr};}
+// The linear model about straight driving at speed vx: [v̇_y, ṙ] = A [v_y, r] + B tanδ (chapter 1 §4; Analyze uses it)
+function dynLin(vx){
+  const{L,lf,lr,m,Iz}=dynGeom(),Cf=P.Cf,Cr=P.Cr,u=Math.max(Math.abs(vx),1e-3),sg=vx<0?-1:1;
+  return{A:[[-(Cf+Cr)/(m*u),-vx-(lf*Cf-lr*Cr)/(m*u)],[-(lf*Cf-lr*Cr)/(Iz*u),-(lf*lf*Cf+lr*lr*Cr)/(Iz*u)]],B:[sg*Cf/m,sg*lf*Cf/Iz]};
+}
+// Its yaw mode in words: natural frequency and damping, or two time constants
+function dynModes(vx){
+  const{A}=dynLin(vx),tr=A[0][0]+A[1][1],det=A[0][0]*A[1][1]-A[0][1]*A[1][0],disc=tr*tr/4-det;
+  if(det<=0)return{unstable:true,text:'unstable (one eigenvalue is positive)'};
+  if(disc<0){const wn=Math.sqrt(det),z=-tr/2/wn;return{wn,z,text:`ω_n ${wn.toFixed(1)} rad/s, ζ ${z.toFixed(2)}`};}
+  const l1=tr/2+Math.sqrt(disc),l2=tr/2-Math.sqrt(disc);return{tau:[-1/l1,-1/l2],text:`time constants ${(-1000/l1).toFixed(0)} and ${(-1000/l2).toFixed(0)} ms`};
+}
 // Lateral dynamics at forward speed vx and wheel angle de: o = [v̇_y, ṙ]; also returns slip angles and forces in T
 function dynF(vy,yr,vx,de,G,o,T){
   const sg=vx<0?-1:1,af=sg*(G.td-(vy+G.lf*yr)/vx),ar=-sg*(vy-G.lr*yr)/vx;
@@ -86,6 +98,9 @@ function dynSlip(rb){
   G.td=Math.tan(de);dynF(rb.vy||0,rb.r||0,vx,de,G,o,T);
   return{af:T.af,ar:T.ar,beta:Math.atan2(rb.vy||0,Math.abs(vx)),ay:(T.Ff*Math.cos(de)+T.Fr)/G.m,Ff:T.Ff,Fr:T.Fr};
 }
+
+// The slip state for the plots and the health light, in display units (recorded in each replay frame's sig.dyn)
+function dynSig(rb){const q=dynSlip(rb);return{beta:deg(q.beta),r:rb.r||0,rk:rb.wk!=null?rb.wk:0,ay:q.ay,mug:P.mu*GRAV,af:deg(q.af),ar:deg(q.ar)};}
 
 /* ---------- odometry model ---------- */
 const sigV=(v,w,k)=>k*(0.1*Math.abs(v)+0.02);

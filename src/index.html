@@ -16,8 +16,8 @@
       <div class="modebar"><div class="seg" id="modesel" role="group" aria-label="Mode"></div><span class="lbl" id="modehint"></span></div>
       <nav class="levels seg" id="levels" aria-label="Scenario level"></nav>
       <div class="bartools" id="bartools">
-        <button class="ibtn" id="tg-dock" type="button" aria-pressed="true" title="Show or hide the telemetry dock under the map">Telemetry</button>
-        <button class="ibtn" id="tg-insp" type="button" aria-pressed="true" title="Show or hide the panel on the right">Panel</button>
+        <button class="ibtn" id="tg-dock" type="button" aria-pressed="true" title="Show or hide the telemetry dock under the map">Telemetry dock</button>
+        <button class="ibtn" id="tg-insp" type="button" aria-pressed="true" title="Show or hide the settings panel on the right">Settings panel</button>
       </div>
     </header>
     <section class="stage">
@@ -72,23 +72,35 @@
         <p class="an-op" id="an-op"></p>
         <div id="an-none" class="box an-none" hidden></div>
         <div id="an-body">
-          <div class="an-diagram" id="an-diagram"></div>
-          <div class="an-chips" id="an-chips"></div>
-          <div class="an-grid">
-            <figure class="an-fig"><figcaption><span>Bode · open loop L(jω)</span><span class="seg sm" id="an-cl"></span></figcaption><canvas id="cv-bode" aria-label="Bode plot"></canvas></figure>
-            <figure class="an-fig"><figcaption><span>Nyquist</span><span class="seg sm" id="an-nyq"></span></figcaption><canvas id="cv-nyq" aria-label="Nyquist plot"></canvas></figure>
-            <figure class="an-fig"><figcaption><span>Time response</span><span class="seg sm" id="an-kind"></span></figcaption><canvas id="cv-step" aria-label="Step response"></canvas></figure>
-            <figure class="an-fig"><figcaption><span>Poles · root locus</span><span class="lbl">s-plane [1/s]</span></figcaption><canvas id="cv-pz" aria-label="Pole-zero map"></canvas></figure>
+          <section class="an-story" id="an-story" aria-label="What is analyzed, in plain words"></section>
+          <div class="an-chips an-key" id="an-key"></div>
+          <div class="an-grid an-main">
+            <figure class="an-fig"><figcaption><span id="cap-step-t">Response: back to the path</span><span class="seg sm" id="an-kind"></span></figcaption><canvas id="cv-step" aria-label="Response of the lateral offset"></canvas><p class="an-cap" id="cap-step"></p></figure>
+            <figure class="an-fig" id="fig-pz"><figcaption><span>Poles: drag one to redesign</span><button type="button" class="linkbtn" id="an-wi-x" hidden>Clear the what-if</button></figcaption><canvas id="cv-pz" class="an-drag" aria-label="Closed-loop poles; drag a pole to try another design"></canvas><div class="an-cap" id="cap-pz"></div></figure>
           </div>
           <div class="an-exp">
             <span class="lbl">Check in the simulator</span>
-            <button class="btn" id="an-step">Run step test</button>
-            <select class="sel" id="an-amp" aria-label="Step size"><option value="0.05">0.05 m offset</option><option value="0.2" selected>0.2 m offset</option><option value="0.5">0.5 m offset</option><option value="1">1.0 m offset</option></select>
-            <button class="btn" id="an-inj">Measure L(jω)</button>
-            <select class="sel" id="an-inja" aria-label="Injection amplitude"><option value="small">small sine</option><option value="large">large sine</option></select>
+            <button class="btn" id="an-step" title="Drive the real (nonlinear) simulated robot from this offset and overlay what it does (amber, dashed)">Run step test</button>
+            <select class="sel" id="an-amp" aria-label="Step size"><option value="0.05">5 cm offset</option><option value="0.2" selected>20 cm offset</option><option value="0.5">50 cm offset</option><option value="1">1 m offset</option></select>
             <span class="an-msg" id="an-msg"></span>
           </div>
-          <p class="note an-foot">Bode and Nyquist: continuous vehicle behind a zero-order hold (delay T/2 plus latency), with the 20 Hz controller and actuator elements evaluated exactly at z = e^(sT). Poles and the predicted response: the exact 20 Hz discrete loop. Amber points and dashed curves: measured in the full nonlinear simulator. <button class="linkbtn" type="button" id="an-src">View the source</button></p>
+          <details class="an-adv" id="an-adv"><summary>For control engineers: transfer function, margins, Bode, Nyquist, root locus</summary>
+            <div class="an-advbody">
+              <div class="an-diagram" id="an-diagram"></div>
+              <div class="an-tf" id="an-tf"></div>
+              <div class="an-chips" id="an-chips"></div>
+              <div class="an-grid">
+                <figure class="an-fig"><figcaption><span>Bode · open loop L(jω)</span><span class="seg sm" id="an-cl"></span></figcaption><canvas id="cv-bode" aria-label="Bode plot"></canvas><p class="an-cap">Gain and phase of the open loop for a sinusoidal wiggle of ω rad/s. Where the gain crosses 0 dB (ω<sub>c</sub>) the phase must still be above −180°; the gap is the phase margin.</p></figure>
+                <figure class="an-fig"><figcaption><span>Nyquist</span><span class="seg sm" id="an-nyq"></span></figcaption><canvas id="cv-nyq" aria-label="Nyquist plot"></canvas><p class="an-cap">The same L(jω) in the complex plane. The loop is stable when the curve does not encircle −1; the closer it passes, the more fragile.</p></figure>
+                <figure class="an-fig"><figcaption><span>Root locus</span><span class="lbl">s-plane [1/s]</span></figcaption><canvas id="cv-loc" aria-label="Root locus"></canvas><p class="an-cap">Where the closed-loop poles go when every controller gain is scaled by ×0.06 to ×16 (dots); × and ○ are the open-loop poles and zeros.</p></figure>
+              </div>
+              <div class="an-exp">
+                <button class="btn" id="an-inj" title="Inject a small sine at the actuator in the full simulator, nine frequencies, and measure L(jω) (amber points on Bode and Nyquist)">Measure L(jω)</button>
+                <select class="sel" id="an-inja" aria-label="Injection amplitude"><option value="small">small sine</option><option value="large">large sine</option></select>
+              </div>
+              <p class="note an-foot">Bode and Nyquist: continuous vehicle behind a zero-order hold (delay T/2 plus latency), with the 20 Hz controller and actuator elements evaluated exactly at z = e^(sT). Poles and the predicted response: the exact 20 Hz discrete loop. Amber points and dashed curves: measured in the full nonlinear simulator. <button class="linkbtn" type="button" id="an-src">View the source</button></p>
+            </div>
+          </details>
         </div>
       </div>
     </section>

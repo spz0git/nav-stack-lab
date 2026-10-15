@@ -32,7 +32,8 @@ function syncAnControls(){
   $('#an-amp').value=String(AN.stepAmp);$('#an-inja').value=AN.injAmp;
 }
 syncAnControls();
-$('#an-amp').onchange=e=>{AN.stepAmp=+e.target.value;};
+$('#an-adv').addEventListener('toggle',()=>{const o=$('#an-adv').open;if(o!==AN.adv){AN.adv=o;renderAnalysis();}});
+$('#an-amp').onchange=e=>{AN.stepAmp=+e.target.value;renderAnalysis();};
 $('#an-inja').onchange=e=>{AN.injAmp=e.target.value;};
 $('#an-step').onclick=()=>{if(AN.loop==='spd'){if(!AN.resSpd)spdCompute();runSpeedStepTest();AN.msg=`Speed step test: +${fmt(AN.spdAmp||0.2)} m/s on the cruise speed in the full simulator (dashed amber).`;renderAnalysis();return;}if(!AN.res)anCompute();runStepTest();AN.msg=`Step test: ${AN.stepKind==='offset'?AN.stepAmp+' m path offset':biasUnit().val+biasUnit().unit+' actuator bias'} in the full simulator (dashed amber).`;renderAnalysis();};
 $('#an-inj').onclick=()=>{if(!AN.busy)runInjection();};
@@ -57,7 +58,7 @@ function addPosed(x,y,th){
   const ok=isCar()&&th!=null?!carHits(x,y,th,S.shapes,0.05):LV.truthDist[k]>(isCar()?CAR.width/2+0.05:RR+0.02);
   if(!ok){logE('That pose overlaps an obstacle','warn');draw();return;}
   if(remaining().length>=8){logE('Up to 8 open goals','warn');return;}
-  WPS.push({x,y,th,done:false});if(th!=null&&!isCar())logE('Goal heading is only used by the car-like model','warn');
+  WPS.push({x,y,th,done:false});if(th!=null&&!isCar())logE(`Goal ${WPS.length} faces ${deg(th).toFixed(0)}°: the robot turns in place there once it arrives`);
   startMission();doPlan('initial');draw();refreshAll();
 }
 cv.addEventListener('wheel',e=>{e.preventDefault();const[sx,sy]=toCanvas(e);zoomAt(e.deltaY<0?1.2:1/1.2,sx,sy);},{passive:false});

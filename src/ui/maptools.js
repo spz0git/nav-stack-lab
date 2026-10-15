@@ -29,11 +29,11 @@ function setTool(id){
 }
 {const bar=document.createElement('div');bar.className='maptools';bar.id='maptools';bar.setAttribute('role','toolbar');bar.setAttribute('aria-label','Map tools');
  bar.innerHTML=TOOLS.map(([id,name,key])=>`<button type="button" data-tool="${id}" aria-pressed="false" aria-label="${name}" title="${name} (${key})">${svgI(id)}</button>`).join('')+
-   `<span class="mt-sep"></span><button type="button" id="clearwp" aria-label="Clear goals" title="Remove every goal">${svgI('clear')}</button>`;
+   `<span class="mt-sep"></span><button type="button" id="clearwp" aria-label="Clear goals and trails" title="Remove every goal and the trails driven so far (the previous run has its own Forget, bottom right)">${svgI('clear')}</button>`;
  const hint=document.createElement('div');hint.className='toolhint';hint.id='toolhint';hint.hidden=true;hint.setAttribute('aria-live','polite');
  const mw=$('.mapwrap');mw.insertBefore(hint,mw.firstChild);mw.insertBefore(bar,mw.firstChild);
  bar.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool===tapMode&&b.dataset.tool!=='wp'?'wp':b.dataset.tool));}
-$('#clearwp').onclick=()=>{WPS=[];S.fsm.queue=[];S.fsm.state='IDLE';S.track=null;S.plan=null;S.ctlViz=null;S.search=null;if(SEL&&SEL.k==='goal')SEL=null;logE('Goals cleared');draw();refreshAll();};
+$('#clearwp').onclick=()=>{WPS=[];S.fsm.queue=[];S.fsm.state='IDLE';S.track=null;S.plan=null;S.ctlViz=null;S.search=null;S.trailT=[];S.trailE=[];if(SEL&&SEL.k==='goal')SEL=null;logE('Goals and trails cleared');draw();refreshAll();};
 setTool('wp');
 
 /* ---------- Select: a pinned card with live values ---------- */
@@ -67,7 +67,9 @@ function selCard(V){
       row('velocity',`${f2(hyp(o.vx,o.vy))} m/s · ${deg(Math.atan2(o.vy,o.vx)).toFixed(0)}°`)+row('radius',`${f2(o.r)} m`)+row('hits',String(o.hits))+
       row('σ position',`${f2(Math.sqrt(Math.max(0,o.pxx)))} m`)+(pr?row(`in ${P.agT} s`,`${f2(pr[0])}, ${f2(pr[1])} m (r ${f2(pr[2])})`):'')];}
     case'beacon':{const d=hyp(r.x-o.x,r.y-o.y);return[`Beacon ${o.id}`,row('status',beaconsOff().has(o.id)?'switched off':V.bDown&&V.bDown[o.id]?'in an outage':'on')+
-      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('range',`${f2(d)} m from the robot${d>P.lmRange?' (beyond the '+P.lmRange+' m sensor range)':''}`)];}
+      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('range',`${f2(d)} m from the robot${d>P.lmRange?' (beyond the '+P.lmRange+' m sensor range)':''}`)+
+      (V===S&&S.bWhy?row('this scan',(BS_WHY[S.bWhy[o.id]]||['no scan yet'])[0])+row('readings',`${(S.bSeen[o.id].filter(t=>t>S.t-5).length/Math.max(0.2,Math.min(5,S.t))).toFixed(1)} per s (scan rate 5 Hz)`):'')+
+      row('noise',`σ_r ${(0.08*P.lmK).toFixed(2)} m · σ_b ${deg(0.03*P.lmK).toFixed(1)}° → ${f2(d*0.03*P.lmK)} m sideways here`)];}
   }
   return null;
 }
@@ -112,6 +114,7 @@ function layerPopHTML(){
   return`<div class="lp-head"><b>Layers</b><span class="lbl">${layersEdited?'your choice':'set by the tab'}</span>${layersEdited?`<button type="button" class="linkbtn" id="lp-auto">Let each tab choose</button>`:''}</div>`+
     LAYER_DEFS.map(([k,name,sub,sys])=>{const[has,st]=layerStatus(k),on=!!LAYERS[k];
       return`<label class="lp-row${on?'':' off'}"${sys?` data-sys="${sys}"`:''}><input type="checkbox" data-layer="${k}" ${on?'checked':''}><span class="lp-name">${name}<small>${sub}</small></span><span class="lp-st ${on&&has?'live':on?'idle':''}" title="${esc(st)}">${esc(st)}</span></label>`;}).join('')+
+    (GHOST&&GHOST.level===LV.id?`<p class="lp-foot">Previous run: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button type="button" class="linkbtn" id="lp-forget">Forget it</button></p>`:'')+
     `<p class="lp-foot">Drawing only; nothing here changes the simulation.</p>`;
 }
 let lpKey='';
@@ -121,6 +124,7 @@ function renderLayerPop(force){
   const foc=document.activeElement&&p.contains(document.activeElement)?document.activeElement.dataset.layer:null;
   p.innerHTML=layerPopHTML();
   p.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;layersEdited=true;renderLayerPop(true);if(activeTab==='view')renderAllPanes();draw();});
+  const fg=$('#lp-forget');if(fg)fg.onclick=()=>{forgetGhost();renderLayerPop(true);};
   const au=$('#lp-auto');if(au)au.onclick=()=>{layersEdited=false;layersKey='';applyTabLayers(true);renderLayerPop(true);if(activeTab==='view')renderAllPanes();};
   if(foc){const el=p.querySelector(`input[data-layer="${foc}"]`);if(el)el.focus();}
 }
@@ -132,6 +136,18 @@ function toggleLayerPop(on){
  const vb=$('.mapview');vb.insertBefore(b,$('#mv-key'));b.onclick=()=>toggleLayerPop();
  const p=document.createElement('div');p.className='layerpop';p.id='layerpop';p.hidden=true;p.setAttribute('role','dialog');p.setAttribute('aria-label','Map layers');$('.mapwrap').appendChild(p);
  document.addEventListener('pointerdown',e=>{if(!p.hidden&&!p.contains(e.target)&&!b.contains(e.target))toggleLayerPop(false);},true);}
+
+/* ---------- the previous run's path: a chip on the map names it and offers Hide (the layer) and Forget ---------- */
+function forgetGhost(){GHOST=null;renderGhostChip();if(activeTab==='view')renderAllPanes();draw();drawPlot();}
+let ghKey='';
+function renderGhostChip(){
+  const c=$('#ghostchip');if(!c)return;const on=!!(GHOST&&GHOST.level===LV.id&&LAYERS.ghostrun&&AN.mode==='sim');
+  const key=on?GHOST.label+GHOST.t:'';if(key===ghKey)return;ghKey=key;c.hidden=!on;if(!on)return;
+  c.innerHTML=`<span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span><button type="button" class="linkbtn" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="linkbtn" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button>`;
+  $('#gh-hide').onclick=()=>{LAYERS.ghostrun=false;layersEdited=true;renderGhostChip();renderLayerPop(true);if(activeTab==='view')renderAllPanes();draw();drawPlot();};
+  $('#gh-forget').onclick=forgetGhost;
+}
+{const c=document.createElement('div');c.id='ghostchip';c.className='ghostchip';c.hidden=true;$('.mapwrap').appendChild(c);}
 
 /* ---------- keys: V G H K B pick a tool, L opens Layers, Esc closes Layers, clears the selection, returns to Goal ---------- */
 document.addEventListener('keydown',e=>{

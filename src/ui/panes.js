@@ -63,6 +63,24 @@ function renderAllPanes(){
   wirePane(t);
 }
 let btnActs=[],infoFns=[];
+/* ---------- the beacon sensor explained, with a live line per beacon ---------- */
+let bsOpen=false,bsKey='';
+const BS_WHY={ok:['reading','ok'],range:['out of range','muted'],blocked:['blocked (no line of sight)','warn'],off:['switched off','muted'],outage:['in an outage','warn']};
+function beaconSensorHTML(){
+  const k=P.lmK,sr=0.08*k,sb=0.03*k,R=P.lmRange,r=S.robot,u=beaconUse();
+  const rows=S.beacons.map(b=>{const d=hyp(b.x-r.x,b.y-r.y),w=(S.bWhy&&S.bWhy[b.id])||(beaconsOff().has(b.id)?'off':d>R?'range':''),W=S.bSeen?S.bSeen[b.id]:[],
+    rate=S.t>0.2?W.filter(t=>t>S.t-5).length/Math.min(5,S.t):0,st=BS_WHY[w]||['no scan yet','muted'];
+    return`<tr><td>${b.id}</td><td>${d.toFixed(1)} m</td><td class="bs-${st[1]}">${st[0]}</td><td>${rate.toFixed(1)}/s</td><td>${(d*sb).toFixed(2)} m</td></tr>`;}).join('');
+  return`<p>Each beacon is a fixed landmark at a known position (teal diamond on the map). The robot's beacon sensor takes one <b>scan every 0.2 s (5 Hz)</b> and in each scan reads every beacon that is</p>
+<ul class="bs-list"><li>switched on and not in an outage,</li><li>between <b>0.2 m and ${R} m</b> away (the sensor range; Vehicle → Beacon sensor range),</li><li>in <b>line of sight</b>: a wall, shelf, parked car or person on the straight line to the beacon blocks it completely. There is no partial or weakened signal.</li></ul>
+<p>A reading is a <b>range</b> r and a <b>bearing</b> b (relative to the robot's heading) with Gaussian noise: <b>σ<sub>r</sub> = ${sr.toFixed(3)} m</b> and <b>σ<sub>b</sub> = ${sb.toFixed(3)} rad (${deg(sb).toFixed(1)}°)</b>, which is 0.08 m and 0.03 rad × the noise scale ${k.toFixed(1)} (Vehicle → Beacon range/bearing noise). The noise does <b>not</b> grow with distance, but a bearing error moves the implied position sideways by d·σ<sub>b</sub>, so a far beacon pins the position less (last column). The EKF and the particle filter assume these same σ's.</p>
+<p>Also in play: Sensor latency (Vehicle) delivers readings late; Unlabeled association (above) drops the IDs and adds false detections; Random outages (below) switch beacons off for a while.${u?` <b>Right now ${u}.</b>`:''}</p>
+<table class="bs-tab"><thead><tr><th>#</th><th>distance</th><th>this scan</th><th title="Readings received per second over the last 5 s (at most 5)">readings</th><th title="Sideways position error of one bearing reading, d·σ_b">d·σ<sub>b</sub></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function renderBeaconSensor(){
+  const el=$('#bsens-body');if(!el||!bsOpen)return;
+  const key=Math.round(S.t*5)+'|'+P.lmK+P.lmRange+P.bOff+P.loc+P.pfLidar;if(key===bsKey)return;bsKey=key;el.innerHTML=beaconSensorHTML();
+}
 const TIPS={loc:'Which estimator produces the pose the planner and controller use.',assoc:'Whether beacon readings carry their ID. Unlabeled readings are matched by Mahalanobis distance.',npart:'More particles cost CPU and resolve the belief more finely.',inject:'Replace low-weight particles with poses sampled from beacon readings when the likelihood drops.',pfLidar:'Score particles against the prior map with 24 lidar beams.',filtK:'Motion noise the filter assumes, relative to the true noise. Too low makes it overconfident (NEES above 3).',
  per:'Prior map: the planner sees the true static map. Lidar mapping: an occupancy grid built from scans in the estimated frame.',unknownAs:'Whether unobserved cells block the planner.',infl:'Width of the soft cost band outside the lethal radius.',agents:'Off: people reach the stack only as lidar hits. Ground truth: perfect tracks. Lidar: clustering plus a Kalman filter per agent.',agPred:'Constant velocity extrapolates each track; Static freezes it where it is now.',agT:'How far ahead agents are predicted and the speed planner plans.',agGrow:'How fast the predicted radius grows per second of prediction.',agSigA:'White acceleration noise of the constant-velocity model. Higher follows turns faster but gives noisier velocity.',
  mis:'In order visits goals as numbered. Greedy picks the nearest next. Optimal solves the open-path TSP.',replan:'Replan on a timer in addition to the event-driven triggers.',lostGuard:'Stop when the position uncertainty exceeds 1 m.',
@@ -79,6 +97,7 @@ function fieldHTML(f){
   if(f.type==='bool')return`<label class="check${chgMark(f)?' chg':''}" title="${TIPS[f.k]||''}"><input type="checkbox" id="p-${f.k}" data-k="${f.k}" ${P[f.k]?'checked':''}><span>${f.label}${chgMark(f)}</span></label>`;
   if(f.type==='beacons'){const off=beaconsOff(),c=chgMark({k:'bOff'});
     return`<div class="field${c?' chg':''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b=>`<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="linkbtn" data-beacon="all">All on</button><button class="linkbtn" data-beacon="none">All off</button></div></div>`;}
+  if(f.type==='bsensor')return`<details class="how bsens" id="bsens" ${bsOpen?'open':''}><summary>Beacon sensor: rate, range, noise, what blocks it</summary><div class="how-body" id="bsens-body">${beaconSensorHTML()}</div></details>`;
   if(f.type==='btn'){btnActs.push(f.act);return`<div><button class="btn" data-act="${btnActs.length-1}">${f.label}</button></div>`;}
   return`<div class="field${chgMark(f)?' chg':''}"><div class="row"><label for="p-${f.k}" title="${TIPS[f.k]||''}">${f.label}${chgMark(f)}</label><output id="o-${f.k}">${fmtVal(f,P[f.k])}</output></div><input type="range" id="p-${f.k}" data-k="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${P[f.k]}"></div>`;
 }
@@ -95,14 +114,15 @@ function wirePane(t){
     if(v==='all')setParam('bOff','',false);else if(v==='none')setParam('bOff',S.beacons.map(x=>x.id).join(','),false);else toggleBeacon(+v);renderAllPanes();});
   pane.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>btnActs[+b.dataset.act]());
   btnActs=btnActs.slice(-20);infoFns=infoFns.slice(-20);
+  const bs=$('#bsens');if(bs)bs.ontoggle=()=>{bsOpen=bs.open;bsKey='';renderBeaconSensor();};
   pane.querySelectorAll('details[data-how]').forEach(d=>d.ontoggle=()=>{howOpen[d.dataset.how]=d.open;});
   pane.querySelectorAll('[data-sym]').forEach(b=>b.onclick=()=>showSym(b.dataset.sym));
   pane.querySelectorAll('[data-source]').forEach(b=>b.onclick=()=>showSource(b.dataset.source));
   if(t==='code')wireCode();
   if(t==='exp')wireExp(pane);
   if(t==='sym')wireSym(pane);
-  if(t==='view'){const g=$('#ghost-clear');if(g)g.onclick=()=>{GHOST=null;renderAllPanes();draw();};}
-  if(t==='view'){pane.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;const fresh=!layersEdited;layersEdited=true;if(fresh)renderAllPanes();draw();});
+  if(t==='view'){const g=$('#ghost-clear');if(g)g.onclick=()=>forgetGhost();}
+  if(t==='view'){pane.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;renderGhostChip();const fresh=!layersEdited;layersEdited=true;if(fresh)renderAllPanes();draw();});
     const au=$('#layers-auto');if(au)au.onclick=()=>{layersEdited=false;layersKey='';renderAllPanes();};}
 }
 let replanDebounce=null;

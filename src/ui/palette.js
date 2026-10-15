@@ -49,7 +49,7 @@ function palItems(){
   MODES.forEach(([v,l])=>add('m:'+v,l,'Mode','',()=>setUIMode(v),MODE_HINT[v]));
   TOOLS.forEach(([id,name,key,hint])=>add('t:'+id,`Tool: ${name}`,'Map','',()=>{if(AN.mode!=='sim')setUIMode('sim');setTool(id);},hint,key));
   act('layers','Layers…',()=>{if(AN.mode!=='sim')setUIMode('sim');toggleLayerPop(true);},'L','what the map draws');
-  act('clear','Clear goals',()=>$('#clearwp').click());act('fit','Fit the map',()=>$('#mv-fit').click(),'0');act('follow','Follow the robot',()=>$('#mv-follow').click(),'F');
+  act('clear','Clear goals and trails',()=>$('#clearwp').click());act('fit','Fit the map',()=>$('#mv-fit').click(),'0');act('follow','Follow the robot',()=>$('#mv-follow').click(),'F');
   act('kidnap','Kidnap the robot to a random free spot',()=>kidnapTo(null),'','the estimator is not told');
   if(P.loc==='pf')act('scatter','Scatter the particles',()=>scatterParticles(),'','global localization');
   act('dock','Show or hide the telemetry dock',()=>wsDock(WS.dockOff));act('insp','Show or hide the panel',()=>wsInspector(WS.inspOff));

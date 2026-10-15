@@ -2,7 +2,7 @@
    Workspace (7.1): the map fills the stage; a telemetry dock under it and the panel on the right can be resized
    (drag the splitters, or focus one and use the arrow keys) and hidden. Sizes are remembered in this browser only.
    ============================================================ */
-const WS={insp:null,dock:220,inspOff:false,dockOff:false};
+const WS={insp:null,dock:220,inspOff:false,dockOff:false,preset:'tune'};
 const WS_KEY='nav-stack-lab.layout';
 try{const s=JSON.parse(localStorage.getItem(WS_KEY)||'null');if(s&&typeof s==='object'){for(const k of Object.keys(WS))if(k in s)WS[k]=s[k];if(typeof s.brief==='boolean')briefOpen=s.brief;}}catch(_){}
 function wsSave(){try{localStorage.setItem(WS_KEY,JSON.stringify({...WS,brief:briefOpen}));}catch(_){}}
@@ -21,6 +21,7 @@ function wsApply(){
 function wsEnsureDock(h){if(!wideUI())return;if(WS.dockOff)WS.dockOff=false;if(WS.dock<h){const st=$('#simview').getBoundingClientRect().height;WS.dock=Math.round(Math.max(WS.dock,Math.min(h,st-420)));}wsApply();wsSave();}
 function wsInspector(on){WS.inspOff=!on;wsApply();wsSave();}
 function wsDock(on){WS.dockOff=!on;wsApply();wsSave();}
+vmMark();
 $('#tg-insp').onclick=()=>wsInspector(WS.inspOff);
 $('#tg-dock').onclick=()=>wsDock(WS.dockOff);
 $('#dock-fold').onclick=()=>wsDock(WS.dockOff);

@@ -127,6 +127,9 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .lp-st.live::before{background:var(--ok)}.lp-st.idle::before{background:var(--warn)}
 .lp-row.off .lp-name{color:var(--muted)}
 .lp-foot{margin:6px 0 0;font-size:.74rem;color:var(--muted)}
+.ghostchip{position:absolute;right:8px;bottom:8px;z-index:2;display:flex;align-items:center;gap:8px;max-width:calc(100% - 140px);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:2px 10px;font-size:.76rem;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+.ghostchip[hidden]{display:none}.ghostchip .linkbtn{font-size:.76rem}
+.gh-swatch{width:18px;height:0;border-top:2px dotted var(--rose);flex:none}.gh-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
 .tl-opt{white-space:nowrap}
 .maptip{position:absolute;z-index:4;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:5px 8px;font-size:.78rem;line-height:1.4;box-shadow:0 2px 8px rgba(0,0,0,.15);max-width:240px}
 .mapwrap{position:relative;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--map-bg);aspect-ratio:3/2;max-width:100%;touch-action:manipulation}
@@ -240,6 +243,11 @@ details.how{border-top:1px dashed var(--line);padding-top:10px}
 details.how summary{cursor:pointer;font-family:var(--f-display);font-weight:600;font-size:.95rem}
 .how-body{font-size:.88rem;display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .how-body p{max-width:65ch}
+.bs-list{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:2px}
+.bs-tab{border-collapse:collapse;font-family:var(--f-mono);font-size:.76rem;font-variant-numeric:tabular-nums;width:100%}
+.bs-tab th{text-align:left;font-weight:500;color:var(--muted);border-bottom:1px solid var(--line);padding:2px 6px}
+.bs-tab td{padding:2px 6px;border-bottom:1px solid var(--line)}
+.bs-ok{color:var(--ok)}.bs-warn{color:var(--warn)}.bs-muted{color:var(--muted)}
 .eq{font-family:var(--f-mono);font-size:.78rem;background:var(--raise);border:1px solid var(--line);border-radius:4px;padding:8px 10px;overflow-x:auto;white-space:pre;line-height:1.55}
 textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;line-height:1.5;background:var(--raise);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:10px;resize:vertical;tab-size:2}
 .codestat{font-family:var(--f-mono);font-size:.78rem}
@@ -281,6 +289,17 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .an-exp{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .an-msg{font-size:.82rem;color:var(--muted);flex:1 1 220px}
 .an-foot{font-size:.78rem}
+.an-story{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;font-size:.88rem;display:flex;flex-direction:column;gap:6px}
+.an-story p{margin:0;max-width:95ch}
+.an-key{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}.an-key .chip b{font-size:.9rem}
+.an-main .an-fig canvas{height:280px}
+.an-cap{margin:2px 0 0;font-size:.8rem;color:var(--muted);line-height:1.45}.an-cap p{margin:0 0 4px}.an-cap b{color:var(--ink)}.an-cap .bad{color:var(--bad)}
+.an-hint{color:var(--accent)!important}
+canvas.an-drag{touch-action:none;cursor:crosshair}canvas.an-drag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.an-adv{border-top:1px dashed var(--line);padding-top:8px}
+.an-adv>summary{cursor:pointer;font-family:var(--f-display);font-weight:600;font-size:.95rem}
+.an-advbody{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.an-tf{font-size:.86rem}.an-tf p{margin:0 0 4px;max-width:95ch}.an-tf .eq{margin:4px 0}
 .btn.small{padding:4px 9px;font-size:.84rem}
 .tries{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
 /* explained experiments and questions in a lesson */
@@ -476,6 +495,13 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .vm-tg{display:flex;gap:6px;padding:0 4px}
 .vm-item{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;background:none;text-align:left;padding:6px 8px;border-radius:5px;font-size:.86rem}
 .vm-item:hover,.vm-item:focus-visible{background:var(--raise)}.vm-item span{font-size:.74rem;color:var(--muted)}
+.vm-tg .ibtn{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+.vm-tg .ibtn::before{content:"";width:11px;height:11px;border:1.5px solid var(--muted);border-radius:3px;flex:none;font-size:.62rem;line-height:11px;text-align:center;font-weight:700}
+.vm-tg .ibtn[aria-pressed="true"]{color:var(--ink);border-color:var(--accent)}
+.vm-tg .ibtn[aria-pressed="true"]::before{content:"✓";background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.vm-item{border-left:3px solid transparent}.vm-item[aria-current="true"]{border-left-color:var(--accent);background:var(--raise)}
+.vm-cur{display:none;margin-left:8px;font-style:normal;font-family:var(--f-mono);font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--accent)}
+.vm-item[aria-current="true"] .vm-cur{display:inline}
 .keysdlg{width:min(96vw,720px)}
 .keys-body{padding:10px 14px 14px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px 24px}
 .keys-body h4{margin:0 0 4px;font-family:var(--f-mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
@@ -613,8 +639,8 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
       <div class="modebar"><div class="seg" id="modesel" role="group" aria-label="Mode"></div><span class="lbl" id="modehint"></span></div>
       <nav class="levels seg" id="levels" aria-label="Scenario level"></nav>
       <div class="bartools" id="bartools">
-        <button class="ibtn" id="tg-dock" type="button" aria-pressed="true" title="Show or hide the telemetry dock under the map">Telemetry</button>
-        <button class="ibtn" id="tg-insp" type="button" aria-pressed="true" title="Show or hide the panel on the right">Panel</button>
+        <button class="ibtn" id="tg-dock" type="button" aria-pressed="true" title="Show or hide the telemetry dock under the map">Telemetry dock</button>
+        <button class="ibtn" id="tg-insp" type="button" aria-pressed="true" title="Show or hide the settings panel on the right">Settings panel</button>
       </div>
     </header>
     <section class="stage">
@@ -669,23 +695,35 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
         <p class="an-op" id="an-op"></p>
         <div id="an-none" class="box an-none" hidden></div>
         <div id="an-body">
-          <div class="an-diagram" id="an-diagram"></div>
-          <div class="an-chips" id="an-chips"></div>
-          <div class="an-grid">
-            <figure class="an-fig"><figcaption><span>Bode · open loop L(jω)</span><span class="seg sm" id="an-cl"></span></figcaption><canvas id="cv-bode" aria-label="Bode plot"></canvas></figure>
-            <figure class="an-fig"><figcaption><span>Nyquist</span><span class="seg sm" id="an-nyq"></span></figcaption><canvas id="cv-nyq" aria-label="Nyquist plot"></canvas></figure>
-            <figure class="an-fig"><figcaption><span>Time response</span><span class="seg sm" id="an-kind"></span></figcaption><canvas id="cv-step" aria-label="Step response"></canvas></figure>
-            <figure class="an-fig"><figcaption><span>Poles · root locus</span><span class="lbl">s-plane [1/s]</span></figcaption><canvas id="cv-pz" aria-label="Pole-zero map"></canvas></figure>
+          <section class="an-story" id="an-story" aria-label="What is analyzed, in plain words"></section>
+          <div class="an-chips an-key" id="an-key"></div>
+          <div class="an-grid an-main">
+            <figure class="an-fig"><figcaption><span id="cap-step-t">Response: back to the path</span><span class="seg sm" id="an-kind"></span></figcaption><canvas id="cv-step" aria-label="Response of the lateral offset"></canvas><p class="an-cap" id="cap-step"></p></figure>
+            <figure class="an-fig" id="fig-pz"><figcaption><span>Poles: drag one to redesign</span><button type="button" class="linkbtn" id="an-wi-x" hidden>Clear the what-if</button></figcaption><canvas id="cv-pz" class="an-drag" aria-label="Closed-loop poles; drag a pole to try another design"></canvas><div class="an-cap" id="cap-pz"></div></figure>
           </div>
           <div class="an-exp">
             <span class="lbl">Check in the simulator</span>
-            <button class="btn" id="an-step">Run step test</button>
-            <select class="sel" id="an-amp" aria-label="Step size"><option value="0.05">0.05 m offset</option><option value="0.2" selected>0.2 m offset</option><option value="0.5">0.5 m offset</option><option value="1">1.0 m offset</option></select>
-            <button class="btn" id="an-inj">Measure L(jω)</button>
-            <select class="sel" id="an-inja" aria-label="Injection amplitude"><option value="small">small sine</option><option value="large">large sine</option></select>
+            <button class="btn" id="an-step" title="Drive the real (nonlinear) simulated robot from this offset and overlay what it does (amber, dashed)">Run step test</button>
+            <select class="sel" id="an-amp" aria-label="Step size"><option value="0.05">5 cm offset</option><option value="0.2" selected>20 cm offset</option><option value="0.5">50 cm offset</option><option value="1">1 m offset</option></select>
             <span class="an-msg" id="an-msg"></span>
           </div>
-          <p class="note an-foot">Bode and Nyquist: continuous vehicle behind a zero-order hold (delay T/2 plus latency), with the 20 Hz controller and actuator elements evaluated exactly at z = e^(sT). Poles and the predicted response: the exact 20 Hz discrete loop. Amber points and dashed curves: measured in the full nonlinear simulator. <button class="linkbtn" type="button" id="an-src">View the source</button></p>
+          <details class="an-adv" id="an-adv"><summary>For control engineers: transfer function, margins, Bode, Nyquist, root locus</summary>
+            <div class="an-advbody">
+              <div class="an-diagram" id="an-diagram"></div>
+              <div class="an-tf" id="an-tf"></div>
+              <div class="an-chips" id="an-chips"></div>
+              <div class="an-grid">
+                <figure class="an-fig"><figcaption><span>Bode · open loop L(jω)</span><span class="seg sm" id="an-cl"></span></figcaption><canvas id="cv-bode" aria-label="Bode plot"></canvas><p class="an-cap">Gain and phase of the open loop for a sinusoidal wiggle of ω rad/s. Where the gain crosses 0 dB (ω<sub>c</sub>) the phase must still be above −180°; the gap is the phase margin.</p></figure>
+                <figure class="an-fig"><figcaption><span>Nyquist</span><span class="seg sm" id="an-nyq"></span></figcaption><canvas id="cv-nyq" aria-label="Nyquist plot"></canvas><p class="an-cap">The same L(jω) in the complex plane. The loop is stable when the curve does not encircle −1; the closer it passes, the more fragile.</p></figure>
+                <figure class="an-fig"><figcaption><span>Root locus</span><span class="lbl">s-plane [1/s]</span></figcaption><canvas id="cv-loc" aria-label="Root locus"></canvas><p class="an-cap">Where the closed-loop poles go when every controller gain is scaled by ×0.06 to ×16 (dots); × and ○ are the open-loop poles and zeros.</p></figure>
+              </div>
+              <div class="an-exp">
+                <button class="btn" id="an-inj" title="Inject a small sine at the actuator in the full simulator, nine frequencies, and measure L(jω) (amber points on Bode and Nyquist)">Measure L(jω)</button>
+                <select class="sel" id="an-inja" aria-label="Injection amplitude"><option value="small">small sine</option><option value="large">large sine</option></select>
+              </div>
+              <p class="note an-foot">Bode and Nyquist: continuous vehicle behind a zero-order hold (delay T/2 plus latency), with the 20 Hz controller and actuator elements evaluated exactly at z = e^(sT). Poles and the predicted response: the exact 20 Hz discrete loop. Amber points and dashed curves: measured in the full nonlinear simulator. <button class="linkbtn" type="button" id="an-src">View the source</button></p>
+            </div>
+          </details>
         </div>
       </div>
     </section>
@@ -1043,7 +1081,7 @@ function setParam(k,v,live){
   if(k==='ctl'){S.ctlState={I:0,prev:null};S.ctlViz=null;SLOTS.ctl.lastErr='';if(SLOTS.ctl.worker)SLOTS.ctl.worker.reset();logE(`Controller → ${({pp:'pure pursuit',rwf:'rear-wheel feedback',pid:'PID',dwa:'DWA',stanley:'Stanley',mpc:'MPC',custom:'your code'})[v]}`);}
   if(k==='agPred'&&SLOTS.pred.worker)SLOTS.pred.worker.reset();
   if(k==='vehicles'||k==='people'){if(k==='vehicles'){S.peds=S.peds.filter(p=>!p.car);if(v)carsInit();}logE(k==='people'?`People → ${v}`:`Other vehicles → ${v?'on':'off'}`);}
-  if(k==='bOff'){const n=beaconsOff().size;logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)`:'All beacons on');}
+  if(k==='bOff'){const n=beaconsOff().size,u=beaconUse();logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)${u?`; note: ${u}`:''}`:'All beacons on',n&&u&&P.loc!=='custom'?'warn':'');}
   if(k==='bOut'&&!live)logE(v>0?`Random beacon outages: each beacon down ${v} % of the time`:'Random beacon outages off');
   if(k==='seed'&&!live)logE(`Seed ${v} takes effect on Reset`);
   if(k==='model'){S.robot.d=0;S.robot.w=0;S.cmd={v:0,w:0,steer:0};
@@ -1126,6 +1164,14 @@ function lidarSense(){
 // Each beacon is a two-state Markov chain stepped at every beacon scan: an outage lasts bOutLen s on average
 // and a beacon is down bOut % of the time. Outages draw from their own stream, so the sensor noise is unchanged.
 function beaconsOff(){return new Set(String(P.bOff||'').split(',').filter(s=>s.trim()!=='').map(Number));}
+// How the active estimator depends on the beacons, in words (null: it needs them)
+function beaconUse(){
+  if(P.loc==='truth')return'ground truth localization ignores the beacons (the estimate is the true pose)';
+  if(P.loc==='dr')return'dead reckoning never uses the beacons (odometry only)';
+  if(P.loc==='pf'&&P.pfLidar&&P.per==='oracle')return'the particle filter also matches lidar against the prior map, so it can localize without beacons';
+  if(P.loc==='custom')return'your localizer gets the beacon readings that remain';
+  return null;
+}
 function beaconDown(id){return beaconsOff().has(id)||!!(S.bDown&&S.bDown[id]);}
 function beaconOutages(){
   const n=S.beacons.length;if(!S.bDown)S.bDown=new Array(n).fill(false);
@@ -1137,11 +1183,15 @@ function senseBeacons(){
   const r=S.robot,g=S.rngW,sh=allShapes(),out=[];
   const sr=0.08*P.lmK, sb=0.03*P.lmK;
   const off=beaconsOff();beaconOutages();
+  // why each beacon did or did not answer this scan, and when it last answered (for the UI; nothing reads it back)
+  if(!S.bWhy)S.bWhy=[];if(!S.bSeen)S.bSeen=S.beacons.map(()=>[]);
   for(const b of S.beacons){
-    if(off.has(b.id)||S.bDown[b.id])continue;
+    const W=S.bSeen[b.id];while(W.length&&W[0]<S.t-5)W.shift();
+    if(off.has(b.id)||S.bDown[b.id]){S.bWhy[b.id]=off.has(b.id)?'off':'outage';continue;}
     const dx=b.x-r.x,dy=b.y-r.y,d=hyp(dx,dy);
-    if(d>P.lmRange||d<0.2)continue;
-    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12)continue;
+    if(d>P.lmRange||d<0.2){S.bWhy[b.id]='range';continue;}
+    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12){S.bWhy[b.id]='blocked';continue;}
+    S.bWhy[b.id]='ok';W.push(S.t);
     out.push({id:b.id,r:d+sr*g.n(),b:wrap(Math.atan2(dy,dx)-r.th+sb*g.n())});
   }
   if(P.assoc==='unknown'&&P.clutter>0){for(let k=0;k<3;k++)if(g.u()<P.clutter/3)out.push({id:-1,fake:true,r:0.5+g.u()*(P.lmRange-0.5),b:(g.u()*2-1)*Math.PI});}
@@ -1715,6 +1765,7 @@ function startMission(){
   const names={sequential:'in order',greedy:'greedy nearest',optimal:'optimal'};
   logE(`Mission: ${F.queue.length} goal${F.queue.length>1?'s':''}, ${names[P.mis]}${r.cost!=null?` · cost ${r.cost.toFixed(1)}`:''}`);
 }
+const POSE_PLANNERS=['hybrid','rs','custom'],ALIGN_TOL=0.035;   // planners that take the goal heading; unicycle alignment tolerance [rad]
 const PLAN_NAMES={straight:'Straight',astar:'A*',rrtstar:'RRT*',rs:'Reeds–Shepp',hybrid:'Hybrid A*',stastar:'Space-time A*',custom:'Your code'};
 function doPlan(reason){
   const F=S.fsm;
@@ -1763,9 +1814,18 @@ function missionTick(){
       lastSeg=S.segIdx>=S.plan.segs.length-1;
     }
   }
-  const posed=isCar()&&wp.th!=null,headOK=!posed||Math.abs(wrap(e.th-wp.th))<0.2;
+  // A goal with a heading: the car's pose planners (Hybrid A*, Reeds–Shepp, your code) arrive with it; the unicycle
+  // drives to the point and then turns in place (F.align) until the estimate faces the goal heading within ALIGN_TOL.
+  // Point planners on the car cannot honour it, so the heading is reported and not waited for.
+  const posed=wp.th!=null&&(!isCar()||POSE_PLANNERS.includes(P.plan));
+  if(wp.th!=null&&isCar()&&!posed&&F.headWarn!==F.queue[0]){F.headWarn=F.queue[0];logE(`${PLAN_NAMES[P.plan]} plans to a point and ignores the goal heading; Hybrid A* or Reeds–Shepp arrive with it`,'warn');}
+  const hErr=posed?Math.abs(wrap(e.th-wp.th)):0,headOK=!posed||hErr<(isCar()?0.2:ALIGN_TOL);
   const legDone=!isCar()||!S.track||(S.track.total-project(e.x,e.y,true).s<0.08);
-  if(lastSeg&&headOK&&legDone&&hyp(e.x-wp.x,e.y-wp.y)<(posed?0.2:ARRIVE)){
+  const near=hyp(e.x-wp.x,e.y-wp.y)<(posed&&isCar()?0.2:ARRIVE);
+  if(posed&&!isCar()&&lastSeg&&near&&!headOK&&!F.align){F.align=true;F.prog={t:S.t,x:e.x,y:e.y};logE(`At goal ${wpLabel(F.queue[0])}: turning in place to ${deg(wp.th).toFixed(0)}° (${deg(hErr).toFixed(0)}° to go)`);}
+  if(F.align&&(!near||!posed)){F.align=false;}
+  if(F.align){if(!headOK)return;}
+  if(lastSeg&&headOK&&legDone&&near){F.align=false;
     const te=hyp(S.robot.x-wp.x,S.robot.y-wp.y),he=posed?Math.abs(deg(wrap(S.robot.th-wp.th))):0;
     logE(`Reached goal ${wpLabel(F.queue[0])} by estimate · true error ${te.toFixed(2)} m${posed?` · ${he.toFixed(0)}°`:''}`,(te>0.5||he>20)?'warn':'ok');
     wp.done=true;F.queue.shift();F.stuckN=0;S.ctlState={I:0,prev:null};
@@ -2106,9 +2166,13 @@ function builtinCmd(){const c=builtinRaw();
   // car: hold speed until the wheels have turned close to the commanded angle (dry steering at cusps)
   if(isCar()&&c.steer!=null&&P.ctl!=='mpc'){const de=Math.abs(c.steer-S.robot.d);if(de>0.1)c.v*=clamp(1-(de-0.1)/0.25,0,1);}
   return agSpeedCap(c);}
+// At a goal with a heading (unicycle): stop and turn in place, proportional on the heading error, within the turn-rate limit
+function alignCmd(){const wp=WPS[S.fsm.queue[0]],err=wp&&wp.th!=null?wrap(wp.th-S.est.th):0;S.ctlViz=null;
+  const wm=Math.min(P.wmax,1.5);return{v:0,w:Math.sign(err)*clamp(2.5*Math.abs(err),0.15,wm)};}
 function builtinRaw(){
   if(S.fsm.state==='LOST'){S.ctlViz=null;return{v:0,w:Math.min(0.6,P.wmax)};}
   if(S.fsm.state!=='DRIVE'||!S.track){S.ctlViz=null;return{v:0,w:0};}
+  if(S.fsm.align)return alignCmd();
   if(P.ctl==='pp')return ctlPP(); if(P.ctl==='pid')return ctlPID(); if(P.ctl==='dwa')return ctlDWA(); if(P.ctl==='stanley')return ctlStanley(); if(P.ctl==='rwf')return ctlRWF(); if(P.ctl==='mpc')return ctlMPC();
   return{v:0,w:0};
 }
@@ -2710,7 +2774,7 @@ async function advance(n){
       postSense();
       if(P.agPred==='custom'&&S.scanTick===S.tick&&agOn())await customPredict();
       agentsPlan();
-      const cmd=P.ctl==='custom'?await customCmd():builtinCmd();
+      const cmd=P.ctl==='custom'&&!S.fsm.align?await customCmd():builtinCmd();
       applyCmd(normCmd(cmd));
       agPost();
       recFrame();
@@ -3099,7 +3163,7 @@ function setParam(k,v,live){
   if(k==='ctl'){S.ctlState={I:0,prev:null};S.ctlViz=null;SLOTS.ctl.lastErr='';if(SLOTS.ctl.worker)SLOTS.ctl.worker.reset();logE(`Controller → ${({pp:'pure pursuit',rwf:'rear-wheel feedback',pid:'PID',dwa:'DWA',stanley:'Stanley',mpc:'MPC',custom:'your code'})[v]}`);}
   if(k==='agPred'&&SLOTS.pred.worker)SLOTS.pred.worker.reset();
   if(k==='vehicles'||k==='people'){if(k==='vehicles'){S.peds=S.peds.filter(p=>!p.car);if(v)carsInit();}logE(k==='people'?`People → ${v}`:`Other vehicles → ${v?'on':'off'}`);}
-  if(k==='bOff'){const n=beaconsOff().size;logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)`:'All beacons on');}
+  if(k==='bOff'){const n=beaconsOff().size,u=beaconUse();logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)${u?`; note: ${u}`:''}`:'All beacons on',n&&u&&P.loc!=='custom'?'warn':'');}
   if(k==='bOut'&&!live)logE(v>0?`Random beacon outages: each beacon down ${v} % of the time`:'Random beacon outages off');
   if(k==='seed'&&!live)logE(`Seed ${v} takes effect on Reset`);
   if(k==='model'){S.robot.d=0;S.robot.w=0;S.cmd={v:0,w:0,steer:0};
@@ -3182,6 +3246,14 @@ function lidarSense(){
 // Each beacon is a two-state Markov chain stepped at every beacon scan: an outage lasts bOutLen s on average
 // and a beacon is down bOut % of the time. Outages draw from their own stream, so the sensor noise is unchanged.
 function beaconsOff(){return new Set(String(P.bOff||'').split(',').filter(s=>s.trim()!=='').map(Number));}
+// How the active estimator depends on the beacons, in words (null: it needs them)
+function beaconUse(){
+  if(P.loc==='truth')return'ground truth localization ignores the beacons (the estimate is the true pose)';
+  if(P.loc==='dr')return'dead reckoning never uses the beacons (odometry only)';
+  if(P.loc==='pf'&&P.pfLidar&&P.per==='oracle')return'the particle filter also matches lidar against the prior map, so it can localize without beacons';
+  if(P.loc==='custom')return'your localizer gets the beacon readings that remain';
+  return null;
+}
 function beaconDown(id){return beaconsOff().has(id)||!!(S.bDown&&S.bDown[id]);}
 function beaconOutages(){
   const n=S.beacons.length;if(!S.bDown)S.bDown=new Array(n).fill(false);
@@ -3193,11 +3265,15 @@ function senseBeacons(){
   const r=S.robot,g=S.rngW,sh=allShapes(),out=[];
   const sr=0.08*P.lmK, sb=0.03*P.lmK;
   const off=beaconsOff();beaconOutages();
+  // why each beacon did or did not answer this scan, and when it last answered (for the UI; nothing reads it back)
+  if(!S.bWhy)S.bWhy=[];if(!S.bSeen)S.bSeen=S.beacons.map(()=>[]);
   for(const b of S.beacons){
-    if(off.has(b.id)||S.bDown[b.id])continue;
+    const W=S.bSeen[b.id];while(W.length&&W[0]<S.t-5)W.shift();
+    if(off.has(b.id)||S.bDown[b.id]){S.bWhy[b.id]=off.has(b.id)?'off':'outage';continue;}
     const dx=b.x-r.x,dy=b.y-r.y,d=hyp(dx,dy);
-    if(d>P.lmRange||d<0.2)continue;
-    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12)continue;
+    if(d>P.lmRange||d<0.2){S.bWhy[b.id]='range';continue;}
+    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12){S.bWhy[b.id]='blocked';continue;}
+    S.bWhy[b.id]='ok';W.push(S.t);
     out.push({id:b.id,r:d+sr*g.n(),b:wrap(Math.atan2(dy,dx)-r.th+sb*g.n())});
   }
   if(P.assoc==='unknown'&&P.clutter>0){for(let k=0;k<3;k++)if(g.u()<P.clutter/3)out.push({id:-1,fake:true,r:0.5+g.u()*(P.lmRange-0.5),b:(g.u()*2-1)*Math.PI});}
@@ -3771,6 +3847,7 @@ function startMission(){
   const names={sequential:'in order',greedy:'greedy nearest',optimal:'optimal'};
   logE(`Mission: ${F.queue.length} goal${F.queue.length>1?'s':''}, ${names[P.mis]}${r.cost!=null?` · cost ${r.cost.toFixed(1)}`:''}`);
 }
+const POSE_PLANNERS=['hybrid','rs','custom'],ALIGN_TOL=0.035;   // planners that take the goal heading; unicycle alignment tolerance [rad]
 const PLAN_NAMES={straight:'Straight',astar:'A*',rrtstar:'RRT*',rs:'Reeds–Shepp',hybrid:'Hybrid A*',stastar:'Space-time A*',custom:'Your code'};
 function doPlan(reason){
   const F=S.fsm;
@@ -3819,9 +3896,18 @@ function missionTick(){
       lastSeg=S.segIdx>=S.plan.segs.length-1;
     }
   }
-  const posed=isCar()&&wp.th!=null,headOK=!posed||Math.abs(wrap(e.th-wp.th))<0.2;
+  // A goal with a heading: the car's pose planners (Hybrid A*, Reeds–Shepp, your code) arrive with it; the unicycle
+  // drives to the point and then turns in place (F.align) until the estimate faces the goal heading within ALIGN_TOL.
+  // Point planners on the car cannot honour it, so the heading is reported and not waited for.
+  const posed=wp.th!=null&&(!isCar()||POSE_PLANNERS.includes(P.plan));
+  if(wp.th!=null&&isCar()&&!posed&&F.headWarn!==F.queue[0]){F.headWarn=F.queue[0];logE(`${PLAN_NAMES[P.plan]} plans to a point and ignores the goal heading; Hybrid A* or Reeds–Shepp arrive with it`,'warn');}
+  const hErr=posed?Math.abs(wrap(e.th-wp.th)):0,headOK=!posed||hErr<(isCar()?0.2:ALIGN_TOL);
   const legDone=!isCar()||!S.track||(S.track.total-project(e.x,e.y,true).s<0.08);
-  if(lastSeg&&headOK&&legDone&&hyp(e.x-wp.x,e.y-wp.y)<(posed?0.2:ARRIVE)){
+  const near=hyp(e.x-wp.x,e.y-wp.y)<(posed&&isCar()?0.2:ARRIVE);
+  if(posed&&!isCar()&&lastSeg&&near&&!headOK&&!F.align){F.align=true;F.prog={t:S.t,x:e.x,y:e.y};logE(`At goal ${wpLabel(F.queue[0])}: turning in place to ${deg(wp.th).toFixed(0)}° (${deg(hErr).toFixed(0)}° to go)`);}
+  if(F.align&&(!near||!posed)){F.align=false;}
+  if(F.align){if(!headOK)return;}
+  if(lastSeg&&headOK&&legDone&&near){F.align=false;
     const te=hyp(S.robot.x-wp.x,S.robot.y-wp.y),he=posed?Math.abs(deg(wrap(S.robot.th-wp.th))):0;
     logE(`Reached goal ${wpLabel(F.queue[0])} by estimate · true error ${te.toFixed(2)} m${posed?` · ${he.toFixed(0)}°`:''}`,(te>0.5||he>20)?'warn':'ok');
     wp.done=true;F.queue.shift();F.stuckN=0;S.ctlState={I:0,prev:null};
@@ -4162,9 +4248,13 @@ function builtinCmd(){const c=builtinRaw();
   // car: hold speed until the wheels have turned close to the commanded angle (dry steering at cusps)
   if(isCar()&&c.steer!=null&&P.ctl!=='mpc'){const de=Math.abs(c.steer-S.robot.d);if(de>0.1)c.v*=clamp(1-(de-0.1)/0.25,0,1);}
   return agSpeedCap(c);}
+// At a goal with a heading (unicycle): stop and turn in place, proportional on the heading error, within the turn-rate limit
+function alignCmd(){const wp=WPS[S.fsm.queue[0]],err=wp&&wp.th!=null?wrap(wp.th-S.est.th):0;S.ctlViz=null;
+  const wm=Math.min(P.wmax,1.5);return{v:0,w:Math.sign(err)*clamp(2.5*Math.abs(err),0.15,wm)};}
 function builtinRaw(){
   if(S.fsm.state==='LOST'){S.ctlViz=null;return{v:0,w:Math.min(0.6,P.wmax)};}
   if(S.fsm.state!=='DRIVE'||!S.track){S.ctlViz=null;return{v:0,w:0};}
+  if(S.fsm.align)return alignCmd();
   if(P.ctl==='pp')return ctlPP(); if(P.ctl==='pid')return ctlPID(); if(P.ctl==='dwa')return ctlDWA(); if(P.ctl==='stanley')return ctlStanley(); if(P.ctl==='rwf')return ctlRWF(); if(P.ctl==='mpc')return ctlMPC();
   return{v:0,w:0};
 }
@@ -4800,7 +4890,7 @@ async function advance(n){
       postSense();
       if(P.agPred==='custom'&&S.scanTick===S.tick&&agOn())await customPredict();
       agentsPlan();
-      const cmd=P.ctl==='custom'?await customCmd():builtinCmd();
+      const cmd=P.ctl==='custom'&&!S.fsm.align?await customCmd():builtinCmd();
       applyCmd(normCmd(cmd));
       agPost();
       recFrame();
@@ -4965,9 +5055,12 @@ function draw(){
     ctx.lineWidth=px(active?2.5:1.8);ctx.strokeStyle=w.done?rgba(TOK.muted,0.6):(active?TOK.ok:TOK.ink);ctx.fillStyle=TOK['map-bg'];
     const rw=Math.max(0.32,px(10));ctx.beginPath();ctx.arc(w.x,w.y,rw,0,TAU);ctx.fill();ctx.stroke();
     if(w.done&&!w.skipped){ctx.beginPath();ctx.moveTo(w.x-0.15,w.y);ctx.lineTo(w.x-0.03,w.y-0.12);ctx.lineTo(w.x+0.17,w.y+0.13);ctx.stroke();}
-    if(w.th!=null&&isCar()&&!w.done){ // target pose: ghost body + heading tick
-      ctx.save();ctx.setLineDash([px(3),px(3)]);ctx.strokeStyle=active?TOK.ok:rgba(TOK.ink,0.6);ctx.lineWidth=px(1.3);carPath(w.x,w.y,w.th);ctx.stroke();ctx.restore();
-      ctx.beginPath();ctx.moveTo(w.x+rw*Math.cos(w.th),w.y+rw*Math.sin(w.th));ctx.lineTo(w.x+(rw+0.35)*Math.cos(w.th),w.y+(rw+0.35)*Math.sin(w.th));ctx.stroke();}
+    if(w.th!=null&&!w.done){ // target pose: heading arrow (and the car's ghost body)
+      if(isCar()){ctx.save();ctx.setLineDash([px(3),px(3)]);ctx.strokeStyle=active?TOK.ok:rgba(TOK.ink,0.6);ctx.lineWidth=px(1.3);carPath(w.x,w.y,w.th);ctx.stroke();ctx.restore();}
+      const c=Math.cos(w.th),s=Math.sin(w.th),tip=rw+Math.max(0.4,px(14)),ah=Math.max(0.14,px(5));
+      ctx.beginPath();ctx.moveTo(w.x+rw*c,w.y+rw*s);ctx.lineTo(w.x+tip*c,w.y+tip*s);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(w.x+tip*c,w.y+tip*s);ctx.lineTo(w.x+(tip-ah)*c-ah*0.7*s,w.y+(tip-ah)*s+ah*0.7*c);ctx.lineTo(w.x+(tip-ah)*c+ah*0.7*s,w.y+(tip-ah)*s-ah*0.7*c);ctx.closePath();
+      ctx.fillStyle=ctx.strokeStyle;ctx.fill();}
   });
   if(poseDrag){ctx.strokeStyle=TOK.ok;ctx.lineWidth=px(2);ctx.beginPath();ctx.moveTo(poseDrag.x,poseDrag.y);ctx.lineTo(poseDrag.x2,poseDrag.y2);ctx.stroke();
     if(isCar()&&hyp(poseDrag.x2-poseDrag.x,poseDrag.y2-poseDrag.y)>0.3){ctx.setLineDash([px(3),px(3)]);carPath(poseDrag.x,poseDrag.y,Math.atan2(poseDrag.y2-poseDrag.y,poseDrag.x2-poseDrag.x));ctx.stroke();ctx.setLineDash([]);}}
@@ -5178,7 +5271,11 @@ const SCHEMA={
       {type:'info',text:()=>'Dead reckoning never uses the beacons: it integrates odometry only, so its error and ellipse only grow. Switch to EKF or the particle filter to see beacons pull the estimate back.',show:()=>P.loc==='dr'},
       {type:'info',text:()=>'Odometry is perfect on this level (noise and bias 0), so dead reckoning matches the truth exactly.',show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
       {type:'btn',label:'Add odometry noise and bias (×1)',act:()=>{setParam('odoK',1,false);setParam('odoB',1,false);renderAllPanes();},show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
-      {type:'beacons',label:'Beacons on (tap to switch one off)',show:()=>P.loc!=='truth'},
+      {type:'info',text:()=>'Ground truth: the estimate is the true pose, so the beacons and their on/off state change nothing here (L1, L2 and L6 start this way). Pick EKF or Particle filter to see what the beacons are worth.',show:()=>P.loc==='truth'},
+      {type:'btn',label:'Use the EKF (beacons only)',act:()=>{setParam('loc','ekf',false);renderAllPanes();},show:()=>P.loc==='truth'},
+      {type:'beacons',label:'Beacons on (tap to switch one off)'},
+      {type:'bsensor'},
+      {type:'info',text:()=>`The particle filter scores particles with lidar against the prior map as well as with the beacons, so it stays localized with every beacon off (lidar localization, as AMCL does). Untick "Also weight particles by lidar" above to depend on the beacons alone.`,show:()=>P.loc==='pf'&&P.pfLidar&&P.per==='oracle'},
       {k:'bOut',label:'Random beacon outages (share of time each is down)',min:0,max:90,step:5,unit:'%',show:()=>P.loc!=='truth'},
       {k:'bOutLen',label:'Mean outage length (short = flicker)',min:0.2,max:10,step:0.2,unit:'s',show:()=>P.loc!=='truth'&&P.bOut>0}],
  per:[{k:'per',type:'seg',label:'Map source',opts:[['oracle','Prior map'],['mapping','Lidar mapping']]},
@@ -5279,27 +5376,42 @@ const SCHEMA={
 const NOTES={
  loc:`<p><b>Dead reckoning</b> integrates measured (v, ω) through the exact arc model. Covariance is propagated but never corrected, so it only grows.</p>
 <div class="eq">μ' = g(μ, u)            Σ' = G Σ Gᵀ + V M Vᵀ
+g:  x' = x + (v/ω)(sin(θ + ωΔt) − sin θ),   y' = y − (v/ω)(cos(θ + ωΔt) − cos θ),   θ' = θ + ωΔt
+    |ω| < 10⁻⁶:  x' = x + vΔt cos θ,   y' = y + vΔt sin θ          (Δt = 50 ms, (v, ω) held over the tick)
 G = ∂g/∂x = [1 0 −vΔt sinθ; 0 1 vΔt cosθ; 0 0 1]
+V = ∂g/∂u = [Δt cosθ 0; Δt sinθ 0; 0 Δt]    (straight-line Jacobians, also used on arcs)
 M = diag(σ_v², σ_ω²)  (assumed noise × filter scale)</div>
 <p><b>EKF</b> corrects with each beacon reading z = [r, φ] at 5 Hz, using the Joseph-form covariance update.</p>
 <div class="eq">ẑ = [√q, atan2(Δy, Δx) − θ],   q = Δx² + Δy²
 H = [−Δx/√q  −Δy/√q   0 ;  Δy/q  −Δx/q  −1]
 S = HΣHᵀ + Q,  K = ΣHᵀS⁻¹,  μ += K(z − ẑ)
 unlabeled: pick min Mahalanobis d² = νᵀS⁻¹ν, gate d² < 9.21 (χ²₂, 99%)</div>
+<p><b>The beacon sensor.</b> One scan every 0.2 s (5 Hz) reads every beacon that is on, 0.2 m to the sensor range (7 m by default) away and in line of sight (walls, shelves, cars and people block it completely; there is no partial signal). Each reading is range and bearing with Gaussian noise σ<sub>r</sub> = 0.08 m, σ<sub>b</sub> = 0.03 rad (1.7°), × the noise scale, the same at every distance; a bearing error moves the implied position sideways by d·σ<sub>b</sub>, so far beacons pin the pose less. Open <i>Beacon sensor</i> below the beacon chips for a live line per beacon.</p>
 <p><b>Beacon availability.</b> Switch beacons off (the numbered chips, or the map's Beacon tool) or let them fail at random. While no beacon is in view the EKF and the particle filter only predict, exactly as dead reckoning does, and the ellipse grows; the first reading back pulls the estimate in. Dead reckoning never uses beacons, so the map draws no beacon readings for it. On the map a switched-off beacon is a grey hollow diamond with a stroke; one in a random outage is a hollow diamond.</p>
 <p><b>Particle filter</b> (Monte Carlo localization) samples the motion model per particle, weights by beacon likelihood with a robust floor, and resamples with the low-variance sampler when N_eff &lt; N/2. Augmented MCL tracks short- and long-term likelihood averages (α_fast = 0.1, α_slow = 0.001) and, when the short-term average drops, replaces up to 25% of particles with poses drawn from the current beacon readings (sensor-resetting localization). That is what recovers from kidnapping.</p>
+<div class="eq">predict:  x_i ← g(x_i, (v + σ_v ε₁, ω + σ_ω ε₂)),  ε ~ N(0, 1),  σ ≥ 0.02
+weight:   log w_i += Σ_readings log( max_j exp(−½[(r − r̂_j)²/σ_r² + (b − b̂_j)²/σ_b²]) + 10⁻³ )
+          j: the labelled beacon, or the best-fitting one when unlabeled;  r̂_j, b̂_j predicted from particle i
+inject:   (x, y) = m_j − (r + σ_r ε)(cos φ, sin φ),  θ = φ − (b + σ_b ε),  φ uniform</div>
 <p>With a prior map the particle filter can also score lidar scans (likelihood field, 24 beams, σ = 0.2 m, tempered by 0.4 because beams are correlated). Beacons alone are sparse; walls are everywhere.</p>
+<div class="eq">log w_i += 0.4 · Σ_beams log( 0.9 exp(−d²/2σ²) + 0.05 ),   d: beam end point (placed from particle i) to the nearest wall</div>
 <p>Like AMCL, the filter skips sensor updates until the robot has moved about 5 cm (or turned about 0.1 rad). Updating while parked would resample the same evidence over and over and collapse the particle set.</p>
 <p><b>EKF-SLAM</b> adds the beacon positions to the state, [x, y, θ, m<sub>1</sub>, m<sub>2</sub>, …] with a full covariance. A beacon seen for the first time is placed from the current pose (inverse observation, with the Jacobians carrying the pose uncertainty into the landmark). Known IDs give the data association; with unlabeled beacons readings are matched to mapped landmarks inside the same χ² gate and far-off readings start new landmarks. The pose is anchored only through landmarks mapped while it was certain, so the error drifts until loop closure.</p>
+<div class="eq">predict:  pose ← g(pose, u),  P_xx ← G P_xx Gᵀ + V M Vᵀ,  P_xm ← G P_xm,  landmarks unchanged
+new:      m = p + r [cos(θ+b), sin(θ+b)],  P_mm = J_x P_xx J_xᵀ + J_z R J_zᵀ,  P_mx = J_x P_xx
+          J_x = [1 0 −r sin(θ+b); 0 1 r cos(θ+b)],  J_z = [cos(θ+b) −r sin(θ+b); sin(θ+b) r cos(θ+b)]
+update:   ẑ_j = h(p, θ, m_j) as for the EKF,  ∂h/∂m_j = −∂h/∂p,  P ← P − K S Kᵀ (symmetrized)</div>
 <p><b>Consistency check.</b> NEES = eᵀΣ⁻¹e for the 3-state error. A consistent filter averages about 3. Well above that means the filter is more confident than its error justifies.</p>`,
  per:`<p><b>Prior map</b> hands the planner the true static map. People never appear in it; they are only visible to the lidar.</p>
 <p><b>Lidar mapping</b> casts 120 beams (360°, 8 m, 10 Hz) and updates a 0.1 m log-odds grid along each ray with Bresenham traversal. The grid is built in the <i>estimated</i> frame, so localization error shows up as smeared or doubled walls.</p>
 <div class="eq">l ← clamp(l + l_meas, ±4),  l_free = −0.4,  l_hit = +0.85
-occupied if l > 0.5;  unknown if l ≈ 0</div>
+occupied if l > 0.5;  unknown if l ≈ 0
+l = ln(p/(1 − p));  inverse sensor model: l_hit on the cell a returned beam ends in, l_free on every cell before it
+                    (a beam at maximum range: l_free on all of its cells)</div>
 <p><b>Costmap.</b> A two-pass chamfer distance transform gives distance to the nearest occupied cell. Cells closer than 0.4 m (robot radius 0.3 m plus margin) are lethal; a quadratic penalty fades out across the inflation band.</p>
 <p><b>Agent tracking.</b> The lidar tracker takes the hits the static map does not explain (prior map: more than 0.25 m from it; built map: cells that are not persistently occupied) and clusters them over consecutive beams. Clusters wider than 1.2 m are dropped as map error. Hits lie on the near side of a person, so the center is pushed 0.6 r away from the sensor.</p>
 <div class="eq">state  x = [p_x, p_y, v_x, v_y],  constant-velocity model
-x' = F x,  F = [I  Δt·I; 0  I],  Q from white acceleration noise σ_a
+x' = F x,  F = [I  Δt·I; 0  I],  Q = σ_a² [Δt⁴/4·I  Δt³/2·I; Δt³/2·I  Δt²·I]  (white acceleration noise)
 z = p + noise (σ_z = 0.1 m);  gate d² = ‖z − p̂‖² / (P_pp + σ_z²) < 9.21  (χ²₂, 99 %)
 greedy nearest-neighbour assignment · confirm after 3 hits · coast up to 1 s unseen
 prediction  p(t) = p + v t,   r(t) = r + g t</div>
@@ -5311,21 +5423,27 @@ DRIVE → PLAN on: path blocked in costmap · off path (estimate &gt; 1 m from i
                  skip after 3) · periodic timer
 DRIVE → LOST if guard on and σ_pos > 1 m; LOST → PLAN when σ_pos &lt; 0.4 m</div>
 <p><b>Arrival is declared on the estimate</b> (0.25 m). The log reports the true distance at that moment, so localization error shows up as missed goals.</p>
+<p><b>Goals with a heading</b> (map tool H: press and drag the way the robot should face; the goal shows an arrow). The unicycle drives to the point, then stops and turns in place, ω = 2.5·(θ<sub>goal</sub> − θ̂) within the turn-rate limit, until the estimate is within 2° of the heading. The car arrives posed with Hybrid A* or Reeds–Shepp (within 0.2 m and 11°); A*, RRT* and Straight plan to a point, so the car reports the heading and does not wait for it.</p>
 <p><b>Ordering.</b> Greedy and Optimal build a cost matrix by running Dijkstra on the costmap from the robot and every goal. Optimal solves the open-path TSP by branch-and-bound enumeration, fine up to about 8 waypoints.</p>`,
  plan:`<p><b>Straight line</b> ignores obstacles. The event-driven blocked-path check is disabled for it, so it fails honestly.</p>
 <p><b>A*</b> on the 0.1 m costmap grid, 8-connected, no corner cutting.</p>
-<div class="eq">f = g + ε·h,  h = octile distance (admissible)
+<div class="eq">f = g + ε·h,  h = octile distance (admissible) = (max(Δi, Δj) + (√2 − 1) min(Δi, Δj)) · 0.1 m
 edge cost = length · (1 + 3 · penalty)
 ε > 1 → weighted A*, cost ≤ ε · optimal, fewer expansions</div>
 <p><b>RRT*</b> grows a tree by sampling (10% goal bias, 0.6 m steer), chooses the cheapest parent in a shrinking radius r = min(8√(log n / n), 1.5 m) and rewires neighbors. It is asymptotically optimal; with a finite budget it is just "good".</p>
 <p><b>Smoothing</b> greedily replaces the path with the farthest visible path point, keeping 0.5 m clearance.</p>
 <p><b>Reeds–Shepp</b> (car only) is the shortest path for a car that drives forward and backward with a minimum turning radius, ignoring obstacles. It has a closed-form solution over 48 path words such as L⁺S⁺R⁻ (left forward, straight forward, right reverse).</p>
 <p><b>Hybrid A*</b> (car only) searches cells of 0.2 m × 5°, but each node keeps its continuous pose, so every edge is a drivable arc: 5 steering angles × forward/reverse, 0.4 m each.</p>
-<div class="eq">g += length·(1 or reverse ×) + gear-change penalty + steering terms + proximity
+<div class="eq">edge: bicycle arc at κ = tan δ / L for s = ±0.4 m, δ ∈ {−δ_p, −δ_p/2, 0, δ_p/2, δ_p}, δ_p = steering margin × δ_max
+      x' = x + (sin(θ + κs) − sin θ)/κ,  y' = y − (cos(θ + κs) − cos θ)/κ,  θ' = θ + κs   (four 0.1 m steps, footprint checked)
+g += length·(1 or reverse ×) + gear-change penalty + steering terms + proximity
+   = 0.4·(1 or 2) + 2·[gear change] + 0.05|δ|/δ_p + 0.1|δ − δ_prev|/δ_p + 0.8·max(0, (0.4 − clearance)/0.4)²
 h  = ε · max(2D Dijkstra with obstacles, Reeds–Shepp without obstacles)
 margin 0.15 m · analytic expansion: a Reeds–Shepp shot to the goal every 10 expansions,
                     every expansion within 2.5 m; accepted if collision-free</div>
 <p><b>Space-time A*</b> (diff-drive) searches (x, y, t) on a 0.2 m grid with moves to the 8 neighbours or a wait, each costing its time at the reference speed. A cell is blocked at a time when a tracked agent's predicted disc, inflated by the robot radius and the clearance margin, covers it; past the prediction horizon only the static map counts. The path geometry goes to the tracker and the speed planner keeps the schedule.</p>
+<div class="eq">blocked(i, j, k) if ‖c_ij − p_a(kΔt)‖ < r_a(kΔt) + r_robot + margin,   p_a(t) = p_a + v_a t,  r_a(t) = r_a + g t
+Δt = 0.2 m / v_ref;   move cost Δt·(1 or √2) + 0.3 Δt·penalty,  wait 1.2 Δt;   h = octile distance · Δt / cell</div>
 <p><b>Steering margin.</b> Planning at 100% of δ_max produces full-lock arcs. A tracker that starts such an arc slightly off has no steering left to correct with. By default the planners use 85%. Push it to 100% and watch the parking legs fail.</p>
 <p>The two heuristics cover each other's blind spots. The 2D term sees walls but not turning; the Reeds–Shepp term sees turning but not walls. Collision checks use the car footprint (three covering circles) on the costmap distance field.</p>
 <p>To give a goal a heading, use the map's <b>Goal with heading</b> tool and drag in the direction the car should face. Goals without a heading are accepted at any heading.</p>
@@ -5337,7 +5455,9 @@ v ≤ √(a_lat/|κ|),  v ≤ √(2 a d_goal)
 if |ω| > ω_max: ω = ±ω_max, v = ω_max/|κ|   (keeps curvature)</div>
 <p><b>PID heading</b> uses the same carrot: ω = Kp e + Ki∫e + Kd ė, with v = v_cruise · cos²e. Integral is clamped to ±1 rad·s.</p>
 <p><b>DWA</b> (dynamic window) samples 7 × 15 (v, ω) pairs reachable within 0.25 s under the acceleration limits, rolls each out over the horizon, rejects those that hit perceived lidar points or cannot brake in time, and scores the rest:</p>
-<div class="eq">J = w_g (‖end − carrot‖ + 0.3|heading err|) + w_o / clearance + w_v (v_top − v)</div>
+<div class="eq">rollout: (v, ω) held for T (1.6 s) in 0.1 s steps of the arc model;  car: samples δ, ω = v tan δ / L
+reject if clearance < 0.05 m or v > √(2 a_max · clearance)
+J = w_g (‖end − carrot‖ + 0.3|heading err|) + w_o / clearance + w_v (v_top − v)</div>
 <p>Without agent tracking DWA treats people as static at the moment of the scan. With tracking on, each rollout is checked against the agents' predicted positions at the same time step. MPC gets one clearance constraint per footprint circle and prediction step against the nearest predicted agent. With Response to agents set to Speed planning, its reference follows the ST profile, so the tracking cost asks it to yield instead of pulling it into people. The last step must also stay clear while the robot would wait there, out to T_p + 3 s, as in the speed planner's terminal cost. Each agent constraint is relaxed by what braking to a stop now would violate, so a person walking into the robot cannot make the problem infeasible.</p>
 <p><b>Rear-wheel feedback</b> (Samson; Paden et al. 2016) projects the rear axle onto the path and commands a curvature: the path's own curvature as feedforward, plus heading and lateral feedback. It works for both models (ω = v·κ for diff-drive, δ = atan(L·κ) for the car).</p>
 <div class="eq">κ_cmd = κ(s)·cos θe / (1 − κ(s)·e) − k_θ·θe − k_e·(sin θe / θe)·e
@@ -5346,7 +5466,9 @@ e: lateral offset (+ left),  θe: heading error,  κ(s) previewed 0.2 m ahead</d
 <p><b>MPC</b> solves a finite-horizon optimal control problem every 50 ms and applies only the first move.</p>
 <div class="eq">state  x = [x, y, θ, v, s]   s = ω (diff-drive) or δ (car)   (+ [v_cmd, s_cmd] if lag is modeled)
 input  u = [a, ṡ]           so |a| ≤ a_max and |ṡ| ≤ rate limit are exact box constraints
-model  θ_mid = θ + ½ω Δt,  x⁺ = x + v cos θ_mid Δt, …,  ω = v tan δ / L for the car
+model  θ_mid = θ + ½ω Δt,  x⁺ = x + v cos θ_mid Δt,  y⁺ = y + v sin θ_mid Δt,  θ⁺ = θ + ω Δt   (midpoint rule)
+       ω = s (diff-drive) or v tan δ / L (car);   v⁺ = v + a Δt,  s⁺ = sat(s + ṡ Δt)
+       lag modeled: v⁺ = v + (v_cmd − v)(1 − e^(−Δt/τ)),  s⁺ likewise;  v_cmd⁺ = v_cmd + a Δt,  s_cmd⁺ = sat(s_cmd + ṡ Δt)
 
 min  Σ_{k=1..Np} w_k (Q_lon e_lon² + Q_lat e_lat² + Q_θ e_θ² + Q_v e_v²)        w_Np = terminal ×
    + Σ_{k=0..Np−1} (R_a a_k² + R_s ṡ_k²) + R_Δ Σ_{k<Nc} ‖u_k − u_{k−1}‖²
@@ -5367,7 +5489,9 @@ the speed at t = 0.2 s caps the tracker's speed; the commanded curvature is kept
 <p>a_c and b are the acceleration limit when limits are on, otherwise 0.8 and 1.5 m/s². If no profile avoids the agents the robot brakes. If that lasts about 1 s, or it has waited about 4 s, the behavior layer asks the global planner for a path around the agents' predicted positions. <b>Reactive stop</b> is the baseline without tracking or prediction: brake for any unexplained lidar hit in the footprint corridor ahead.</p>`,
  veh:`<p><b>Unicycle model</b>, a good first abstraction of a differential-drive robot.</p>
 <div class="eq">ẋ = v cos θ,  ẏ = v sin θ,  θ̇ = ω     (exact arc integration, Δt = 50 ms)
-command → saturate → first-order lag τ → rate limits → integrate</div>
+x' = x + (v/ω)(sin(θ + ωΔt) − sin θ),  y' = y − (v/ω)(cos(θ + ωΔt) − cos θ),  θ' = θ + ωΔt   (straight line if ω ≈ 0)
+command → saturate → first-order lag τ → rate limits → integrate
+lag: u ← u + (u_cmd − u)(1 − e^(−Δt/τ))  for v and ω;   with acceleration limits on: |v̇| ≤ a_max, |ω̇| ≤ α_max</div>
 <p><b>Odometry</b> reports the applied velocity with noise and an optional calibration bias, which models a wheel-radius mismatch. Filters model the noise but not the bias.</p>
 <div class="eq">σ_v = k (0.1|v| + 0.02)      σ_ω = k (0.2|ω| + 0.1|v| + 0.02)
 bias: v·(1 + 0.02 b),  ω + 0.01 b·v</div>
@@ -5375,8 +5499,12 @@ bias: v·(1 + 0.02 b),  ω + 0.01 b·v</div>
 <p><b>Car-like (kinematic bicycle)</b>, pose at the rear-axle center.</p>
 <div class="eq">ẋ = v cos θ,  ẏ = v sin θ,  θ̇ = v tan δ / L
 |δ| ≤ δ_max  →  R_min = L / tan δ_max;   |δ̇| ≤ steering rate
-command (v, δ) → lag τ → accel limit → steering-rate limit → integrate</div>
+command (v, δ) → lag τ → accel limit → steering-rate limit → integrate
+integrate: ω = v tan δ / L, then the unicycle arc above (exact for v and δ held over the tick)</div>
 <p><b>Sensor latency</b> delays the lidar and beacon readings by whole ticks; the estimators process them as if current. <b>People</b> are scripted (back and forth on a segment, pausing at the ends) or reactive (social forces: goal attraction with relaxation time 0.5 s, exponential repulsion from the robot, other people and walls, speed capped at 1.3× their pace). <b>Other vehicles</b> follow a lane loop at constant speed and brake when the robot or a person is close ahead; the lidar sees them as three covering circles and the tracker as one wide cluster.</p>
+<div class="eq">reactive people:  v̇ = (v₀ e − v)/τ + Σ_j A e^((r + r_j − d_j)/B) n_j + A_r e^((r + r_robot − d)/B_r) n + A_w e^((r − D)/B_w) ∇D
+τ = 0.5 s;  A = 2, B = 0.35 m (people);  A_r = 3, B_r = 0.5 m (robot);  A_w = 2.5, B_w = 0.25 m (walls, D: distance field)
+v ← v + v̇ Δt, |v| ≤ 1.3 v₀;  p ← p + v Δt   e: unit vector to the goal, n: unit vector away from the other body</div>
 <p>The car cannot turn in place: heading changes only while it moves. Physics uses the exact body rectangle. Planners and DWA use three covering circles, which overestimates the bumpers by about 0.14 m. Odometry still reports (v, ω), so localization works unchanged.</p>`,
 };
 
@@ -5446,6 +5574,24 @@ function renderAllPanes(){
   wirePane(t);
 }
 let btnActs=[],infoFns=[];
+/* ---------- the beacon sensor explained, with a live line per beacon ---------- */
+let bsOpen=false,bsKey='';
+const BS_WHY={ok:['reading','ok'],range:['out of range','muted'],blocked:['blocked (no line of sight)','warn'],off:['switched off','muted'],outage:['in an outage','warn']};
+function beaconSensorHTML(){
+  const k=P.lmK,sr=0.08*k,sb=0.03*k,R=P.lmRange,r=S.robot,u=beaconUse();
+  const rows=S.beacons.map(b=>{const d=hyp(b.x-r.x,b.y-r.y),w=(S.bWhy&&S.bWhy[b.id])||(beaconsOff().has(b.id)?'off':d>R?'range':''),W=S.bSeen?S.bSeen[b.id]:[],
+    rate=S.t>0.2?W.filter(t=>t>S.t-5).length/Math.min(5,S.t):0,st=BS_WHY[w]||['no scan yet','muted'];
+    return`<tr><td>${b.id}</td><td>${d.toFixed(1)} m</td><td class="bs-${st[1]}">${st[0]}</td><td>${rate.toFixed(1)}/s</td><td>${(d*sb).toFixed(2)} m</td></tr>`;}).join('');
+  return`<p>Each beacon is a fixed landmark at a known position (teal diamond on the map). The robot's beacon sensor takes one <b>scan every 0.2 s (5 Hz)</b> and in each scan reads every beacon that is</p>
+<ul class="bs-list"><li>switched on and not in an outage,</li><li>between <b>0.2 m and ${R} m</b> away (the sensor range; Vehicle → Beacon sensor range),</li><li>in <b>line of sight</b>: a wall, shelf, parked car or person on the straight line to the beacon blocks it completely. There is no partial or weakened signal.</li></ul>
+<p>A reading is a <b>range</b> r and a <b>bearing</b> b (relative to the robot's heading) with Gaussian noise: <b>σ<sub>r</sub> = ${sr.toFixed(3)} m</b> and <b>σ<sub>b</sub> = ${sb.toFixed(3)} rad (${deg(sb).toFixed(1)}°)</b>, which is 0.08 m and 0.03 rad × the noise scale ${k.toFixed(1)} (Vehicle → Beacon range/bearing noise). The noise does <b>not</b> grow with distance, but a bearing error moves the implied position sideways by d·σ<sub>b</sub>, so a far beacon pins the position less (last column). The EKF and the particle filter assume these same σ's.</p>
+<p>Also in play: Sensor latency (Vehicle) delivers readings late; Unlabeled association (above) drops the IDs and adds false detections; Random outages (below) switch beacons off for a while.${u?` <b>Right now ${u}.</b>`:''}</p>
+<table class="bs-tab"><thead><tr><th>#</th><th>distance</th><th>this scan</th><th title="Readings received per second over the last 5 s (at most 5)">readings</th><th title="Sideways position error of one bearing reading, d·σ_b">d·σ<sub>b</sub></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function renderBeaconSensor(){
+  const el=$('#bsens-body');if(!el||!bsOpen)return;
+  const key=Math.round(S.t*5)+'|'+P.lmK+P.lmRange+P.bOff+P.loc+P.pfLidar;if(key===bsKey)return;bsKey=key;el.innerHTML=beaconSensorHTML();
+}
 const TIPS={loc:'Which estimator produces the pose the planner and controller use.',assoc:'Whether beacon readings carry their ID. Unlabeled readings are matched by Mahalanobis distance.',npart:'More particles cost CPU and resolve the belief more finely.',inject:'Replace low-weight particles with poses sampled from beacon readings when the likelihood drops.',pfLidar:'Score particles against the prior map with 24 lidar beams.',filtK:'Motion noise the filter assumes, relative to the true noise. Too low makes it overconfident (NEES above 3).',
  per:'Prior map: the planner sees the true static map. Lidar mapping: an occupancy grid built from scans in the estimated frame.',unknownAs:'Whether unobserved cells block the planner.',infl:'Width of the soft cost band outside the lethal radius.',agents:'Off: people reach the stack only as lidar hits. Ground truth: perfect tracks. Lidar: clustering plus a Kalman filter per agent.',agPred:'Constant velocity extrapolates each track; Static freezes it where it is now.',agT:'How far ahead agents are predicted and the speed planner plans.',agGrow:'How fast the predicted radius grows per second of prediction.',agSigA:'White acceleration noise of the constant-velocity model. Higher follows turns faster but gives noisier velocity.',
  mis:'In order visits goals as numbered. Greedy picks the nearest next. Optimal solves the open-path TSP.',replan:'Replan on a timer in addition to the event-driven triggers.',lostGuard:'Stop when the position uncertainty exceeds 1 m.',
@@ -5462,6 +5608,7 @@ function fieldHTML(f){
   if(f.type==='bool')return`<label class="check${chgMark(f)?' chg':''}" title="${TIPS[f.k]||''}"><input type="checkbox" id="p-${f.k}" data-k="${f.k}" ${P[f.k]?'checked':''}><span>${f.label}${chgMark(f)}</span></label>`;
   if(f.type==='beacons'){const off=beaconsOff(),c=chgMark({k:'bOff'});
     return`<div class="field${c?' chg':''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b=>`<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="linkbtn" data-beacon="all">All on</button><button class="linkbtn" data-beacon="none">All off</button></div></div>`;}
+  if(f.type==='bsensor')return`<details class="how bsens" id="bsens" ${bsOpen?'open':''}><summary>Beacon sensor: rate, range, noise, what blocks it</summary><div class="how-body" id="bsens-body">${beaconSensorHTML()}</div></details>`;
   if(f.type==='btn'){btnActs.push(f.act);return`<div><button class="btn" data-act="${btnActs.length-1}">${f.label}</button></div>`;}
   return`<div class="field${chgMark(f)?' chg':''}"><div class="row"><label for="p-${f.k}" title="${TIPS[f.k]||''}">${f.label}${chgMark(f)}</label><output id="o-${f.k}">${fmtVal(f,P[f.k])}</output></div><input type="range" id="p-${f.k}" data-k="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${P[f.k]}"></div>`;
 }
@@ -5478,14 +5625,15 @@ function wirePane(t){
     if(v==='all')setParam('bOff','',false);else if(v==='none')setParam('bOff',S.beacons.map(x=>x.id).join(','),false);else toggleBeacon(+v);renderAllPanes();});
   pane.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>btnActs[+b.dataset.act]());
   btnActs=btnActs.slice(-20);infoFns=infoFns.slice(-20);
+  const bs=$('#bsens');if(bs)bs.ontoggle=()=>{bsOpen=bs.open;bsKey='';renderBeaconSensor();};
   pane.querySelectorAll('details[data-how]').forEach(d=>d.ontoggle=()=>{howOpen[d.dataset.how]=d.open;});
   pane.querySelectorAll('[data-sym]').forEach(b=>b.onclick=()=>showSym(b.dataset.sym));
   pane.querySelectorAll('[data-source]').forEach(b=>b.onclick=()=>showSource(b.dataset.source));
   if(t==='code')wireCode();
   if(t==='exp')wireExp(pane);
   if(t==='sym')wireSym(pane);
-  if(t==='view'){const g=$('#ghost-clear');if(g)g.onclick=()=>{GHOST=null;renderAllPanes();draw();};}
-  if(t==='view'){pane.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;const fresh=!layersEdited;layersEdited=true;if(fresh)renderAllPanes();draw();});
+  if(t==='view'){const g=$('#ghost-clear');if(g)g.onclick=()=>forgetGhost();}
+  if(t==='view'){pane.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;renderGhostChip();const fresh=!layersEdited;layersEdited=true;if(fresh)renderAllPanes();draw();});
     const au=$('#layers-auto');if(au)au.onclick=()=>{layersEdited=false;layersKey='';renderAllPanes();};}
 }
 let replanDebounce=null;
@@ -5772,7 +5920,7 @@ function eig(A){
    Operating point: straight path, speed v₀ = cruise speed, small errors.
    Controller gains are read off the real controller code by finite differences.
    ============================================================ */
-const AN={mode:'sim',loop:'lat',curveR:0,useEst:false,stepKind:'offset',showCL:true,nyqScale:'log',stepAmp:0.2,injAmp:'small',spdAmp:0.2,meas:{step:null,freq:null,spd:null},busy:false,res:null,resSpd:null,dirty:true,msg:''};
+const AN={mode:'sim',loop:'lat',adv:false,wi:null,curveR:0,useEst:false,stepKind:'offset',showCL:true,nyqScale:'log',stepAmp:0.2,injAmp:'small',spdAmp:0.2,meas:{step:null,freq:null,spd:null},busy:false,res:null,resSpd:null,dirty:true,msg:''};
 const anCtl=()=>(P.ctl==='stanley'&&!isCar())?'pp':P.ctl;
 const anSupported=()=>['pp','rwf','stanley','pid','mpc'].includes(anCtl());
 const latN=()=>Math.round(P.latency/DT);
@@ -5980,6 +6128,55 @@ async function runInjection(){
   AN.busy=false;AN.msg=`Measured ${n} points by injecting a ${big?'large':'small'} sine at the actuator input.`;renderAnalysis();
 }
 
+// ---- what-if designs for Analyze: drag a closed-loop pole, get the gains that put it there ----
+// The what-if loop is the same 20 Hz loop (hold delay, latency, actuator lag) with a state-feedback controller
+// u = −(K_e e + K_θ θₑ). Without the delay its characteristic polynomial is s² + g K_θ s + g v₀ K_e.
+function staticModel(M,Ke,Kth){return{...M,kind:'static',Ke,Kth,K:undefined,N:[M.g*Ke*M.v0,M.g*Kth],D:pMul([0,0,1],M.tau>0?[1,M.tau]:[1])};}
+function domOf(ps){let dom=null;for(const s of ps){if(s[1]<-1e-9||Math.hypot(s[0],s[1])<1e-6)continue;if(!dom||s[0]>dom[0]||(Math.abs(s[0]-dom[0])<1e-6&&s[1]>dom[1]))dom=s;}return dom;}
+function polesOf(M2){const L=linLayout(M2),ev=eig(clMatrix(M2,L,1));return{L,ev,ps:ev.map(z=>zToS(z,M2.T)).filter(Boolean),unstable:ev.some(z=>Cx.abs(z)>1+1e-7)};}
+function nearestPole(ps,tg){let b=null,bd=Infinity;for(const s of ps){if(s[1]<-1e-9)continue;const d=Math.hypot(s[0]-tg[0],s[1]-tg[1]);if(d<bd){bd=d;b=s;}}return b;}
+// two free gains: start from the delay-free formulas and correct the target until the real pole lands on it
+function placeTwo(M,tg){
+  let t=tg.slice(),best=null;
+  for(let i=0;i<10;i++){const wn2=t[0]*t[0]+t[1]*t[1],Kth=Math.max(0,-2*t[0]/M.g),Ke=Math.max(0,wn2/(M.g*M.v0));
+    const r=polesOf(staticModel(M,Ke,Kth)),d=nearestPole(r.ps,tg);if(!d)break;const err=Math.hypot(d[0]-tg[0],d[1]-tg[1]);
+    if(!best||err<best.err)best={Ke,Kth,err};if(err<1e-3*Math.max(1,Math.hypot(tg[0],tg[1])))break;
+    t=[t[0]+0.8*(tg[0]-d[0]),Math.max(0,t[1]+0.8*(tg[1]-d[1]))];}
+  if(!best){const wn2=tg[0]*tg[0]+tg[1]*tg[1];best={Ke:Math.max(0,wn2/(M.g*M.v0)),Kth:Math.max(0,-2*tg[0]/M.g),err:null};}
+  return best;
+}
+// one-knob trackers: the curve their slowest pole pair follows as the knob turns (gains read from the code at each value)
+function anKnobCurve(R){
+  const M=R.M;if(M.kind!=='static')return null;const v=M.v0;let K;
+  if(M.ctl==='pp')K={key:'ppL0',sym:'L_d',unit:'m',lo:Math.max(0.1,0.1+P.ppK*v),hi:2.5+P.ppK*v,cur:Math.max(0.1,P.ppL0+P.ppK*v),toParam:x=>x-P.ppK*v,set:x=>{P.ppL0=x-P.ppK*v;},step:0.05};
+  else if(M.ctl==='stanley')K={key:'stanK',sym:'k',unit:'',lo:0.1,hi:8,cur:P.stanK,toParam:x=>x,set:x=>{P.stanK=x;},step:0.1};
+  else return null;
+  const saved=P[K.key];K.pts=[];
+  try{for(let i=0;i<=60;i++){const x=K.lo*Math.pow(K.hi/K.lo,i/60);K.set(x);const G=anGains(v),r=polesOf(staticModel(M,G.e,G.th));K.pts.push({x,Ke:G.e,Kth:G.th,dom:domOf(r.ps)});}}
+  finally{P[K.key]=saved;}
+  return K;
+}
+// rear-wheel feedback's linear gains per unit of k_e and k_θ (to turn a two-gain design into its settings)
+function rwfUnits(v0){
+  const saved={ctl:P.ctl,rwKe:P.rwKe,rwKth:P.rwKth};
+  try{P.ctl='rwf';P.rwKe=1;P.rwKth=0;const a=anGains(v0);P.rwKe=0;P.rwKth=1;const b=anGains(v0);return{e:a.e,th0:a.th,th:b.th-a.th};}
+  finally{Object.assign(P,saved);}
+}
+function anWhatIf(R,tg){
+  const M=R.M;let r;
+  if(R.knob){let bi=-1,bd=Infinity;R.knob.pts.forEach((q,i)=>{if(!q.dom)return;const d=Math.hypot(q.dom[0]-tg[0],q.dom[1]-tg[1]);if(d<bd){bd=d;bi=i;}});
+    if(bi<0)return null;const q=R.knob.pts[bi];r={Ke:q.Ke,Kth:q.Kth,x:q.x,tg:q.dom.slice(),knob:true};}
+  else{const b=placeTwo(M,tg);r={Ke:b.Ke,Kth:b.Kth,tg:tg.slice(),err:b.err};}
+  const M2=staticModel(M,r.Ke,r.Kth),pr=polesOf(M2);
+  r.ps=pr.ps;r.unstable=pr.unstable;r.dom=domOf(pr.ps);
+  r.step=linResponse(M2,pr.L,'offset',R.tEnd);r.bias=linResponse(M2,pr.L,'bias',R.tEnd);r.sm=stepMetrics(r.step,'offset');r.smB=stepMetrics(r.bias,'bias');
+  if(r.knob){const pv=R.knob.toParam(r.x),st=R.knob.step,val=Math.round(pv/st)*st;r.set={[R.knob.key]:+val.toFixed(2)};r.setTxt=`${R.knob.key==='ppL0'?'L₀':'k'} = ${val.toFixed(2)}${R.knob.unit?' '+R.knob.unit:''}`;}
+  else{const u=rwfUnits(M.v0),ke=u.e>1e-9?r.Ke/u.e:0,kth=u.th>1e-9?(r.Kth-u.th0)/u.th:0,cke=clamp(ke,0,12),ckth=clamp(kth,0,6);
+    r.set={ctl:'rwf',rwKe:+(Math.round(cke*10)/10).toFixed(1),rwKth:+(Math.round(ckth*10)/10).toFixed(1)};r.clamped=Math.abs(cke-ke)>0.05||Math.abs(ckth-kth)>0.05;
+    r.setTxt=`k_e = ${r.set.rwKe.toFixed(1)} 1/m², k_θ = ${r.set.rwKth.toFixed(1)} 1/m`;}
+  return r;
+}
+
 /* ---- analysis/speed.js ---- */
 /* ---------- the speed (longitudinal) loop ----------
    Path trackers command speed from a profile: there is no speed feedback, so the loop is open and the
@@ -6150,6 +6347,7 @@ function drawNyq(R){
   label(G,lg?'radius log₂(1+|L|): −1 and the unit circle stay in place':'linear scale',6*dpr,4*dpr,TOK.muted,'left','top');
 }
 function drawStep(R){
+  if(R.loop!=='spd')return drawResp(R);
   const G=anCanvas('cv-step');if(!G)return;const{c,dpr,w,h}=G,spd=R.loop==='spd',kind=spd?'offset':AN.stepKind,bu=biasUnit();
   const sc=kind==='offset'?1:bu.toModel(bu.val),pred=(kind==='offset'?R.step:R.bias).map(p=>[p[0],p[1]*sc]);
   const ms=spd?(AN.meas.spd?AN.meas.spd.data:null):(AN.meas.step&&AN.meas.step.kind===kind?AN.meas.step.data.map(p=>[p[0],p[1]*sc]):null);
@@ -6168,8 +6366,8 @@ function drawStep(R){
   label(G,spd?`(v − v₀) / Δv for a reference step of ${fmt(AN.spdAmp||0.2)} m/s`:kind==='offset'?'e(t) / e₀  (path offset step)':`e(t) [m] for a ${bu.val}${bu.unit} actuator bias`,48*dpr,h-20*dpr,TOK.muted,'left','bottom');
   label(G,'t [s]',w-14*dpr,h-21*dpr,TOK.muted,'right','bottom');
 }
-function drawPZ(R){
-  const G=anCanvas('cv-pz');if(!G)return;const{c,dpr,w,h}=G;
+function drawLocus(R){
+  const G=anCanvas('cv-loc');if(!G)return;const{c,dpr,w,h}=G;
   const near=R.poles.map(s=>Math.hypot(s[0],s[1])).filter(r=>r<200).sort((a,b)=>a-b);
   const Rv=Math.max(1,Math.min(80,1.6*(near[Math.min(near.length-1,3)]||5)));
   let xr=[-Rv,0.35*Rv];const ar=(w-48*dpr)/(h-24*dpr);let half=(xr[1]-xr[0])/ar/2;
@@ -6209,56 +6407,195 @@ function blockDiagram(R){
   <polyline points="680,42 680,80 213,80 213,62" class="bd-l bd-dash" fill="none"/><text x="446" y="76" class="bd-s">θₑ</text><text x="446" y="88" class="bd-s">e</text></svg>`;
 }
 function chip(lbl,val,cls,tip){return`<div class="chip ${cls||''}" title="${tip||''}"><span>${lbl}</span><b>${val}</b></div>`;}
+/* ---------- the lateral response in physical units: sideways offset [cm] against distance driven [m] ---------- */
+function drawResp(R){
+  const G=anCanvas('cv-step');if(!G)return;const{c,dpr,w,h}=G,M=R.M,v0=M.v0,kind=AN.stepKind,bu=biasUnit(),wi=AN.wi;
+  const sc=kind==='offset'?AN.stepAmp*100:bu.toModel(bu.val)*100;   // model curves are per unit offset or per unit bias
+  const tr=(pts,k)=>pts.map(p=>[p[0]*v0,p[1]*k]);
+  const pred=tr(kind==='offset'?R.step:R.bias,sc),ms0=AN.meas.step&&AN.meas.step.kind===kind?AN.meas.step:null;
+  const ms=ms0?tr(ms0.data,kind==='offset'?ms0.amp*100:sc):null,wiP=wi?tr(kind==='offset'?wi.step:wi.bias,sc):null;
+  const all=pred.concat(ms||[],wiP||[]).map(p=>p[1]).filter(isFinite);let lo=Math.min(0,...all),hi=Math.max(0,...all);
+  const m=Math.max(Math.abs(lo),Math.abs(hi),1e-3);lo=Math.max(lo-0.08*m,-3*sc-1);hi=Math.min(hi+0.12*m,3*Math.abs(sc)+1);
+  const L=48*dpr,Rr=10*dpr,top=20*dpr,bot=h-30*dpr,xEnd=R.tEnd*v0;
+  const A=anFrame(G,[L,top,w-Rr,bot],[0,xEnd],[lo,hi]);
+  // time on the top axis
+  {const st=niceStep(R.tEnd);anFont(G,10);c.fillStyle=TOK.muted;c.textAlign='center';c.textBaseline='bottom';
+    for(let t=0;t<=R.tEnd+1e-9;t+=st){const x=A.X(t*v0);c.strokeStyle=TOK.muted;c.beginPath();c.moveTo(x,top);c.lineTo(x,top-3*dpr);c.stroke();c.fillText(`${fmtTick(t,st)} s`,x,top-4*dpr);}}
+  // the path, and where the robot starts
+  c.strokeStyle=rgba(TOK.accent,0.45);c.lineWidth=5*dpr;c.beginPath();c.moveTo(A.X(0),A.Y(0));c.lineTo(A.X(xEnd),A.Y(0));c.stroke();
+  label(G,'path',A.X(xEnd)-4*dpr,A.Y(0)-5*dpr,TOK.accent,'right','bottom');
+  const sm=kind==='offset'?R.smOff:R.smBias;
+  if(kind==='offset'){const band=0.02*sc;c.fillStyle=rgba(TOK.ok,0.1);c.fillRect(A.X(0),A.Y(band),A.X(xEnd)-A.X(0),A.Y(-band)-A.Y(band));}
+  if(R.stable&&sm.settle&&sm.settle<R.tEnd*0.98){const x=A.X(sm.settle*v0);c.strokeStyle=TOK.ok;c.lineWidth=1*dpr;c.setLineDash([3*dpr,3*dpr]);c.beginPath();c.moveTo(x,top);c.lineTo(x,bot);c.stroke();c.setLineDash([]);
+    label(G,`settled after ${fmt(sm.settle*v0,1)} m`,x+(x>w*0.7?-3:3)*dpr,bot-3*dpr,TOK.ok,x>w*0.7?'right':'left','bottom');}
+  c.save();c.beginPath();c.rect(L,top,w-Rr-L,bot-top);c.clip();
+  c.lineWidth=2.2*dpr;c.strokeStyle=R.stable?TOK.ink:TOK.bad;polyline2(c,pred,A.X,A.Y);
+  if(wiP){c.lineWidth=2*dpr;c.strokeStyle=TOK.accent;c.setLineDash([7*dpr,4*dpr]);polyline2(c,wiP,A.X,A.Y);c.setLineDash([]);}
+  if(ms){c.lineWidth=2*dpr;c.strokeStyle=TOK.amber;c.setLineDash([3*dpr,3*dpr]);polyline2(c,ms,A.X,A.Y);c.setLineDash([]);}
+  if(kind==='offset'){c.fillStyle=TOK.ink;c.beginPath();c.arc(A.X(0),A.Y(sc),4*dpr,0,TAU);c.fill();}
+  c.restore();
+  label(G,kind==='offset'?'sideways offset [cm]':`offset from a ${bu.val} ${bu.unit} ${isCar()?'steering misalignment':'turn-rate bias'} [cm]`,L+4*dpr,top+3*dpr,TOK.muted,'left','top');
+  label(G,'distance driven along the path [m]',w-Rr,h-2*dpr,TOK.muted,'right','bottom');
+  // legend
+  anFont(G,10);let ly=top+8*dpr;const lx=w-Rr-80*dpr,leg=(col,dash,t)=>{c.strokeStyle=col;c.lineWidth=2*dpr;c.setLineDash(dash);c.beginPath();c.moveTo(lx,ly);c.lineTo(lx+16*dpr,ly);c.stroke();c.setLineDash([]);
+    c.fillStyle=TOK.muted;c.textAlign='left';c.textBaseline='middle';c.fillText(t,lx+20*dpr,ly);ly+=13*dpr;};
+  leg(R.stable?TOK.ink:TOK.bad,[],'model');if(wiP)leg(TOK.accent,[7*dpr,4*dpr],'what-if');if(ms)leg(TOK.amber,[3*dpr,3*dpr],'simulator');
+}
+
+/* ---------- poles you can drag ---------- */
+const PZ={view:null,map:null,drag:false,raf:0};
+function drawPoles(R){
+  const G=anCanvas('cv-pz');if(!G)return;const{c,dpr,w,h}=G,wi=AN.wi,kn=R.knob;
+  const L=44*dpr,Rr=8*dpr,top=8*dpr,bot=h-34*dpr;
+  if(!PZ.drag||!PZ.view){   // a stable view while dragging, so the pole stays under the finger; equal scales so ζ angles are true
+    const pts=[R.dom,wi&&wi.dom,wi&&wi.tg].filter(Boolean);if(kn){const q=kn.pts.reduce((a,q)=>q.dom&&Math.abs(q.x-kn.cur)<Math.abs(a.x-kn.cur)?q:a,kn.pts[0]);if(q.dom)pts.push(q.dom);}
+    let X=1,Y=0.6;for(const s of pts){X=Math.max(X,1.3*Math.abs(s[0]));Y=Math.max(Y,1.3*Math.abs(s[1]));}X=Math.min(X,60);Y=Math.min(Y,60);
+    const Wp=(w-L-Rr)/dpr,Hp=(bot-top)/dpr,k=Math.max(X/(0.82*Wp),Y/(0.9*Hp));
+    PZ.view={xr:[-0.82*Wp*k,0.18*Wp*k],yr:[-0.1*Hp*k,0.9*Hp*k]};}
+  const{xr,yr}=PZ.view,A=anFrame(G,[L,top,w-Rr,bot],xr,yr);PZ.map={x0:L/dpr,x1:(w-Rr)/dpr,y0:top/dpr,y1:bot/dpr,xr,yr};
+  c.fillStyle=rgba(TOK.bad,0.07);c.fillRect(A.X(0),top,A.X(xr[1])-A.X(0),bot-top);label(G,'unstable',A.X(xr[1])-3*dpr,top+3*dpr,TOK.bad,'right','top');
+  c.strokeStyle=TOK.muted;c.lineWidth=1;c.beginPath();c.moveTo(A.X(0),top);c.lineTo(A.X(0),bot);c.moveTo(L,A.Y(0));c.lineTo(w-Rr,A.Y(0));c.stroke();
+  c.setLineDash([2*dpr,3*dpr]);const Rs=Math.hypot(xr[0],yr[1]);for(const z of[0.3,0.7,1]){const th=Math.acos(z);c.beginPath();c.moveTo(A.X(0),A.Y(0));c.lineTo(A.X(-Rs*Math.cos(th)),A.Y(Rs*Math.sin(th)));c.stroke();
+    const rr=0.93*Math.min(-xr[0]/Math.max(Math.cos(th),1e-6),yr[1]/Math.max(Math.sin(th),1e-6));label(G,`ζ ${z}`,A.X(-rr*Math.cos(th))+(z===1?2*dpr:0),A.Y(rr*Math.sin(th))+(z===1?-3*dpr:0),TOK.muted,'left',z===1?'bottom':'top');}c.setLineDash([]);
+  const inV=s=>s[0]>=xr[0]&&s[0]<=xr[1]&&Math.abs(s[1])<=yr[1];
+  // the knob's curve: where a one-knob tracker can put its poles
+  if(kn){c.strokeStyle=rgba(TOK.accent,0.55);c.lineWidth=2*dpr;c.beginPath();let up=true;for(const q of kn.pts){if(!q.dom||!inV(q.dom)){up=true;continue;}const x=A.X(q.dom[0]),y=A.Y(q.dom[1]);if(up){c.moveTo(x,y);up=false;}else c.lineTo(x,y);}c.stroke();
+    let last=null;kn.pts.forEach((q,i)=>{if(i%6||!q.dom||!inV(q.dom))return;const x=A.X(q.dom[0]),y=A.Y(q.dom[1]);if(last&&Math.hypot(x-last[0],y-last[1])<46*dpr)return;last=[x,y];
+      c.fillStyle=TOK.accent;c.beginPath();c.arc(x,y,2.5*dpr,0,TAU);c.fill();label(G,`${kn.sym} ${q.x.toFixed(q.x<1?2:1)}${kn.unit?' '+kn.unit:''}`,x+5*dpr,y-3*dpr,TOK.accent,'left','bottom');});}
+  let off=0;const dot=(s,col,r,ring)=>{if(!inV(s)){off++;return;}c.beginPath();c.arc(A.X(s[0]),A.Y(s[1]),r,0,TAU);if(ring){c.strokeStyle=col;c.lineWidth=2*dpr;c.stroke();}else{c.fillStyle=col;c.fill();c.strokeStyle=TOK['map-bg'];c.lineWidth=1.5*dpr;c.stroke();}};
+  for(const s of R.poles)dot(s,s[0]>0?TOK.bad:TOK.ink,5.5*dpr);
+  if(wi){c.setLineDash([3*dpr,2*dpr]);dot(wi.tg,TOK.accent,9*dpr,true);c.setLineDash([]);for(const s of wi.ps)if(inV(s))dot(s,TOK.accent,4.5*dpr);}
+  label(G,`● now${wi?'  ● what-if  ◌ dragged':''}${kn?'  — this tracker\'s knob':''}${off?`  · ${off} fast pole${off>1?'s':''} off the plot`:''}`,L,h-2*dpr,TOK.muted,'left','bottom');
+  label(G,'← dies out faster',L+4*dpr,A.Y(0)+3*dpr,TOK.muted,'left','top');label(G,'swings faster ↑',A.X(0)-4*dpr,top+3*dpr,TOK.muted,'right','top');
+}
+function pzEvent(e){const m=PZ.map,cv=$('#cv-pz');if(!m||!cv)return null;const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;
+  const sx=m.xr[0]+(px-m.x0)/(m.x1-m.x0)*(m.xr[1]-m.xr[0]),sy=m.yr[1]-(py-m.y0)/(m.y1-m.y0)*(m.yr[1]-m.yr[0]);return[Math.min(sx,-1e-3),Math.abs(sy)];}
+function anWhatIfAt(tg){const R=AN.res;if(!R||R.loop==='spd'||R.M.kind==='none')return;if(R.knob===undefined)R.knob=anKnobCurve(R);
+  const r=anWhatIf(R,tg);if(r){AN.wi=r;renderAnalysis();}}
+{const cv=$('#cv-pz');if(cv){cv.tabIndex=0;
+  cv.addEventListener('pointerdown',e=>{const t=pzEvent(e);if(!t)return;e.preventDefault();PZ.drag=true;cv.setPointerCapture(e.pointerId);anWhatIfAt(t);});
+  cv.addEventListener('pointermove',e=>{if(!PZ.drag)return;const t=pzEvent(e);if(!t)return;cancelAnimationFrame(PZ.raf);PZ.raf=requestAnimationFrame(()=>anWhatIfAt(t));});
+  const end=()=>{if(!PZ.drag)return;PZ.drag=false;renderAnalysis();};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+  cv.addEventListener('keydown',e=>{const R=AN.res;if(!R||!R.dom)return;const k={ArrowLeft:[1.1,1],ArrowRight:[1/1.1,1],ArrowUp:[1,1.1],ArrowDown:[1,1/1.1]}[e.key];if(!k)return;e.preventDefault();
+    const b=AN.wi?AN.wi.tg:R.dom;anWhatIfAt([b[0]*k[0],Math.max(0.05,b[1])*k[1]]);});}}
+$('#an-wi-x').onclick=()=>{AN.wi=null;renderAnalysis();};
+
+/* ---------- the loop in plain words, with the gains in physical units ---------- */
+const d10=10*Math.PI/180;
+function gainWords(M,Ke,Kth){   // what the controller does for a 10 cm offset and a 10° heading error
+  const car=M.car,u=car?'steers':'turns';const f=v=>`${fmt(Math.abs(v)*180/Math.PI,1)}°${car?'':'/s'}`;
+  return`<b>${u} ${f(Ke*0.1)}</b> back toward the path for every <b>10 cm</b> of sideways offset, and <b>${f(Kth*d10)}</b> for every <b>10°</b> the heading points away from the path`;
+}
+function anStory(R){
+  const M=R.M,v=M.v0,ctlN=CTL_NAMES[anCtl()]||P.ctl,car=M.car,cm=Math.round(AN.stepAmp*100);
+  const where=anR()?`a left turn of radius <b>${anR()} m</b>`:'a <b>straight path</b>';
+  let h=`<p><b>The situation.</b> The ${car?'car':'robot'} drives ${where} at <b>${fmt(v)} m/s</b> (the cruise speed). Something pushes it <b>${cm} cm</b> to the side. How does <b>${ctlN}</b> steer it back, and how robust is that? Everything below comes from a linear model of this situation (small errors), and <i>Run step test</i> checks it against the full simulator.</p>`;
+  let ctl;
+  if(M.kind==='static'){ctl=`it ${gainWords(M,M.Ke,M.Kth)}.`;
+    if(M.ctl==='pp'){const Ld=Math.max(0.1,P.ppL0+P.ppK*v);ctl+=` Both numbers come from one knob, the lookahead L<sub>d</sub> = ${fmt(Ld)} m (L₀ + k·v): the offset gain is 2v/L<sub>d</sub>², the heading gain 2v/L<sub>d</sub>. So pure pursuit's damping is fixed (ζ ≈ 0.71) and L<sub>d</sub> only sets how fast.`;}
+    else if(M.ctl==='rwf')ctl+=` The two settings act separately: k<sub>e</sub> = ${fmt(P.rwKe,1)} is the spring (offset), k<sub>θ</sub> = ${fmt(P.rwKth,1)} the damper (heading).`;
+    else if(M.ctl==='stanley')ctl+=` It steers the front wheels to the path heading plus atan(k·e/v), k = ${fmt(P.stanK,1)}.`;}
+  else if(M.kind==='pid'){const Ld=M.Ld;ctl=`it aims at a point L<sub>d</sub> = ${fmt(Ld)} m ahead on the path: the angle to it is α ≈ −e/L<sub>d</sub> − θₑ, and the command is K<sub>p</sub>α + K<sub>i</sub>∫α + K<sub>d</sub>α̇ with K<sub>p</sub> ${fmt(P.kp,1)}, K<sub>i</sub> ${fmt(P.ki,2)}, K<sub>d</sub> ${fmt(P.kd,2)}. The proportional part alone ${gainWords(M,P.kp/Ld,P.kp)}.`;}
+  else{const K=M.K,f=x=>fmt(Math.abs(x)*180/Math.PI,0);ctl=`MPC replans every tick, but near this situation it acts like a feedback on the <i>rate</i> of ${car?'steering':'turning'}: it changes the ${car?'steering angle':'turn rate'} by about <b>${f(K.e*0.1)}°/s${car?'':'²'}</b> for every 10 cm of offset and <b>${f(K.th*d10)}°/s${car?'':'²'}</b> for every 10° of heading error, and backs off in proportion to the ${car?'steering':'turning'} it already has (gains read from the MPC by finite differences).`;}
+  const sw=v*Math.sin(d10)*100,Td=M.Td*1000;
+  h+=`<p><b>The controller</b> (${ctlN}): ${ctl}</p>`;
+  h+=`<p><b>The vehicle.</b> ${car?`The heading turns at v·tan δ / L = ${fmt(v/P.wheelbase,2)} rad/s per radian of steering (wheelbase ${fmt(P.wheelbase,2)} m)`:'The heading turns at the commanded rate'}; pointing 10° away from the path at ${fmt(v)} m/s drifts it sideways at <b>${fmt(sw,0)} cm/s</b>. So offset builds up from heading error, and heading from steering: two integrations, which is why the loop can overshoot.</p>`;
+  h+=`<p><b>Delays.</b> The ${car?'wheels':'motors'} act on a measurement about <b>${fmt(Td,0)} ms</b> old (half of the 50 ms control tick${M.nL?` plus ${fmt(M.nL*DT*1000,0)} ms of latency`:''})${M.tau>0?`, and the actuator follows its command with a lag τ = ${fmt(M.tau,2)} s`:''}. Delay is what eventually makes a fast controller oscillate.</p>`;
+  return h;
+}
+function anKeyChips(R){
+  const M=R.M,so=R.smOff,sb=R.smBias,bu=biasUnit(),ms=AN.meas.step,F=R.F,cm=AN.stepAmp*100,v=M.v0;
+  const sim=ms&&ms.kind==='offset'?stepMetrics(ms.data,'offset'):null;
+  if(!R.stable)return chip('Comes back to the path?','no: the swing grows','badc','The linear loop is unstable; in the simulator the steering limits usually turn this into a sustained weave')+
+    chip('Unstable modes',String(R.unstableZ),'badc','Closed-loop poles in the right half plane (red region of the pole plot)');
+  return chip('Comes back to the path?','yes','good','All closed-loop poles are in the stable (left) half')+
+    chip('Back within 2 %',`${fmt(so.settle,1)} s · ${fmt(so.settle*v,1)} m driven${sim?` (sim ${fmt(sim.settle,1)} s)`:''}`,'','Time, and distance along the path, until the offset stays within 2 % of where it started')+
+    chip('Overshoot',so.overshoot<0.5?'none':`${fmt(so.overshoot,0)} % · crosses the path by ${fmt(so.overshoot/100*cm,1)} cm${sim?` (sim ${fmt(sim.overshoot,0)} %)`:''}`,so.overshoot>25?'warnc':'','How far it swings past the path, for this starting offset')+
+    chip('Extra delay it tolerates',F.dm!=null?fmt(F.dm*1000,0)+' ms':'—',F.dm!=null?(F.dm>0.1?'good':F.dm>0.03?'warnc':'badc'):'','Add this much more latency between sensing and steering and the loop starts to oscillate forever (delay margin = phase margin / crossover)')+
+    chip(`Left over from a ${bu.val} ${bu.unit} ${isCar()?'misalignment':'turn bias'}`,`${fmt(Math.abs(sb.final*bu.toModel(bu.val))*100,1)} cm`,Math.abs(sb.final*bu.toModel(bu.val))<0.005?'good':'','A constant actuator error leaves a steady sideways offset unless the controller has integral action')+
+    (anR()?chip('Offset on the curve',fmt((M.ess||0)*100,1)+' cm',Math.abs(M.ess||0)<0.03?'good':'warnc','Steady offset in the turn: positive = inside (cutting)'):'');
+}
+function anPzCaption(R){
+  const wi=AN.wi,v=R.M.v0;
+  const modeTxt=s=>{if(!s)return'—';const sig=-s[0],om=Math.abs(s[1]);return`dies out with time constant <b>${sig>1e-6?fmt(1/sig,2)+' s':'∞'}</b>${om>0.02?`, swings once every <b>${fmt(2*Math.PI/om,1)} s</b> (${fmt(2*Math.PI/om*v,1)} m)`:', no swing'}`;};
+  let h=`<p>Each pole is one way the error can move, <i>e</i><sup>st</sup>. Further <b>left</b> = it dies out faster; further from the axis (<b>up</b>) = it swings faster; a pole in the red half grows. Now the slowest pair ${modeTxt(R.dom)}${R.zeta!=null?` (damping ζ ${fmt(R.zeta,2)})`:''}.</p>`;
+  if(!wi)h+=`<p class="an-hint">${R.knob?`${CTL_NAMES[R.M.ctl]} has one knob, so its poles can only move along the blue curve. Drag a pole along it`:R.M.kind==='static'?'Drag a pole anywhere: the two gains that put it there are computed for you':'Drag a pole to try a design: the what-if is a state-feedback tracker (rear-wheel feedback) with the gains that put the pole there'}; the response on the left updates. Keyboard: focus the plot and use the arrow keys.</p>`;
+  else{const ap=wi.set;h+=`<p><b>What-if:</b> ${wi.unstable?'<b class="bad">unstable</b>':modeTxt(wi.dom)}${wi.unstable?'':`, overshoot ${fmt(wi.sm.overshoot,0)} %, back within 2 % after ${fmt(wi.sm.settle*v,1)} m`}. ${wi.knob?'':`The controller would ${gainWords(R.M,wi.Ke,wi.Kth)}.`}${wi.err!=null&&wi.err>0.05*Math.hypot(wi.tg[0],wi.tg[1])?' The delay keeps the pole from landing exactly where you dragged it.':''}</p>
+    <p><button type="button" class="btn small" id="an-wi-apply">${ap.ctl&&ap.ctl!==P.ctl?'Switch to rear-wheel feedback with ':'Apply '}${wi.setTxt.replace('k_e','k<sub>e</sub>').replace('k_θ','k<sub>θ</sub>')}</button>${wi.clamped?' <span class="note">(clamped to the slider range)</span>':''}</p>`;}
+  return h;
+}
+function anApplyWhatIf(){const wi=AN.wi;if(!wi)return;const set=wi.set;AN.wi=null;
+  if(set.ctl&&set.ctl!==P.ctl)setParam('ctl',set.ctl,false);for(const[k,v]of Object.entries(set))if(k!=='ctl')setParam(k,v,false);
+  logE(`Analyze: applied ${wi.setTxt}${set.ctl&&set.ctl!=='rwf'?'':''}`);renderAllPanes();anInvalidate();renderAnalysis();}
+function anTF(R){
+  const M=R.M,g=M.g,v=M.v0,lag=M.tau>0?` · 1/(${fmt(M.tau,2)}s + 1)`:'',dl=`e<sup>−${fmt(M.Td,3)}s</sup>`;
+  let h='<p><b>Transfer function.</b> ';
+  if(M.kind==='static'){const a=g*M.Kth,b=g*v*M.Ke,wn=Math.sqrt(Math.max(0,b)),z=wn>0?a/(2*wn):0;
+    h+=`Open loop from the ${M.car?'steering':'turn-rate'} command around to itself: L(s) = (g K<sub>θ</sub> s + g v₀ K<sub>e</sub>) / s² · e<sup>−sT<sub>d</sub></sup>${M.tau>0?' · 1/(τs+1)':''}, with g = ${M.car?`v₀/L = ${fmt(g,2)} 1/s`:'1'}, K<sub>e</sub> = ${fmt(M.Ke,2)}, K<sub>θ</sub> = ${fmt(M.Kth,2)}:</p><div class="eq">L(s) = (${fmt(a,2)} s + ${fmt(b,2)}) / s² · ${dl}${lag}</div>
+      <p>Without the delay the closed loop is s² + ${fmt(a,2)} s + ${fmt(b,2)} = 0, so ω<sub>n</sub> = √(g v₀ K<sub>e</sub>) = ${fmt(wn,2)} rad/s and ζ = g K<sub>θ</sub> / (2ω<sub>n</sub>) = ${fmt(z,2)}; the exact 20 Hz loop with the delay gives ω<sub>n</sub> ${fmt(R.wn,2)}, ζ ${fmt(R.zeta,2)}. Units: s in 1/s, K<sub>e</sub> in ${M.car?'rad':'rad/s'} per m, K<sub>θ</sub> in ${M.car?'rad':'rad/s'} per rad.</p>`;}
+  else if(M.kind==='pid')h+=`L(s) = C(z) · (g v₀/L<sub>d</sub> + g s) / s² · ${dl}${lag}, with the 20 Hz PID C(z) = K<sub>p</sub> + K<sub>i</sub>T/(1 − z⁻¹) + K<sub>d</sub>(1 − z⁻¹)/T, z = e<sup>sT</sup>, L<sub>d</sub> = ${fmt(M.Ld,2)} m.</p>`;
+  else h+=`L(s) = T/(1 − z⁻¹) · 1/(1 − K<sub>u</sub>z⁻¹) · [K<sub>c</sub>z⁻¹ + (K<sub>s</sub>z⁻¹ + (K<sub>e</sub> g v₀ + K<sub>θ</sub> g s)/s² · ${dl})${lag}], with K<sub>e</sub> ${fmt(M.K.e,2)}, K<sub>θ</sub> ${fmt(M.K.th,2)}, K<sub>s</sub> ${fmt(M.K.s,2)}, K<sub>c</sub> ${fmt(M.K.c||0,2)}, K<sub>u</sub> ${fmt(M.K.u,2)} read from the MPC.</p>`;
+  return h;
+}
+function anAdvChips(R){
+  const F=R.F,pmC=F.pm==null?'':F.pm>45?'good':F.pm>25?'warnc':'badc',gmC=F.gm==null?'good':F.gm>6?'good':F.gm>0?'warnc':'badc';
+  return chip('Closed loop',R.stable?'stable':`unstable (${R.unstableZ} pole${R.unstableZ>1?'s':''})`,R.stable?'good':'badc','From the eigenvalues of the exact 20 Hz loop; the Nyquist count must agree')+
+    chip('Phase margin',F.pm==null?'—':fmt(F.pm,0)+'°',pmC,'180° + ∠L at the gain crossover')+
+    chip('Gain margin',F.gm==null?'∞':fmt(F.gm,1)+' dB'+(F.gm!=null?` (×${fmt(Math.pow(10,F.gm/20),1)})`:''),gmC,'How much the loop gain can grow before instability')+
+    chip('Crossover ω<sub>c</sub>',F.wc?fmt(F.wc)+' rad/s':'—','','|L(jω_c)| = 1; roughly the closed-loop bandwidth')+
+    chip('Delay margin',F.dm!=null?fmt(F.dm*1000,0)+' ms':'—',F.dm!=null?(F.dm>0.1?'good':F.dm>0.03?'warnc':'badc'):'','Extra latency the loop tolerates: PM / ω_c')+
+    chip('M<sub>s</sub>',fmt(F.ms,2),F.ms<1.6?'good':F.ms<2.2?'warnc':'badc','Peak sensitivity = 1 / closest distance from L to −1')+
+    chip('Dominant poles',R.zeta!=null?`ζ ${fmt(R.zeta,2)} · ω<sub>n</sub> ${fmt(R.wn,2)}`:'—','','Slowest closed-loop pole pair');
+}
 function renderAnalysis(){
   const view=$('#anview');if(!view||AN.mode!=='an')return;readTokens();
   const estL=$('#an-est-l');if(estL)estL.hidden=P.loc==='truth'||P.loc==='custom';
   if(AN.loop==='spd')return renderSpeed();
-  if(AN.dirty||!AN.res){anCompute();AN.dirty=false;}
+  if(AN.dirty||!AN.res){anCompute();AN.dirty=false;AN.wi=null;}
   const R=AN.res,M=R.M,ctlN=CTL_NAMES[anCtl()]||P.ctl;
-  const opLabel=anR()?`a left turn of radius ${anR()} m at v₀ = ${fmt(M.v0)} m/s`:`straight path at v₀ = ${fmt(M.v0)} m/s (cruise speed)`;
-  $('#an-op').innerHTML=`<b>${isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · ${opLabel} · sample T = ${DT*1000} ms · delay T<sub>d</sub> = T/2${M.nL?` + ${fmt(M.nL*DT,2)} s latency`:''} = ${fmt(M.Td*1000,0)} ms${M.tau>0?` · actuator lag τ = ${fmt(M.tau)} s`:''}`;
+  $('#an-op').innerHTML=`<b>${isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · ${anR()?`left turn R ${anR()} m`:'straight path'} at ${fmt(M.v0)} m/s · settings come from the Control and Vehicle tabs`;
   if(M.kind==='none'){$('#an-body').hidden=true;$('#an-none').hidden=false;
     $('#an-none').innerHTML=`<p><b>${ctlN}</b> has no linear model to analyze. ${P.ctl==='dwa'?'DWA picks the best of a grid of sampled commands, so its output is piecewise constant in the state and has no meaningful derivative.':'Your code runs as a black box in a worker.'} Pick pure pursuit, rear-wheel feedback, Stanley (car), PID or MPC in the Control tab.</p>`;return;}
   $('#an-body').hidden=false;$('#an-none').hidden=true;
-  $('#an-diagram').innerHTML=blockDiagram(R);
-  const F=R.F,so=R.smOff,sb=R.smBias,bu=biasUnit(),ms=AN.meas.step;
-  const pmC=F.pm==null?'':F.pm>45?'good':F.pm>25?'warnc':'badc',gmC=F.gm==null?'good':F.gm>6?'good':F.gm>0?'warnc':'badc';
-  let html=chip('Closed loop',R.stable?'stable':`unstable (${R.unstableZ} pole${R.unstableZ>1?'s':''})`,R.stable?'good':'badc','From the eigenvalues of the exact 20 Hz loop; the Nyquist count must agree')+
-    chip('Phase margin',F.pm==null?'—':fmt(F.pm,0)+'°',pmC,'180° + ∠L at the gain crossover')+
-    chip('Gain margin',F.gm==null?'∞':fmt(F.gm,1)+' dB',gmC,'How much the loop gain can grow before instability')+
-    chip('Crossover ω<sub>c</sub>',F.wc?fmt(F.wc)+' rad/s':'—','','|L(jω_c)| = 1; roughly the closed-loop bandwidth')+
-    chip('Delay margin',F.dm!=null?fmt(F.dm*1000,0)+' ms':'—',F.dm!=null?(F.dm>0.1?'good':F.dm>0.03?'warnc':'badc'):'','Extra latency the loop tolerates: PM / ω_c')+
-    chip('M<sub>s</sub>',fmt(F.ms,2),F.ms<1.6?'good':F.ms<2.2?'warnc':'badc','Peak sensitivity = 1 / closest distance from L to −1')+
-    chip('Dominant poles',R.zeta!=null?`ζ ${fmt(R.zeta,2)} · ω<sub>n</sub> ${fmt(R.wn,2)}`:'—','','Slowest closed-loop pole pair')+
-    (anR()?chip('Offset on the curve',fmt((M.ess||0)*100,1)+' cm',Math.abs(M.ess||0)<0.03?'good':'warnc','Steady lateral offset at the operating point: positive = inside the turn (cutting), the gains are read about it'):'')+
-    (R.stable?chip('Overshoot',fmt(so.overshoot,0)+'%'+(ms&&ms.kind==='offset'?` · sim ${fmt(stepMetrics(ms.data,'offset').overshoot,0)}%`:''),'','Predicted for a path-offset step; sim = measured in the simulator')+
-    chip('Settling 2%',fmt(so.settle,1)+' s'+(ms&&ms.kind==='offset'?` · sim ${fmt(stepMetrics(ms.data,'offset').settle,1)} s`:''),'')+
-    chip(`Steady error, ${bu.val}${bu.unit} bias`,fmt(sb.final*bu.toModel(bu.val)*100,1)+' cm',Math.abs(sb.final*bu.toModel(bu.val))<0.005?'good':'','Lateral offset left by a constant actuator bias (no integral action → nonzero)')
-    :chip('Step response','grows without bound','badc','The linear loop is unstable; in the simulator, actuator limits usually turn this into a sustained oscillation'));
-  $('#an-chips').innerHTML=html;
+  if(R.knob===undefined)R.knob=anKnobCurve(R);
+  $('#an-story').innerHTML=anStory(R);
+  $('#an-key').innerHTML=anKeyChips(R);
+  $('#cap-step-t').textContent=AN.stepKind==='offset'?'Response: back to the path':'Response: a constant actuator error';
+  $('#cap-step').innerHTML=AN.stepKind==='offset'?`Seen from above: the ${isCar()?'car':'robot'} starts ${fmt(AN.stepAmp*100,0)} cm to the side of the path (the blue line) and drives right; the curve is its sideways offset, the green band ±2 %. Time is on the top axis.`
+    :`A ${biasUnit().val} ${biasUnit().unit} ${isCar()?'steering misalignment':'turn-rate bias'} appears at the start; without integral action the ${isCar()?'car':'robot'} settles to the side of the path.`;
+  $('#fig-pz').hidden=false;$('#cap-pz').innerHTML=anPzCaption(R);$('#an-wi-x').hidden=!AN.wi;
+  const ap=$('#an-wi-apply');if(ap)ap.onclick=anApplyWhatIf;
+  const ms=AN.meas.step;
   $('#an-msg').textContent=AN.msg+(ms&&ms.satT>0?` The steering-rate limit was active for ${fmt(ms.satT,2)} s of the test${ms.satT>0.3?', so the response departs from the linear prediction':''}.`:'')+(ms&&ms.coll?' The robot collided during the test.':'');
   $('#an-step').disabled=AN.busy;$('#an-inj').disabled=AN.busy;$('#an-inj').hidden=false;$('#an-inja').hidden=false;$('#an-amp').hidden=false;$('#an-kind').hidden=false;$('#an-cl').hidden=false;
-  for(const id of['cv-nyq','cv-pz'])$('#'+id).parentNode.hidden=false;
-  drawBode(R);drawNyq(R);drawStep(R);drawPZ(R);
+  drawStep(R);drawPoles(R);
+  const adv=$('#an-adv');if(adv&&adv.open!==!!AN.adv)adv.open=!!AN.adv;
+  if(AN.adv){$('#an-diagram').innerHTML=blockDiagram(R);$('#an-tf').innerHTML=anTF(R);$('#an-chips').innerHTML=anAdvChips(R);
+    for(const id of['cv-nyq','cv-loc'])$('#'+id).parentNode.hidden=false;drawBode(R);drawNyq(R);drawLocus(R);}
 }
 function renderSpeed(){
   if(AN.dirty||!AN.resSpd){spdCompute();AN.dirty=false;}
   const R=AN.resSpd,M=R.M,ctlN=CTL_NAMES[anCtl()]||P.ctl,ms=AN.meas.spd;
-  $('#an-op').innerHTML=`<b>${isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · speed loop at v₀ = ${fmt(M.v0)} m/s · sample T = ${DT*1000} ms${M.nL?` · latency ${fmt(M.nL*DT,2)} s`:''}${M.tau>0?` · actuator lag τ = ${fmt(M.tau)} s`:' · no actuator lag'}${P.accel?` · acceleration limit ${fmt(P.amax)} m/s² (nonlinear, not in the model)`:''}`;
+  $('#an-op').innerHTML=`<b>${isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · speed loop at ${fmt(M.v0)} m/s`;
   if(M.kind==='none'){$('#an-body').hidden=true;$('#an-none').hidden=false;$('#an-none').innerHTML=`<p><b>${ctlN}</b> runs as a black box. Pick a built-in tracker.</p>`;return;}
   $('#an-body').hidden=false;$('#an-none').hidden=true;
-  const mpc=M.kind==='mpc',sm=R.smOff,msm=ms?spdMetrics(ms.data):null;
-  $('#an-diagram').innerHTML=speedDiagram(R);
-  let html='';
-  if(mpc){const F=R.F,pmC=F.pm==null?'':F.pm>45?'good':F.pm>25?'warnc':'badc';
-    html+=chip('Speed loop',R.stable?'stable':`unstable (${R.unstableZ})`,R.stable?'good':'badc','Eigenvalues of the exact 20 Hz speed loop')+chip('Phase margin',F.pm==null?'—':fmt(F.pm,0)+'°',pmC,'')+chip('Gain margin',F.gm==null?'∞':fmt(F.gm,1)+' dB','','')+chip('Crossover ω<sub>c</sub>',F.wc?fmt(F.wc)+' rad/s':'—','','')+chip('Delay margin',F.dm!=null?fmt(F.dm*1000,0)+' ms':'—','','')+chip('M<sub>s</sub>',fmt(F.ms,2),F.ms<1.6?'good':F.ms<2.2?'warnc':'badc','')+chip('Gains',`K<sub>v</sub> ${fmt(M.K.v,2)}${M.lagModel?` · K<sub>vc</sub> ${fmt(M.K.vc,2)}`:''} · K<sub>u</sub> ${fmt(M.K.u,2)}`,'','Read from the MPC by finite differences: acceleration per m/s of speed error, per m/s of commanded speed, and memory of the last move');}
-  else html+=chip('Speed feedback','none (feedforward profile)','','The tracker commands speed from the profile; nothing corrects the actual speed, so this is an open loop')+chip('Bandwidth of G',R.bw?fmt(R.bw,2)+' rad/s':'—','','Where the command-to-speed gain drops 3 dB')+chip('Time constant',M.tau>0?fmt(M.tau,2)+' s':'0 s','','First-order actuator lag τ')+chip('Latency',fmt(M.nL*DT*1000,0)+' ms','','Whole ticks between command and actuator');
-  html+=chip('Rise 10–90 %',sm.rise!=null?fmt(sm.rise,2)+' s'+(msm&&msm.rise!=null?` · sim ${fmt(msm.rise,2)} s`:''):'—','','Predicted for a reference step; sim = measured')+chip('Settling 2%',fmt(sm.settle,2)+' s'+(msm?` · sim ${fmt(msm.settle,2)} s`:''),'','')+chip('Overshoot',fmt(sm.overshoot,0)+'%'+(msm?` · sim ${fmt(msm.overshoot,0)}%`:''),'','');
-  $('#an-chips').innerHTML=html;
+  const mpc=M.kind==='mpc',sm=R.smOff,msm=ms?spdMetrics(ms.data):null,amp=AN.spdAmp||0.2;
+  $('#an-story').innerHTML=`<p><b>The situation.</b> The ${isCar()?'car':'robot'} cruises at <b>${fmt(M.v0)} m/s</b> and the reference speed steps up by <b>${fmt(amp)} m/s</b>. How quickly does the real speed follow?</p>
+    <p>${mpc?`<b>MPC closes a speed loop</b>: it changes the acceleration by about ${fmt(M.K.v,2)} m/s² for every m/s of speed error, so the speed is fed back.`:`<b>${ctlN} does not feed speed back</b>: it commands the speed from the profile and nothing corrects the actual speed. The response is just the actuator.`} ${M.tau>0?`The actuator follows with a lag τ = ${fmt(M.tau,2)} s (63 % of a step after τ)`:'There is no actuator lag'}${M.nL?`, after ${fmt(M.nL*DT*1000,0)} ms of latency`:''}${P.accel?`; the acceleration limit of ${fmt(P.amax)} m/s² is not in the linear model (a ${fmt(amp)} m/s step takes at least ${fmt(amp/P.amax,2)} s)`:''}.</p>`;
+  $('#an-key').innerHTML=chip('Rise 10–90 %',sm.rise!=null?fmt(sm.rise,2)+' s'+(msm&&msm.rise!=null?` (sim ${fmt(msm.rise,2)} s)`:''):'—','','Time from 10 % to 90 % of the step')+
+    chip('Settled within 2 %',fmt(sm.settle,2)+' s'+(msm?` (sim ${fmt(msm.settle,2)} s)`:''),'','')+chip('Overshoot',fmt(sm.overshoot,0)+' %'+(msm?` (sim ${fmt(msm.overshoot,0)} %)`:''),'','')+
+    (mpc?chip('Speed loop',R.stable?'stable':`unstable (${R.unstableZ})`,R.stable?'good':'badc',''):chip('Speed feedback','none (feedforward)','',''));
+  $('#cap-step-t').textContent='Response: speed after a step in the reference';
+  $('#cap-step').innerHTML='Speed change as a fraction of the step (1 = the new reference). Dashed amber: measured in the simulator with Run step test.';
+  $('#fig-pz').hidden=true;$('#an-wi-x').hidden=true;
   $('#an-msg').textContent=AN.msg+(ms&&ms.satT>0.1?` The acceleration limit was active for ${fmt(ms.satT,2)} s of the test, which the linear model does not include.`:'');
   $('#an-step').disabled=AN.busy;$('#an-inj').hidden=true;$('#an-inja').hidden=true;$('#an-amp').hidden=true;$('#an-kind').hidden=true;$('#an-cl').hidden=true;
-  $('#cv-nyq').parentNode.hidden=!mpc;$('#cv-pz').parentNode.hidden=!mpc;
-  drawBode(R);if(mpc){drawNyq(R);drawPZ(R);}drawStep(R);
+  drawStep(R);
+  const adv=$('#an-adv');if(adv&&adv.open!==!!AN.adv)adv.open=!!AN.adv;
+  if(AN.adv){$('#an-diagram').innerHTML=speedDiagram(R);$('#an-tf').innerHTML='';
+    $('#an-chips').innerHTML=mpc?(()=>{const F=R.F,pmC=F.pm==null?'':F.pm>45?'good':F.pm>25?'warnc':'badc';return chip('Phase margin',F.pm==null?'—':fmt(F.pm,0)+'°',pmC,'')+chip('Gain margin',F.gm==null?'∞':fmt(F.gm,1)+' dB','','')+chip('Crossover ω<sub>c</sub>',F.wc?fmt(F.wc)+' rad/s':'—','','')+chip('Delay margin',F.dm!=null?fmt(F.dm*1000,0)+' ms':'—','','')+chip('M<sub>s</sub>',fmt(F.ms,2),F.ms<1.6?'good':F.ms<2.2?'warnc':'badc','')+chip('Gains',`K<sub>v</sub> ${fmt(M.K.v,2)}${M.lagModel?` · K<sub>vc</sub> ${fmt(M.K.vc,2)}`:''} · K<sub>u</sub> ${fmt(M.K.u,2)}`,'','Read from the MPC by finite differences');})()
+      :chip('Bandwidth of G',R.bw?fmt(R.bw,2)+' rad/s':'—','','Where the command-to-speed gain drops 3 dB')+chip('Time constant',M.tau>0?fmt(M.tau,2)+' s':'0 s','','First-order actuator lag τ')+chip('Latency',fmt(M.nL*DT*1000,0)+' ms','','Whole ticks between command and actuator');
+    $('#cv-nyq').parentNode.hidden=!mpc;$('#cv-loc').parentNode.hidden=!mpc;drawBode(R);if(mpc){drawNyq(R);drawLocus(R);}}
 }
 function speedDiagram(R){
   const M=R.M,mpc=M.kind==='mpc';
@@ -6269,7 +6606,7 @@ function speedDiagram(R){
   return`<svg viewBox="0 0 860 104" class="bd" role="img" aria-label="MPC speed loop"><text x="6" y="46" class="bd-s" text-anchor="start">v<tspan baseline-shift="sub" font-size="8">ref</tspan></text>${ar(52,76)}<circle cx="86" cy="42" r="10" class="bd-box"/><text x="86" y="46" class="bd-t">Σ</text>${ar(96,118)}${box(118,210,'MPC (rate input a)',`a = −K_v Δv${M.lagModel?' − K_vc Δv_cmd':''} + K_u a_prev`)}${ar(328,370)}${box(370,100,'∫ a dt','v_cmd')}${ar(470,512)}${box(512,120,'Latency',`${fmt(M.nL*DT*1000,0)} ms`)}${ar(632,674)}${box(674,140,'Actuator',lag)}${ar(814,840)}<text x="846" y="46" class="bd-s" text-anchor="start">v</text><polyline points="826,42 826,92 86,92 86,52" class="bd-l" fill="none"/><path d="M86 52 l-4 7 h8 z" class="bd-a"/></svg>`;
 }
 let anTimer=null;
-function anInvalidate(keepMeas){AN.dirty=true;AN.resSpd=null;if(!keepMeas){AN.meas={step:null,freq:null,spd:null};AN.msg='';}chapterLiveSoon();
+function anInvalidate(keepMeas){AN.dirty=true;AN.wi=null;AN.resSpd=null;if(!keepMeas){AN.meas={step:null,freq:null,spd:null};AN.msg='';}chapterLiveSoon();
   if(AN.mode==='an'){clearTimeout(anTimer);anTimer=setTimeout(renderAnalysis,90);}}
 function setMode(m){AN.mode=m;$('#simview').hidden=m!=='sim';$('#anview').hidden=m!=='an';
   if(uiMode!=='learn')uiMode=m;syncModeUI();
@@ -6289,6 +6626,11 @@ loc:[
 σ_x² grows ∝ t from speed noise; a heading error θ turns into position error ∝ v·t·θ, so the ellipse stretches across the direction of travel</div>
 <p><b>Where it comes from.</b> Linearize the motion model about the estimate: a small pose error δ becomes <i>G</i>δ after the step, and the covariance of a linearly transformed error is <i>G</i>Σ<i>G</i>ᵀ; the same argument on the odometry noise gives <i>V</i><i>M</i><i>V</i>ᵀ. <a class="chref" href="#notes=ch2/2-the-motion-model-and-its-jacobians">Derivation: chapter 2 §2</a></p>
 <p>The first line moves the estimate. The second moves its uncertainty, in two parts. <i>G</i> Σ <i>G</i>ᵀ carries the uncertainty already there through the motion: <i>G</i> is the Jacobian of the motion model with respect to the pose, and its entries −<i>v</i>Δ<i>t</i> sin θ and <i>v</i>Δ<i>t</i> cos θ are exactly the mechanism above, a heading variance turning into position variance sideways. <i>V</i> <i>M</i> <i>V</i>ᵀ adds this tick's odometry noise, with <i>M</i> = diag(σ<sub>v</sub>², σ<sub>ω</sub>²) and <i>V</i> the Jacobian with respect to the odometry input. Every tick adds, nothing subtracts: Σ grows without bound. In this lab the odometry noise is σ<sub>v</sub> = 0.1 |<i>v</i>| + 0.02 m/s and σ<sub>ω</sub> = 0.2 |ω| + 0.1 |<i>v</i>| + 0.02 rad/s, times the <b>odometry noise</b> slider; the bias is a 2 % speed scale and a turn-rate offset of 0.01 rad/s per m/s, times the <b>calibration bias</b> slider. The filter's <i>M</i> is built from the same noise formula times the <b>assumed motion noise</b> slider. It knows nothing about the bias.</p>
+<p>Written out, <i>g</i> is the arc model: it holds <i>v</i> and ω constant for one tick Δ<i>t</i> = 0.05 s, so the pose moves along a circle of radius <i>v</i>/ω, and below |ω| = 10⁻⁶ rad/s the code takes the straight-line limit. The simulator moves the true robot with the same function and the applied (<i>v</i>, ω), with ω = <i>v</i> tan δ/<i>L</i> for the car; the filter feeds it the measured odometry. <i>G</i> and <i>V</i> are the derivatives of the straight-line step, which the filter uses on arcs too: over 50 ms the difference is second order in ωΔ<i>t</i>.</p>
+<div class="eq">x' = x + (v/ω)(sin(θ + ωΔt) − sin θ)      ω → 0:  x' = x + vΔt cos θ
+y' = y − (v/ω)(cos(θ + ωΔt) − cos θ)              y' = y + vΔt sin θ
+θ' = θ + ωΔt
+G = [1  0  −vΔt sin θ;  0  1  vΔt cos θ;  0  0  1]     V = [Δt cos θ  0;  Δt sin θ  0;  0  Δt]     M = diag(σ_v², σ_ω²)</div>
 <p><b>Reading the result.</b> A filter is called consistent when its covariance matches its real errors: the true error should fall inside the 2σ band about 95 % of the time, and NEES, the squared error measured in units of the filter's own covariance, should average about 3 for three states. The status strip reports NEES over the last 20 s and flags the filter as overconfident above 7.8, the 95 % point of χ² with three degrees of freedom. The Position error plot draws the error against the 2σ band. The band is the filter's honesty, not its accuracy: a consistent filter can be metres off and still be telling the truth about it.</p>`,
   tries:[['Dead reckoning on noisy odometry',{sim:true,level:LV_NOISY,set:{loc:'dr'},tab:'loc',plot:'pos'},
     {setup:'Loads L3 with odometry noise ×1 and calibration bias ×1, sets localization to dead reckoning, opens the Localize tab and the Position error plot, and runs. The map shows the true robot (solid) and the estimate (blue ring) with its 95 % ellipse.',
@@ -6306,7 +6648,10 @@ loc:[
 <p><b>The math.</b> With <i>H</i> the Jacobian of the measurement model (how the predicted reading changes when the pose changes) and <i>Q</i> the sensor noise covariance:</p>
 <div class="eq">S = HΣHᵀ + Q,   K = ΣHᵀS⁻¹
 μ ← μ + Kν,   Σ ← (I−KH)Σ(I−KH)ᵀ + KQKᵀ
-NEES = eᵀΣ⁻¹e ≈ 3 for a consistent 3-state filter</div>
+NEES = eᵀΣ⁻¹e ≈ 3 for a consistent 3-state filter
+ẑ = h(μ) = [√q,  atan2(Δy, Δx) − θ],   Δx = m_x − x,  Δy = m_y − y,  q = Δx² + Δy²
+H = ∂h/∂x = [−Δx/√q  −Δy/√q  0;  Δy/q  −Δx/q  −1],   Q = diag(σ_r², σ_b²),   ν = z − ẑ with the bearing wrapped to ±π</div>
+<p>The last two lines are the measurement model <i>h</i> for one beacon at (<i>m</i><sub>x</sub>, <i>m</i><sub>y</sub>): the range from the estimated position and the bearing relative to the estimated heading, with <i>H</i> its Jacobian. The prediction step between readings is the arc model of the previous lesson.</p>
 <p><b>Where it comes from.</b> The error <i>x</i> − μ and the innovation ν are jointly Gaussian (ν ≈ <i>H</i>(<i>x</i> − μ) + noise), so conditioning the error on ν is the standard Gaussian conditioning formula: shift the mean by (cross-covariance)(<i>S</i>)⁻¹ν and subtract the explained covariance. <i>K</i> is that cross-covariance over <i>S</i>; nothing in it is tuned. <a class="chref" href="#notes=ch2/4-the-kalman-update-derived">Derivation: chapter 2 §4</a> · NEES as a χ² variable: <a class="chref" href="#notes=ch2/5-consistency-nees-and-the-2-band">chapter 2 §5</a></p>
 <p><i>S</i> is the innovation covariance: how spread out ν should be if the filter is right, the pose uncertainty projected into measurement space plus the sensor noise. <i>K</i> divides the state's uncertainty by that total, so it is literally the ratio "how much of this surprise is my fault". The Σ update is in Joseph form, the long way of writing (<i>I</i> − <i>KH</i>)Σ, which stays symmetric and positive definite in floating point; the short form does not. NEES takes the true error <i>e</i> (available in a simulator, or on a logged drive with ground truth), measures it in units of Σ, and sums over the three states. Each consistent state contributes about 1, so the expected value is 3, and 95 % of samples fall below 7.8. A steady average well above 3 means Σ is too small for the real error: the filter is lying about its confidence.</p>
 <p><b>What the lab does.</b> Beacons report every 0.2 s (every fourth tick) within 7 m and in line of sight, with σ<sub>r</sub> = 8 cm and σ<sub>b</sub> = 0.03 rad (about 1.7°). On this level the readings carry known IDs, so there is no association problem yet. The odometry noise and bias are those of the previous lesson, and the <b>assumed motion noise</b> slider in the Localize tab scales the filter\'s <i>M</i>. The status strip shows NEES averaged over the last 20 s and marks it overconfident above 7.8.</p>`,
@@ -6353,6 +6698,11 @@ NEES = eᵀΣ⁻¹e ≈ 3 for a consistent 3-state filter</div>
 augmented MCL: w_fast ← w_fast + 0.1 (w − w_fast),  w_slow ← w_slow + 0.001 (w − w_slow)
 inject up to 25 % new particles with probability max(0, 1 − w_fast / w_slow)</div>
 <p><b>Where it comes from.</b> Weighting by the likelihood is Bayes\' rule applied one sample at a time; the weighted sum of any function of the particles approximates its expectation under the posterior. <i>N</i><sub>eff</sub> is the number of equally weighted particles that would carry the same statistical information as the current unequal set, which is why resampling is triggered on it and not on a timer. Low-variance resampling walks the cumulative weights with one random offset, so a particle of weight <i>w</i> is copied ⌊<i>Nw</i>⌋ or ⌈<i>Nw</i>⌉ times, never wildly more. <a class="chref" href="#notes=ch2/7-the-particle-filter">Derivation: chapter 2 §7</a></p>
+<p><b>The models.</b> Each particle <i>i</i> moves by the arc model <i>g</i> of the dead-reckoning lesson with its own draw of odometry noise (σ<sub>v</sub>, σ<sub>ω</sub> from the same noise formula, at least 0.02). A beacon reading (<i>r</i>, <i>b</i>) is scored by a Gaussian on its range and bearing as predicted from that particle (<i>r̂</i>, <i>b̂</i>), taking the best-fitting beacon <i>j</i> when they are unlabeled, plus a floor of 10⁻³. The lidar adds a likelihood field: <i>d</i> is the distance from a beam's end point, placed from the particle, to the nearest wall of the map. An injected particle is placed by inverting one reading with a random direction φ.</p>
+<div class="eq">predict:  x_i ← g(x_i, (v + σ_v ε₁, ω + σ_ω ε₂)),   ε₁, ε₂ ~ N(0, 1)
+beacons:  log w_i += Σ_readings log( max_j exp(−½[(r − r̂_j)²/σ_r² + (b − b̂_j)²/σ_b²]) + 10⁻³ )
+lidar:    log w_i += 0.4 · Σ_24 beams log( 0.9 exp(−d²/(2·0.2²)) + 0.05 )
+inject:   (x, y) = m_j − (r + σ_r ε)·(cos φ, sin φ),   θ = φ − (b + σ_b ε),   φ uniform</div>
 <p><b>Injection.</b> The filter keeps a slow and a fast running average of how well the readings fit the particle set. When the fast one drops well below the slow one, the readings have stopped fitting: the robot was moved, or the cloud converged on the wrong place. The filter then replaces up to a quarter of the particles with new ones, each placed where one current reading says the robot could be: at the measured range from a beacon, facing so that the bearing matches. That is what makes global localization possible at all. Scatter the particles over the whole floor and the filter still converges, because the readings keep proposing places and the next readings keep testing them.</p>
 <p><b>Symmetry.</b> The warehouse is nearly the same after a 180° turn about its centre. With unlabeled beacons the readings cannot tell the true pose from the mirror pose, so the cloud may converge on either. A labeled beacon breaks the tie at once. The lidar against the map breaks it too, but slowly: the map\'s asymmetries are small and visible only from some places, and the lidar likelihood is deliberately tempered so that 24 beams cannot collapse the set on their own.</p>
 <p><b>What the lab does.</b> L5 is the busy floor: unlabeled beacons, clutter, the lidar on, and the lost guard on, so when σ exceeds 1 m the mission stops and the robot turns in place until σ is back under 0.4 m. Each button restarts the level, drives 8 s, then scatters all 400 particles uniformly over free space, which is global localization from nothing. The particle cloud, the mean estimate and its ellipse are drawn on the map; the status strip shows <i>N</i><sub>eff</sub> and the injection fraction live (the fast and slow averages are internal).</p>`,
@@ -6374,8 +6724,13 @@ inject up to 25 % new particles with probability max(0, 1 − w_fast / w_slow)</
  {t:'EKF-SLAM: the map is part of the state',b:`<p><b>Why this matters.</b> Everything so far assumed the beacon positions were known. A robot in a new building has no map; a vehicle whose map is six months old has the wrong one. Simultaneous localization and mapping estimates the map and the pose together, and the mechanism that makes it work, the correlation between the robot\'s error and the errors of everything it has mapped, is also what makes it expensive and what makes loop closure feel like magic the first time you see a whole map shift at once.</p>
 <p><b>The idea.</b> Append the beacon positions to the state. The first time a beacon is seen it is placed from the current pose and the reading, so its error is the pose error plus sensor noise, and it stays correlated with the pose. Every later reading of that beacon constrains the pose <i>relative to the landmark</i>, never absolutely: nothing in a range-and-bearing reading says where either of them is in the world. So the absolute error of the whole structure, robot and map together, drifts like dead reckoning between re-observations of old landmarks. When the robot sees again a beacon it mapped while it was still certain, the correction is applied through the correlations to the pose and to every landmark placed since: that is loop closure.</p>
 <div class="eq">x = [x, y, θ, m₁ₓ, m₁ᵧ, …],   P is (3 + 2n)²
-new landmark:  m = p + r·[cos(θ+b), sin(θ+b)],   P_mm = J_x P_xx J_xᵀ + J_z R J_zᵀ</div>
+new landmark:  m = p + r·[cos(θ+b), sin(θ+b)],   P_mm = J_x P_xx J_xᵀ + J_z R J_zᵀ
+J_x = [1  0  −r sin(θ+b);  0  1  r cos(θ+b)]     J_z = [cos(θ+b)  −r sin(θ+b);  sin(θ+b)  r cos(θ+b)]     R = diag(σ_r², σ_b²)</div>
 <p><b>Where it comes from.</b> The landmark initialization is the same linearization argument as the motion model: the new landmark is a function of the pose and the reading, so its covariance is the pose covariance pushed through <i>J</i><sub>x</sub> plus the sensor noise pushed through <i>J</i><sub>z</sub>, and its cross-covariance with the pose is <i>J</i><sub>x</sub><i>P</i><sub>xx</sub>. The measurement Jacobian\'s landmark columns are the negatives of its pose columns, which is the algebraic form of "only relative positions are observed". <a class="chref" href="#notes=ch2/8-ekf-slam-the-map-joins-the-state">Derivation: chapter 2 §8</a></p>
+<p>Prediction and update are the EKF's on the larger state. The pose moves by the arc model <i>g</i> with the Jacobians <i>G</i>, <i>V</i> of the dead-reckoning lesson and the landmarks stay put; a reading of landmark <i>j</i> is predicted from the difference <i>m</i><sub>j</sub> − <i>p</i>, so its Jacobian <i>H</i><sub>j</sub> is the beacon Jacobian of the Kalman lesson on the pose columns and the negative of its position part on that landmark's columns.</p>
+<div class="eq">predict:  (x, y, θ) ← g(x, y, θ, u),   P_xx ← G P_xx Gᵀ + V M Vᵀ,   P_xm ← G P_xm,   P_mm unchanged
+update:   ẑ_j = [√q,  atan2(Δy, Δx) − θ],   (Δx, Δy) = m_j − p,   ∂h/∂m_j = −∂h/∂p
+          K = P H_jᵀ S⁻¹,   x ← x + Kν,   P ← P − K S Kᵀ  (then symmetrized)</div>
 <p><b>What the lab does.</b> Readings carry their beacon ID on this level, so association is free; a beacon seen for the first time is added to the state. Prediction updates only the pose block and its cross terms; updates use the full (3 + 2<i>n</i>)² covariance. The map ellipses drawn on the beacons are the landmarks\' own covariances. The beacon range slider sets how far the robot sees: with 7 m few beacons are visible from any one place and the map is a chain of weakly connected pieces; with 12 m most of the floor shares landmarks and the map closes on itself continuously.</p>`,
   tries:[['EKF-SLAM, range 7 m',{sim:true,level:LV_NOISY,set:{loc:'slam'},tab:'loc',plot:'pos'},
     {setup:'L3 with EKF-SLAM and the default 7 m beacon range; the filter starts with an empty map.',
@@ -6396,7 +6751,10 @@ per:[
  {t:'Log-odds mapping',b:`<p><b>Why this matters.</b> A robot that has to work in a building it has not seen must build its own map while driving, and everything downstream, the costmap, the planner, the people detector, reads that map as if it were true. Two decisions shape it: how to combine thousands of noisy beams per second into a belief per cell without the cost exploding, and whose coordinates to draw it in. The first has an elegant answer, log-odds. The second has no answer at all: the map is drawn in the frame of the pose estimate, so every localization error becomes a map error, permanently. This lesson shows both.</p>
 <p><b>The idea.</b> Cut the floor into 0.1 m cells and ask of each one: occupied or not? Each lidar beam is a small piece of evidence. The cells it crosses are probably free (the beam went through them), the cell it ends in is probably occupied (something stopped it). Bayes' rule says how to combine evidence, but applying it as probabilities means a multiply and a renormalization per cell per beam. Written in log-odds, the logarithm of the probability ratio occupied to free, the same update is one addition: evidence simply adds up, and a cell seen a thousand times costs no more than one seen once. A cap on the log-odds keeps any cell from becoming so certain that it can never be corrected when the pallet moves.</p>
 <div class="eq">l ← clamp(l + l_meas, ±4),   l_free = −0.4,   l_hit = +0.85
-occupied if l > 0.5;   unknown while l ≈ 0</div>
+occupied if l > 0.5;   unknown while l ≈ 0
+l = ln(p / (1 − p)),   p = 1 / (1 + e^(−l))
+inverse sensor model:  l_meas = l_hit for the cell a returned beam ends in,  l_free for every other cell it crosses
+                       (a beam at maximum range adds l_free to all of its cells)</div>
 <p><b>Where it comes from.</b> Apply Bayes' rule to the cell being occupied and to it being free, divide the two, and the normalizer cancels; take the logarithm and the product of evidence becomes a sum. With a 50 % prior the prior term is zero and the update is just <i>l</i> + <i>l</i><sub>meas</sub>. <a class="chref" href="#notes=ch3/2-occupancy-mapping-as-a-binary-bayes-filter">Derivation: chapter 3 §2</a></p>
 <p><b>What the lab does.</b> The lidar has 120 beams over 360°, 8 m range, 10 Hz, 2 cm noise. Every scan, each beam is traced cell by cell from the robot to its end point with Bresenham's algorithm and the cells get −0.4 (crossed) or +0.85 (end, if the beam returned); the values correspond to "40 % occupied" and "70 % occupied", so one hit is enough to call a cell occupied and it takes about two clean passes to undo it. The cap of ±4 is 98 %. The costmap is rebuilt from the log-odds every 0.5 s and the planner replans whenever a newly occupied cell lands on its path. The map is drawn in the <i>estimated</i> frame, from the pose the EKF with beacons reports on this level; the true map is shown faintly underneath as a ghost so you can compare.</p>`,
   tries:[['Map the building (EKF)',{sim:true,level:LV_BUILDING,tab:'per'},
@@ -6438,7 +6796,10 @@ penalty = ((0.4 + w − d)/w)²  for d < 0.4 + w,   edge cost = length · (1 + 3
  {t:'Tracking people: from lidar hits to tracks',b:`<p><b>Why this matters.</b> Everything that moves has to be found, followed and predicted, because the planner needs where a person will be, not where their hits are now. On a real robot there is no ground truth to compare against, only this chain: detection (which hits are not the map), association (which detection is which person), tracking (a filter per person) and prediction. Each link has a classic failure, and the one that matters most for a speed planner is velocity: it is never measured, only inferred, so it is late and noisy, and the prediction built on it points the wrong way for a second after every change of pace.</p>
 <p><b>The idea.</b> A person is a cluster of lidar hits that the static map cannot explain. Each confirmed person gets a constant-velocity Kalman filter: the state is position and velocity, the prediction moves the position by the velocity, and the only measurement is a position. Detections are matched to predicted tracks by Mahalanobis distance inside a gate, nearest first. Three hits confirm a track, and once confirmed it coasts on its prediction for a second when the person is hidden. The prediction handed to the planner extrapolates the velocity and inflates the radius with time, to cover the error in a velocity that was only inferred.</p>
 <div class="eq">x = [p_x, p_y, v_x, v_y],   x' = F x,   Q from white acceleration σ_a
-gate d² < 9.21;   prediction p(t) = p + v t,   r(t) = r + g t</div>
+gate d² < 9.21;   prediction p(t) = p + v t,   r(t) = r + g t
+F = [I  Δt·I;  0  I],   Q = σ_a²·[Δt⁴/4·I  Δt³/2·I;  Δt³/2·I  Δt²·I],   z = p + noise,  H = [I  0],  R = σ_z²·I
+d² = ‖z − p̂‖² / (P_pp + σ_z²);   gains  k_p = P_pp / (P_pp + σ_z²),  k_v = P_pv / (P_pp + σ_z²)</div>
+<p>Here Δ<i>t</i> is the time since the last scan (0.1 s), <i>z</i> the centre of a detection, <i>p̂</i> the track's predicted position, and <i>P</i><sub>pp</sub>, <i>P</i><sub>pv</sub> the position variance and position–velocity covariance, which both axes share; the update adds <i>k</i><sub>p</sub>(<i>z</i> − <i>p̂</i>) to the position and <i>k</i><sub>v</sub>(<i>z</i> − <i>p̂</i>) to the velocity.</p>
 <p><b>Where it comes from.</b> Integrating a random acceleration <i>a</i> over Δ<i>t</i> adds Δ<i>t</i>²/2·<i>a</i> to position and Δ<i>t</i>·<i>a</i> to velocity, so <i>Q</i> = σ<sub>a</sub>² times the outer product of [Δ<i>t</i>²/2, Δ<i>t</i>]. With position-only measurements the Kalman gain settles to the α–β filter\'s steady state, set by one number, the tracking index λ = σ<sub>a</sub>Δ<i>t</i>²/σ<sub>z</sub> (0.08 here): about a third of each innovation goes into position and the velocity error decays with a time constant of about 0.5 s. <a class="chref" href="#notes=ch3/5-tracking-a-constant-velocity-kalman-filter">Derivation: chapter 3 §5</a> · detection: <a class="chref" href="#notes=ch3/4-finding-people-in-a-scan">§4</a> · prediction: <a class="chref" href="#notes=ch3/6-prediction-and-why-the-radius-grows">§6</a></p>
 <p><b>What the lab does.</b> Hits are unexplained when the known map has nothing within 0.25 m (or, on a built map, no well-seen occupied cell next to them). Clusters are grown over consecutive beams (0.45 m jump, one beam gap), discarded when wider than 1.2 m, and the centroid is pushed away from the robot because lidar only sees the near side. The tracker runs at the lidar rate, 10 Hz, with σ<sub>z</sub> = 0.1 m and the process noise slider σ<sub>a</sub> (0.8 m/s² by default). Prediction uses a 4 s horizon and inflates the radius by 0.1 m/s. The ST graph in the plot area shows the speed planner\'s view of the predictions along the path.</p>`,
   tries:[['Lidar tracker',{sim:true,level:LV_BUSY,tab:'per'},
@@ -6478,7 +6839,10 @@ gate d² < 9.21;   prediction p(t) = p + v t,   r(t) = r + g t</div>
      ['What would a lagged-state filter need to store?','The pose estimate (or the odometry increments) for at least the maximum latency, so that a reading stamped at t − T_s can be applied to the state at t − T_s and the increments since then replayed. At 20 Hz and 0.3 s that is six poses; the cost is trivial, the discipline of timestamping everything is the real work.']]},
  {t:'People who react',b:`<p><b>Why this matters.</b> A planner is evaluated against a model of the people around it, and the model can flatter it. Scripted pedestrians walk their line whatever the robot does, so every near miss is the robot\'s fault; real people step aside, slow down, and absorb a good share of a robot\'s mistakes. A benchmark against people who yield reports fewer contacts than the planner earned. This lesson puts a reactive pedestrian model next to the scripted one so that the difference can be measured, and so that the metrics can be read with the right suspicion.</p>
 <p><b>The idea.</b> Social forces treat each person as a particle driven toward their goal and pushed away from everything near. The drive is a relaxation toward the preferred velocity; the pushes are exponentials of the overlap, negligible beyond a few tens of centimetres and overwhelming on contact, so the crowd behaves like a set of soft bodies. The robot is one of the things pushing, with a longer reach than a person, because people give machines room. Walls push along the gradient of the distance field, which the costmap of lesson 2 already provides.</p>
-<div class="eq">F = (v₀ e − v)/τ + Σ A·exp((r_i + r_j − d)/B)·n + walls,   τ = 0.5 s</div>
+<div class="eq">F = (v₀ e − v)/τ + Σ A·exp((r_i + r_j − d)/B)·n + walls,   τ = 0.5 s
+robot:  A_r·exp((r_i + r_robot − d)/B_r)·n        walls:  A_w·exp((r_i − D)/B_w)·∇D
+v ← v + F·Δt,  |v| ≤ 1.3 v₀;    p ← p + v·Δt   (every 50 ms tick)</div>
+<p>Here <i>e</i> is the unit vector toward the person's goal, <i>v</i> their velocity, <i>d</i> the distance between centres and <i>n</i> the unit vector from the other body to the person; the robot counts with <i>r</i><sub>robot</sub> = 0.3 m (0.55 m for the car), and <i>D</i> is the distance from the person's centre to the nearest wall, read from the map's distance field.</p>
 <p><b>Where it comes from.</b> It is a model, not a derivation: Helbing and Molnár (1995) proposed the drive-plus-repulsion form because it reproduces lane formation and bottleneck behaviour in crowds, and it has been the standard pedestrian model in robotics benchmarks since. The constants here (people <i>A</i> = 2, <i>B</i> = 0.35 m; robot <i>A</i> = 3, <i>B</i> = 0.5 m; walls <i>A</i> = 2.5, <i>B</i> = 0.25 m; speed capped at 1.3 <i>v</i>₀) are tuned to look right on this floor, not fitted to data. <a class="chref" href="#notes=ch3/8-people-who-react-the-social-force-model">Derivation: chapter 3 §8</a></p>
 <p><b>What the lab does.</b> The People switch is in the Vehicle tab. Scripted people walk back and forth on their segment at 0.6 to 0.9 m/s and stop briefly at each end. Reactive people have the same segments and speeds but move by the forces above, integrated every tick. The Response to agents selector in the Control tab chooses whether the robot plans its speed against the tracked people (the ST planner) or ignores them. Contacts and the closest approach are in the Telemetry metrics; a contact also pauses the run unless "Pause on contact" is off.</p>`,
   tries:[['Reactive people, speed planning',{sim:true,level:LV_BUSY,set:{people:'reactive'},tab:'veh'},
@@ -6499,7 +6863,9 @@ gate d² < 9.21;   prediction p(t) = p + v t,   r(t) = r + g t</div>
 plan:[
  {t:'A*: the heuristic and ε',b:`<p><b>Why this matters.</b> Graph search is the workhorse of robot planning: a costmap is a graph, a route is a path through it, and A* finds the cheapest one with a guarantee. The guarantee is the point. A planner that is usually fine and occasionally sends the robot the long way round is hard to certify; one with a bound on how far from optimal it can be, even a loose bound, can be reasoned about. The heuristic weight ε is the single knob that trades that bound for speed, and understanding exactly what it buys and costs is the difference between tuning and guessing.</p>
 <p><b>The idea.</b> A* keeps a queue of cells, each a node of the graph, ordered by <i>f</i> = <i>g</i> + <i>h</i>: the cost already paid to reach the cell plus an estimate of the cost still to go. It always expands the cell that looks cheapest in total, so it heads toward the goal without ignoring cheaper detours. If the estimate <i>h</i> never exceeds the true remaining cost (it is admissible), the first path to reach the goal is optimal: any cheaper path would have had a cell in the queue with a smaller <i>f</i>, which would have been expanded first. On an 8-connected grid the octile distance is the exact free-space cost, so it is admissible and as tight as a free-space heuristic can be.</p>
-<div class="eq">f = g + ε·h,   ε = 1: optimal;   ε > 1: cost ≤ ε · optimal, far fewer expansions</div>
+<div class="eq">f = g + ε·h,   ε = 1: optimal;   ε > 1: cost ≤ ε · optimal, far fewer expansions
+h = (max(Δi, Δj) + (√2 − 1)·min(Δi, Δj)) · 0.1 m     Δi, Δj: cells to the goal in x and y
+g += length · (1 + 3 · penalty of the cell entered),   length 0.1 m or 0.1√2 m</div>
 <p><b>Where it comes from.</b> Run the optimality argument with <i>g</i> + ε<i>h</i>: any cell on the optimal path still in the queue has <i>f</i> ≤ ε·<i>C</i>*, and the goal was popped with <i>f</i> no larger than that, so the path found costs at most ε times the optimum. The bound is tight only in adversarial mazes; on a floor with aisles the greedy direction is usually right and the path is within a few percent. <a class="chref" href="#notes=ch4/2-a-best-first-search-with-a-promise">Derivation: chapter 4 §2</a> · the graph and its costs: <a class="chref" href="#notes=ch4/1-the-costmap-as-a-graph">§1</a></p>
 <p><b>What the lab does.</b> Cells are 0.1 m, moves go to eight neighbours (no cutting between two touching obstacles), and the cost of a move is its length times (1 + 3 × inflation penalty) of the cell it enters, so the planner minimizes cost, not distance. The cell sequence is reduced to turning points and shortcut with straight segments that keep 0.5 m from obstacles. The search layer shows the closed set, the cells A* expanded, and the event log reports path length, expansions and planning time for every plan.</p>`,
   tries:[['A*, ε = 1',{sim:true,level:LV_WAREHOUSE,set:{eps:1},tab:'plan',layers:{search:true}},
@@ -6543,6 +6909,11 @@ plan:[
 h = ε · max(2D Dijkstra with obstacles, Reeds–Shepp without obstacles)
 analytic expansion: try a Reeds–Shepp shot to the goal, accept it if collision-free</div>
 <p><b>Where it comes from.</b> Each heuristic underestimates the true cost, so each is admissible, and the maximum of two admissible heuristics is admissible and tighter than either. Reeds and Shepp proved that the shortest obstacle-free path for a car that can reverse is one of 48 words of arcs and straights; by symmetry that is 12 families, which the lab evaluates in closed form for every query. The three-circle footprint over-approximates the car\'s rectangle by about 0.14 m at the corners, on the safe side. <a class="chref" href="#notes=ch4/4-planning-for-a-car">Derivation: chapter 4 §4</a></p>
+<p><b>The primitives.</b> Each edge is the kinematic bicycle, pose at the rear axle and θ̇ = <i>v</i> tan δ/<i>L</i>, driven for a signed distance <i>s</i> = ±0.4 m at a fixed steering angle, which is an arc of curvature κ = tan δ/<i>L</i>. It is integrated exactly in four 0.1 m steps, with the footprint checked after each; δ<sub>p</sub> is the largest angle the planner uses, 85 % of the lock, and the edge cost writes out the preferences described below.</p>
+<div class="eq">x' = x + (sin(θ + κs) − sin θ)/κ,   y' = y − (cos(θ + κs) − cos θ)/κ,   θ' = θ + κs     (κ = 0: straight)
+κ = tan δ / L,   δ ∈ {−δ_p, −δ_p/2, 0, δ_p/2, δ_p},   s = +0.4 m forward, −0.4 m reverse
+edge cost = 0.4 (× 2 in reverse) + 0.05|δ|/δ_p + 0.1|δ − δ_prev|/δ_p + 2 per gear change + 0.8·prox²
+prox = max(0, (0.4 − clearance)/0.4)</div>
 <p><b>What the lab does.</b> L6 is the parking lot with four posed goals. Wheelbase 0.6 m and a steering limit of 32°, so the car\'s true minimum radius is 0.96 m; the planner keeps 15 % in reserve and plans at 85 % of the lock, a 1.17 m radius, so the tracker has steering authority left to correct with. Reverse costs double, a gear change costs 2, and a proximity term keeps the car off walls. The budget is 60 000 expansions. The event log reports length, expansions, cusps (gear changes) and whether a Reeds–Shepp shot finished the plan.</p>`,
   tries:[['Hybrid A*',{sim:true,level:5,tab:'plan',layers:{search:true}},
     {setup:'L6 defaults: Hybrid A* with both heuristics, 85 % of the lock, reverse allowed. Search layer on.',
@@ -6587,7 +6958,9 @@ PLAN → NO_PATH → (2 s) PLAN, skip after 3</div>
  {t:'Space-time A*: planning with time as a coordinate',b:`<p><b>Why this matters.</b> A route through a crowd is not a line, it is a line with a schedule. The same doorway is free now and blocked in two seconds; the right plan may be to wait, which a spatial planner cannot even express. Adding time to the search state is the simplest way to plan with predictions, and it exposes the question that every planner around people has to answer: how far ahead can a prediction be trusted, and what should the plan assume beyond that?</p>
 <p><b>The idea.</b> The state is a cell and a time step. Moving to a neighbour takes the time to cross a cell at the reference speed; waiting is a move that takes one step and goes nowhere. A cell is blocked at a time when a predicted person covers it then, so the obstacles are different in every time slice and a corridor can be free at step 5 and blocked at step 8. Beyond the prediction horizon all times collapse into one and the search is plain A* on the static map. The result is a path with waits folded in; the speed planner keeps the schedule and reacts to prediction error.</p>
 <div class="eq">state (i, j, k),   k = t / Δt,   Δt = cell / v₀
-blocked(i, j, k) if ‖c_ij − p_a(kΔt)‖ < r_a(kΔt) + r_robot + margin for any agent a</div>
+blocked(i, j, k) if ‖c_ij − p_a(kΔt)‖ < r_a(kΔt) + r_robot + margin for any agent a
+p_a(t) = p_a + v_a·t,   r_a(t) = r_a + g·t   (the tracker's constant-velocity prediction)
+move cost = Δt·(1 or √2) + 0.3·Δt·penalty,   wait = 1.2·Δt;   h = octile distance in cells · Δt</div>
 <p><b>Where it comes from.</b> The search is A* with an extra coordinate; its heuristic, the octile distance in time units, assumes free space and no waiting, so it is admissible and the path is optimal in time on the discretized problem. The blocked test is the predicted disc of the tracking lesson, grown by the robot\'s radius and a clearance margin; diagonal moves are checked at their midpoint step as well, so a two-step move cannot pass through a person. <a class="chref" href="#notes=ch4/6-space-time-a-time-as-a-coordinate">Derivation: chapter 4 §6</a></p>
 <p><b>What the lab does.</b> Cells are 0.2 m (coarser than the spatial grid, to pay for the time dimension), the time step is 0.2 m divided by the cruise speed, 0.25 s at 0.8 m/s, and the horizon is the prediction horizon slider, 4 s by default. Waiting costs 1.2 times a move so the planner waits only when it must. The search is capped at 60 000 expansions. The ST graph in the plot area shows the speed planner\'s view of the same predictions along the chosen path.</p>`,
   tries:[['Space-time A*',{sim:true,level:LV_BUSY,set:{plan:'stastar'},tab:'plan',layers:{search:true}},
@@ -6613,7 +6986,7 @@ function lessonGo(cfg){
   if(cfg.level!=null)loadLevel(cfg.level);   // always start from the level's defaults
   for(const[k,v]of Object.entries(cfg.set||{}))setParam(k,v,false);
   if(cfg.stepKind)AN.stepKind=cfg.stepKind;if(cfg.stepAmp!=null)AN.stepAmp=cfg.stepAmp;if(cfg.injAmp)AN.injAmp=cfg.injAmp;
-  AN.loop=cfg.loop||'lat';AN.curveR=cfg.curveR||0;AN.useEst=!!cfg.useEst;AN.meas={step:null,freq:null,spd:null};
+  AN.adv=true;AN.wi=null;AN.loop=cfg.loop||'lat';AN.curveR=cfg.curveR||0;AN.useEst=!!cfg.useEst;AN.meas={step:null,freq:null,spd:null};
   syncAnControls();renderAllPanes();setMode('an');
   if(cfg.test==='step'){runStepTest();renderAnalysis();}else if(cfg.test==='inj')runInjection();else if(cfg.test==='spdstep'){if(!AN.resSpd)spdCompute();runSpeedStepTest();renderAnalysis();}
 }
@@ -6622,7 +6995,8 @@ const LESSONS=[
  {t:'The loop being analyzed',b:`<p><b>Why this matters.</b> Every tracker in this lab, and every lane-keeping controller on a real vehicle, closes the same loop: measure how far the vehicle is from the path, steer, and the steering changes the error. Everything about how that loop behaves, how fast it corrects, how much it overshoots, how much delay it tolerates, follows from one small linear model. Learning to read that model is what turns tuning from trial and error into engineering, and it is what the Analyze view computes live for whatever controller and vehicle you have set.</p>
 <p><b>The idea.</b> Near a straight path at a steady speed, with small errors, the vehicle is two integrators in series: the steering command sets the rate of the heading error, and the heading error sets the rate of the lateral error. The lateral error is therefore the double integral of what the controller commands. A controller that fed back only the lateral error would oscillate for ever (a double integrator with proportional feedback is an undamped spring), so every tracker also feeds back the heading error, and since on a straight path the heading error is the lateral error\'s rate of change divided by speed, that second term is derivative action. The whole family of trackers, pure pursuit, rear-wheel feedback, Stanley, PID, even MPC near the path, reduces to two gains on these two errors.</p>
 <div class="eq">θ̇ₑ = g·u      u = ω, g = 1 (diff-drive)     u = δ, g = v₀/L (car)
-ė  = v₀·θₑ</div>
+ė  = v₀·θₑ
+u  = −K_e·e − K_θ·θₑ     every tracker near the path, each with its own K_e and K_θ</div>
 <p><b>Where it comes from.</b> The Frenet equations ė = <i>v</i> sin θ<sub>e</sub>, θ̇<sub>e</sub> = ω − <i>v</i>κ cos θ<sub>e</sub>/(1 − κ<i>e</i>) hold for any vehicle whose velocity points along its heading; on a straight path (κ = 0) with small θ<sub>e</sub> they are the two lines above. For the car, ω = <i>v</i> tan δ/<i>L</i> ≈ (<i>v</i>/<i>L</i>)δ gives the plant gain <i>g</i>. <a class="chref" href="#notes=ch6/1-the-vehicle-in-path-coordinates">Derivation: chapter 6 §1</a> · the Frenet equations and the trackers\' gains: <a class="chref" href="#notes=ch5/1-path-coordinates-and-the-speed-profile">chapter 5 §1</a></p>
 <p><b>What the lab does.</b> The analysis does not trust formulas for the gains; it reads them from the controller\'s own code at the operating point by finite differences, nudging <i>e</i> and θ<sub>e</sub> by a millimetre and a milliradian and recording the change in the command. It then adds what the formulas leave out: the 25 ms hold delay of the 50 ms tick (a sampled controller holds each command for a tick, which on average delays it by half of one), any control latency, and actuator lag. The chips at the top of the Analyze view summarize the result: crossover, phase margin, gain margin, delay margin, <i>M</i><sub>s</sub>, the dominant poles. Everything updates as you move sliders in the Control and Vehicle tabs; <b>A</b> switches between the analysis and the map.</p>`,
   tries:[['Open the analysis (diff-drive, pure pursuit)',{level:LV_DIFF,set:{ctl:'pp'}},
@@ -6739,6 +7113,11 @@ s² + v₀k_θ·s + v₀²k_e = 0   →   ω_n = v₀√k_e,   ζ = k_θ / (2√
      ['On the car, what plays the role of v₀²k_e?','The same spring, multiplied by the plant gain g = v₀/L: ω_n = v₀√(g k_e). The car\'s loop stiffens with speed faster than the diff-drive\'s, which is the subject of the gain-scheduling lesson and of chapter 1, where speed also changes the vehicle.']]},
  {t:'Actuator lag, and what MPC assumes',b:`<p><b>Why this matters.</b> Actuators are not instantaneous. A steering motor, a hydraulic valve, a motor controller with its own inner loop: each follows its command with a time constant, and that lag costs phase exactly like delay does, frequency by frequency. For a model-based controller the question is sharper: does the controller\'s model include the lag? An MPC that believes its steering is instantaneous plans as if its commands took effect at once and then reacts to the lagging actuator it measures, and the cost is paid in robustness before it is paid in tracking error. This lesson is the first place in the lab where "the controller is only as good as its model" is a number.</p>
 <p><b>The idea.</b> A first-order actuator 1/(τ<i>s</i> + 1) contributes magnitude 1/√(1 + ω²τ²) and phase −atan(ωτ): at ω = 2 rad/s with τ = 0.15 s that is 17° of phase, a quarter of a typical margin. Pure pursuit simply loses that phase. The MPC without the lag in its model does worse than losing phase: its gains were optimized for a plant that responds instantly, so they are too aggressive for the real one, and the linearized loop shows it. With the lag modeled the MPC also feeds back its own commanded value (the <i>K</i><sub>c</sub> gain in the block diagram), anticipating what the actuator will do, and the margin comes back.</p>
+<p>As implemented, with <i>u</i> the actuator's state (the speed, and the turn rate or the steering angle) and <i>u</i><sub>cmd</sub> its command after saturation; the acceleration and steering-rate limits act after the lag. The MPC's inputs are the rates <i>u̇</i> = (<i>a</i>, rate of steering), applied over its 0.1 s step.</p>
+<div class="eq">τ·u̇ = u_cmd − u   →   1/(τs + 1):   magnitude 1/√(1 + ω²τ²),   phase −atan(ωτ)
+simulator, every 50 ms:  u ← u + (u_cmd − u)·(1 − e^(−Δt/τ))
+MPC, lag modeled:        u_{k+1} = u_k + (u_cmd,k − u_k)·(1 − e^(−Δt/τ)),   u_cmd,k+1 = u_cmd,k + u̇_k·Δt
+MPC, lag not modeled:    u_{k+1} = u_k + u̇_k·Δt   (each command takes effect at once)</div>
 <p><b>Where it comes from.</b> The lag is a pole at <i>s</i> = −1/τ in <i>L</i>(<i>s</i>); the MPC\'s gains, including <i>K</i><sub>c</sub>, are read from the solver by finite differences at the operating point, and the lag model adds the commanded steering as a state the MPC predicts through a first-order response. <a class="chref" href="#notes=ch7/2-the-prediction-model">The lag model: chapter 7 §2</a> · <a class="chref" href="#notes=ch7/6-what-the-analyze-view-sees">how the MPC becomes gains: §6</a> · <a class="chref" href="#notes=ch6/3-the-open-loop-l-s-with-the-clock-in-it">the lag in L(s): chapter 6 §3</a></p>
 <p><b>What the lab does.</b> The actuator lag τ is a Vehicle-tab slider and applies to both speed and steering (turn rate). The MPC\'s "Include actuator lag" checkbox in the Control tab adds the lag to its prediction model. Margin and tracking performance are different things: run L5 both ways and the cross-track RMS barely changes; what changes is the margin.</p>`,
   tries:[['Pure pursuit, τ = 0.15 s',{level:LV_DIFF,set:{ctl:'pp',lag:0.15}},
@@ -6758,7 +7137,9 @@ s² + v₀k_θ·s + v₀²k_e = 0   →   ω_n = v₀√k_e,   ζ = k_θ / (2√
      ['What would the lag model need on a real vehicle?','An identified time constant, which can be measured by stepping the command and timing the response (the speed-loop lesson does exactly this), and a check that it is constant: hydraulic and electric steering lags change with load and temperature. If it varies, the MPC should model the slow end and the margin analysis the fast one.']]},
  {t:'Integral action and steady-state error',b:`<p><b>Why this matters.</b> Real actuators are biased: a steering link a degree off centre, one motor a little weaker, a miscalibrated zero. A proportional-derivative loop reacts to such a bias by settling where the controller\'s output cancels it, which needs a standing error. For a lane-keeping controller that is a vehicle that drives steadily a few centimetres off the centre line, for ever. Integral action removes it, and the price it charges, phase, is the subject of the second half of this lesson. MPC gets the same effect from its structure, with a condition that is easy to miss.</p>
 <p><b>The idea.</b> A constant actuator bias is a step disturbance at the plant input. With only proportional and derivative terms the loop settles where the controller output equals minus the bias, and the error that produces that output is <i>e</i><sub>ss</sub> = <i>d</i>/<i>K</i><sub>e</sub>: larger bias or softer gain, larger standing error. An integrator keeps adding to the command as long as the error is nonzero, so the only equilibrium is zero error. In the frequency domain the integrator is 1/<i>s</i>: infinite gain at zero frequency (which is what kills the steady error) and −90° of phase at low frequency, which eats margin if the integral gain is large enough to matter near the crossover. The MPC commands a rate and builds each command on its previous one, so it integrates its input and removes a bias it can see.</p>
-<div class="eq">e_ss = d / K_e     (K_e: command per metre of lateral error)</div>
+<div class="eq">e_ss = d / K_e     (K_e: command per metre of lateral error)
+PID tracker:  u = K_p·α + K_i·∫α dt + K_d·α̇,   α: bearing to the carrot,  ∫α dt clamped to ±1 rad·s
+MPC:          u_k = u_{k−1} + u̇_k·Δt   (it commands a rate, so its command is an integral)</div>
 <p><b>Where it comes from.</b> At steady state ė = θ̇<sub>e</sub> = 0, so the plant input must be zero: controller output + bias = 0, and with output −<i>K</i><sub>e</sub><i>e</i> that is <i>e</i> = <i>d</i>/<i>K</i><sub>e</sub>. With an integrator, a constant nonzero <i>e</i> would make the output grow without bound, so steady state requires <i>e</i> = 0. <a class="chref" href="#notes=ch6/5-poles-damping-and-the-shape-of-the-response">The bias response: chapter 6 §5</a> · <a class="chref" href="#notes=ch7/7-why-it-integrates">why the MPC integrates: chapter 7 §7</a> · <a class="chref" href="#notes=ch5/5-pid-on-the-bearing">the PID tracker: chapter 5 §5</a></p>
 <p><b>What the lab does.</b> The response plot switches to the bias case here: the plotted quantity is the lateral error per unit of bias, so a final value of 0.28 means 28 % of the bias-response unit remains. The Vehicle tab has the same bias as a slider for normal runs: a steering misalignment in degrees for the car, a turn-rate offset in rad/s for the diff-drive. The MPC measures the diff-drive\'s turn rate directly; the car\'s steering encoder reads the angle before the misaligned link.</p>`,
   tries:[['Car, rear-wheel feedback, 2° bias',{level:LV_CAR,set:{ctl:'rwf'},stepKind:'bias',test:'step'},
@@ -6782,6 +7163,10 @@ s² + v₀k_θ·s + v₀²k_e = 0   →   ω_n = v₀√k_e,   ζ = k_θ / (2√
      ['A standing 28 % residual: in metres, what is that for a 2° misalignment at 0.6 m/s?','The bias unit is the lateral error per unit of actuator bias with the loop\'s gains; for this car and these gains 2° of steering is roughly 2 cm of standing offset. Small, and permanent. At highway speed the same misalignment would be tens of centimetres, which is why every production lane-keeping loop has integral action or an explicit bias estimate.']]},
  {t:'Linear versus nonlinear',b:`<p><b>Why this matters.</b> Everything in the Analyze view is linear: gains read at one operating point, responses that scale with the input. The vehicle is not. Steering locks, steering-rate limits, turn-rate and acceleration limits all exist, and a large enough error asks for more than the actuator can give. Knowing where the linear picture stops being true is as important as the picture itself, because the failures that matter on a real vehicle, a swerve that saturates the steering, a limit cycle after a big disturbance, live exactly there.</p>
 <p><b>The idea.</b> For small signals the response is proportional to the input, so a 0.05 m step and a 1 m step have the same shape and the Bode plot describes both. A large step asks the controller for a large command, the actuator clips it, and the response stops scaling: it is slower and less overshooting than the linear model predicts, because the clipped actuator is effectively a smaller gain. The same happens in the frequency domain: a large injected sine saturates the rate limit at high frequency, and the measured points bend away from the model curve where the saturation bites.</p>
+<div class="eq">saturation:  u = clamp(u_cmd, −u_max, u_max)        rate limit:  |u_k − u_{k−1}| ≤ r_max·Δt
+car: |δ| ≤ 32°, |δ̇| ≤ 1.5 rad/s;   diff-drive: |ω| ≤ 1.8 rad/s, |ω̇| ≤ 3 rad/s² with acceleration limits on   (defaults)
+describing function of saturation, for a sine of amplitude A > u_max:
+   N(A) = (2/π)·[asin(u_max/A) + (u_max/A)·√(1 − (u_max/A)²)]      (N = 1 for A ≤ u_max)</div>
 <p><b>Where it comes from.</b> Saturation is a static nonlinearity; its describing function is a gain that falls with amplitude, from 1 for small signals toward zero for large ones. A loop with a saturating actuator behaves, for sinusoidal inputs, like the linear loop with that reduced gain, which is why large-amplitude measurements fall below the model and why the step response slows. <a class="chref" href="#notes=ch6/7-where-the-model-stops">Where the model stops: chapter 6 §7</a> · <a class="chref" href="#notes=ch1/6-the-limits-and-where-the-kinematic-model-stops">the vehicle\'s limits: chapter 1 §6</a></p>
 <p><b>What the lab does.</b> The car\'s steering moves at most 1.5 rad/s and locks at 32° (Vehicle tab); the diff-drive\'s turn rate and acceleration are limited too. The step test accepts amplitudes from 0.05 to 1 m and the injection has a small and a large setting; the message under the experiments reports when a limit was active and for how long.</p>`,
   tries:[['Car, 0.05 m step test',{level:LV_CAR,set:{ctl:'rwf'},stepKind:'offset',stepAmp:0.05,test:'step'},
@@ -6823,7 +7208,8 @@ const LESSONS_EXTRA=[
  {t:'The speed loop is open, except for MPC',b:`<p><b>Why this matters.</b> Everything so far was the lateral loop. Speed is the other axis, and in most of this lab it is not a loop at all: the trackers command a speed from a profile and nothing measures the actual speed and corrects the command. That is common on small robots, where a motor controller does the closing underneath, and it is worth seeing what the open chain looks like, because the actuator chain, latency, lag and acceleration limit, is the same one the lateral loop drives through. MPC is the exception: its model has speed as a state, so it closes a speed loop of its own, with margins of its own.</p>
 <p><b>The idea.</b> Every path tracker here commands speed from a profile: cruise speed, slowed in curves by the lateral-acceleration cap, and ramped down toward the goal. The Speed plot shows the actuator chain following it: a delay T_lat, then a first-order lag 1/(τ<i>s</i> + 1) with bandwidth about 1/τ and a 10–90 % rise time of 2.2τ, then the acceleration limit. The MPC instead penalizes (<i>v</i> − <i>v</i><sub>ref</sub>)² in its cost and commands acceleration, so the speed loop has gains the analysis can read, <i>K</i><sub>v</sub> on the speed error, <i>K</i><sub>vc</sub> on the commanded speed when the lag is modeled, <i>K</i><sub>u</sub> on its previous acceleration, and the same crossover, margins and step response as the lateral loop.</p>
 <div class="eq">G(s) = e^{−sT_lat} / (τs + 1)        bandwidth ≈ 1/τ,  10–90 % rise ≈ 2.2 τ
-MPC:  a = −K_v (v − v_ref) − K_vc (v_cmd − v_ref) + K_u a_prev   closes a loop through its rate input</div>
+MPC:  a = −K_v (v − v_ref) − K_vc (v_cmd − v_ref) + K_u a_prev   closes a loop through its rate input
+profile:  v_ref = min(v_cruise, v_max, √(a_lat / |κ|), √(2a·(d_goal − 0.08 m)))     κ: curvature just ahead (pure pursuit: its own)
 <p><b>Where it comes from.</b> The first-order lag\'s step response is 1 − e<sup>−<i>t</i>/τ</sup>; it reaches 10 % at 0.105τ and 90 % at 2.3τ, hence 2.2τ between them, and its magnitude falls to 1/√2 at ω = 1/τ. <a class="chref" href="#notes=ch5/1-path-coordinates-and-the-speed-profile">The speed profile: chapter 5 §1</a> · <a class="chref" href="#notes=ch7/8-the-speed-loop">the MPC\'s speed loop: chapter 7 §8</a></p>
 <p><b>What the lab does.</b> Switch the loop selector in the Analyze view to Speed. For pure pursuit the chips report the plant\'s bandwidth and time constant and the step test lands on the open-chain prediction. For MPC the loop has margins of its own, and the step test shows what its acceleration bound costs when the step is large. The speed step test raises the cruise speed by 0.2 m/s in the full simulator.</p>`,
   tries:[['Pure pursuit, τ = 0.3 s',{level:LV_DIFF,set:{ctl:'pp',lag:0.3},loop:'spd',test:'spdstep'},
@@ -7720,7 +8106,8 @@ function syncAnControls(){
   $('#an-amp').value=String(AN.stepAmp);$('#an-inja').value=AN.injAmp;
 }
 syncAnControls();
-$('#an-amp').onchange=e=>{AN.stepAmp=+e.target.value;};
+$('#an-adv').addEventListener('toggle',()=>{const o=$('#an-adv').open;if(o!==AN.adv){AN.adv=o;renderAnalysis();}});
+$('#an-amp').onchange=e=>{AN.stepAmp=+e.target.value;renderAnalysis();};
 $('#an-inja').onchange=e=>{AN.injAmp=e.target.value;};
 $('#an-step').onclick=()=>{if(AN.loop==='spd'){if(!AN.resSpd)spdCompute();runSpeedStepTest();AN.msg=`Speed step test: +${fmt(AN.spdAmp||0.2)} m/s on the cruise speed in the full simulator (dashed amber).`;renderAnalysis();return;}if(!AN.res)anCompute();runStepTest();AN.msg=`Step test: ${AN.stepKind==='offset'?AN.stepAmp+' m path offset':biasUnit().val+biasUnit().unit+' actuator bias'} in the full simulator (dashed amber).`;renderAnalysis();};
 $('#an-inj').onclick=()=>{if(!AN.busy)runInjection();};
@@ -7745,7 +8132,7 @@ function addPosed(x,y,th){
   const ok=isCar()&&th!=null?!carHits(x,y,th,S.shapes,0.05):LV.truthDist[k]>(isCar()?CAR.width/2+0.05:RR+0.02);
   if(!ok){logE('That pose overlaps an obstacle','warn');draw();return;}
   if(remaining().length>=8){logE('Up to 8 open goals','warn');return;}
-  WPS.push({x,y,th,done:false});if(th!=null&&!isCar())logE('Goal heading is only used by the car-like model','warn');
+  WPS.push({x,y,th,done:false});if(th!=null&&!isCar())logE(`Goal ${WPS.length} faces ${deg(th).toFixed(0)}°: the robot turns in place there once it arrives`);
   startMission();doPlan('initial');draw();refreshAll();
 }
 cv.addEventListener('wheel',e=>{e.preventDefault();const[sx,sy]=toCanvas(e);zoomAt(e.deltaY<0?1.2:1/1.2,sx,sy);},{passive:false});
@@ -7844,11 +8231,11 @@ function setTool(id){
 }
 {const bar=document.createElement('div');bar.className='maptools';bar.id='maptools';bar.setAttribute('role','toolbar');bar.setAttribute('aria-label','Map tools');
  bar.innerHTML=TOOLS.map(([id,name,key])=>`<button type="button" data-tool="${id}" aria-pressed="false" aria-label="${name}" title="${name} (${key})">${svgI(id)}</button>`).join('')+
-   `<span class="mt-sep"></span><button type="button" id="clearwp" aria-label="Clear goals" title="Remove every goal">${svgI('clear')}</button>`;
+   `<span class="mt-sep"></span><button type="button" id="clearwp" aria-label="Clear goals and trails" title="Remove every goal and the trails driven so far (the previous run has its own Forget, bottom right)">${svgI('clear')}</button>`;
  const hint=document.createElement('div');hint.className='toolhint';hint.id='toolhint';hint.hidden=true;hint.setAttribute('aria-live','polite');
  const mw=$('.mapwrap');mw.insertBefore(hint,mw.firstChild);mw.insertBefore(bar,mw.firstChild);
  bar.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool===tapMode&&b.dataset.tool!=='wp'?'wp':b.dataset.tool));}
-$('#clearwp').onclick=()=>{WPS=[];S.fsm.queue=[];S.fsm.state='IDLE';S.track=null;S.plan=null;S.ctlViz=null;S.search=null;if(SEL&&SEL.k==='goal')SEL=null;logE('Goals cleared');draw();refreshAll();};
+$('#clearwp').onclick=()=>{WPS=[];S.fsm.queue=[];S.fsm.state='IDLE';S.track=null;S.plan=null;S.ctlViz=null;S.search=null;S.trailT=[];S.trailE=[];if(SEL&&SEL.k==='goal')SEL=null;logE('Goals and trails cleared');draw();refreshAll();};
 setTool('wp');
 
 /* ---------- Select: a pinned card with live values ---------- */
@@ -7882,7 +8269,9 @@ function selCard(V){
       row('velocity',`${f2(hyp(o.vx,o.vy))} m/s · ${deg(Math.atan2(o.vy,o.vx)).toFixed(0)}°`)+row('radius',`${f2(o.r)} m`)+row('hits',String(o.hits))+
       row('σ position',`${f2(Math.sqrt(Math.max(0,o.pxx)))} m`)+(pr?row(`in ${P.agT} s`,`${f2(pr[0])}, ${f2(pr[1])} m (r ${f2(pr[2])})`):'')];}
     case'beacon':{const d=hyp(r.x-o.x,r.y-o.y);return[`Beacon ${o.id}`,row('status',beaconsOff().has(o.id)?'switched off':V.bDown&&V.bDown[o.id]?'in an outage':'on')+
-      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('range',`${f2(d)} m from the robot${d>P.lmRange?' (beyond the '+P.lmRange+' m sensor range)':''}`)];}
+      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('range',`${f2(d)} m from the robot${d>P.lmRange?' (beyond the '+P.lmRange+' m sensor range)':''}`)+
+      (V===S&&S.bWhy?row('this scan',(BS_WHY[S.bWhy[o.id]]||['no scan yet'])[0])+row('readings',`${(S.bSeen[o.id].filter(t=>t>S.t-5).length/Math.max(0.2,Math.min(5,S.t))).toFixed(1)} per s (scan rate 5 Hz)`):'')+
+      row('noise',`σ_r ${(0.08*P.lmK).toFixed(2)} m · σ_b ${deg(0.03*P.lmK).toFixed(1)}° → ${f2(d*0.03*P.lmK)} m sideways here`)];}
   }
   return null;
 }
@@ -7927,6 +8316,7 @@ function layerPopHTML(){
   return`<div class="lp-head"><b>Layers</b><span class="lbl">${layersEdited?'your choice':'set by the tab'}</span>${layersEdited?`<button type="button" class="linkbtn" id="lp-auto">Let each tab choose</button>`:''}</div>`+
     LAYER_DEFS.map(([k,name,sub,sys])=>{const[has,st]=layerStatus(k),on=!!LAYERS[k];
       return`<label class="lp-row${on?'':' off'}"${sys?` data-sys="${sys}"`:''}><input type="checkbox" data-layer="${k}" ${on?'checked':''}><span class="lp-name">${name}<small>${sub}</small></span><span class="lp-st ${on&&has?'live':on?'idle':''}" title="${esc(st)}">${esc(st)}</span></label>`;}).join('')+
+    (GHOST&&GHOST.level===LV.id?`<p class="lp-foot">Previous run: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button type="button" class="linkbtn" id="lp-forget">Forget it</button></p>`:'')+
     `<p class="lp-foot">Drawing only; nothing here changes the simulation.</p>`;
 }
 let lpKey='';
@@ -7936,6 +8326,7 @@ function renderLayerPop(force){
   const foc=document.activeElement&&p.contains(document.activeElement)?document.activeElement.dataset.layer:null;
   p.innerHTML=layerPopHTML();
   p.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;layersEdited=true;renderLayerPop(true);if(activeTab==='view')renderAllPanes();draw();});
+  const fg=$('#lp-forget');if(fg)fg.onclick=()=>{forgetGhost();renderLayerPop(true);};
   const au=$('#lp-auto');if(au)au.onclick=()=>{layersEdited=false;layersKey='';applyTabLayers(true);renderLayerPop(true);if(activeTab==='view')renderAllPanes();};
   if(foc){const el=p.querySelector(`input[data-layer="${foc}"]`);if(el)el.focus();}
 }
@@ -7947,6 +8338,18 @@ function toggleLayerPop(on){
  const vb=$('.mapview');vb.insertBefore(b,$('#mv-key'));b.onclick=()=>toggleLayerPop();
  const p=document.createElement('div');p.className='layerpop';p.id='layerpop';p.hidden=true;p.setAttribute('role','dialog');p.setAttribute('aria-label','Map layers');$('.mapwrap').appendChild(p);
  document.addEventListener('pointerdown',e=>{if(!p.hidden&&!p.contains(e.target)&&!b.contains(e.target))toggleLayerPop(false);},true);}
+
+/* ---------- the previous run's path: a chip on the map names it and offers Hide (the layer) and Forget ---------- */
+function forgetGhost(){GHOST=null;renderGhostChip();if(activeTab==='view')renderAllPanes();draw();drawPlot();}
+let ghKey='';
+function renderGhostChip(){
+  const c=$('#ghostchip');if(!c)return;const on=!!(GHOST&&GHOST.level===LV.id&&LAYERS.ghostrun&&AN.mode==='sim');
+  const key=on?GHOST.label+GHOST.t:'';if(key===ghKey)return;ghKey=key;c.hidden=!on;if(!on)return;
+  c.innerHTML=`<span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span><button type="button" class="linkbtn" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="linkbtn" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button>`;
+  $('#gh-hide').onclick=()=>{LAYERS.ghostrun=false;layersEdited=true;renderGhostChip();renderLayerPop(true);if(activeTab==='view')renderAllPanes();draw();drawPlot();};
+  $('#gh-forget').onclick=forgetGhost;
+}
+{const c=document.createElement('div');c.id='ghostchip';c.className='ghostchip';c.hidden=true;$('.mapwrap').appendChild(c);}
 
 /* ---------- keys: V G H K B pick a tool, L opens Layers, Esc closes Layers, clears the selection, returns to Goal ---------- */
 document.addEventListener('keydown',e=>{
@@ -8197,7 +8600,7 @@ function palItems(){
   MODES.forEach(([v,l])=>add('m:'+v,l,'Mode','',()=>setUIMode(v),MODE_HINT[v]));
   TOOLS.forEach(([id,name,key,hint])=>add('t:'+id,`Tool: ${name}`,'Map','',()=>{if(AN.mode!=='sim')setUIMode('sim');setTool(id);},hint,key));
   act('layers','Layers…',()=>{if(AN.mode!=='sim')setUIMode('sim');toggleLayerPop(true);},'L','what the map draws');
-  act('clear','Clear goals',()=>$('#clearwp').click());act('fit','Fit the map',()=>$('#mv-fit').click(),'0');act('follow','Follow the robot',()=>$('#mv-follow').click(),'F');
+  act('clear','Clear goals and trails',()=>$('#clearwp').click());act('fit','Fit the map',()=>$('#mv-fit').click(),'0');act('follow','Follow the robot',()=>$('#mv-follow').click(),'F');
   act('kidnap','Kidnap the robot to a random free spot',()=>kidnapTo(null),'','the estimator is not told');
   if(P.loc==='pf')act('scatter','Scatter the particles',()=>scatterParticles(),'','global localization');
   act('dock','Show or hide the telemetry dock',()=>wsDock(WS.dockOff));act('insp','Show or hide the panel',()=>wsInspector(WS.inspOff));
@@ -8326,7 +8729,7 @@ function healthNow(f){
    else if(st==='LOST'||sp!=null&&sp>1)H.loc=['bad',`lost: position σ ${sp!=null?sp.toFixed(1):'?'} m`];
    else if(nees!=null&&nees>9)H.loc=['warn',`overconfident: NEES ${nees.toFixed(1)} (3 is consistent)`];
    else if(neff!=null&&P.loc==='pf'&&neff<0.15*N)H.loc=['warn',`particles degenerate: N_eff ${neff.toFixed(0)} of ${N} (2 s mean)`];
-   else if(silent>3&&drive)H.loc=['warn',`no beacon readings for ${silent.toFixed(1)} s`];
+   else if(silent>3&&drive)H.loc=beaconUse()?['ok',`no beacon readings for ${silent.toFixed(0)} s; lidar against the map holds it (σ ${sp!=null?sp.toFixed(2):'—'} m)`]:['warn',`no beacon readings for ${silent.toFixed(1)} s`];
    else if(P.loc==='dr')H.loc=['ok',`dead reckoning${sp!=null?`: σ ${sp.toFixed(2)} m and growing`:''}`];
    else H.loc=['ok',`σ ${sp!=null?sp.toFixed(2):'—'} m${nees!=null?` · NEES ${nees.toFixed(1)}`:''}${neff!=null&&P.loc==='pf'?` · N_eff ${neff.toFixed(0)}`:''}`];}
   // perception
@@ -8483,15 +8886,18 @@ const PRESETS=[
     PANES.length=0;PANES.push({sigs:['ep','sp'],off:new Set()},{sigs:['nees'],off:new Set()},{sigs:['neff','zn'],off:new Set()});renderPanes();setMetView('values');}],
   ['cmp','Compare runs','Whole run in every plot, cross-track and speed added, the Runs panel open',()=>{setUIMode('sim');PANES.length=0;PANES.push({sigs:['cte'],off:new Set()},{sigs:['va','vc'],off:new Set()});renderPanes();TW.all=true;TW.end=null;syncTW();drawPlot();toggleRuns(true);}],
   ['map','Map only','Hide the panel and fold the dock',()=>{setUIMode('sim');wsInspector(false);wsDock(false);}]];
+function vmMark(){document.querySelectorAll('#viewmenu [data-preset]').forEach(x=>x.setAttribute('aria-current',String(x.dataset.preset===WS.preset)));}
 {const tools=$('#bartools'),b=document.createElement('button');b.type='button';b.id='tg-view';b.className='ibtn';b.setAttribute('aria-expanded','false');b.setAttribute('aria-controls','viewmenu');b.title='Dock, panel and layout presets';b.innerHTML='View ▾';
  const m=document.createElement('div');m.id='viewmenu';m.className='viewmenu';m.hidden=true;m.setAttribute('role','dialog');m.setAttribute('aria-label','View');
- m.innerHTML=`<p class="vm-h">Show</p><div class="vm-tg"></div><p class="vm-h">Layouts</p>${PRESETS.map(([id,name,sub])=>`<button type="button" class="vm-item" data-preset="${id}"><b>${name}</b><span>${sub}</span></button>`).join('')}<p class="vm-h">Help</p><button type="button" class="vm-item" id="vm-keys"><b>Keyboard shortcuts</b><span>?</span></button>`;
+ m.innerHTML=`<p class="vm-h">Show</p><div class="vm-tg"></div><p class="vm-h">Layouts</p>${PRESETS.map(([id,name,sub])=>`<button type="button" class="vm-item" data-preset="${id}"><b>${name}<i class="vm-cur">current</i></b><span>${sub}</span></button>`).join('')}<p class="vm-h">Help</p><button type="button" class="vm-item" id="vm-keys"><b>Keyboard shortcuts</b><span>?</span></button>`;
  tools.appendChild(b);document.body.appendChild(m);
  const tg=m.querySelector('.vm-tg');tg.appendChild($('#tg-dock'));tg.appendChild($('#tg-insp'));
  const place=()=>{const r=b.getBoundingClientRect();m.style.top=(r.bottom+6)+'px';m.style.right=Math.max(8,innerWidth-r.right)+'px';};
  b.onclick=()=>{const on=m.hidden;m.hidden=!on;b.setAttribute('aria-expanded',String(on));if(on){place();m.querySelector('button').focus();}};
  const close=()=>{m.hidden=true;b.setAttribute('aria-expanded','false');};
- m.querySelectorAll('[data-preset]').forEach(x=>x.onclick=()=>{close();const P2=PRESETS.find(p=>p[0]===x.dataset.preset);P2[3]();toast(`Layout: ${P2[1]}`);});
+ // which layout was applied last is marked (and remembered); showing or hiding the dock or the panel by hand clears the mark
+ m.querySelectorAll('[data-preset]').forEach(x=>x.onclick=()=>{close();const P2=PRESETS.find(p=>p[0]===x.dataset.preset);P2[3]();WS.preset=P2[0];wsSave();vmMark();toast(`Layout: ${P2[1]}`);});
+ ['#tg-dock','#tg-insp','#dock-fold'].forEach(id=>$(id).addEventListener('click',()=>{WS.preset=null;wsSave();vmMark();}));
  $('#vm-keys').onclick=()=>{close();showKeys();};
  document.addEventListener('pointerdown',e=>{if(!m.hidden&&!m.contains(e.target)&&!b.contains(e.target))close();},true);
  m.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();close();b.focus();}});}
@@ -8539,7 +8945,7 @@ document.addEventListener('keydown',e=>{const t=e.target,tag=t&&t.tagName;if(e.k
 /* ---- ui/loop.js ---- */
 
 /* ---------- main loop ---------- */
-function refreshAll(){renderStatus();renderMetrics();renderLog();fsmRefresh();renderSelection();renderLayerPop();renderValues();renderChangedBadge();renderHealth();renderRunsBadge();}
+function refreshAll(){renderStatus();renderMetrics();renderLog();fsmRefresh();renderSelection();renderLayerPop();renderValues();renderChangedBadge();renderHealth();renderRunsBadge();renderGhostChip();renderBeaconSensor();}
 let lastTs=0,acc=0,frame=0;
 function loop(ts){
   const dt=Math.min(0.1,(ts-lastTs)/1000||0);lastTs=ts;
@@ -8548,7 +8954,6 @@ function loop(ts){
   if(AN.mode==='sim'){drawMaybeReplay();if(frame++%3===0){drawPlot();refreshAll();syncScrub();}}
   requestAnimationFrame(loop);
 }
-{const ex=$('.an-exp'),grid=$('.an-grid');if(ex&&grid)grid.parentNode.insertBefore(ex,grid);}
 {const right=document.createElement('div');right.className='right';const ctxEl=$('.ctx'),con=$('.console');ctxEl.parentNode.insertBefore(right,ctxEl);right.appendChild(ctxEl);right.appendChild(con);right.appendChild($('#learnview'));}
 const mo=new MutationObserver(()=>{tokKey='';if(AN.mode==='an')renderAnalysis();});mo.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 window.addEventListener('resize',()=>{if(AN.mode==='an')renderAnalysis();else{draw();drawPlot();}});
@@ -8559,7 +8964,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{tokKey
    Workspace (7.1): the map fills the stage; a telemetry dock under it and the panel on the right can be resized
    (drag the splitters, or focus one and use the arrow keys) and hidden. Sizes are remembered in this browser only.
    ============================================================ */
-const WS={insp:null,dock:220,inspOff:false,dockOff:false};
+const WS={insp:null,dock:220,inspOff:false,dockOff:false,preset:'tune'};
 const WS_KEY='nav-stack-lab.layout';
 try{const s=JSON.parse(localStorage.getItem(WS_KEY)||'null');if(s&&typeof s==='object'){for(const k of Object.keys(WS))if(k in s)WS[k]=s[k];if(typeof s.brief==='boolean')briefOpen=s.brief;}}catch(_){}
 function wsSave(){try{localStorage.setItem(WS_KEY,JSON.stringify({...WS,brief:briefOpen}));}catch(_){}}
@@ -8578,6 +8983,7 @@ function wsApply(){
 function wsEnsureDock(h){if(!wideUI())return;if(WS.dockOff)WS.dockOff=false;if(WS.dock<h){const st=$('#simview').getBoundingClientRect().height;WS.dock=Math.round(Math.max(WS.dock,Math.min(h,st-420)));}wsApply();wsSave();}
 function wsInspector(on){WS.inspOff=!on;wsApply();wsSave();}
 function wsDock(on){WS.dockOff=!on;wsApply();wsSave();}
+vmMark();
 $('#tg-insp').onclick=()=>wsInspector(WS.inspOff);
 $('#tg-dock').onclick=()=>wsDock(WS.dockOff);
 $('#dock-fold').onclick=()=>wsDock(WS.dockOff);

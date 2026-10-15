@@ -12,6 +12,14 @@ function lidarSense(){
 // Each beacon is a two-state Markov chain stepped at every beacon scan: an outage lasts bOutLen s on average
 // and a beacon is down bOut % of the time. Outages draw from their own stream, so the sensor noise is unchanged.
 function beaconsOff(){return new Set(String(P.bOff||'').split(',').filter(s=>s.trim()!=='').map(Number));}
+// How the active estimator depends on the beacons, in words (null: it needs them)
+function beaconUse(){
+  if(P.loc==='truth')return'ground truth localization ignores the beacons (the estimate is the true pose)';
+  if(P.loc==='dr')return'dead reckoning never uses the beacons (odometry only)';
+  if(P.loc==='pf'&&P.pfLidar&&P.per==='oracle')return'the particle filter also matches lidar against the prior map, so it can localize without beacons';
+  if(P.loc==='custom')return'your localizer gets the beacon readings that remain';
+  return null;
+}
 function beaconDown(id){return beaconsOff().has(id)||!!(S.bDown&&S.bDown[id]);}
 function beaconOutages(){
   const n=S.beacons.length;if(!S.bDown)S.bDown=new Array(n).fill(false);
@@ -23,11 +31,15 @@ function senseBeacons(){
   const r=S.robot,g=S.rngW,sh=allShapes(),out=[];
   const sr=0.08*P.lmK, sb=0.03*P.lmK;
   const off=beaconsOff();beaconOutages();
+  // why each beacon did or did not answer this scan, and when it last answered (for the UI; nothing reads it back)
+  if(!S.bWhy)S.bWhy=[];if(!S.bSeen)S.bSeen=S.beacons.map(()=>[]);
   for(const b of S.beacons){
-    if(off.has(b.id)||S.bDown[b.id])continue;
+    const W=S.bSeen[b.id];while(W.length&&W[0]<S.t-5)W.shift();
+    if(off.has(b.id)||S.bDown[b.id]){S.bWhy[b.id]=off.has(b.id)?'off':'outage';continue;}
     const dx=b.x-r.x,dy=b.y-r.y,d=hyp(dx,dy);
-    if(d>P.lmRange||d<0.2)continue;
-    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12)continue;
+    if(d>P.lmRange||d<0.2){S.bWhy[b.id]='range';continue;}
+    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12){S.bWhy[b.id]='blocked';continue;}
+    S.bWhy[b.id]='ok';W.push(S.t);
     out.push({id:b.id,r:d+sr*g.n(),b:wrap(Math.atan2(dy,dx)-r.th+sb*g.n())});
   }
   if(P.assoc==='unknown'&&P.clutter>0){for(let k=0;k<3;k++)if(g.u()<P.clutter/3)out.push({id:-1,fake:true,r:0.5+g.u()*(P.lmRange-0.5),b:(g.u()*2-1)*Math.PI});}

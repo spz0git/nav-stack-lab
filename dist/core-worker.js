@@ -334,7 +334,7 @@ function setParam(k,v,live){
   if(k==='ctl'){S.ctlState={I:0,prev:null};S.ctlViz=null;SLOTS.ctl.lastErr='';if(SLOTS.ctl.worker)SLOTS.ctl.worker.reset();logE(`Controller → ${({pp:'pure pursuit',rwf:'rear-wheel feedback',pid:'PID',dwa:'DWA',stanley:'Stanley',mpc:'MPC',custom:'your code'})[v]}`);}
   if(k==='agPred'&&SLOTS.pred.worker)SLOTS.pred.worker.reset();
   if(k==='vehicles'||k==='people'){if(k==='vehicles'){S.peds=S.peds.filter(p=>!p.car);if(v)carsInit();}logE(k==='people'?`People → ${v}`:`Other vehicles → ${v?'on':'off'}`);}
-  if(k==='bOff'){const n=beaconsOff().size;logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)`:'All beacons on');}
+  if(k==='bOff'){const n=beaconsOff().size,u=beaconUse();logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)${u?`; note: ${u}`:''}`:'All beacons on',n&&u&&P.loc!=='custom'?'warn':'');}
   if(k==='bOut'&&!live)logE(v>0?`Random beacon outages: each beacon down ${v} % of the time`:'Random beacon outages off');
   if(k==='seed'&&!live)logE(`Seed ${v} takes effect on Reset`);
   if(k==='model'){S.robot.d=0;S.robot.w=0;S.cmd={v:0,w:0,steer:0};
@@ -417,6 +417,14 @@ function lidarSense(){
 // Each beacon is a two-state Markov chain stepped at every beacon scan: an outage lasts bOutLen s on average
 // and a beacon is down bOut % of the time. Outages draw from their own stream, so the sensor noise is unchanged.
 function beaconsOff(){return new Set(String(P.bOff||'').split(',').filter(s=>s.trim()!=='').map(Number));}
+// How the active estimator depends on the beacons, in words (null: it needs them)
+function beaconUse(){
+  if(P.loc==='truth')return'ground truth localization ignores the beacons (the estimate is the true pose)';
+  if(P.loc==='dr')return'dead reckoning never uses the beacons (odometry only)';
+  if(P.loc==='pf'&&P.pfLidar&&P.per==='oracle')return'the particle filter also matches lidar against the prior map, so it can localize without beacons';
+  if(P.loc==='custom')return'your localizer gets the beacon readings that remain';
+  return null;
+}
 function beaconDown(id){return beaconsOff().has(id)||!!(S.bDown&&S.bDown[id]);}
 function beaconOutages(){
   const n=S.beacons.length;if(!S.bDown)S.bDown=new Array(n).fill(false);
@@ -428,11 +436,15 @@ function senseBeacons(){
   const r=S.robot,g=S.rngW,sh=allShapes(),out=[];
   const sr=0.08*P.lmK, sb=0.03*P.lmK;
   const off=beaconsOff();beaconOutages();
+  // why each beacon did or did not answer this scan, and when it last answered (for the UI; nothing reads it back)
+  if(!S.bWhy)S.bWhy=[];if(!S.bSeen)S.bSeen=S.beacons.map(()=>[]);
   for(const b of S.beacons){
-    if(off.has(b.id)||S.bDown[b.id])continue;
+    const W=S.bSeen[b.id];while(W.length&&W[0]<S.t-5)W.shift();
+    if(off.has(b.id)||S.bDown[b.id]){S.bWhy[b.id]=off.has(b.id)?'off':'outage';continue;}
     const dx=b.x-r.x,dy=b.y-r.y,d=hyp(dx,dy);
-    if(d>P.lmRange||d<0.2)continue;
-    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12)continue;
+    if(d>P.lmRange||d<0.2){S.bWhy[b.id]='range';continue;}
+    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12){S.bWhy[b.id]='blocked';continue;}
+    S.bWhy[b.id]='ok';W.push(S.t);
     out.push({id:b.id,r:d+sr*g.n(),b:wrap(Math.atan2(dy,dx)-r.th+sb*g.n())});
   }
   if(P.assoc==='unknown'&&P.clutter>0){for(let k=0;k<3;k++)if(g.u()<P.clutter/3)out.push({id:-1,fake:true,r:0.5+g.u()*(P.lmRange-0.5),b:(g.u()*2-1)*Math.PI});}
@@ -1006,6 +1018,7 @@ function startMission(){
   const names={sequential:'in order',greedy:'greedy nearest',optimal:'optimal'};
   logE(`Mission: ${F.queue.length} goal${F.queue.length>1?'s':''}, ${names[P.mis]}${r.cost!=null?` · cost ${r.cost.toFixed(1)}`:''}`);
 }
+const POSE_PLANNERS=['hybrid','rs','custom'],ALIGN_TOL=0.035;   // planners that take the goal heading; unicycle alignment tolerance [rad]
 const PLAN_NAMES={straight:'Straight',astar:'A*',rrtstar:'RRT*',rs:'Reeds–Shepp',hybrid:'Hybrid A*',stastar:'Space-time A*',custom:'Your code'};
 function doPlan(reason){
   const F=S.fsm;
@@ -1054,9 +1067,18 @@ function missionTick(){
       lastSeg=S.segIdx>=S.plan.segs.length-1;
     }
   }
-  const posed=isCar()&&wp.th!=null,headOK=!posed||Math.abs(wrap(e.th-wp.th))<0.2;
+  // A goal with a heading: the car's pose planners (Hybrid A*, Reeds–Shepp, your code) arrive with it; the unicycle
+  // drives to the point and then turns in place (F.align) until the estimate faces the goal heading within ALIGN_TOL.
+  // Point planners on the car cannot honour it, so the heading is reported and not waited for.
+  const posed=wp.th!=null&&(!isCar()||POSE_PLANNERS.includes(P.plan));
+  if(wp.th!=null&&isCar()&&!posed&&F.headWarn!==F.queue[0]){F.headWarn=F.queue[0];logE(`${PLAN_NAMES[P.plan]} plans to a point and ignores the goal heading; Hybrid A* or Reeds–Shepp arrive with it`,'warn');}
+  const hErr=posed?Math.abs(wrap(e.th-wp.th)):0,headOK=!posed||hErr<(isCar()?0.2:ALIGN_TOL);
   const legDone=!isCar()||!S.track||(S.track.total-project(e.x,e.y,true).s<0.08);
-  if(lastSeg&&headOK&&legDone&&hyp(e.x-wp.x,e.y-wp.y)<(posed?0.2:ARRIVE)){
+  const near=hyp(e.x-wp.x,e.y-wp.y)<(posed&&isCar()?0.2:ARRIVE);
+  if(posed&&!isCar()&&lastSeg&&near&&!headOK&&!F.align){F.align=true;F.prog={t:S.t,x:e.x,y:e.y};logE(`At goal ${wpLabel(F.queue[0])}: turning in place to ${deg(wp.th).toFixed(0)}° (${deg(hErr).toFixed(0)}° to go)`);}
+  if(F.align&&(!near||!posed)){F.align=false;}
+  if(F.align){if(!headOK)return;}
+  if(lastSeg&&headOK&&legDone&&near){F.align=false;
     const te=hyp(S.robot.x-wp.x,S.robot.y-wp.y),he=posed?Math.abs(deg(wrap(S.robot.th-wp.th))):0;
     logE(`Reached goal ${wpLabel(F.queue[0])} by estimate · true error ${te.toFixed(2)} m${posed?` · ${he.toFixed(0)}°`:''}`,(te>0.5||he>20)?'warn':'ok');
     wp.done=true;F.queue.shift();F.stuckN=0;S.ctlState={I:0,prev:null};
@@ -1397,9 +1419,13 @@ function builtinCmd(){const c=builtinRaw();
   // car: hold speed until the wheels have turned close to the commanded angle (dry steering at cusps)
   if(isCar()&&c.steer!=null&&P.ctl!=='mpc'){const de=Math.abs(c.steer-S.robot.d);if(de>0.1)c.v*=clamp(1-(de-0.1)/0.25,0,1);}
   return agSpeedCap(c);}
+// At a goal with a heading (unicycle): stop and turn in place, proportional on the heading error, within the turn-rate limit
+function alignCmd(){const wp=WPS[S.fsm.queue[0]],err=wp&&wp.th!=null?wrap(wp.th-S.est.th):0;S.ctlViz=null;
+  const wm=Math.min(P.wmax,1.5);return{v:0,w:Math.sign(err)*clamp(2.5*Math.abs(err),0.15,wm)};}
 function builtinRaw(){
   if(S.fsm.state==='LOST'){S.ctlViz=null;return{v:0,w:Math.min(0.6,P.wmax)};}
   if(S.fsm.state!=='DRIVE'||!S.track){S.ctlViz=null;return{v:0,w:0};}
+  if(S.fsm.align)return alignCmd();
   if(P.ctl==='pp')return ctlPP(); if(P.ctl==='pid')return ctlPID(); if(P.ctl==='dwa')return ctlDWA(); if(P.ctl==='stanley')return ctlStanley(); if(P.ctl==='rwf')return ctlRWF(); if(P.ctl==='mpc')return ctlMPC();
   return{v:0,w:0};
 }
@@ -2001,7 +2027,7 @@ async function advance(n){
       postSense();
       if(P.agPred==='custom'&&S.scanTick===S.tick&&agOn())await customPredict();
       agentsPlan();
-      const cmd=P.ctl==='custom'?await customCmd():builtinCmd();
+      const cmd=P.ctl==='custom'&&!S.fsm.align?await customCmd():builtinCmd();
       applyCmd(normCmd(cmd));
       agPost();
       recFrame();

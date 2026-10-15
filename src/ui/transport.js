@@ -32,11 +32,15 @@ function syncAnControls(){
   $('#an-amp').value=String(AN.stepAmp);$('#an-inja').value=AN.injAmp;
 }
 syncAnControls();
+$('#an-why').addEventListener('toggle',()=>{const o=$('#an-why').open;if(o!==!!AN.why){AN.why=o;renderAnalysis();}});
 $('#an-adv').addEventListener('toggle',()=>{const o=$('#an-adv').open;if(o!==AN.adv){AN.adv=o;renderAnalysis();}});
 $('#an-amp').onchange=e=>{AN.stepAmp=+e.target.value;renderAnalysis();};
 $('#an-inja').onchange=e=>{AN.injAmp=e.target.value;};
-$('#an-step').onclick=()=>{if(AN.loop==='spd'){if(!AN.resSpd)spdCompute();runSpeedStepTest();AN.msg=`Speed step test: +${fmt(AN.spdAmp||0.2)} m/s on the cruise speed in the full simulator (dashed amber).`;renderAnalysis();return;}if(!AN.res)anCompute();runStepTest();AN.msg=`Step test: ${AN.stepKind==='offset'?AN.stepAmp+' m path offset':biasUnit().val+biasUnit().unit+' actuator bias'} in the full simulator (dashed amber).`;renderAnalysis();};
+$('#an-step').onclick=()=>{if(AN.loop==='spd'){if(!AN.resSpd)spdCompute();runSpeedStepTest();AN.msg=`Speed step test: +${fmt(AN.spdAmp||0.2)} m/s on the cruise speed in the full simulator (dashed amber).`;renderAnalysis();return;}if(!AN.res)anCompute();runStepTest();anPlayStart();AN.msg=`Step test: ${AN.stepKind==='offset'?AN.stepAmp+' m path offset':biasUnit().val+biasUnit().unit+' actuator bias'} in the full simulator (dashed amber).`;renderAnalysis();};
 $('#an-inj').onclick=()=>{if(!AN.busy)runInjection();};
+$('#an-play').onclick=()=>{const pl=AN.play,R=AN.res;if(!R)return;if(!pl||pl.t>=R.tEnd-1e-9)return anPlayStart();pl.on=!pl.on;pl.last=performance.now();if(pl.on)requestAnimationFrame(anPlayTick);anPlayUI();};
+$('#an-scrub').oninput=e=>{const R=AN.res;if(!R)return;const sp=AN.play?AN.play.speed:1;AN.play={t:+e.target.value/100,on:false,last:performance.now(),speed:sp};drawStep(R);anPlayUI();};
+seg($('#an-pspeed'),[['0.5','½×'],['1','1×'],['2','2×']],()=>String(AN.play?AN.play.speed:1),v=>{if(!AN.play)AN.play={t:0,on:false,last:performance.now(),speed:1};AN.play.speed=+v;});
 const PLOT_OPTS=[['pos','Position error'],['eth','θ error'],['cte','Cross-track'],['v','Speed'],['turn','Steering'],['st','ST graph']];
 seg($('#plotsel'),PLOT_OPTS,()=>plotCh,v=>{plotCh=v;drawPlot();});
 $('#plotsel2').onchange=e=>{plotCh2=e.target.value;drawPlot();};

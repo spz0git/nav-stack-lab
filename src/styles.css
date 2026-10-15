@@ -283,6 +283,7 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .bchips-all{display:flex;gap:14px;margin-top:4px}
 @media (max-width:760px){.bchips button{min-width:2.6rem;padding:9px 4px}}
 .an-exp{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.an-play{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:.8rem}.an-play[hidden]{display:none}.an-play input[type=range]{flex:1 1 140px;min-width:100px;accent-color:var(--amber)}.an-pt{min-width:7.5em;color:var(--muted);order:9;flex:1 1 100%}
 .an-msg{font-size:.82rem;color:var(--muted);flex:1 1 220px}
 .an-foot{font-size:.78rem}
 .an-story{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;font-size:.88rem;display:flex;flex-direction:column;gap:6px}

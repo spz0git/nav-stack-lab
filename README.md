@@ -76,9 +76,7 @@ tests/dyntest.py     the car with tyre slip against chapter 1's theory; Analyze 
 
 The browser suite takes about three minutes. `NAV_LAB_CHROMIUM=/path/to/chrome` makes the tests use that browser
 instead of Playwright's own; `NAV_LAB_PAGE=…` tests another build than `dist/nav-stack-lab.html`
-(`NAV_LAB_CORE=…` does the same for the Node tests). The headless core also runs in Node without a browser:
-`node -e "..."` against `dist/core-worker.js` reproduces the page's runs (see `src/worker/main.js`).
-
+(`NAV_LAB_CORE=…` does the same for the Node tests).
 ## Contribute
 
 Issues and pull requests are welcome: a new lesson, a chapter section, a planner heuristic, a signal, a bug with a

@@ -11,7 +11,9 @@ function buildLevels(){
 }
 async function tryGo(cfg){
   firstRunDone();
-  if(cfg.seed==='next')P.seed=P.seed%99+1;
+  // The seed: 'next' steps it; a number pins it; a Try that names a level otherwise runs at the default seed, so the
+  // numbers quoted in the lessons (measured at seed 7) hold whatever ran before. Level Try buttons keep the current seed.
+  if(cfg.seed==='next')P.seed=P.seed%99+1;else if(typeof cfg.seed==='number')P.seed=cfg.seed;else if(cfg.level!=null)P.seed=DEFAULTS.seed;
   if(cfg.level!=null)LV=LEVELS[cfg.level];
   if(!cfg.keep)loadLevel(LEVELS.indexOf(LV));
   for(const[k,v]of Object.entries(cfg.set||{}))setParam(k,v,false);

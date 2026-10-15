@@ -73,10 +73,10 @@ $$
 \begin{bmatrix} p \\ v \end{bmatrix}_{t+1} = \underbrace{\begin{bmatrix} 1 & \Delta t \\ 0 & 1 \end{bmatrix}}_{F} \begin{bmatrix} p \\ v \end{bmatrix}_t + \begin{bmatrix} \Delta t^2/2 \\ \Delta t \end{bmatrix} a, \qquad a \sim \mathcal N(0, \sigma_a^2)
 $$
 
-The acceleration enters through the vector $\Gamma = [\Delta t^2/2, \Delta t]^{\mathsf T}$, so the process noise covariance is $Q = \Gamma \sigma_a^2 \Gamma^{\mathsf T}$:
+The acceleration enters through the vector $\Gamma = [\Delta t^2/2, \Delta t]^{\mathsf T}$, so the process noise covariance is $R = \Gamma \sigma_a^2 \Gamma^{\mathsf T}$ ($R$ for the process noise in state space and $Q$ for the measurement noise, as in chapter 2 and in *Probabilistic Robotics*; many Kalman-filter texts swap the two letters):
 
 $$
-Q = \sigma_a^2 \begin{bmatrix} \Delta t^4/4 & \Delta t^3/2 \\ \Delta t^3/2 & \Delta t^2 \end{bmatrix}
+R = \sigma_a^2 \begin{bmatrix} \Delta t^4/4 & \Delta t^3/2 \\ \Delta t^3/2 & \Delta t^2 \end{bmatrix}
 $$
 
 which is exactly the "a, b, c" update in the lab's tracker. The two axes share one covariance because the noise is isotropic, so the filter stores three numbers, $P_{pp}, P_{pv}, P_{vv}$, not sixteen. The measurement is position only, $z = p + \nu$, $\nu \sim \mathcal N(0, \sigma_z^2)$ with $\sigma_z$ = 0.1 m. Velocity is never measured. It is inferred by the filter from how the position innovations accumulate, which is the source of everything that is hard about tracking.

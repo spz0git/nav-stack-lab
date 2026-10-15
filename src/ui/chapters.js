@@ -30,7 +30,8 @@ const LIVE={
   rAtT:()=>liveF(0.35+P.agGrow*P.agT,2),
   // vehicle models (chapter 1)
   wheelbase:()=>liveF(P.wheelbase,2),steerMaxDeg:()=>String(P.steerMaxDeg),ayPlan:()=>liveF(anV0()**2/planR(),2),ayFrac:()=>liveF(100*anV0()**2/planR()/Math.max(0.01,P.alat),0),
-  betaMax:()=>liveF(Math.atan(0.5*Math.tan(steerMax()))*180/Math.PI,1),
+  betaMax:()=>liveF(Math.atan((1-P.lf/P.wheelbase)*Math.tan(steerMax()))*180/Math.PI,1),
+  lr:()=>liveF(P.wheelbase-P.lf,2),
   // the car with tyre slip (chapter 1 §4–6), from the current tyre settings whichever vehicle is selected
   vehNow:()=>isDyn()?'the car with tyre slip':isCar()?'the kinematic car':'the unicycle',
   dynM:()=>liveF(P.mass,0),dynIz:()=>liveF(P.Iz,2),dynLf:()=>liveF(dynInfo().lf,2),dynLr:()=>liveF(dynInfo().lr,2),dynCf:()=>liveF(P.Cf,0),dynCr:()=>liveF(P.Cr,0),dynMu:()=>liveF(P.mu,2),

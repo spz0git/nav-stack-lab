@@ -3,7 +3,7 @@
    Operating point: straight path, speed v₀ = cruise speed, small errors.
    Controller gains are read off the real controller code by finite differences.
    ============================================================ */
-const AN={mode:'sim',loop:'lat',curveR:0,useEst:false,stepKind:'offset',showCL:true,nyqScale:'log',stepAmp:0.2,injAmp:'small',spdAmp:0.2,meas:{step:null,freq:null,spd:null},busy:false,res:null,resSpd:null,dirty:true,msg:''};
+const AN={mode:'sim',loop:'lat',adv:false,wi:null,curveR:0,useEst:false,stepKind:'offset',showCL:true,nyqScale:'log',stepAmp:0.2,injAmp:'small',spdAmp:0.2,meas:{step:null,freq:null,spd:null},busy:false,res:null,resSpd:null,dirty:true,msg:''};
 const anCtl=()=>(P.ctl==='stanley'&&!isCar())?'pp':P.ctl;
 const anSupported=()=>['pp','rwf','stanley','pid','mpc'].includes(anCtl());
 const latN=()=>Math.round(P.latency/DT);
@@ -209,4 +209,53 @@ async function runInjection(){
     const L=Cx.scale(Cx.div(Uc,Up),-1);AN.meas.freq.push({w,L,mag:Cx.abs(L),ph:Cx.arg(L)});
     AN.msg=`Measuring loop gain: ${i+1}/${n} frequencies`;renderAnalysis();await new Promise(r=>setTimeout(r,0));}
   AN.busy=false;AN.msg=`Measured ${n} points by injecting a ${big?'large':'small'} sine at the actuator input.`;renderAnalysis();
+}
+
+// ---- what-if designs for Analyze: drag a closed-loop pole, get the gains that put it there ----
+// The what-if loop is the same 20 Hz loop (hold delay, latency, actuator lag) with a state-feedback controller
+// u = −(K_e e + K_θ θₑ). Without the delay its characteristic polynomial is s² + g K_θ s + g v₀ K_e.
+function staticModel(M,Ke,Kth){return{...M,kind:'static',Ke,Kth,K:undefined,N:[M.g*Ke*M.v0,M.g*Kth],D:pMul([0,0,1],M.tau>0?[1,M.tau]:[1])};}
+function domOf(ps){let dom=null;for(const s of ps){if(s[1]<-1e-9||Math.hypot(s[0],s[1])<1e-6)continue;if(!dom||s[0]>dom[0]||(Math.abs(s[0]-dom[0])<1e-6&&s[1]>dom[1]))dom=s;}return dom;}
+function polesOf(M2){const L=linLayout(M2),ev=eig(clMatrix(M2,L,1));return{L,ev,ps:ev.map(z=>zToS(z,M2.T)).filter(Boolean),unstable:ev.some(z=>Cx.abs(z)>1+1e-7)};}
+function nearestPole(ps,tg){let b=null,bd=Infinity;for(const s of ps){if(s[1]<-1e-9)continue;const d=Math.hypot(s[0]-tg[0],s[1]-tg[1]);if(d<bd){bd=d;b=s;}}return b;}
+// two free gains: start from the delay-free formulas and correct the target until the real pole lands on it
+function placeTwo(M,tg){
+  let t=tg.slice(),best=null;
+  for(let i=0;i<10;i++){const wn2=t[0]*t[0]+t[1]*t[1],Kth=Math.max(0,-2*t[0]/M.g),Ke=Math.max(0,wn2/(M.g*M.v0));
+    const r=polesOf(staticModel(M,Ke,Kth)),d=nearestPole(r.ps,tg);if(!d)break;const err=Math.hypot(d[0]-tg[0],d[1]-tg[1]);
+    if(!best||err<best.err)best={Ke,Kth,err};if(err<1e-3*Math.max(1,Math.hypot(tg[0],tg[1])))break;
+    t=[t[0]+0.8*(tg[0]-d[0]),Math.max(0,t[1]+0.8*(tg[1]-d[1]))];}
+  if(!best){const wn2=tg[0]*tg[0]+tg[1]*tg[1];best={Ke:Math.max(0,wn2/(M.g*M.v0)),Kth:Math.max(0,-2*tg[0]/M.g),err:null};}
+  return best;
+}
+// one-knob trackers: the curve their slowest pole pair follows as the knob turns (gains read from the code at each value)
+function anKnobCurve(R){
+  const M=R.M;if(M.kind!=='static')return null;const v=M.v0;let K;
+  if(M.ctl==='pp')K={key:'ppL0',sym:'L_d',unit:'m',lo:Math.max(0.1,0.1+P.ppK*v),hi:2.5+P.ppK*v,cur:Math.max(0.1,P.ppL0+P.ppK*v),toParam:x=>x-P.ppK*v,set:x=>{P.ppL0=x-P.ppK*v;},step:0.05};
+  else if(M.ctl==='stanley')K={key:'stanK',sym:'k',unit:'',lo:0.1,hi:8,cur:P.stanK,toParam:x=>x,set:x=>{P.stanK=x;},step:0.1};
+  else return null;
+  const saved=P[K.key];K.pts=[];
+  try{for(let i=0;i<=60;i++){const x=K.lo*Math.pow(K.hi/K.lo,i/60);K.set(x);const G=anGains(v),r=polesOf(staticModel(M,G.e,G.th));K.pts.push({x,Ke:G.e,Kth:G.th,dom:domOf(r.ps)});}}
+  finally{P[K.key]=saved;}
+  return K;
+}
+// rear-wheel feedback's linear gains per unit of k_e and k_θ (to turn a two-gain design into its settings)
+function rwfUnits(v0){
+  const saved={ctl:P.ctl,rwKe:P.rwKe,rwKth:P.rwKth};
+  try{P.ctl='rwf';P.rwKe=1;P.rwKth=0;const a=anGains(v0);P.rwKe=0;P.rwKth=1;const b=anGains(v0);return{e:a.e,th0:a.th,th:b.th-a.th};}
+  finally{Object.assign(P,saved);}
+}
+function anWhatIf(R,tg){
+  const M=R.M;let r;
+  if(R.knob){let bi=-1,bd=Infinity;R.knob.pts.forEach((q,i)=>{if(!q.dom)return;const d=Math.hypot(q.dom[0]-tg[0],q.dom[1]-tg[1]);if(d<bd){bd=d;bi=i;}});
+    if(bi<0)return null;const q=R.knob.pts[bi];r={Ke:q.Ke,Kth:q.Kth,x:q.x,tg:q.dom.slice(),knob:true};}
+  else{const b=placeTwo(M,tg);r={Ke:b.Ke,Kth:b.Kth,tg:tg.slice(),err:b.err};}
+  const M2=staticModel(M,r.Ke,r.Kth),pr=polesOf(M2);
+  r.ps=pr.ps;r.unstable=pr.unstable;r.dom=domOf(pr.ps);
+  r.step=linResponse(M2,pr.L,'offset',R.tEnd);r.bias=linResponse(M2,pr.L,'bias',R.tEnd);r.sm=stepMetrics(r.step,'offset');r.smB=stepMetrics(r.bias,'bias');
+  if(r.knob){const pv=R.knob.toParam(r.x),st=R.knob.step,val=Math.round(pv/st)*st;r.set={[R.knob.key]:+val.toFixed(2)};r.setTxt=`${R.knob.key==='ppL0'?'L₀':'k'} = ${val.toFixed(2)}${R.knob.unit?' '+R.knob.unit:''}`;}
+  else{const u=rwfUnits(M.v0),ke=u.e>1e-9?r.Ke/u.e:0,kth=u.th>1e-9?(r.Kth-u.th0)/u.th:0,cke=clamp(ke,0,12),ckth=clamp(kth,0,6);
+    r.set={ctl:'rwf',rwKe:+(Math.round(cke*10)/10).toFixed(1),rwKth:+(Math.round(ckth*10)/10).toFixed(1)};r.clamped=Math.abs(cke-ke)>0.05||Math.abs(ckth-kth)>0.05;
+    r.setTxt=`k_e = ${r.set.rwKe.toFixed(1)} 1/m², k_θ = ${r.set.rwKth.toFixed(1)} 1/m`;}
+  return r;
 }

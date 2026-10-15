@@ -9,7 +9,6 @@ function loop(ts){
   if(AN.mode==='sim'){drawMaybeReplay();if(frame++%3===0){drawPlot();refreshAll();syncScrub();}}
   requestAnimationFrame(loop);
 }
-{const ex=$('.an-exp'),grid=$('.an-grid');if(ex&&grid)grid.parentNode.insertBefore(ex,grid);}
 {const right=document.createElement('div');right.className='right';const ctxEl=$('.ctx'),con=$('.console');ctxEl.parentNode.insertBefore(right,ctxEl);right.appendChild(ctxEl);right.appendChild(con);right.appendChild($('#learnview'));}
 const mo=new MutationObserver(()=>{tokKey='';if(AN.mode==='an')renderAnalysis();});mo.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 window.addEventListener('resize',()=>{if(AN.mode==='an')renderAnalysis();else{draw();drawPlot();}});

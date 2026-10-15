@@ -32,7 +32,8 @@ function syncAnControls(){
   $('#an-amp').value=String(AN.stepAmp);$('#an-inja').value=AN.injAmp;
 }
 syncAnControls();
-$('#an-amp').onchange=e=>{AN.stepAmp=+e.target.value;};
+$('#an-adv').addEventListener('toggle',()=>{const o=$('#an-adv').open;if(o!==AN.adv){AN.adv=o;renderAnalysis();}});
+$('#an-amp').onchange=e=>{AN.stepAmp=+e.target.value;renderAnalysis();};
 $('#an-inja').onchange=e=>{AN.injAmp=e.target.value;};
 $('#an-step').onclick=()=>{if(AN.loop==='spd'){if(!AN.resSpd)spdCompute();runSpeedStepTest();AN.msg=`Speed step test: +${fmt(AN.spdAmp||0.2)} m/s on the cruise speed in the full simulator (dashed amber).`;renderAnalysis();return;}if(!AN.res)anCompute();runStepTest();AN.msg=`Step test: ${AN.stepKind==='offset'?AN.stepAmp+' m path offset':biasUnit().val+biasUnit().unit+' actuator bias'} in the full simulator (dashed amber).`;renderAnalysis();};
 $('#an-inj').onclick=()=>{if(!AN.busy)runInjection();};

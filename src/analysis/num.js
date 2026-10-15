@@ -11,6 +11,24 @@ const pMul=(a,b)=>{const r=new Array(a.length+b.length-1).fill(0);for(let i=0;i<
 const pAdd=(a,b)=>{const n=Math.max(a.length,b.length),r=[];for(let i=0;i<n;i++)r.push((a[i]||0)+(b[i]||0));return r;};
 const pScale=(a,k)=>a.map(v=>v*k);
 function pEval(p,s){let r=[0,0];for(let i=p.length-1;i>=0;i--)r=Cx.add(Cx.mul(r,s),[p[i],0]);return r;}
+// matrix exponential of a small real matrix: scaling and squaring with a Taylor series
+function expm(A){
+  const n=A.length,mm=(X,Y)=>X.map(r=>Y[0].map((_,j)=>r.reduce((s,x,l)=>s+x*Y[l][j],0)));
+  let nrm=0;for(const r of A)nrm=Math.max(nrm,r.reduce((s,x)=>s+Math.abs(x),0));
+  const k=nrm>0.5?Math.ceil(Math.log2(nrm/0.5)):0,X=A.map(r=>r.map(x=>x*Math.pow(2,-k)));
+  let E=X.map((r,i)=>r.map((_,j)=>i===j?1:0)),T=E;
+  for(let m=1;m<=16;m++){T=mm(T,X).map(r=>r.map(x=>x/m));E=E.map((r,i)=>r.map((x,j)=>x+T[i][j]));}
+  for(let i=0;i<k;i++)E=mm(E,E);
+  return E;
+}
+// solve A x = b for a small complex matrix (entries [re, im]) by Gaussian elimination with partial pivoting
+function cxSolve(A,b){
+  const n=A.length,M=A.map((r,i)=>r.map(v=>v.slice()).concat([b[i].slice()]));
+  for(let c=0;c<n;c++){let p=c;for(let i=c+1;i<n;i++)if(Cx.abs(M[i][c])>Cx.abs(M[p][c]))p=i;[M[c],M[p]]=[M[p],M[c]];
+    for(let i=c+1;i<n;i++){const f=Cx.div(M[i][c],M[c][c]);for(let j=c;j<=n;j++)M[i][j]=Cx.sub(M[i][j],Cx.mul(f,M[c][j]));}}
+  const x=new Array(n);for(let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s=Cx.sub(s,Cx.mul(M[i][j],x[j]));x[i]=Cx.div(s,M[i][i]);}
+  return x;
+}
 // roots (Aberth–Ehrlich); zero roots split off exactly
 function pRoots(p){
   let a=p.slice();while(a.length>1&&Math.abs(a[a.length-1])<1e-14*Math.max(...a.map(Math.abs)))a.pop();

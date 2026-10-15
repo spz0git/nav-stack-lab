@@ -69,7 +69,7 @@ function drawNyq(R){
   c.strokeStyle=TOK.bad;c.lineWidth=2.5*dpr;const s=6*dpr;c.beginPath();c.moveTo(X(-1)-s,Y(0)-s);c.lineTo(X(-1)+s,Y(0)+s);c.moveTo(X(-1)-s,Y(0)+s);c.lineTo(X(-1)+s,Y(0)-s);c.stroke();
   label(G,'−1',X(-1)-8*dpr,Y(0)-6*dpr,TOK.bad,'right','bottom');
   if(AN.meas.freq){c.fillStyle=TOK.amber;for(const q of AN.meas.freq){const u=map(q.L);c.beginPath();c.arc(X(u[0]),Y(u[1]),3.2*dpr,0,TAU);c.fill();}}
-  const ok=F.Ncw===0;label(G,`N = ${F.Ncw} encirclement${Math.abs(F.Ncw)===1?'':'s'} of −1 · Z = N + P = ${F.Ncw}  →  ${ok?'stable':'unstable'}`,6*dpr,h-4*dpr,ok?TOK.ok:TOK.bad,'left','bottom');
+  const Z=F.Ncw+(F.P||0),ok=Z===0;label(G,`N = ${F.Ncw} encirclement${Math.abs(F.Ncw)===1?'':'s'} of −1 · Z = N + P = ${F.P?`${F.Ncw} + ${F.P} = `:''}${Z}  →  ${ok?'stable':'unstable'}`,6*dpr,h-4*dpr,ok?TOK.ok:TOK.bad,'left','bottom');
   label(G,lg?'radius log₂(1+|L|): −1 and the unit circle stay in place':'linear scale',6*dpr,4*dpr,TOK.muted,'left','top');
 }
 function drawStep(R){
@@ -127,8 +127,8 @@ function blockDiagram(R){
   ${box(118,190,'Controller',C.length>34?C.slice(0,34)+'…':C)}${ar(308,330)}
   ${box(330,92,'e^(−sT_d)',`T_d ${fmt(M.Td*1000,0)} ms`)}${ar(422,442)}
   ${box(442,116,'Actuator',act)}${ar(558,578)}
-  ${box(578,92,'Heading',car?`v/L · 1/s`:'1/s')}${ar(670,690)}
-  ${box(690,92,'Lateral',`v/s, v ${fmt(M.v0)}`)}${ar(782,830)}<text x="836" y="46" class="bd-s" text-anchor="start">e</text>
+  ${box(578,92,M.dyn?'Tyres, heading':'Heading',M.dyn?'G_r(s) · 1/s':car?`v/L · 1/s`:'1/s')}${ar(670,690)}
+  ${box(690,92,'Lateral',M.dyn?`(v + slide)/s`:`v/s, v ${fmt(M.v0)}`)}${ar(782,830)}<text x="836" y="46" class="bd-s" text-anchor="start">e</text>
   <polyline points="806,42 806,92 86,92 86,52" class="bd-l" fill="none"/><path d="M86 52 l-4 7 h8 z" class="bd-a"/>
   <polyline points="680,42 680,80 213,80 213,62" class="bd-l bd-dash" fill="none"/><text x="446" y="76" class="bd-s">θₑ</text><text x="446" y="88" class="bd-s">e</text></svg>`;
 }
@@ -225,7 +225,9 @@ function anStory(R){
   else{const K=M.K,f=x=>fmt(Math.abs(x)*180/Math.PI,0);ctl=`MPC replans every tick, but near this situation it acts like a feedback on the <i>rate</i> of ${car?'steering':'turning'}: it changes the ${car?'steering angle':'turn rate'} by about <b>${f(K.e*0.1)}°/s${car?'':'²'}</b> for every 10 cm of offset and <b>${f(K.th*d10)}°/s${car?'':'²'}</b> for every 10° of heading error, and backs off in proportion to the ${car?'steering':'turning'} it already has (gains read from the MPC by finite differences).`;}
   const sw=v*Math.sin(d10)*100,Td=M.Td*1000;
   h+=`<p><b>The controller</b> (${ctlN}): ${ctl}</p>`;
-  h+=`<p><b>The vehicle.</b> ${car?`The heading turns at v·tan δ / L = ${fmt(v/P.wheelbase,2)} rad/s per radian of steering (wheelbase ${fmt(P.wheelbase,2)} m)`:'The heading turns at the commanded rate'}; pointing 10° away from the path at ${fmt(v)} m/s drifts it sideways at <b>${fmt(sw,0)} cm/s</b>. So offset builds up from heading error, and heading from steering: two integrations, which is why the loop can overshoot.</p>`;
+  if(M.dyn){const D=dynInfo(),Gr=M.dyn.nr[0]/M.dyn.det[0],md=dynModes(v);
+    h+=`<p><b>The vehicle: a car with tyre slip.</b> A tyre pushes sideways only by slipping, so steering does not set the turn rate directly: the front tyres must slip before they push, and the yaw rate follows the steering through the car's own yaw mode (${md.text}). It settles at <b>${fmt(Gr,2)} rad/s per radian of steering</b>, ${fmt(100*Gr/M.g,0)} % of what the kinematic car would do (v/L = ${fmt(M.g,2)}): this car ${D.K>0?`understeers (K<sub>us</sub> ${fmt(D.K,4)} rad per m/s², characteristic speed ${fmt(D.vch,2)} m/s)`:D.K<0?`oversteers (critical speed ${fmt(D.vcrit,2)} m/s)`:'is neutral'}. While it turns, the rear axle also slides sideways. Pointing 10° away from the path still drifts it sideways at <b>${fmt(sw,0)} cm/s</b>. So offset builds up from heading, heading from yaw rate, and yaw rate from steering through the tyres: the two integrations of the kinematic car plus a lag, which costs phase. The model holds while the tyres stay below their grip limit of μg = ${fmt(D.aMax,2)} m/s².</p>`;}
+  else h+=`<p><b>The vehicle.</b> ${car?`The heading turns at v·tan δ / L = ${fmt(v/P.wheelbase,2)} rad/s per radian of steering (wheelbase ${fmt(P.wheelbase,2)} m)`:'The heading turns at the commanded rate'}; pointing 10° away from the path at ${fmt(v)} m/s drifts it sideways at <b>${fmt(sw,0)} cm/s</b>. So offset builds up from heading error, and heading from steering: two integrations, which is why the loop can overshoot.</p>`;
   h+=`<p><b>Delays.</b> The ${car?'wheels':'motors'} act on a measurement about <b>${fmt(Td,0)} ms</b> old (half of the 50 ms control tick${M.nL?` plus ${fmt(M.nL*DT*1000,0)} ms of latency`:''})${M.tau>0?`, and the actuator follows its command with a lag τ = ${fmt(M.tau,2)} s`:''}. Delay is what eventually makes a fast controller oscillate.</p>`;
   return h;
 }
@@ -253,7 +255,17 @@ function anPzCaption(R){
 function anApplyWhatIf(){const wi=AN.wi;if(!wi)return;const set=wi.set;AN.wi=null;
   if(set.ctl&&set.ctl!==P.ctl)setParam('ctl',set.ctl,false);for(const[k,v]of Object.entries(set))if(k!=='ctl')setParam(k,v,false);
   logE(`Analyze: applied ${wi.setTxt}${set.ctl&&set.ctl!=='rwf'?'':''}`);renderAllPanes();anInvalidate();renderAnalysis();}
+// the car with tyre slip: the plant in numbers (yaw rate per steering angle, with the tyres' yaw mode)
+function anDynTF(M){
+  const D=M.dyn,pn=p=>p.map(x=>fmt(x,2)),[n0,n1]=pn(D.nr),[d0,d1]=pn(D.det),[m0,m1]=pn(D.nvy),Gr0=D.nr[0]/D.det[0],md=dynModes(M.v0);
+  return`<p><b>The plant with tyre slip.</b> Steering does not set the yaw rate directly; the tyres do, through the car's own yaw mode: G<sub>r</sub>(s) = r/δ = (${n1} s + ${n0}) / (s² + ${d1} s + ${d0}), and the lateral velocity G<sub>vy</sub>(s) = (${m1} s + ${m0}) / (same). Then θ̇ₑ = r and ė = v₀ θₑ + v<sub>y</sub> − l<sub>r</sub> r (the rear axle slides sideways at v<sub>y</sub> − l<sub>r</sub> r), so the vehicle part of L(s) is K<sub>e</sub>·(v₀ G<sub>r</sub>/s + G<sub>vy</sub> − l<sub>r</sub> G<sub>r</sub>)/s + K<sub>θ</sub>·G<sub>r</sub>/s. Steady gain G<sub>r</sub>(0) = ${fmt(Gr0,2)} 1/s against the kinematic v₀/L = ${fmt(M.g,2)} (${fmt(100*Gr0/M.g,0)} %); yaw mode ${md.text}. The 20 Hz loop uses the exact sampled plant (δ held over each tick), not the T/2 delay.</p>`;
+}
 function anTF(R){
+  const M=R.M,g=M.g,v=M.v0,lag=M.tau>0?` · 1/(${fmt(M.tau,2)}s + 1)`:'',dl=`e<sup>−${fmt(M.Td,3)}s</sup>`;
+  if(M.dyn)return anDynTF(M)+anTFkin(R).replace('<p><b>Transfer function.</b> ','<p><b>Transfer function, if the car were kinematic</b> (for comparison): ').replace('the exact 20 Hz loop with the delay gives','the exact 20 Hz loop with the delay and the tyres gives');
+  return anTFkin(R);
+}
+function anTFkin(R){
   const M=R.M,g=M.g,v=M.v0,lag=M.tau>0?` · 1/(${fmt(M.tau,2)}s + 1)`:'',dl=`e<sup>−${fmt(M.Td,3)}s</sup>`;
   let h='<p><b>Transfer function.</b> ';
   if(M.kind==='static'){const a=g*M.Kth,b=g*v*M.Ke,wn=Math.sqrt(Math.max(0,b)),z=wn>0?a/(2*wn):0;
@@ -279,7 +291,7 @@ function renderAnalysis(){
   if(AN.loop==='spd')return renderSpeed();
   if(AN.dirty||!AN.res){anCompute();AN.dirty=false;AN.wi=null;}
   const R=AN.res,M=R.M,ctlN=CTL_NAMES[anCtl()]||P.ctl;
-  $('#an-op').innerHTML=`<b>${isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · ${anR()?`left turn R ${anR()} m`:'straight path'} at ${fmt(M.v0)} m/s · settings come from the Control and Vehicle tabs`;
+  $('#an-op').innerHTML=`<b>${isDyn()?'Car with tyre slip':isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · ${anR()?`left turn R ${anR()} m`:'straight path'} at ${fmt(M.v0)} m/s · settings come from the Control and Vehicle tabs`;
   if(M.kind==='none'){$('#an-body').hidden=true;$('#an-none').hidden=false;
     $('#an-none').innerHTML=`<p><b>${ctlN}</b> has no linear model to analyze. ${P.ctl==='dwa'?'DWA picks the best of a grid of sampled commands, so its output is piecewise constant in the state and has no meaningful derivative.':'Your code runs as a black box in a worker.'} Pick pure pursuit, rear-wheel feedback, Stanley (car), PID or MPC in the Control tab.</p>`;return;}
   $('#an-body').hidden=false;$('#an-none').hidden=true;
@@ -302,7 +314,7 @@ function renderAnalysis(){
 function renderSpeed(){
   if(AN.dirty||!AN.resSpd){spdCompute();AN.dirty=false;}
   const R=AN.resSpd,M=R.M,ctlN=CTL_NAMES[anCtl()]||P.ctl,ms=AN.meas.spd;
-  $('#an-op').innerHTML=`<b>${isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · speed loop at ${fmt(M.v0)} m/s`;
+  $('#an-op').innerHTML=`<b>${isDyn()?'Car with tyre slip':isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · speed loop at ${fmt(M.v0)} m/s`;
   if(M.kind==='none'){$('#an-body').hidden=true;$('#an-none').hidden=false;$('#an-none').innerHTML=`<p><b>${ctlN}</b> runs as a black box. Pick a built-in tracker.</p>`;return;}
   $('#an-body').hidden=false;$('#an-none').hidden=true;
   const mpc=M.kind==='mpc',sm=R.smOff,msm=ms?spdMetrics(ms.data):null,amp=AN.spdAmp||0.2;

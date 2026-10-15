@@ -3,18 +3,19 @@
    Motion planning: straight line / A* / RRT*
    ============================================================ */
 const NB=[[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,SQ2],[1,-1,SQ2],[-1,1,SQ2],[-1,-1,SQ2]];
-function gridSearch(s,g,eps){
+function gridSearch(s,g,eps,tr){   // tr: an object to receive the expansion order (closedAt, openAt: 1-based step)
   const cm=S.cm,gs=new Float32Array(NC).fill(Infinity),par=new Int32Array(NC).fill(-1),closed=new Uint8Array(NC),heap=new Heap();
   const gi=g>=0?g%GW:0,gj=g>=0?(g/GW)|0:0;
   const h=(i,j)=>{if(g<0)return 0;const dx=Math.abs(i-gi),dy=Math.abs(j-gj);return (Math.max(dx,dy)+(SQ2-1)*Math.min(dx,dy))*RES*eps;};
   gs[s]=0;heap.push(s,h(s%GW,(s/GW)|0));let exp=0,found=false;
-  while(heap.size){const u=heap.pop();if(closed[u])continue;closed[u]=1;exp++;if(u===g){found=true;break;}
+  if(tr){tr.order=new Int32Array(NC);tr.closedAt=new Int32Array(NC);tr.openAt=new Int32Array(NC).fill(-1);tr.openAt[s]=0;}
+  while(heap.size){const u=heap.pop();if(closed[u])continue;closed[u]=1;exp++;if(tr){tr.order[exp-1]=u;tr.closedAt[u]=exp;}if(u===g){found=true;break;}
     const ui=u%GW,uj=(u/GW)|0;
     for(const[di,dj,c]of NB){const vi=ui+di,vj=uj+dj;if(vi<0||vj<0||vi>=GW||vj>=GH)continue;const v=vj*GW+vi;
       if(cm.lethal[v]||closed[v])continue;
       if(di&&dj&&(cm.lethal[uj*GW+vi]||cm.lethal[vj*GW+ui]))continue;
       const ng=gs[u]+c*RES*(1+PENW*cm.pen[v]);
-      if(ng<gs[v]){gs[v]=ng;par[v]=u;heap.push(v,ng+h(vi,vj));}}}
+      if(ng<gs[v]){gs[v]=ng;par[v]=u;heap.push(v,ng+h(vi,vj));if(tr&&tr.openAt[v]<0)tr.openAt[v]=exp;}}}
   return{gs,par,closed,exp,found};
 }
 const center=k=>[(k%GW+.5)*RES,(((k/GW)|0)+.5)*RES];
@@ -30,8 +31,9 @@ function astar(sx,sy,gx,gy){
   if(s<0||g<0)return{ok:false,reason:'outside the map'};
   if(S.cm.lethal[g])return{ok:false,reason:goalBlocked(gx,gy)||'goal is inside an inflated obstacle'};
   if(S.cm.lethal[s]){s=nearestFree(s);if(s<0)return{ok:false,reason:'start is enclosed'};}
-  const R=gridSearch(s,g,P.eps);
+  const tr={},R=gridSearch(s,g,P.eps,tr);
   S.search={type:'astar',closed:R.closed};
+  S.searchTrace={type:'grid',name:'A*',n:R.exp,order:tr.order,closedAt:tr.closedAt,openAt:tr.openAt,par:R.par};   // for step-by-step playback
   if(!R.found)return{ok:false,reason:'no route in the current costmap',exp:R.exp};
   const cells=[];for(let k=g;k>=0;k=R.par[k])cells.push(k);cells.reverse();
   // keep only turning points
@@ -44,7 +46,7 @@ function astar(sx,sy,gx,gy){
 function rrtstar(sx,sy,gx,gy){
   const g=S.rngA,cm=S.cm;
   const gk=cellIdx(gx,gy);if(gk<0||cm.lethal[gk])return{ok:false,reason:(gk>=0&&goalBlocked(gx,gy))||'goal is inside an inflated obstacle'};
-  const X=[sx],Y=[sy],Pa=[-1],Co=[0],step=0.6,gam=8;
+  const X=[sx],Y=[sy],Pa=[-1],Co=[0],step=0.6,gam=8,Pa0=[-1],QX=[sx],QY=[sy],rew=[];   // Pa0, QX/QY, rew: for playback
   for(let it=0;it<P.rrtIt;it++){
     let qx,qy;if(g.u()<0.1){qx=gx;qy=gy;}else{qx=g.u()*W;qy=g.u()*H;}
     let ni=0,nd=Infinity;for(let i=0;i<X.length;i++){const d=(X[i]-qx)**2+(Y[i]-qy)**2;if(d<nd){nd=d;ni=i;}}
@@ -57,14 +59,14 @@ function rrtstar(sx,sy,gx,gy){
     if(segClear(X[ni],Y[ni],nx,ny,LETHAL+0.05,ni===0)){bp=ni;bc=Co[ni]+hyp(nx-X[ni],ny-Y[ni]);}
     for(const i of near){const c=Co[i]+hyp(nx-X[i],ny-Y[i]);if(c<bc&&segClear(X[i],Y[i],nx,ny,LETHAL+0.05,i===0)){bc=c;bp=i;}}
     if(bp<0)continue;
-    X.push(nx);Y.push(ny);Pa.push(bp);Co.push(bc);
-    for(const i of near){if(i===bp||i===0)continue;const c=bc+hyp(nx-X[i],ny-Y[i]);if(c<Co[i]&&segClear(nx,ny,X[i],Y[i],LETHAL+0.05,false)){Pa[i]=n;Co[i]=c;}}
+    X.push(nx);Y.push(ny);Pa.push(bp);Co.push(bc);Pa0.push(bp);QX.push(qx);QY.push(qy);
+    for(const i of near){if(i===bp||i===0)continue;const c=bc+hyp(nx-X[i],ny-Y[i]);if(c<Co[i]&&segClear(nx,ny,X[i],Y[i],LETHAL+0.05,false)){Pa[i]=n;Co[i]=c;rew.push(n,i);}}
   }
   // connect best node to goal (walk parents for true cost)
   let best=-1,bc=Infinity;
   for(let i=0;i<X.length;i++){const dg=hyp(X[i]-gx,Y[i]-gy);if(dg>1.0)continue;if(!segClear(X[i],Y[i],gx,gy,LETHAL+0.05,i===0))continue;
     let c=dg,k=i;while(Pa[k]>=0){c+=hyp(X[k]-X[Pa[k]],Y[k]-Y[Pa[k]]);k=Pa[k];}if(c<bc){bc=c;best=i;}}
-  S.search={type:'rrt',X,Y,Pa};
+  S.search={type:'rrt',X,Y,Pa};S.searchTrace={type:'rrt',name:'RRT*',n:X.length,X,Y,Pa0,QX,QY,rew};
   if(best<0)return{ok:false,reason:`no connection to the goal after ${P.rrtIt} samples`,exp:X.length};
   let pts=[[gx,gy]];for(let k=best;k>=0;k=Pa[k])pts.push([X[k],Y[k]]);pts.reverse();
   if(P.smooth)pts=smoothPath(pts);

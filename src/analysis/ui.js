@@ -19,6 +19,21 @@ function anFrame(G,box,xr,yr,opt){ // returns mappers; xr may be log
 function niceStep(r){const raw=r/5,p=Math.pow(10,Math.floor(Math.log10(raw))),m=raw/p;return(m<1.5?1:m<3.5?2:m<7.5?5:10)*p;}
 function fmtTick(v,st){const d=st>=1?0:st>=0.1?1:2;return(Math.abs(v)<1e-9?0:v).toFixed(d);}
 function polyline2(c,pts,X,Y,clip){c.beginPath();let up=true;for(const p of pts){if(p==null||!isFinite(p[1])){up=true;continue;}const x=X(p[0]),y=Y(p[1]);if(clip&&(y<clip[0]-50||y>clip[1]+50)){up=true;continue;}if(up){c.moveTo(x,y);up=false;}else c.lineTo(x,y);}c.stroke();}
+// items: [colour, dash, text, kind] with kind 'line' (default), 'dot', 'band' or 'x'; corner 'tr', 'tl', 'mr', 'br' or 'bl' of box [x0,y0,x1,y1]
+function anLegend(G,items,box,corner='tr'){
+  const{c,dpr}=G,[x0,y0,x1,y1]=box;anFont(G,10);const lh=13*dpr,sw=16*dpr,pad=5*dpr,tw=Math.max(...items.map(i=>c.measureText(i[2]).width));
+  const bw=sw+6*dpr+tw+2*pad,bh=items.length*lh+2*pad-3*dpr,bx=corner[1]==='r'?x1-bw-4*dpr:x0+4*dpr,by=corner[0]==='t'?y0+4*dpr:corner[0]==='m'?(y0+y1-bh)/2:y1-bh-4*dpr;
+  c.fillStyle=rgba(TOK['map-bg'],0.86);c.strokeStyle=TOK.line;c.lineWidth=1;c.fillRect(bx,by,bw,bh);c.strokeRect(bx+.5,by+.5,bw,bh);
+  items.forEach(([col,dash,t,kind],i)=>{const y=by+pad+i*lh+5*dpr,x=bx+pad;c.strokeStyle=col;c.fillStyle=col;c.lineWidth=2*dpr;c.setLineDash(dash||[]);
+    if(kind==='dot'){c.beginPath();c.arc(x+sw/2,y,3.2*dpr,0,TAU);c.fill();}
+    else if(kind==='band'){c.fillStyle=rgba(col,0.18);c.fillRect(x,y-4*dpr,sw,8*dpr);}
+    else if(kind==='x'){const s=3.5*dpr;c.beginPath();c.moveTo(x+sw/2-s,y-s);c.lineTo(x+sw/2+s,y+s);c.moveTo(x+sw/2-s,y+s);c.lineTo(x+sw/2+s,y-s);c.stroke();}
+    else{c.beginPath();c.moveTo(x,y);c.lineTo(x+sw,y);c.stroke();}
+    c.setLineDash([]);c.fillStyle=TOK.ink;c.textAlign='left';c.textBaseline='middle';c.fillText(t,x+sw+6*dpr,y);});
+}
+// the same key as HTML under a plot: items [colour, '' | 'dash' | 'dot2' | 'dot' | 'x', text]
+function anKeyHTML(id,items){const el=document.getElementById(id);if(!el)return;
+  el.innerHTML=items.map(([col,k,t])=>`<span class="lg-i"><i class="lg-s ${k||'line'}" style="--c:${col}"></i>${t}</span>`).join('');}
 function label(G,t,x,y,col,al='left',bl='bottom'){anFont(G,10);G.c.fillStyle=col;G.c.textAlign=al;G.c.textBaseline=bl;G.c.fillText(t,x,y);}
 
 function drawBode(R){
@@ -47,7 +62,10 @@ function drawBode(R){
     {const rt=x>w*0.72;label(G,`GM ${fmt(F.gm,1)} dB`,rt?x-5*dpr:x+4*dpr,A.Y(Math.max(mn,m/2)),c.strokeStyle,rt?'right':'left','middle');}}
   if(AN.meas.freq&&AN.meas.freq.length){c.fillStyle=TOK.amber;for(const q of AN.meas.freq){let ph=q.ph*180/Math.PI;const ref=F.pts.reduce((a,p)=>Math.abs(Math.log(p.w/q.w))<Math.abs(Math.log(a.w/q.w))?p:a).phu*180/Math.PI;ph+=360*Math.round((ref-ph)/360);
     c.beginPath();c.arc(A.X(q.w),A.Y(20*Math.log10(q.mag)),3.2*dpr,0,TAU);c.fill();c.beginPath();c.arc(B.X(q.w),B.Y(ph),3.2*dpr,0,TAU);c.fill();}}
-  const nm=R.loop==='spd'&&R.M.kind!=='mpc'?'G':'L';label(G,`|${nm}| dB`,L+4*dpr,mid-6*dpr,TOK.muted);label(G,`∠${nm} °`,L+4*dpr,bot-4*dpr,TOK.muted);label(G,'ω [rad/s]',w-Rm,h-2*dpr,TOK.muted,'right','bottom');
+  const nm=R.loop==='spd'&&R.M.kind!=='mpc'?'G':'L',spdOpen=nm==='G';
+  anKeyHTML('lg-bode',[[TOK.ink,'',spdOpen?'G(jω): speed command → speed (no feedback)':'L(jω): open loop (gain on top, phase below)'],...(AN.showCL&&!R.noCL?[[TOK.rose,'','S = 1/(1+L): share of a disturbance that gets through'],[TOK.ok,'',R.loop==='spd'?'T: reference → speed':'T: closed-loop tracking']]:[]),
+    ...(F.wc?[[TOK.accent,'','gain crossover ω<sub>c</sub>, and the phase margin bar']]:[]),[TOK.bad,'dash','−180°: the phase where the loop would oscillate'],[TOK.muted,'dot2','π/T: the highest frequency a 20 Hz loop sees'],...(AN.meas.freq&&AN.meas.freq.length?[[TOK.amber,'dot','measured in the simulator']]:[])]);
+  label(G,`|${nm}| dB`,L+4*dpr,mid-6*dpr,TOK.muted);label(G,`∠${nm} °`,L+4*dpr,bot-4*dpr,TOK.muted);label(G,'ω [rad/s]',w-Rm,h-2*dpr,TOK.muted,'right','bottom');
 }
 function drawNyq(R){
   const G=anCanvas('cv-nyq');if(!G)return;const{c,dpr,w,h}=G,F=R.F,lg=AN.nyqScale==='log';
@@ -71,6 +89,8 @@ function drawNyq(R){
   if(AN.meas.freq){c.fillStyle=TOK.amber;for(const q of AN.meas.freq){const u=map(q.L);c.beginPath();c.arc(X(u[0]),Y(u[1]),3.2*dpr,0,TAU);c.fill();}}
   const Z=F.Ncw+(F.P||0),ok=Z===0;label(G,`N = ${F.Ncw} encirclement${Math.abs(F.Ncw)===1?'':'s'} of −1 · Z = N + P = ${F.P?`${F.Ncw} + ${F.P} = `:''}${Z}  →  ${ok?'stable':'unstable'}`,6*dpr,h-4*dpr,ok?TOK.ok:TOK.bad,'left','bottom');
   label(G,lg?'radius log₂(1+|L|): −1 and the unit circle stay in place':'linear scale',6*dpr,4*dpr,TOK.muted,'left','top');
+  anKeyHTML('lg-nyq',[[TOK.ink,'','L(jω) for ω > 0 (the arrow points to rising ω)'],[TOK.muted,'dash','ω < 0: its mirror image'],[TOK.muted,'dash','unit circle |L| = 1'],[TOK.rose,'','closest approach to −1, length 1/M<sub>s</sub>'],
+    ...(F.wc?[[TOK.accent,'dot','crossover ω<sub>c</sub>']]:[]),[TOK.bad,'x','−1: the point the curve must not circle'],...(AN.meas.freq&&AN.meas.freq.length?[[TOK.amber,'dot','measured in the simulator']]:[])]);
 }
 function drawStep(R){
   if(R.loop!=='spd')return drawResp(R);
@@ -86,11 +106,13 @@ function drawStep(R){
   c.fillStyle=rgba(TOK.ok,0.12);c.fillRect(A.X(0),A.Y(fin+band),A.X(R.tEnd)-A.X(0),A.Y(fin-band)-A.Y(fin+band));
   if(R.stable&&m.settle&&m.settle<R.tEnd){c.strokeStyle=TOK.ok;c.setLineDash([3*dpr,3*dpr]);c.beginPath();c.moveTo(A.X(m.settle),A.Y(lo));c.lineTo(A.X(m.settle),A.Y(hi));c.stroke();c.setLineDash([]);
     label(G,`settles ${fmt(m.settle,1)} s`,A.X(m.settle)+3*dpr,8*dpr+2*dpr,TOK.ok,'left','top');}
+  if(spd){c.strokeStyle=TOK.accent;c.lineWidth=1.5*dpr;c.setLineDash([6*dpr,4*dpr]);c.beginPath();c.moveTo(A.X(0),A.Y(1));c.lineTo(A.X(R.tEnd),A.Y(1));c.stroke();c.setLineDash([]);}
   c.save();c.beginPath();c.rect(44*dpr,8*dpr,w-54*dpr,h-26*dpr);c.clip();
   c.lineWidth=2*dpr;c.strokeStyle=TOK.ink;polyline2(c,pred,A.X,A.Y);
   if(ms){c.lineWidth=2*dpr;c.strokeStyle=TOK.amber;c.setLineDash([5*dpr,3*dpr]);polyline2(c,ms,A.X,A.Y);c.setLineDash([]);}c.restore();
-  label(G,spd?`(v − v₀) / Δv for a reference step of ${fmt(AN.spdAmp||0.2)} m/s`:kind==='offset'?'e(t) / e₀  (path offset step)':`e(t) [m] for a ${bu.val}${bu.unit} actuator bias`,48*dpr,h-20*dpr,TOK.muted,'left','bottom');
+  label(G,spd?`(v − v₀) / Δv, Δv = ${fmt(AN.spdAmp||0.2)} m/s`:kind==='offset'?'e(t) / e₀  (path offset step)':`e(t) [m] for a ${bu.val}${bu.unit} actuator bias`,48*dpr,h-20*dpr,TOK.muted,'left','bottom');
   label(G,'t [s]',w-14*dpr,h-21*dpr,TOK.muted,'right','bottom');
+  if(spd)anLegend(G,[[TOK.accent,[6*dpr,4*dpr],'new reference speed'],[TOK.ink,[],'model (linear)'],...(ms?[[TOK.amber,[5*dpr,3*dpr],'simulator (Run step test)']]:[]),[TOK.ok,[],'within 2 % of the reference','band']],[44*dpr,8*dpr,w-10*dpr,h-18*dpr],'mr');
 }
 function drawLocus(R){
   const G=anCanvas('cv-loc');if(!G)return;const{c,dpr,w,h}=G;
@@ -156,17 +178,43 @@ function drawResp(R){
     label(G,`settled after ${fmt(sm.settle*v0,1)} m`,x+(x>w*0.7?-3:3)*dpr,bot-3*dpr,TOK.ok,x>w*0.7?'right':'left','bottom');}
   c.save();c.beginPath();c.rect(L,top,w-Rr-L,bot-top);c.clip();
   c.lineWidth=2.2*dpr;c.strokeStyle=R.stable?TOK.ink:TOK.bad;polyline2(c,pred,A.X,A.Y);
-  if(wiP){c.lineWidth=2*dpr;c.strokeStyle=TOK.accent;c.setLineDash([7*dpr,4*dpr]);polyline2(c,wiP,A.X,A.Y);c.setLineDash([]);}
-  if(ms){c.lineWidth=2*dpr;c.strokeStyle=TOK.amber;c.setLineDash([3*dpr,3*dpr]);polyline2(c,ms,A.X,A.Y);c.setLineDash([]);}
+  if(wiP){c.lineWidth=2*dpr;c.strokeStyle=wi.unstable?TOK.bad:TOK.accent;c.setLineDash([7*dpr,4*dpr]);polyline2(c,wiP,A.X,A.Y);c.setLineDash([]);}
+  const pl=AN.play&&ms0&&ms0.pose?AN.play:null,tNow=pl?Math.min(pl.t,R.tEnd):Infinity;
+  if(ms){c.lineWidth=2*dpr;c.strokeStyle=pl?rgba(TOK.amber,0.35):TOK.amber;c.setLineDash([3*dpr,3*dpr]);polyline2(c,ms,A.X,A.Y);c.setLineDash([]);
+    if(pl){c.lineWidth=2.6*dpr;c.strokeStyle=TOK.amber;polyline2(c,ms.filter((p,i)=>ms0.data[i][0]<=tNow+1e-9),A.X,A.Y);}}
   if(kind==='offset'){c.fillStyle=TOK.ink;c.beginPath();c.arc(A.X(0),A.Y(sc),4*dpr,0,TAU);c.fill();}
   c.restore();
+  if(pl)anRobotGlyph(G,A,ms0.pose,tNow,v0,L,top);
   label(G,kind==='offset'?'sideways offset [cm]':`offset from a ${bu.val} ${bu.unit} ${isCar()?'steering misalignment':'turn-rate bias'} [cm]`,L+4*dpr,top+3*dpr,TOK.muted,'left','top');
   label(G,'distance driven along the path [m]',w-Rr,h-2*dpr,TOK.muted,'right','bottom');
   // legend
   anFont(G,10);let ly=top+8*dpr;const lx=w-Rr-80*dpr,leg=(col,dash,t)=>{c.strokeStyle=col;c.lineWidth=2*dpr;c.setLineDash(dash);c.beginPath();c.moveTo(lx,ly);c.lineTo(lx+16*dpr,ly);c.stroke();c.setLineDash([]);
     c.fillStyle=TOK.muted;c.textAlign='left';c.textBaseline='middle';c.fillText(t,lx+20*dpr,ly);ly+=13*dpr;};
-  leg(R.stable?TOK.ink:TOK.bad,[],'model');if(wiP)leg(TOK.accent,[7*dpr,4*dpr],'what-if');if(ms)leg(TOK.amber,[3*dpr,3*dpr],'simulator');
+  leg(R.stable?TOK.ink:TOK.bad,[],'model');if(wiP)leg(wi.unstable?TOK.bad:TOK.accent,[7*dpr,4*dpr],wi.unstable?'what-if (unstable)':'what-if');if(ms)leg(TOK.amber,pl?[]:[3*dpr,3*dpr],'simulator');
+  AN.stretch=(A.Y(0)-A.Y(1))*100/Math.max(1e-9,A.X(1)-A.X(0));   // screen px per m sideways over px per m along
 }
+// the simulated robot at time t on the response plot: same stretched axes as the curve, so its heading is stretched too
+function anRobotGlyph(G,A,pose,t,v0,x0,y0){
+  const{c,dpr}=G,i=Math.min(pose.length-1,Math.max(0,Math.round(t/DT))),p=pose[i],car=isCar();
+  const x=A.X(t*v0),y=A.Y(p[2]*100),kx=A.X(1)-A.X(0),ky=(A.Y(0)-A.Y(1))*100,ang=Math.atan2(-Math.sin(p[3])*ky,Math.cos(p[3])*kx);
+  c.save();c.translate(x,y);c.rotate(ang);c.lineWidth=1.5*dpr;c.strokeStyle=TOK.ink;c.fillStyle=rgba(TOK.amber,0.9);
+  if(car){const Lb=26*dpr,Wb=12*dpr;c.beginPath();c.rect(-6*dpr,-Wb/2,Lb,Wb);c.fill();c.stroke();
+    for(const sy of[-1,1]){c.save();c.translate(Lb-10*dpr,sy*Wb/2);c.rotate(-p[4]);c.fillStyle=TOK.ink;c.fillRect(-4*dpr,-1.5*dpr,8*dpr,3*dpr);c.restore();}}   // front wheels at the steering angle (screen y points down)
+  else{const r=8*dpr;c.beginPath();c.arc(0,0,r,0,TAU);c.fill();c.stroke();c.beginPath();c.moveTo(0,0);c.lineTo(r+5*dpr,0);c.stroke();
+    if(Math.abs(p[4])>0.02){c.strokeStyle=TOK.accent;c.lineWidth=2*dpr;const s=p[4]>0?-1:1,sw=Math.min(1.4,Math.abs(p[4]))*1.2;c.beginPath();c.arc(0,0,r+4*dpr,0,s*sw,s<0);c.stroke();}}   // arc: which way it is turning
+  c.restore();
+  const deg=v=>v*180/Math.PI;AN.playTxt=`offset ${(p[2]*100).toFixed(1)} cm · heading ${deg(p[3]).toFixed(1)}° · ${car?`steering ${deg(p[4]).toFixed(1)}°`:`turning ${deg(p[4]).toFixed(0)}°/s`}`;   // shown under the plot
+}
+// playback of the simulated step test: real time (or faster), driven by requestAnimationFrame while Analyze shows it
+function anPlayStart(){const sp=AN.play?AN.play.speed:1;AN.play={t:0,on:true,last:performance.now(),speed:sp};requestAnimationFrame(anPlayTick);}
+function anPlayTick(now){const pl=AN.play;if(!pl||!pl.on)return;const R=AN.res;
+  if(AN.mode!=='an'||AN.loop!=='lat'||!R){pl.on=false;anPlayUI();return;}
+  pl.t+=Math.min(0.1,(now-pl.last)/1000)*pl.speed;pl.last=now;if(pl.t>=R.tEnd){pl.t=R.tEnd;pl.on=false;}
+  drawStep(R);anPlayUI();if(pl.on)requestAnimationFrame(anPlayTick);}
+function anPlayUI(){const pl=AN.play,R=AN.res,b=$('#an-play'),sc=$('#an-scrub'),lb=$('#an-pt');if(!b||!R)return;
+  const has=!!(AN.meas.step&&AN.meas.step.pose&&AN.meas.step.kind===AN.stepKind);$('#an-play-row').hidden=!has;if(!has)return;
+  b.textContent=pl&&pl.on?'❚❚ Pause':pl&&pl.t>=R.tEnd-1e-9?'↺ Replay':'▶ Play';sc.max=String(Math.round(R.tEnd*100));sc.value=String(Math.round((pl?pl.t:R.tEnd)*100));
+  lb.textContent=`${fmt(pl?pl.t:R.tEnd,1)} / ${fmt(R.tEnd,1)} s${pl&&AN.playTxt?' · '+AN.playTxt:''}`;}
 
 /* ---------- poles you can drag ---------- */
 const PZ={view:null,map:null,drag:false,raf:0};
@@ -175,8 +223,8 @@ function drawPoles(R){
   const L=44*dpr,Rr=8*dpr,top=8*dpr,bot=h-34*dpr;
   if(!PZ.drag||!PZ.view){   // a stable view while dragging, so the pole stays under the finger; equal scales so ζ angles are true
     const pts=[R.dom,wi&&wi.dom,wi&&wi.tg].filter(Boolean);if(kn){const q=kn.pts.reduce((a,q)=>q.dom&&Math.abs(q.x-kn.cur)<Math.abs(a.x-kn.cur)?q:a,kn.pts[0]);if(q.dom)pts.push(q.dom);}
-    let X=1,Y=0.6;for(const s of pts){X=Math.max(X,1.3*Math.abs(s[0]));Y=Math.max(Y,1.3*Math.abs(s[1]));}X=Math.min(X,60);Y=Math.min(Y,60);
-    const Wp=(w-L-Rr)/dpr,Hp=(bot-top)/dpr,k=Math.max(X/(0.82*Wp),Y/(0.9*Hp));
+    let X=1,Xp=0,Y=0.6;for(const s of pts){if(s[0]<0)X=Math.max(X,1.3*-s[0]);else Xp=Math.max(Xp,1.3*s[0]);Y=Math.max(Y,1.3*Math.abs(s[1]));}X=Math.min(X,60);Xp=Math.min(Xp,60);Y=Math.min(Y,60);
+    const Wp=(w-L-Rr)/dpr,Hp=(bot-top)/dpr,k=Math.max(X/(0.82*Wp),Xp/(0.18*Wp),Y/(0.9*Hp));
     PZ.view={xr:[-0.82*Wp*k,0.18*Wp*k],yr:[-0.1*Hp*k,0.9*Hp*k]};}
   const{xr,yr}=PZ.view,A=anFrame(G,[L,top,w-Rr,bot],xr,yr);PZ.map={x0:L/dpr,x1:(w-Rr)/dpr,y0:top/dpr,y1:bot/dpr,xr,yr};
   c.fillStyle=rgba(TOK.bad,0.07);c.fillRect(A.X(0),top,A.X(xr[1])-A.X(0),bot-top);label(G,'unstable',A.X(xr[1])-3*dpr,top+3*dpr,TOK.bad,'right','top');
@@ -190,12 +238,12 @@ function drawPoles(R){
       c.fillStyle=TOK.accent;c.beginPath();c.arc(x,y,2.5*dpr,0,TAU);c.fill();label(G,`${kn.sym} ${q.x.toFixed(q.x<1?2:1)}${kn.unit?' '+kn.unit:''}`,x+5*dpr,y-3*dpr,TOK.accent,'left','bottom');});}
   let off=0;const dot=(s,col,r,ring)=>{if(!inV(s)){off++;return;}c.beginPath();c.arc(A.X(s[0]),A.Y(s[1]),r,0,TAU);if(ring){c.strokeStyle=col;c.lineWidth=2*dpr;c.stroke();}else{c.fillStyle=col;c.fill();c.strokeStyle=TOK['map-bg'];c.lineWidth=1.5*dpr;c.stroke();}};
   for(const s of R.poles)dot(s,s[0]>0?TOK.bad:TOK.ink,5.5*dpr);
-  if(wi){c.setLineDash([3*dpr,2*dpr]);dot(wi.tg,TOK.accent,9*dpr,true);c.setLineDash([]);for(const s of wi.ps)if(inV(s))dot(s,TOK.accent,4.5*dpr);}
+  if(wi){c.setLineDash([3*dpr,2*dpr]);dot(wi.tg,TOK.accent,9*dpr,true);c.setLineDash([]);for(const s of wi.ps)if(inV(s))dot(s,s[0]>0?TOK.bad:TOK.accent,4.5*dpr);}
   label(G,`● now${wi?'  ● what-if  ◌ dragged':''}${kn?'  — this tracker\'s knob':''}${off?`  · ${off} fast pole${off>1?'s':''} off the plot`:''}`,L,h-2*dpr,TOK.muted,'left','bottom');
   label(G,'← dies out faster',L+4*dpr,A.Y(0)+3*dpr,TOK.muted,'left','top');label(G,'swings faster ↑',A.X(0)-4*dpr,top+3*dpr,TOK.muted,'right','top');
 }
 function pzEvent(e){const m=PZ.map,cv=$('#cv-pz');if(!m||!cv)return null;const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;
-  const sx=m.xr[0]+(px-m.x0)/(m.x1-m.x0)*(m.xr[1]-m.xr[0]),sy=m.yr[1]-(py-m.y0)/(m.y1-m.y0)*(m.yr[1]-m.yr[0]);return[Math.min(sx,-1e-3),Math.abs(sy)];}
+  const sx=m.xr[0]+(px-m.x0)/(m.x1-m.x0)*(m.xr[1]-m.xr[0]),sy=m.yr[1]-(py-m.y0)/(m.y1-m.y0)*(m.yr[1]-m.yr[0]);return[sx,Math.abs(sy)];}   // the right half too: a what-if may be unstable
 function anWhatIfAt(tg){const R=AN.res;if(!R||R.loop==='spd'||R.M.kind==='none')return;if(R.knob===undefined)R.knob=anKnobCurve(R);
   const r=anWhatIf(R,tg);if(r){AN.wi=r;renderAnalysis();}}
 {const cv=$('#cv-pz');if(cv){cv.tabIndex=0;
@@ -203,7 +251,8 @@ function anWhatIfAt(tg){const R=AN.res;if(!R||R.loop==='spd'||R.M.kind==='none')
   cv.addEventListener('pointermove',e=>{if(!PZ.drag)return;const t=pzEvent(e);if(!t)return;cancelAnimationFrame(PZ.raf);PZ.raf=requestAnimationFrame(()=>anWhatIfAt(t));});
   const end=()=>{if(!PZ.drag)return;PZ.drag=false;renderAnalysis();};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
   cv.addEventListener('keydown',e=>{const R=AN.res;if(!R||!R.dom)return;const k={ArrowLeft:[1.1,1],ArrowRight:[1/1.1,1],ArrowUp:[1,1.1],ArrowDown:[1,1/1.1]}[e.key];if(!k)return;e.preventDefault();
-    const b=AN.wi?AN.wi.tg:R.dom;anWhatIfAt([b[0]*k[0],Math.max(0.05,b[1])*k[1]]);});}}
+    const b=AN.wi?AN.wi.tg:R.dom,st=0.08*Math.max(1,Math.hypot(b[0],b[1]));   // left/right by steps, so the pole can cross into the right half
+    anWhatIfAt([e.key==='ArrowLeft'?b[0]-st:e.key==='ArrowRight'?b[0]+st:b[0],Math.max(0.05,b[1])*k[1]]);});}}
 $('#an-wi-x').onclick=()=>{AN.wi=null;renderAnalysis();};
 
 /* ---------- the loop in plain words, with the gains in physical units ---------- */
@@ -245,11 +294,13 @@ function anKeyChips(R){
 }
 function anPzCaption(R){
   const wi=AN.wi,v=R.M.v0;
-  const modeTxt=s=>{if(!s)return'—';const sig=-s[0],om=Math.abs(s[1]);return`dies out with time constant <b>${sig>1e-6?fmt(1/sig,2)+' s':'∞'}</b>${om>0.02?`, swings once every <b>${fmt(2*Math.PI/om,1)} s</b> (${fmt(2*Math.PI/om*v,1)} m)`:', no swing'}`;};
+  const modeTxt=s=>{if(!s)return'—';const sig=-s[0],om=Math.abs(s[1]),sw=om>0.02?`, swings once every <b>${fmt(2*Math.PI/om,1)} s</b> (${fmt(2*Math.PI/om*v,1)} m)`:', no swing';
+    if(sig>1e-6)return`dies out with time constant <b>${fmt(1/sig,2)} s</b>${sw}`;if(sig<-1e-6)return`<b class="bad">grows</b>, doubling every <b>${fmt(Math.LN2/-sig,2)} s</b>${sw}`;return`neither grows nor dies out${sw}`;};
   let h=`<p>Each pole is one way the error can move, <i>e</i><sup>st</sup>. Further <b>left</b> = it dies out faster; further from the axis (<b>up</b>) = it swings faster; a pole in the red half grows. Now the slowest pair ${modeTxt(R.dom)}${R.zeta!=null?` (damping ζ ${fmt(R.zeta,2)})`:''}.</p>`;
-  if(!wi)h+=`<p class="an-hint">${R.knob?`${CTL_NAMES[R.M.ctl]} has one knob, so its poles can only move along the blue curve. Drag a pole along it`:R.M.kind==='static'?'Drag a pole anywhere: the two gains that put it there are computed for you':'Drag a pole to try a design: the what-if is a state-feedback tracker (rear-wheel feedback) with the gains that put the pole there'}; the response on the left updates. Keyboard: focus the plot and use the arrow keys.</p>`;
-  else{const ap=wi.set;h+=`<p><b>What-if:</b> ${wi.unstable?'<b class="bad">unstable</b>':modeTxt(wi.dom)}${wi.unstable?'':`, overshoot ${fmt(wi.sm.overshoot,0)} %, back within 2 % after ${fmt(wi.sm.settle*v,1)} m`}. ${wi.knob?'':`The controller would ${gainWords(R.M,wi.Ke,wi.Kth)}.`}${wi.err!=null&&wi.err>0.05*Math.hypot(wi.tg[0],wi.tg[1])?' The delay keeps the pole from landing exactly where you dragged it.':''}</p>
-    <p><button type="button" class="btn small" id="an-wi-apply">${ap.ctl&&ap.ctl!==P.ctl?'Switch to rear-wheel feedback with ':'Apply '}${wi.setTxt.replace('k_e','k<sub>e</sub>').replace('k_θ','k<sub>θ</sub>')}</button>${wi.clamped?' <span class="note">(clamped to the slider range)</span>':''}</p>`;}
+  if(!wi)h+=`<p class="an-hint">${R.knob?`${CTL_NAMES[R.M.ctl]} has one knob, so its poles can only move along the blue curve. Drag a pole along it, or into the red half to see an unstable loop`:R.M.kind==='static'?'Drag a pole anywhere, including into the red half: the two gains that put it there are computed for you':'Drag a pole to try a design, including into the red half: the what-if is a state-feedback tracker (rear-wheel feedback) with the gains that put the pole there'}; the response on the left updates. Keyboard: focus the plot and use the arrow keys.</p>`;
+  else{const ap=wi.set,neg=wi.Kth<0;h+=`<p><b>What-if:</b> ${wi.unstable?`<b class="bad">unstable</b>: the slowest pair ${modeTxt(wi.dom)}`:modeTxt(wi.dom)}${wi.unstable?'':`, overshoot ${fmt(wi.sm.overshoot,0)} %, back within 2 % after ${fmt(wi.sm.settle*v,1)} m`}. ${wi.beyond?`${CTL_NAMES[R.M.ctl]}'s knob cannot leave its curve, so this is the two-gain form u = −(K<sub>e</sub>e + K<sub>θ</sub>θₑ) with K<sub>e</sub> ${fmt(wi.Ke)} and K<sub>θ</sub> ${fmt(wi.Kth)}. `:''}${wi.knob?'':neg?`It needs a <b>negative heading gain</b> (K<sub>θ</sub> = ${fmt(wi.Kth)}): the controller would turn further away the more the heading points away, which pumps energy into the swing.`:`The controller would ${gainWords(R.M,wi.Ke,wi.Kth)}.`}${wi.err!=null&&wi.err>0.05*Math.hypot(wi.tg[0],wi.tg[1])?' The delay keeps the pole from landing exactly where you dragged it.':''}</p>`+
+    (wi.knob||wi.applicable?`<p><button type="button" class="btn small" id="an-wi-apply">${ap.ctl&&ap.ctl!==P.ctl?'Switch to rear-wheel feedback with ':'Apply '}${wi.setTxt.replace('k_e','k<sub>e</sub>').replace('k_θ','k<sub>θ</sub>')}</button>${wi.clamped?' <span class="note">(clamped to the slider range)</span>':''}</p>`
+     :`<p class="note">Not applicable: rear-wheel feedback would need k<sub>e</sub> = ${fmt(wi.need.ke,1)}, k<sub>θ</sub> = ${fmt(wi.need.kth,1)}, and its settings stop at 0. It is here to show what an unstable loop does.</p>`);}
   return h;
 }
 function anApplyWhatIf(){const wi=AN.wi;if(!wi)return;const set=wi.set;AN.wi=null;
@@ -275,6 +326,48 @@ function anTFkin(R){
   else h+=`L(s) = T/(1 − z⁻¹) · 1/(1 − K<sub>u</sub>z⁻¹) · [K<sub>c</sub>z⁻¹ + (K<sub>s</sub>z⁻¹ + (K<sub>e</sub> g v₀ + K<sub>θ</sub> g s)/s² · ${dl})${lag}], with K<sub>e</sub> ${fmt(M.K.e,2)}, K<sub>θ</sub> ${fmt(M.K.th,2)}, K<sub>s</sub> ${fmt(M.K.s,2)}, K<sub>c</sub> ${fmt(M.K.c||0,2)}, K<sub>u</sub> ${fmt(M.K.u,2)} read from the MPC.</p>`;
   return h;
 }
+/* ---------- where the numbers come from: each chip derived, with today's values ---------- */
+const chLink=(sec,t)=>`<a class="chref" href="#notes=ch6/${sec}">${t}</a>`;
+function anFormulaGains(M){   // the tracker's linear gains from its formula (the chips use the ones read from the code)
+  const v=M.v0,car=M.car,L=P.wheelbase;
+  if(M.ctl==='pp'){const Ld=Math.max(0.1,P.ppL0+P.ppK*v),a=car?L:v;
+    return{txt:`pure pursuit turns toward a point L<sub>d</sub> = L₀ + k·v₀ = ${fmt(Ld)} m ahead: ${car?'δ = atan(2L sin α / L<sub>d</sub>)':'ω = 2v sin α / L<sub>d</sub>'} with α ≈ −e/L<sub>d</sub> − θₑ, so K<sub>e</sub> = 2${car?'L':'v₀'}/L<sub>d</sub>² and K<sub>θ</sub> = 2${car?'L':'v₀'}/L<sub>d</sub>`,Ke:2*a/(Ld*Ld),Kth:2*a/Ld};}
+  if(M.ctl==='rwf'){const a=car?L:v;
+    return{txt:`rear-wheel feedback commands the curvature −k<sub>θ</sub>θₑ − k<sub>e</sub>e (k<sub>e</sub> = ${fmt(P.rwKe,1)}, k<sub>θ</sub> = ${fmt(P.rwKth,1)}), ${car?'steering δ = atan(L κ)':'turning at ω = v κ'}, so K<sub>e</sub> = ${car?'L':'v₀'}k<sub>e</sub> and K<sub>θ</sub> = ${car?'L':'v₀'}k<sub>θ</sub>`,Ke:a*P.rwKe,Kth:a*P.rwKth};}
+  if(M.ctl==='stanley'){const q=0.5+v;
+    return{txt:`Stanley steers δ = −θₑ − atan(k e<sub>f</sub> / (0.5 + v)) with the front-axle offset e<sub>f</sub> ≈ e + L θₑ (k = ${fmt(P.stanK,1)}), so K<sub>e</sub> = k/(0.5 + v₀) and K<sub>θ</sub> = 1 + kL/(0.5 + v₀)`,Ke:P.stanK/q,Kth:1+P.stanK*L/q};}
+  return null;
+}
+function anWhy(R){
+  const M=R.M,v=M.v0,g=M.g,car=M.car,so=R.smOff,sb=R.smBias,F=R.F,bu=biasUnit(),d=bu.toModel(bu.val),cm=AN.stepAmp*100;
+  const ctlN=CTL_NAMES[M.ctl]||M.ctl,unit=car?'rad':'rad/s',deg=x=>x*180/Math.PI;
+  let h=`<p><b>1. The vehicle near the path.</b> With e the sideways offset (left of the path positive) and θₑ the heading error, small errors obey θ̇ₑ = g·u and ė = v₀·θₑ: the ${car?'steering angle':'turn-rate command'} u turns the heading, and the heading moves the ${car?'car':'robot'} sideways. g = ${car?`v₀/L = ${fmt(v)}/${fmt(P.wheelbase)} = ${fmt(g)} 1/s`:'1'}, v₀ = ${fmt(v)} m/s. Two integrations from command to offset.${M.dyn?' With tyre slip the yaw rate follows the steering through the tyres\' own yaw mode; the chips use that full model, the formulas in 2–3 the kinematic one.':''} ${chLink('1-the-vehicle-in-path-coordinates','chapter 6 §1')}</p>`;
+  if(M.kind==='static'){
+    const f=anFormulaGains(M),a=g*M.Kth,b=g*v*M.Ke,wn=Math.sqrt(Math.max(0,b)),z=wn>0?a/(2*wn):0;
+    h+=`<p><b>2. The controller near the path.</b> For small errors every tracker acts like u = −(K<sub>e</sub>·e + K<sub>θ</sub>·θₑ). ${f?`Here ${f.txt}: K<sub>e</sub> = ${fmt(f.Ke)}, K<sub>θ</sub> = ${fmt(f.Kth)}. `:''}The app does not trust the formula: it reads both gains off ${ctlN}'s own code, by moving the ${car?'car':'robot'} ±1 mm sideways and turning it ±1 mrad in a copy of the simulator and dividing the change in the command (a central difference): <b>K<sub>e</sub> = ${fmt(M.Ke)} ${unit} per m, K<sub>θ</sub> = ${fmt(M.Kth)} ${unit} per rad</b>. ${chLink('2-pure-pursuit-is-a-pd-controller-in-disguise','chapter 6 §2')}</p>`;
+    h+=`<div class="eq">ë + g K_θ ė + g v₀ K_e e = 0      (substitute u into θ̇ₑ = g u, ė = v₀ θₑ)
+ω_n = √(g v₀ K_e) = √(${fmt(b,3)}) = ${fmt(wn)} rad/s        ζ = g K_θ / (2 ω_n) = ${fmt(a,3)} / ${fmt(2*wn,3)} = ${fmt(z)}</div>`;
+    if(z<1&&wn>0){const sq=Math.sqrt(1-z*z),os=100*Math.exp(-Math.PI*z/sq),ts=Math.log(50/sq)/(z*wn);
+      h+=`<p><b>3. Without the delays</b>, from e(0) = e₀ and θₑ(0) = 0: e(t) = e₀ e<sup>−ζω<sub>n</sub>t</sup>(cos ω<sub>d</sub>t + ζ/√(1−ζ²) sin ω<sub>d</sub>t), ω<sub>d</sub> = ω<sub>n</sub>√(1−ζ²). It crosses the path and swings to −e₀·exp(−πζ/√(1−ζ²)): <b>${fmt(os,1)} % overshoot</b>; its envelope e<sup>−ζω<sub>n</sub>t</sup>/√(1−ζ²) falls below 2 % after t = ln(50/√(1−ζ²)) / (ζω<sub>n</sub>) = <b>${fmt(ts,1)} s</b>.</p>`;}
+    else if(wn>0){const s1=-z*wn+wn*Math.sqrt(z*z-1);
+      h+=`<p><b>3. Without the delays</b> ζ ≥ 1: two real poles, no swing. The slower one, s = −ζω<sub>n</sub> + ω<sub>n</sub>√(ζ² − 1) = ${fmt(s1)} 1/s, decides: within 2 % after about ln(50)/|s| = <b>${fmt(Math.log(50)/Math.abs(s1),1)} s</b> (longer when the two poles are close).</p>`;}
+  }else if(M.kind==='pid'){
+    h+=`<p><b>2. The controller near the path.</b> PID aims at a point L<sub>d</sub> = ${fmt(M.Ld)} m ahead: α ≈ −e/L<sub>d</sub> − θₑ and u = K<sub>p</sub>α + K<sub>i</sub>∫α dt + K<sub>d</sub>α̇ (K<sub>p</sub> ${fmt(P.kp,2)}, K<sub>i</sub> ${fmt(P.ki,2)}, K<sub>d</sub> ${fmt(P.kd,2)}). The proportional part alone is K<sub>e</sub> = K<sub>p</sub>/L<sub>d</sub> = ${fmt(P.kp/M.Ld)}, K<sub>θ</sub> = K<sub>p</sub> = ${fmt(P.kp)}; the integral adds a third state, so there is no two-pole formula and the numbers below come from the discrete loop directly.</p>`;
+  }else{
+    const K=M.K;
+    h+=`<p><b>2. The controller near the path.</b> Near the path MPC acts on the <i>rate</i> of ${car?'steering':'turning'}: u̇ = −(K<sub>e</sub>e + K<sub>θ</sub>θₑ + K<sub>s</sub>u) + K<sub>u</sub>u̇<sub>prev</sub>, with K<sub>e</sub> ${fmt(K.e)}, K<sub>θ</sub> ${fmt(K.th)}, K<sub>s</sub> ${fmt(K.s)}, K<sub>u</sub> ${fmt(K.u)} read off the MPC's own code by central differences (the optimization run to convergence). The rate form integrates, which makes the loop third order; the numbers below come from the discrete loop directly. Derivation: <a class="chref" href="#notes=ch7/6-what-the-analyze-view-sees">chapter 7 §6</a></p>`;
+  }
+  h+=`<p><b>4. With the clock, lag and latency</b> (what the chips show). The controller samples every T = 50 ms and its command is held for the tick, so on average it acts T/2 = 25 ms late${M.nL?`, plus ${fmt(M.nL*DT*1000,0)} ms of latency`:''}${M.tau>0?`, through an actuator lag τ = ${fmt(M.tau,2)} s`:''}. The app steps this exact 20 Hz loop, x<sub>k+1</sub> = A x<sub>k</sub>, from e = 1, θₑ = 0 for ${fmt(R.tEnd,1)} s and reads: <b>Back within 2 %</b> = the last time |e| > 0.02 = ${fmt(so.settle,2)} s, × v₀ = ${fmt(so.settle*v,1)} m driven; <b>Overshoot</b> = the deepest crossing of the path = ${fmt(so.overshoot,1)} %, × the ${fmt(cm,0)} cm start = ${fmt(so.overshoot/100*cm,1)} cm. The eigenvalues of A are the poles: the slowest pair z maps to s = ln z / T, so ω<sub>n</sub> = |s| = ${fmt(R.wn)} rad/s and ζ = −Re s / |s| = ${fmt(R.zeta)}. ${chLink('3-the-open-loop-l-s-with-the-clock-in-it','chapter 6 §3')} ${chLink('5-poles-damping-and-the-shape-of-the-response','§5')}</p>`;
+  if(F&&F.dm!=null)h+=`<p><b>5. Extra delay it tolerates.</b> At the crossover ω<sub>c</sub> = ${fmt(F.wc)} rad/s the open loop has gain |L| = 1, and its phase is ${fmt(F.pm,1)}° short of −180° (the phase margin). A pure delay Δ costs ω<sub>c</sub>Δ radians of phase there, so the loop starts to oscillate when Δ = PM / ω<sub>c</sub> = ${fmt(F.pm*Math.PI/180,3)} rad / ${fmt(F.wc)} rad/s = <b>${fmt(F.dm*1000,0)} ms</b>. ${chLink('4-reading-the-margins','chapter 6 §4')}</p>`;
+  const essF=M.kind==='static'?d/M.Ke:M.kind==='pid'?(P.ki?0:d*M.Ld/P.kp):null;
+  h+=`<p><b>6. Left over from a constant ${car?'misalignment':'turn bias'}.</b> A constant actuator error d adds to the command: θ̇ₑ = g(u + d), d = ${bu.val} ${bu.unit}${car?` = ${fmt(d,4)} rad`:''}. Once the ${car?'car':'robot'} settles, ė = 0 so θₑ = 0, and θ̇ₑ = 0 so the controller must cancel the error, u = −d. `+
+    (M.kind==='static'?`For u = −(K<sub>e</sub>e + K<sub>θ</sub>θₑ) that means K<sub>e</sub>e = d: e<sub>ss</sub> = d / K<sub>e</sub> = ${fmt(d,4)} / ${fmt(M.Ke)} = <b>${fmt(essF*100,1)} cm</b>.`:
+     M.kind==='pid'?(P.ki?'The integral keeps growing until α = 0, so e<sub>ss</sub> = 0.':`Without the integral, K<sub>p</sub>α = d: e<sub>ss</sub> = d·L<sub>d</sub>/K<sub>p</sub> = <b>${fmt(essF*100,1)} cm</b>.`):
+     'The rate form holds u where u̇ = 0, so the offset depends on how K<sub>s</sub> and K<sub>e</sub> balance; it is read off the simulated response.')+
+    ` The chip reads the end of the simulated bias response: ${fmt(Math.abs(sb.final*d)*100,1)} cm. Integral action (PID with K<sub>i</sub> > 0) removes it. ${chLink('5-poles-damping-and-the-shape-of-the-response','chapter 6 §5')}</p>`;
+  h+=`<p><b>7. Reading a pole.</b> A pole s = −σ ± jω is the motion e<sup>−σt</sup>cos ωt: it shrinks by a factor e every 1/σ seconds (the time constant) and repeats every 2π/ω seconds, which is 2πv₀/ω metres along the path. A pole with σ < 0 (right half) grows instead: it doubles every ln 2 / |σ| seconds.</p>`;
+  return h;
+}
 function anAdvChips(R){
   const F=R.F,pmC=F.pm==null?'':F.pm>45?'good':F.pm>25?'warnc':'badc',gmC=F.gm==null?'good':F.gm>6?'good':F.gm>0?'warnc':'badc';
   return chip('Closed loop',R.stable?'stable':`unstable (${R.unstableZ} pole${R.unstableZ>1?'s':''})`,R.stable?'good':'badc','From the eigenvalues of the exact 20 Hz loop; the Nyquist count must agree')+
@@ -291,6 +384,8 @@ function renderAnalysis(){
   if(AN.loop==='spd')return renderSpeed();
   if(AN.dirty||!AN.res){anCompute();AN.dirty=false;AN.wi=null;}
   const R=AN.res,M=R.M,ctlN=CTL_NAMES[anCtl()]||P.ctl;
+  // the simulator runs the same step by itself (well under 0.1 s), and the robot plays it back on the response plot
+  {const ms=AN.meas.step;if(M.kind!=='none'&&!AN.busy&&(!ms||ms.kind!==AN.stepKind||(AN.stepKind==='offset'&&ms.amp!==AN.stepAmp))){runStepTest();anPlayStart();}}
   $('#an-op').innerHTML=`<b>${isDyn()?'Car with tyre slip':isCar()?'Car-like':'Diff-drive'} · ${ctlN}</b> · ${anR()?`left turn R ${anR()} m`:'straight path'} at ${fmt(M.v0)} m/s · settings come from the Control and Vehicle tabs`;
   if(M.kind==='none'){$('#an-body').hidden=true;$('#an-none').hidden=false;
     $('#an-none').innerHTML=`<p><b>${ctlN}</b> has no linear model to analyze. ${P.ctl==='dwa'?'DWA picks the best of a grid of sampled commands, so its output is piecewise constant in the state and has no meaningful derivative.':'Your code runs as a black box in a worker.'} Pick pure pursuit, rear-wheel feedback, Stanley (car), PID or MPC in the Control tab.</p>`;return;}
@@ -298,15 +393,18 @@ function renderAnalysis(){
   if(R.knob===undefined)R.knob=anKnobCurve(R);
   $('#an-story').innerHTML=anStory(R);
   $('#an-key').innerHTML=anKeyChips(R);
+  const why=$('#an-why');if(why){why.hidden=false;if(why.open!==!!AN.why)why.open=!!AN.why;if(AN.why){const wb=$('#an-why-body');wb.innerHTML=R.stable?anWhy(R):'<p>The loop is unstable here, so there is no settling time, overshoot or margin to derive: the pole plot shows which poles sit in the right half. The derivations return once the loop is stable.</p>';
+    wb.querySelectorAll('a.chref').forEach(a=>a.onclick=e=>{e.preventDefault();const m=/^#notes=([\w-]+)(?:\/([\w-]+))?$/.exec(a.getAttribute('href'));if(!m)return;try{history.replaceState(null,'',a.getAttribute('href'));}catch(_){}setUIMode('learn');openChapter(m[1],m[2]);});}}
   $('#cap-step-t').textContent=AN.stepKind==='offset'?'Response: back to the path':'Response: a constant actuator error';
-  $('#cap-step').innerHTML=AN.stepKind==='offset'?`Seen from above: the ${isCar()?'car':'robot'} starts ${fmt(AN.stepAmp*100,0)} cm to the side of the path (the blue line) and drives right; the curve is its sideways offset, the green band ±2 %. Time is on the top axis.`
-    :`A ${biasUnit().val} ${biasUnit().unit} ${isCar()?'steering misalignment':'turn-rate bias'} appears at the start; without integral action the ${isCar()?'car':'robot'} settles to the side of the path.`;
+  const watch=`The amber ${isCar()?'car':'robot'} is the full simulator driving the same test (▶ replays it); sideways is stretched about ×${fmt(AN.stretch||1,0)} so the offset is visible, and its heading is stretched with it.`;
+  $('#cap-step').innerHTML=AN.stepKind==='offset'?`Seen from above: the ${isCar()?'car':'robot'} starts ${fmt(AN.stepAmp*100,0)} cm to the side of the path (the blue line) and drives right; the curve is its sideways offset, the green band ±2 %. Time is on the top axis. ${watch}`
+    :`A ${biasUnit().val} ${biasUnit().unit} ${isCar()?'steering misalignment':'turn-rate bias'} acts from the start, with the ${isCar()?'car':'robot'} on the path: it drifts off and, without integral action, settles to the side, where the offset makes the controller cancel the error. ${watch}`;
   $('#fig-pz').hidden=false;$('#cap-pz').innerHTML=anPzCaption(R);$('#an-wi-x').hidden=!AN.wi;
   const ap=$('#an-wi-apply');if(ap)ap.onclick=anApplyWhatIf;
   const ms=AN.meas.step;
   $('#an-msg').textContent=AN.msg+(ms&&ms.satT>0?` The steering-rate limit was active for ${fmt(ms.satT,2)} s of the test${ms.satT>0.3?', so the response departs from the linear prediction':''}.`:'')+(ms&&ms.coll?' The robot collided during the test.':'');
   $('#an-step').disabled=AN.busy;$('#an-inj').disabled=AN.busy;$('#an-inj').hidden=false;$('#an-inja').hidden=false;$('#an-amp').hidden=false;$('#an-kind').hidden=false;$('#an-cl').hidden=false;
-  drawStep(R);drawPoles(R);
+  drawStep(R);drawPoles(R);anPlayUI();
   const adv=$('#an-adv');if(adv&&adv.open!==!!AN.adv)adv.open=!!AN.adv;
   if(AN.adv){$('#an-diagram').innerHTML=blockDiagram(R);$('#an-tf').innerHTML=anTF(R);$('#an-chips').innerHTML=anAdvChips(R);
     for(const id of['cv-nyq','cv-loc'])$('#'+id).parentNode.hidden=false;drawBode(R);drawNyq(R);drawLocus(R);}
@@ -324,8 +422,8 @@ function renderSpeed(){
     chip('Settled within 2 %',fmt(sm.settle,2)+' s'+(msm?` (sim ${fmt(msm.settle,2)} s)`:''),'','')+chip('Overshoot',fmt(sm.overshoot,0)+' %'+(msm?` (sim ${fmt(msm.overshoot,0)} %)`:''),'','')+
     (mpc?chip('Speed loop',R.stable?'stable':`unstable (${R.unstableZ})`,R.stable?'good':'badc',''):chip('Speed feedback','none (feedforward)','',''));
   $('#cap-step-t').textContent='Response: speed after a step in the reference';
-  $('#cap-step').innerHTML='Speed change as a fraction of the step (1 = the new reference). Dashed amber: measured in the simulator with Run step test.';
-  $('#fig-pz').hidden=true;$('#an-wi-x').hidden=true;
+  $('#cap-step').innerHTML=`The reference speed steps up by ${fmt(AN.spdAmp||0.2)} m/s at t = 0. The curve is how much of that change the real speed has made: 0 is the old speed, 1 (the dashed blue line) the new reference. The solid curve is the linear model; dashed amber is the full simulator (Run step test); the green band is ±2 % of the reference, where "settled" is measured.`;
+  $('#fig-pz').hidden=true;$('#an-wi-x').hidden=true;$('#an-why').hidden=true;$('#an-play-row').hidden=true;
   $('#an-msg').textContent=AN.msg+(ms&&ms.satT>0.1?` The acceleration limit was active for ${fmt(ms.satT,2)} s of the test, which the linear model does not include.`:'');
   $('#an-step').disabled=AN.busy;$('#an-inj').hidden=true;$('#an-inja').hidden=true;$('#an-amp').hidden=true;$('#an-kind').hidden=true;$('#an-cl').hidden=true;
   drawStep(R);

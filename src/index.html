@@ -68,14 +68,15 @@
       </section>
       </div>
       <div id="anview" class="view" hidden>
-        <div class="an-ctl"><span class="lbl">Loop</span><span class="seg sm" id="an-loop"></span><span class="lbl">Path</span><span class="seg sm" id="an-curve"></span><label class="check sm" id="an-est-l" title="Run the step and injection experiments with the estimator you picked in Localize, instead of ground truth"><input type="checkbox" id="an-est"><span>experiments use the estimator</span></label></div>
+        <div class="an-ctl"><span class="lbl">Loop</span><span class="seg sm" id="an-loop"></span><span class="lbl">Path</span><span class="seg sm" id="an-curve"></span><label class="check sm" id="an-est-l" title="Off: the simulator tests (Run step test, Measure L(jω) and the speed step test) feed the controller the true pose. On: they feed it the estimate from the estimator picked in Localize (odometry plus beacons every 4 m beside the path), so the amber curves include the estimation error. The model curves, gains, poles and margins always assume the true pose. With the particle filter or EKF-SLAM the offset step moves only the true pose, which the estimator sees as a small kidnap."><input type="checkbox" id="an-est"><span>simulator tests use the Localize estimator</span></label></div>
         <p class="an-op" id="an-op"></p>
         <div id="an-none" class="box an-none" hidden></div>
         <div id="an-body">
           <section class="an-story" id="an-story" aria-label="What is analyzed, in plain words"></section>
           <div class="an-chips an-key" id="an-key"></div>
+          <details class="an-adv an-why" id="an-why"><summary>Where these numbers come from</summary><div class="an-tf" id="an-why-body"></div></details>
           <div class="an-grid an-main">
-            <figure class="an-fig"><figcaption><span id="cap-step-t">Response: back to the path</span><span class="seg sm" id="an-kind"></span></figcaption><canvas id="cv-step" aria-label="Response of the lateral offset"></canvas><p class="an-cap" id="cap-step"></p></figure>
+            <figure class="an-fig"><figcaption><span id="cap-step-t">Response: back to the path</span><span class="seg sm" id="an-kind"></span></figcaption><canvas id="cv-step" aria-label="Response of the lateral offset"></canvas><div class="an-play" id="an-play-row" hidden><button type="button" class="btn small" id="an-play">▶ Play</button><input type="range" id="an-scrub" min="0" max="500" value="0" step="1" aria-label="Time in the simulated step test"><span class="mono an-pt" id="an-pt"></span><span class="seg sm" id="an-pspeed" aria-label="Playback speed"></span></div><p class="an-cap" id="cap-step"></p></figure>
             <figure class="an-fig" id="fig-pz"><figcaption><span>Poles: drag one to redesign</span><button type="button" class="linkbtn" id="an-wi-x" hidden>Clear the what-if</button></figcaption><canvas id="cv-pz" class="an-drag" aria-label="Closed-loop poles; drag a pole to try another design"></canvas><div class="an-cap" id="cap-pz"></div></figure>
           </div>
           <div class="an-exp">
@@ -90,8 +91,8 @@
               <div class="an-tf" id="an-tf"></div>
               <div class="an-chips" id="an-chips"></div>
               <div class="an-grid">
-                <figure class="an-fig"><figcaption><span>Bode · open loop L(jω)</span><span class="seg sm" id="an-cl"></span></figcaption><canvas id="cv-bode" aria-label="Bode plot"></canvas><p class="an-cap">Gain and phase of the open loop for a sinusoidal wiggle of ω rad/s. Where the gain crosses 0 dB (ω<sub>c</sub>) the phase must still be above −180°; the gap is the phase margin.</p></figure>
-                <figure class="an-fig"><figcaption><span>Nyquist</span><span class="seg sm" id="an-nyq"></span></figcaption><canvas id="cv-nyq" aria-label="Nyquist plot"></canvas><p class="an-cap">The same L(jω) in the complex plane. The loop is stable when the curve does not encircle −1; the closer it passes, the more fragile.</p></figure>
+                <figure class="an-fig"><figcaption><span>Bode · open loop L(jω)</span><span class="seg sm" id="an-cl"></span></figcaption><canvas id="cv-bode" aria-label="Bode plot"></canvas><p class="an-legend" id="lg-bode"></p><p class="an-cap">Gain and phase of the open loop for a sinusoidal wiggle of ω rad/s. Where the gain crosses 0 dB (ω<sub>c</sub>) the phase must still be above −180°; the gap is the phase margin.</p></figure>
+                <figure class="an-fig"><figcaption><span>Nyquist</span><span class="seg sm" id="an-nyq"></span></figcaption><canvas id="cv-nyq" aria-label="Nyquist plot"></canvas><p class="an-legend" id="lg-nyq"></p><p class="an-cap">The same L(jω) in the complex plane. The loop is stable when the curve does not encircle −1; the closer it passes, the more fragile.</p></figure>
                 <figure class="an-fig"><figcaption><span>Root locus</span><span class="lbl">s-plane [1/s]</span></figcaption><canvas id="cv-loc" aria-label="Root locus"></canvas><p class="an-cap">Where the closed-loop poles go when every controller gain is scaled by ×0.06 to ×16 (dots); × and ○ are the open-loop poles and zeros.</p></figure>
               </div>
               <div class="an-exp">

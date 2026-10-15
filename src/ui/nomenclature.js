@@ -39,7 +39,7 @@ const NOMEN=[
   [`${I('G')}, ${I('V')}`,`Jacobians of ${I('g')} with respect to the state and the input`,''],
   [I('M'),'Odometry noise covariance, diag(σ<sub>v</sub>², σ<sub>ω</sub>²)',''],
   ['σ<sub>v</sub>, σ<sub>ω</sub>','Odometry noise standard deviations','m/s, rad/s'],
-  [I('k'),'Odometry noise scale (Vehicle slider); the filter assumes its own multiple of it',''],
+  [I('k'),'Odometry noise scale (Localize slider); the filter assumes its own multiple of it',''],
   [I('b'),'Odometry calibration bias, not modeled by the filters',''],
   [`${I('z')} = [${I('r')}, φ]`,'Beacon measurement: range and bearing','m, rad'],
   [I('ẑ'),'Predicted measurement','m, rad'],

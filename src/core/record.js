@@ -34,6 +34,8 @@ function runLabel(){
 }
 function keepGhost(){
   if(S)UI.runEnded();   // the page keeps a copy (runs library); S and the frames are still the finished run's here
-  if(S&&S.t>1&&S.trailT.length>5)GHOST={level:LV.id,label:runLabel(),trailT:S.trailT.filter(Boolean),plot:S.plot.slice(),t:S.t};
+  // the level and settings noted while the run was live: a new level or a Try has already replaced LV and P here
+  const m=S&&UI.runMeta();
+  if(S&&S.t>1&&S.trailT.length>5)GHOST={level:m?m.level:LV.id,label:m?m.label:runLabel(),trailT:S.trailT.slice(),plot:S.plot.slice(),t:S.t};   // nulls in trailT: kidnap breaks
   REC.frames=[];
 }

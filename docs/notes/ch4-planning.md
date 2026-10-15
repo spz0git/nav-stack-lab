@@ -41,7 +41,7 @@ The bound is loose in practice: in lesson 1 ε = 3 returns paths within a few pe
 
 **From cells to a path.** The cell sequence is reduced to its turning points, then shortcut: from each point, the farthest later point reachable by a straight segment that stays 0.5 m from obstacles (lethal plus 0.1 m) becomes the next waypoint. The result is a polyline the tracker can follow, which is what the Try buttons draw.
 
-[try: A*, ε = 1 | {"sim":true,"level":1,"set":{"eps":1},"tab":"plan","layers":{"search":true}}] [try: A*, ε = 3 | {"sim":true,"level":1,"set":{"eps":3},"tab":"plan","layers":{"search":true}}]
+[try: A*, ε = 1 | {"sim":true,"level":1,"set":{"eps":1},"tab":"plan","layers":{"search":true},"searchStep":true}] [try: A*, ε = 3 | {"sim":true,"level":1,"set":{"eps":3},"tab":"plan","layers":{"search":true},"searchStep":true}]
 
 ## 3. RRT*: planning by sampling
 
@@ -63,7 +63,7 @@ then the expected number of nodes inside the radius grows like $\ln n$, enough t
 
 **What a finite budget buys.** Convergence is a statement about $n \to \infty$. At $n$ = 1500 on the warehouse, the first leg of lesson 2 comes out between 8.3 and 15.3 m depending on the seed, against 8.6 m for A*: half the seeds find the short way through the near aisle and half commit early to the long way round and never rewire out of it, because rewiring only improves connections inside $r_n$ and cannot move a subtree to a different aisle. With 4000 samples eight seeds in ten find the short route; with 300, four in ten find no connection to the goal at all. That is the trade: sampling needs no grid and scales to high-dimensional spaces where grids are hopeless, and it pays with variance that a grid search does not have.
 
-[try: RRT* | {"sim":true,"level":1,"set":{"plan":"rrtstar"},"tab":"plan","layers":{"search":true}}] [try: Next seed | {"sim":true,"level":1,"seed":"next","set":{"plan":"rrtstar"},"tab":"plan","layers":{"search":true}}]
+[try: RRT* | {"sim":true,"level":1,"set":{"plan":"rrtstar"},"tab":"plan","layers":{"search":true},"searchStep":true}] [try: Next seed | {"sim":true,"level":1,"seed":"next","set":{"plan":"rrtstar"},"tab":"plan","layers":{"search":true},"searchStep":true}]
 
 ## 4. Planning for a car
 
@@ -86,7 +86,7 @@ A grid path has corners of zero radius and no heading, so a car following it swi
 - Analytic expansion: near the goal (within 2.5 m, and every tenth expansion elsewhere), try the Reeds–Shepp shots from the current node to the goal pose and accept the first one that is collision-free. This is what finishes most plans: the search gets the car into the right room, the shot parks it. In the lesson's first run three of the four plans end in a shot; the third lands one after only 30 expansions, against 7 000 to 10 000 for the first two, which had to search most of the way before a shot was collision-free.
 - A budget of 60 000 expansions, after which the planner reports failure rather than hanging the loop.
 
-[try: Hybrid A*, L6 | {"sim":true,"level":5,"tab":"plan","layers":{"search":true}}] [try: Plain A* on the car | {"sim":true,"level":5,"set":{"plan":"astar"},"tab":"plan"}]
+[try: Hybrid A*, L6 | {"sim":true,"level":5,"tab":"plan","layers":{"search":true},"searchStep":true}] [try: Plain A* on the car | {"sim":true,"level":5,"set":{"plan":"astar"},"tab":"plan"}]
 
 ## 5. The mission layer
 
@@ -128,7 +128,7 @@ A diagonal move is also checked at the intermediate step, so the robot cannot cu
 
 **What it costs and buys.** The coarser grid means fewer expansions than plain A* on the same legs (200 to 3 500 against 1 400 to 5 900 in lesson 5), so the time dimension is paid for by the cell size. What it buys depends on the people: against scripted people on the busy floor it makes the same two contacts as A* with the agent layer, because the contacts come from people stepping out from behind shelves inside the planner's reaction time; against reactive people it makes none. The honest reading is that the trajectory layer, the speed planner, is doing most of the work on this floor, and space-time planning matters where the route itself must change, in doorways and narrow aisles.
 
-[try: Space-time A* | {"sim":true,"level":4,"set":{"plan":"stastar"},"tab":"plan","layers":{"search":true}}] [try: A* with the agent layer | {"sim":true,"level":4,"set":{"plan":"astar"},"tab":"plan","layers":{"search":true}}]
+[try: Space-time A* | {"sim":true,"level":4,"set":{"plan":"stastar"},"tab":"plan","layers":{"search":true},"searchStep":true}] [try: A* with the agent layer | {"sim":true,"level":4,"set":{"plan":"astar"},"tab":"plan","layers":{"search":true},"searchStep":true}]
 
 ## 7. What to carry into the next chapters
 

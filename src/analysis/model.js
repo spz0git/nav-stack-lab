@@ -3,7 +3,7 @@
    Operating point: straight path, speed v₀ = cruise speed, small errors.
    Controller gains are read off the real controller code by finite differences.
    ============================================================ */
-const AN={mode:'sim',loop:'lat',adv:false,wi:null,curveR:0,useEst:false,stepKind:'offset',showCL:true,nyqScale:'log',stepAmp:0.2,injAmp:'small',spdAmp:0.2,meas:{step:null,freq:null,spd:null},busy:false,res:null,resSpd:null,dirty:true,msg:''};
+const AN={mode:'sim',loop:'lat',adv:false,wi:null,curveR:0,useEst:false,stepKind:'offset',showCL:true,nyqScale:'log',stepAmp:0.2,injAmp:'small',spdAmp:0.2,meas:{step:null,freq:null,spd:null},play:null,why:false,busy:false,res:null,resSpd:null,dirty:true,msg:''};
 const anCtl=()=>(P.ctl==='stanley'&&!isCar())?'pp':P.ctl;
 const anSupported=()=>['pp','rwf','stanley','pid','mpc'].includes(anCtl());
 const latN=()=>Math.round(P.latency/DT);
@@ -216,11 +216,15 @@ function runStepTest(){
   if(kind==='offset')inBench(B,()=>benchPose(B,amp,0));
   const saved=P[bu.k];if(kind==='bias')P[bu.k]=bu.val;
   const out=[[0,kind==='offset'?1:0]];let satT=0,lastD=0;
+  // pose for the playback: [t, distance along the path, offset e, heading relative to the path, steering angle or turn rate]
+  const R0=anR(),ang=()=>R0?Math.atan2(B.robot.x,R0-B.robot.y):0,u=()=>isCar()?B.robot.d:B.robot.w;
+  let a0=ang(),aU=a0;const x0=B.robot.x,along=()=>{if(!R0)return B.robot.x-x0;let a=ang(),d=a-aU;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;aU+=d;return R0*(aU-a0);};
+  const pose=[[0,0,benchErr(B)-B.ess,wrap(B.robot.th-a0),u()]];
   try{inBench(B,()=>{const N=Math.round(tEnd/DT);for(let i=0;i<N;i++){benchTick(B,null);const e=benchErr(B)-B.ess;
       if(isCar()&&Math.abs(B.robot.d-lastD)/DT>=P.steerRate*0.98)satT+=DT;lastD=B.robot.d;
-      out.push([B.t,kind==='offset'?e/amp:e/bu.toModel(bu.val)]);}});}
+      out.push([B.t,kind==='offset'?e/amp:e/bu.toModel(bu.val)]);const s=along();pose.push([B.t,s,e,wrap(B.robot.th-(R0?aU:0)),u()]);}});}
   finally{P[bu.k]=saved;}
-  AN.meas.step={kind,amp,data:out,satT,coll:B.coll};
+  AN.meas.step={kind,amp,data:out,pose,satT,coll:B.coll};
 }
 async function runInjection(){
   const R=AN.res;if(!R||!R.F||!R.F.wc){AN.msg='Needs a crossover frequency to center the sweep.';return;}
@@ -248,11 +252,11 @@ function nearestPole(ps,tg){let b=null,bd=Infinity;for(const s of ps){if(s[1]<-1
 // two free gains: start from the delay-free formulas and correct the target until the real pole lands on it
 function placeTwo(M,tg){
   let t=tg.slice(),best=null;
-  for(let i=0;i<10;i++){const wn2=t[0]*t[0]+t[1]*t[1],Kth=Math.max(0,-2*t[0]/M.g),Ke=Math.max(0,wn2/(M.g*M.v0));
+  for(let i=0;i<10;i++){const wn2=t[0]*t[0]+t[1]*t[1],Kth=-2*t[0]/M.g,Ke=Math.max(0,wn2/(M.g*M.v0));   // K_θ < 0 for a pole pair in the right half
     const r=polesOf(staticModel(M,Ke,Kth)),d=nearestPole(r.ps,tg);if(!d)break;const err=Math.hypot(d[0]-tg[0],d[1]-tg[1]);
     if(!best||err<best.err)best={Ke,Kth,err};if(err<1e-3*Math.max(1,Math.hypot(tg[0],tg[1])))break;
     t=[t[0]+0.8*(tg[0]-d[0]),Math.max(0,t[1]+0.8*(tg[1]-d[1]))];}
-  if(!best){const wn2=tg[0]*tg[0]+tg[1]*tg[1];best={Ke:Math.max(0,wn2/(M.g*M.v0)),Kth:Math.max(0,-2*tg[0]/M.g),err:null};}
+  if(!best){const wn2=tg[0]*tg[0]+tg[1]*tg[1];best={Ke:Math.max(0,wn2/(M.g*M.v0)),Kth:-2*tg[0]/M.g,err:null};}
   return best;
 }
 // one-knob trackers: the curve their slowest pole pair follows as the knob turns (gains read from the code at each value)
@@ -274,14 +278,17 @@ function rwfUnits(v0){
 }
 function anWhatIf(R,tg){
   const M=R.M;let r;
-  if(R.knob){let bi=-1,bd=Infinity;R.knob.pts.forEach((q,i)=>{if(!q.dom)return;const d=Math.hypot(q.dom[0]-tg[0],q.dom[1]-tg[1]);if(d<bd){bd=d;bi=i;}});
+  // a one-knob tracker cannot leave its curve, which stays in the left half: a target in the right half is shown as a
+  // two-gain loop (rear-wheel feedback's form) with the gains that put it there
+  if(R.knob&&tg[0]<=0){let bi=-1,bd=Infinity;R.knob.pts.forEach((q,i)=>{if(!q.dom)return;const d=Math.hypot(q.dom[0]-tg[0],q.dom[1]-tg[1]);if(d<bd){bd=d;bi=i;}});
     if(bi<0)return null;const q=R.knob.pts[bi];r={Ke:q.Ke,Kth:q.Kth,x:q.x,tg:q.dom.slice(),knob:true};}
-  else{const b=placeTwo(M,tg);r={Ke:b.Ke,Kth:b.Kth,tg:tg.slice(),err:b.err};}
+  else{const b=placeTwo(M,tg);r={Ke:b.Ke,Kth:b.Kth,tg:tg.slice(),err:b.err,beyond:!!R.knob};}
   const M2=staticModel(M,r.Ke,r.Kth),pr=polesOf(M2);
   r.ps=pr.ps;r.unstable=pr.unstable;r.dom=domOf(pr.ps);
   r.step=linResponse(M2,pr.L,'offset',R.tEnd);r.bias=linResponse(M2,pr.L,'bias',R.tEnd);r.sm=stepMetrics(r.step,'offset');r.smB=stepMetrics(r.bias,'bias');
   if(r.knob){const pv=R.knob.toParam(r.x),st=R.knob.step,val=Math.round(pv/st)*st;r.set={[R.knob.key]:+val.toFixed(2)};r.setTxt=`${R.knob.key==='ppL0'?'L₀':'k'} = ${val.toFixed(2)}${R.knob.unit?' '+R.knob.unit:''}`;}
   else{const u=rwfUnits(M.v0),ke=u.e>1e-9?r.Ke/u.e:0,kth=u.th>1e-9?(r.Kth-u.th0)/u.th:0,cke=clamp(ke,0,12),ckth=clamp(kth,0,6);
+    r.need={ke,kth};r.applicable=ke>=-1e-6&&kth>=-1e-6;   // the settings cannot go below 0: a negative gain steers away from the path
     r.set={ctl:'rwf',rwKe:+(Math.round(cke*10)/10).toFixed(1),rwKth:+(Math.round(ckth*10)/10).toFixed(1)};r.clamped=Math.abs(cke-ke)>0.05||Math.abs(ckth-kth)>0.05;
     r.setTxt=`k_e = ${r.set.rwKe.toFixed(1)} 1/m², k_θ = ${r.set.rwKth.toFixed(1)} 1/m`;}
   return r;

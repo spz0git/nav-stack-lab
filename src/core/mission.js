@@ -28,7 +28,7 @@ function doPlan(reason){
   const F=S.fsm;
   if(!F.queue.length){F.state='DONE';S.track=null;S.plan=null;return;}
   const agL=reason==='agent blocking'&&P.plan!=='stastar'&&agCostLayer();   // predicted agents enter the costmap for this plan only
-  const wp=WPS[F.queue[0]],e=S.est,t0=performance.now();let res;
+  const wp=WPS[F.queue[0]],e=S.est,t0=performance.now();let res;S.searchTrace=null;
   if(P.plan==='custom'){customPlanStart(wp,reason);if(agL)buildCostmap();return;}
   if(P.plan==='straight')res={ok:true,pts:[[e.x,e.y],[wp.x,wp.y]],exp:0};
   else if(P.plan==='astar')res=astar(e.x,e.y,wp.x,wp.y);

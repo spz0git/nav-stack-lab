@@ -92,6 +92,8 @@ function stAstar(sx,sy,gx,gy){
       const vkey=key(vi,vj,vk),ng=g+c*dtc*(1+(di===0&&dj===0?0.2:0))+(S.cm.pen[(vj*CW)*GW+vi*CW]||0)*0.3*dtc;
       if(ng<(gsc.has(vkey)?gsc.get(vkey):Infinity)){gsc.set(vkey,ng);par.set(vkey,u);heap.push(vkey,ng+h(vi,vj));}}}
   S.search={type:'hybrid',pts:[...closed].slice(0,4000).flatMap(u=>[(u%gw+0.5)*cw,(((u/gw)|0)%gh+0.5)*cw])};
+  {const ord=[...closed],ix=new Map();ord.forEach((u,i)=>ix.set(u,i));   // playback: every expansion, with its parent's index
+    S.searchTrace={type:'pts',name:'Space-time A*',n:ord.length,pts:ord.flatMap(u=>[(u%gw+0.5)*cw,(((u/gw)|0)%gh+0.5)*cw]),pix:ord.map(u=>par.has(u)&&ix.has(par.get(u))?ix.get(par.get(u)):-1),cell:cw};}
   if(found==null)return{ok:false,reason:'no space-time route within the horizon',exp};
   const cells=[];for(let u=found;u!=null;u=par.get(u))cells.push(u);cells.reverse();
   const pts=[[sx,sy]];let prev=null;for(const u of cells){const i=u%gw,j=((u/gw)|0)%gh;if(prev&&prev[0]===i&&prev[1]===j)continue;prev=[i,j];pts.push([(i+0.5)*cw,(j+0.5)*cw]);}

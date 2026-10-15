@@ -13,6 +13,10 @@
   - The header shows the version from `src/version.json` (`v25 · 2026-10-14`). Before each republish of the live artifact,
     set `version` to the artifact version the publish will create (the last publish result's version + 1), with the date
     and a short note, rebuild, and commit it; the label then matches the artifact's version history.
+  - After each live republish, delete the previous artifacts: list them (Artifact `action: "list"`) and delete every
+    "Nav Stack Lab" page artifact except the live URL above (the PR previews and any older builds). Never delete the live
+    artifact, and leave artifacts with other titles alone (e.g. "Nav Stack Lab — Companion Notes", other projects).
+    Say in your reply which ones were deleted.
 - Companion notes (the Learn column's chapters) are written in `docs/notes/<id>.md` (markdown subset + TeX; see the header of
   `tools/notes.mjs` for the `{{live:key}}` and `[try: … | {cfg}]` extensions). The build converts them to HTML with MathML
   (`tools/vendor/temml`, build-time only; the page keeps zero runtime dependencies). Live values are defined in

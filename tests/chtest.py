@@ -22,7 +22,10 @@ async def main():
             for i,t in enumerate(tries):
                 await pg.evaluate(f"document.querySelectorAll('#learnview button.try')[{i}].click()"); await pg.wait_for_timeout(250)
                 if 'Measure' in t or 'sine' in t or ('EKF' in t and ch=='ch6'):
-                    await pg.wait_for_function("!window.__an.AN.busy",timeout=60000)
+                    for _ in range(600):   # wait_for_function would eval() its predicate, which the page's CSP forbids
+                        if not await pg.evaluate("window.__an.AN.busy"): break
+                        await pg.wait_for_timeout(100)
+                    else: raise TimeoutError('analysis still busy after 60 s: '+t)
                 if await pg.evaluate("window.__nav.S.fsm.state")=='DRIVE': await pg.evaluate("window.__nav.advance(40)")
                 v=await pg.evaluate("[...document.querySelectorAll('#learnview .live')].slice(0,6).map(e=>e.textContent).join(' ')")
                 print(f'  try {i:2d} {t[:34]:34s} → {v}')

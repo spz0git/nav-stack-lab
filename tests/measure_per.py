@@ -1,5 +1,6 @@
 import asyncio, json, sys
 from playwright.async_api import async_playwright
+from _browser import launch, page_url
 # Measures what the perception lessons' Try buttons show, headless: map quality against the truth (occupied-cell precision
 # and recall over the cells the robot has seen), pose error, people contacts and closest approach, track velocity error,
 # replans and mission progress. A case: {name, lvl, set, secs, every}.
@@ -35,11 +36,11 @@ async ({lvl, overrides, secs, every}) => {
 async def main():
     cases=json.loads(sys.argv[1])
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+        b=await launch(p)
         pg=await b.new_page(viewport={'width':1280,'height':900})
         errs=[]
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+__import__('os').path.abspath('../dist/nav-stack-lab.html'))
+        await pg.goto(page_url())
         await pg.wait_for_timeout(800)
         for c in cases:
             r=await pg.evaluate(RUN,{'lvl':c['lvl'],'overrides':c.get('set',{}),'secs':c.get('secs',150),'every':c.get('every',10)})

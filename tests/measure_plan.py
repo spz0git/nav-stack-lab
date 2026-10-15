@@ -1,5 +1,6 @@
 import asyncio, json, sys
 from playwright.async_api import async_playwright
+from _browser import launch, page_url
 # Measures what the planning lessons' Try buttons show, headless: every Plan/Replan log line (planner, length,
 # expansions or samples, time, cusps, waits), replan reasons, mission progress, collisions and contacts.
 # A case: {name, lvl, set, secs, seeds:[…]} — with seeds, the level is reloaded per seed and only the first plan is reported.
@@ -20,11 +21,11 @@ async ({lvl, overrides, secs, seed, cfg}) => {
 async def main():
     cases=json.loads(sys.argv[1])
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+        b=await launch(p)
         pg=await b.new_page(viewport={'width':1280,'height':900})
         errs=[]
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+__import__('os').path.abspath('../dist/nav-stack-lab.html'))
+        await pg.goto(page_url())
         await pg.wait_for_timeout(800)
         for c in cases:
             seeds=c.get('seeds') or [None]

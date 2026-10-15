@@ -1,5 +1,6 @@
 import asyncio, sys
 from playwright.async_api import async_playwright
+from _browser import launch, page_url
 TEST=r'''
 async ({lvl, overrides, secs}) => {
   const N=window.__nav; N.loadLevel(lvl);
@@ -28,12 +29,12 @@ async ({lvl, overrides}) => {
 }'''
 async def main():
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+        b=await launch(p)
         pg=await b.new_page(viewport={'width':1280,'height':900})
         errs=[]
         pg.on('console', lambda m: errs.append(m.text) if m.type in ('error','warning') else None)
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+__import__('os').path.abspath('../dist/nav-stack-lab.html'))
+        await pg.goto(page_url())
         await pg.wait_for_timeout(800)
         cases=[(0,{},90),(0,{'ctl':'pid'},90),(0,{'ctl':'dwa'},90),(1,{},120),(1,{'plan':'rrtstar'},120),(1,{'plan':'straight'},60),(1,{'mis':'optimal'},120),
                (2,{},150),(2,{'loc':'ekf'},150),(2,{'loc':'pf'},150),(3,{},200),(3,{'unknownAs':'lethal'},200),(4,{},200),(4,{'ctl':'dwa'},200)]

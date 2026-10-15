@@ -55,15 +55,21 @@ The tests drive the built page headless with Playwright (Python) and need a Chro
 python3 -m venv .venv && source .venv/bin/activate
 pip install playwright && playwright install chromium
 ./build.sh
-cd tests
-python3 test.py        # L1–L5 regression: goals, contacts, mission time, pose error, NEES (the summary must not change)
-python3 p5test.py      # every Try button of every lesson and level runs without a console error
-python3 tles.py        # every lesson renders; the glossary covers every term
-python3 chtest.py      # every chapter: live values fill, Try buttons run, derivation links go there and back
-python3 dyntest.py     # the car with tyre slip against chapter 1's theory; Analyze against the simulator
+python3 tests/run_all.py         # or: npm test
 ```
 
-The whole suite takes about three minutes. The headless core also runs in Node without a browser:
+`run_all.py` runs the five gate tests and prints a pass/fail table; each can also run on its own from any directory:
+
+```
+tests/test.py        L1–L5 regression: goals, contacts, mission time, pose error, NEES (the summary must not change)
+tests/p5test.py      every Try button of every lesson and level runs without a console error
+tests/tles.py        every lesson renders; the glossary covers every term
+tests/chtest.py      every chapter: live values fill, Try buttons run, derivation links go there and back
+tests/dyntest.py     the car with tyre slip against chapter 1's theory; Analyze against the simulator
+```
+
+The whole suite takes about three minutes. `NAV_LAB_CHROMIUM=/path/to/chrome` makes the tests use that browser
+instead of Playwright's own; `NAV_LAB_PAGE=…` tests another build than `dist/nav-stack-lab.html`. The headless core also runs in Node without a browser:
 `node -e "..."` against `dist/core-worker.js` reproduces the page's runs (see `src/worker/main.js`).
 
 ## Contribute

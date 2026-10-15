@@ -1,5 +1,6 @@
 import asyncio, sys, json, os
 from playwright.async_api import async_playwright
+from _browser import launch, page_url
 TEST=r'''
 async ({lvl, overrides, secs}) => {
   const N=window.__nav; if(overrides.seed){N.P.seed=overrides.seed;} N.loadLevel(lvl);
@@ -16,12 +17,12 @@ async ({lvl, overrides, secs}) => {
 async def main():
     cases=json.loads(sys.argv[1]); verbose=len(sys.argv)>2
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+        b=await launch(p)
         pg=await b.new_page(viewport={'width':1280,'height':900})
         errs=[]
         pg.on('console', lambda m: errs.append(m.text) if m.type in ('error',) else None)
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(600)
+        await pg.goto(page_url()); await pg.wait_for_timeout(600)
         for lvl,ov,secs in cases:
             r=await pg.evaluate(TEST,{'lvl':lvl,'overrides':ov,'secs':secs})
             print('L%d'%(lvl+1),ov,{k:v for k,v in r.items() if k!='log'})

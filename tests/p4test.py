@@ -1,10 +1,11 @@
 import asyncio,os
 from playwright.async_api import async_playwright
+from _browser import launch, page_url
 async def main():
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+        b=await launch(p)
         pg=await b.new_page(viewport={'width':1440,'height':900}); errs=[]; pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: errs.append('C:'+m.text) if m.type=='error' and 'ERR_' not in m.text else None)
-        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(600)
+        await pg.goto(page_url()); await pg.wait_for_timeout(600)
         await pg.click('#tab-learn'); await pg.wait_for_timeout(200)
         n=await pg.evaluate("document.querySelectorAll('details.lesson').length"); print('lessons',n)
         # click a sim lesson try: Localization lesson 3, try 1 (EKF unlabeled kidnap)

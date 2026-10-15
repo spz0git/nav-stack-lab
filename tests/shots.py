@@ -6,15 +6,16 @@
 # Also prints layout checks: horizontal overflow, and where the map sits on the phone.
 import asyncio, os, sys
 from playwright.async_api import async_playwright
+from _browser import launch, page_url
 SIZES={'desk':(1440,900),'phone':(390,844)}
 async def shot(b,out,size,name,dark=False):
     w,h=SIZES[size]
     ctx=await b.new_context(viewport={'width':w,'height':h},device_scale_factor=2 if size=='phone' else 1,color_scheme='dark' if dark else 'light',is_mobile=size=='phone',has_touch=size=='phone')
     pg=await ctx.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
-    await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(700)
+    await pg.goto(page_url()); await pg.wait_for_timeout(700)
     if name=='full':
         await ctx.close(); ctx=await b.new_context(viewport={'width':w,'height':h},color_scheme='dark' if dark else 'light',is_mobile=True,has_touch=True)
-        pg=await ctx.new_page(); await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(700)
+        pg=await ctx.new_page(); await pg.goto(page_url()); await pg.wait_for_timeout(700)
     if name=='l5':
         await pg.evaluate("window.__nav.loadLevel(4)")
         await pg.click('#run'); await pg.evaluate("async()=>{await window.__nav.advance(500)}")
@@ -46,7 +47,7 @@ async def main():
     if sys.argv[1]=='--learn':
         out=sys.argv[2]; os.makedirs(out,exist_ok=True)
         async with async_playwright() as p:
-            b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+            b=await launch(p)
             for size in SIZES:
                 for name in ('lessonlist','lessonsim','lessonan'):
                     for dark in (False,True): await shot(b,out,size,name,dark)
@@ -55,7 +56,7 @@ async def main():
     out=sys.argv[1]; os.makedirs(out,exist_ok=True)
     darks=sys.argv[2:] or ['phone-l5']
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+        b=await launch(p)
         for size in SIZES:
             for name in ('first','l5','learn'): await shot(b,out,size,name)
         await shot(b,out,'phone','full')

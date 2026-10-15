@@ -73,7 +73,7 @@ The bias appears nowhere in $M$. That omission is what lesson 1 and the second h
 
 **In numbers.** Driving straight at 0.8 m/s with both sliders at ×1, each reading is off by $\sigma_v \approx$ 0.10 m/s and $\sigma_\omega \approx$ 0.10 rad/s (5.7°/s) at random. The bias makes the speed read 2 % high (+1.6 cm/s) and adds +0.008 rad/s (0.46°/s) to the turn rate, always in the same direction, about 28° of heading per minute. At the current settings and {{live:v0}} m/s: $\sigma_v$ = {{live:sigv}} m/s, $\sigma_\omega$ = {{live:sigw}} rad/s, bias +{{live:odoBv}} cm/s and +{{live:odoBw}} rad/s, heading drift {{live:odoDrift}}° per minute. The noise partly averages out (its heading error grows like $\sqrt t$), while the bias never does: its heading error grows like $t$ and the position error like $t^2$.
 
-[try: Dead reckoning, L3 | {"sim":true,"level":2,"set":{"loc":"dr"},"tab":"loc","plot":"pos"}] [try: Same, noise ×3 | {"sim":true,"level":2,"set":{"loc":"dr","odoK":3},"tab":"veh","plot":"pos"}]
+[try: Dead reckoning, L3 | {"sim":true,"level":2,"set":{"loc":"dr"},"tab":"loc","plot":"pos"}] [try: Same, noise ×3 | {"sim":true,"level":2,"set":{"loc":"dr","odoK":3},"tab":"loc","plot":"pos"}]
 
 **How fast it grows.** For straight driving at speed $v$ with heading noise only, the heading variance after time $t$ is $\sigma_\theta^2(t) = \sigma_\omega^2\, t / \Delta t \cdot \Delta t^2 = \sigma_\omega^2 \Delta t\, t$, a random walk, and the sideways position error integrates it: its variance grows like $v^2 \sigma_\omega^2 \Delta t\, t^3/3$. Cubic in time. Speed noise alone gives a sideways-free, along-track variance linear in $t$. That asymmetry, $t^3$ across against $t$ along, is the ellipse.
 
@@ -131,7 +131,7 @@ is chi-squared with three degrees of freedom: mean 3, and below 7.81 in 95 % of 
 
 What breaks consistency is anything the model lacks. Unmodeled bias is the usual case: the innovations stop being zero-mean, but $K$ still treats them as noise and $\Sigma$ keeps shrinking as if every reading were fully informative. The honest repairs are to model the bias (add a scale state to the filter, which the beacons then make observable) or, pragmatically, to inflate $M$ so that $\Sigma$ stays large enough to absorb it, which is what lesson 2's third experiment does.
 
-[try: EKF, bias ×3 | {"sim":true,"level":2,"set":{"loc":"ekf","odoB":3},"tab":"veh","plot":"pos"}] [try: Bias ×3, assumed noise ×4 | {"sim":true,"level":2,"set":{"loc":"ekf","odoB":3,"filtK":4},"tab":"loc","plot":"pos"}]
+[try: EKF, bias ×3 | {"sim":true,"level":2,"set":{"loc":"ekf","odoB":3},"tab":"loc","plot":"pos"}] [try: Bias ×3, assumed noise ×4 | {"sim":true,"level":2,"set":{"loc":"ekf","odoB":3,"filtK":4},"tab":"loc","plot":"pos"}]
 
 ## 6. Data association and the gate
 

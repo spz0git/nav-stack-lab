@@ -5,7 +5,7 @@
 let LV=LEVELS[0], S=null, WPS=[];
 let running=false, pauseOnContact=false;
 // What the simulation core needs from a user interface. The page overrides these; a worker leaves them as no-ops.
-const UI={draw(){},refresh(){},invalidate(){},levelChanged(){},slotStatus(){},runEnded(){},mode:()=>'sim'};   // runEnded: the run is about to be cleared (record.js)
+const UI={draw(){},refresh(){},invalidate(){},levelChanged(){},slotStatus(){},runEnded(){},runMeta:()=>null,mode:()=>'sim'};   // runEnded: the run is about to be cleared (record.js)
 const dirty={occ:true,cost:true,search:true};
 
 function prepLevel(L){

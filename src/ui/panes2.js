@@ -20,7 +20,7 @@ function wireSym(pane){
 // The lookahead point is a UI-only layer (core's LAYERS has no key for it).
 if(!('look' in LAYERS))LAYERS.look=true;
 if(!('slip' in LAYERS))LAYERS.slip=true;   // the sideslip arrow of the car with tyre slip, also UI-only
-const TAB_LAYERS={loc:['belief','beam','trail','ghost','slip'],per:['lidar','cost','ghost','slip'],mis:['slip'],plan:['search','slip'],ctl:['dwa','look','trail','ghostrun','slip']};
+const TAB_LAYERS={loc:['belief','beam','trail','ghost','ghostrun','slip'],per:['lidar','cost','ghost','ghostrun','slip'],mis:['ghostrun','slip'],plan:['search','ghostrun','slip'],ctl:['dwa','look','trail','ghostrun','slip']};
 let layersEdited=false,layersKey='';
 function applyTabLayers(force){
   const set=TAB_LAYERS[activeTab];if(!set||layersEdited||lessonOpen)return;
@@ -31,7 +31,7 @@ function applyTabLayers(force){
 }
 function layersPane(){
   const L=[['ghost','True-map outline over the built map'],['cost','Costmap inflation'],['search','Planner search (A* closed set / RRT* tree)'],['lidar','Lidar hits (as perceived)'],['beam','Beacon measurements (from the estimate)'],['belief','Particles / 95% covariance ellipse'],['trail','Trails (solid = truth, dashed = estimate)'],['dwa','Local planner: DWA rollouts, MPC prediction and reference'],['look','Lookahead point of the path tracker'],['slip','Sideslip of the car with tyre slip: velocity at the centre of mass against the heading'],['agents','Agent tracks, predictions, and the ego\'s predicted positions at the same times'],['ghostrun','Previous run on this level: ghost trail on the map and ghost series in the plot']];
-  return`<p class="note">What to draw on the map. Nothing here changes the simulation. ${layersEdited?`You have edited the layers, so tabs no longer change them. <button class="linkbtn" id="layers-auto" type="button">Let each tab choose again</button>`:'Each pipeline tab (1–5) shows its own set; ticking a box here keeps your choice for this session.'}</p>`+L.map(([k,l])=>`<label class="check"><input type="checkbox" id="layer-${k}" data-layer="${k}" ${LAYERS[k]?'checked':''}><span>${l}</span></label>`).join('')+(GHOST?`<p class="note">Ghost: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button class="linkbtn" id="ghost-clear" type="button">Forget it</button></p>`:'');
+  return`<p class="note">What to draw on the map. Nothing here changes the simulation. ${layersEdited?`You have edited the layers, so tabs no longer change them. <button class="linkbtn" id="layers-auto" type="button">Let each tab choose again</button>`:'Each pipeline tab (1–5) shows its own set; ticking a box here keeps your choice for this session.'}</p>`+L.map(([k,l])=>`<label class="check"><input type="checkbox" id="layer-${k}" data-layer="${k}" ${LAYERS[k]?'checked':''}><span>${l}</span></label>`).join('')+(GHOST&&GHOST.level===LV.id?`<p class="note">Ghost: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button class="linkbtn" id="ghost-clear" type="button">Forget it</button></p>`:'');
 }
 let codeSlot='ctl';
 function codePane(){

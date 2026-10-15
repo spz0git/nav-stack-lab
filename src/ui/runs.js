@@ -19,6 +19,7 @@ function runSnapshot(){
     trailT:S.trailT.filter(Boolean).map(p=>[+p[0].toFixed(3),+p[1].toFixed(3)]),plot:S.plot.map(d=>({...d})),
     F:F.map(f=>{const o={t:f.t};for(const id of fsig){const v=SIG[id].get(f);o[id]=v==null||!isFinite(v)?null:+(+v).toFixed(4);}return o;})};
 }
+UI.runMeta=()=>RUNS.meta&&RUNS.meta.S===S?RUNS.meta:null;
 UI.runEnded=()=>{const r=runSnapshot();if(!r)return;
   const k=RUNS.kept.find(x=>x._S===S);if(k){const{id,name}=k;Object.assign(k,r,{id,name});delete k._S;}   // a run kept while live gets its full length
   else{RUNS.recent.unshift(r);RUNS.recent=RUNS.recent.slice(0,6);}

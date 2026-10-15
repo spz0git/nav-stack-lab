@@ -1,8 +1,5 @@
 import asyncio, sys
 from playwright.async_api import async_playwright
-html=open('../dist/nav-stack-lab.html').read()
-page_html='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>'+html+'</body></html>'
-open('wrapped.html','w').write(page_html)
 TEST=r'''
 async ({lvl, overrides, secs}) => {
   const N=window.__nav; N.loadLevel(lvl);
@@ -36,7 +33,7 @@ async def main():
         errs=[]
         pg.on('console', lambda m: errs.append(m.text) if m.type in ('error','warning') else None)
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+__import__('os').path.abspath('wrapped.html'))
+        await pg.goto('file://'+__import__('os').path.abspath('../dist/nav-stack-lab.html'))
         await pg.wait_for_timeout(800)
         cases=[(0,{},90),(0,{'ctl':'pid'},90),(0,{'ctl':'dwa'},90),(1,{},120),(1,{'plan':'rrtstar'},120),(1,{'plan':'straight'},60),(1,{'mis':'optimal'},120),
                (2,{},150),(2,{'loc':'ekf'},150),(2,{'loc':'pf'},150),(3,{},200),(3,{'unknownAs':'lethal'},200),(4,{},200),(4,{'ctl':'dwa'},200)]

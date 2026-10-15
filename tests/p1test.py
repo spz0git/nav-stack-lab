@@ -4,7 +4,7 @@ async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
         pg=await b.new_page(viewport={'width':1280,'height':800}); errs=[]; pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: errs.append('C:'+m.text) if m.type=='error' and 'ERR_' not in m.text else None)
-        await pg.goto('file://'+os.path.abspath('wrapped.html')); await pg.wait_for_timeout(700)
+        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(700)
         await pg.screenshot(path='p1_first.png')
         print('status',await pg.evaluate("document.querySelector('#status').innerText"))
         # Try button: L1 item 1 button 1
@@ -48,7 +48,7 @@ async def main():
         print('pause on contact:',await pg.evaluate("[window.__nav.S.coll, window.__nav.S.log[0].msg]"), 'still running?',await pg.evaluate("(()=>{const a=window.__nav.S.t;return new Promise(r=>setTimeout(()=>r(window.__nav.S.t!==a),400))})()"))
         # analysis + mobile
         await pg.keyboard.press('a'); await pg.wait_for_timeout(600); await pg.screenshot(path='p1_an.png')
-        m=await b.new_page(viewport={'width':390,'height':844},device_scale_factor=2); await m.goto('file://'+os.path.abspath('wrapped.html')); await m.wait_for_timeout(500)
+        m=await b.new_page(viewport={'width':390,'height':844},device_scale_factor=2); await m.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await m.wait_for_timeout(500)
         print('mobile sw',await m.evaluate("document.documentElement.scrollWidth")); await m.screenshot(path='p1_mob.png')
         print('ERR',errs); await b.close()
 asyncio.run(main())

@@ -11,10 +11,10 @@ async def shot(b,out,size,name,dark=False):
     w,h=SIZES[size]
     ctx=await b.new_context(viewport={'width':w,'height':h},device_scale_factor=2 if size=='phone' else 1,color_scheme='dark' if dark else 'light',is_mobile=size=='phone',has_touch=size=='phone')
     pg=await ctx.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
-    await pg.goto('file://'+os.path.abspath('wrapped.html')); await pg.wait_for_timeout(700)
+    await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(700)
     if name=='full':
         await ctx.close(); ctx=await b.new_context(viewport={'width':w,'height':h},color_scheme='dark' if dark else 'light',is_mobile=True,has_touch=True)
-        pg=await ctx.new_page(); await pg.goto('file://'+os.path.abspath('wrapped.html')); await pg.wait_for_timeout(700)
+        pg=await ctx.new_page(); await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(700)
     if name=='l5':
         await pg.evaluate("window.__nav.loadLevel(4)")
         await pg.click('#run'); await pg.evaluate("async()=>{await window.__nav.advance(500)}")

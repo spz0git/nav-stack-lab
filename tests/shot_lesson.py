@@ -9,7 +9,7 @@ async def main():
         for name,w,h in [('desktop',1380,900),('phone',390,844)]:
             pg=await b.new_page(viewport={'width':w,'height':h},device_scale_factor=2)
             errs=[];pg.on('pageerror',lambda e:errs.append(str(e)))
-            await pg.goto('file://'+os.path.abspath('wrapped.html')+'#lesson='+lid.split(':')[0]+':'+str(int(lid.split(':')[1])+1))
+            await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')+'#lesson='+lid.split(':')[0]+':'+str(int(lid.split(':')[1])+1))
             await pg.wait_for_timeout(900)
             await pg.evaluate("for(const e of [document.querySelector('#learnview'),document.querySelector('.right'),document.querySelector('.layout')])if(e)e.style.cssText+=';max-height:none;height:auto;overflow:visible'")
             await pg.wait_for_timeout(200)

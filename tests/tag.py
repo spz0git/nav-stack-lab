@@ -21,7 +21,7 @@ async def main():
         errs=[]
         pg.on('console', lambda m: errs.append(m.text) if m.type in ('error',) else None)
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+os.path.abspath('wrapped.html')); await pg.wait_for_timeout(600)
+        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(600)
         for lvl,ov,secs in cases:
             r=await pg.evaluate(TEST,{'lvl':lvl,'overrides':ov,'secs':secs})
             print('L%d'%(lvl+1),ov,{k:v for k,v in r.items() if k!='log'})

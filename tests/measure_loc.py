@@ -32,7 +32,7 @@ async def main():
         pg=await b.new_page(viewport={'width':1280,'height':900})
         errs=[]
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+__import__('os').path.abspath('wrapped.html'))
+        await pg.goto('file://'+__import__('os').path.abspath('../dist/nav-stack-lab.html'))
         await pg.wait_for_timeout(800)
         for c in cases:
             r=await pg.evaluate(RUN,{'lvl':c['lvl'],'overrides':c.get('set',{}),'secs':c.get('secs',150),'every':c.get('every',10),'act':c.get('act'),'dense':c.get('dense')})

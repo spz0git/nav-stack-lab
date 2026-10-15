@@ -10,7 +10,7 @@ Live version: https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7 · Roadmap and d
 ## Build and test
 
 ```sh
-./build.sh                 # node build.mjs → dist/nav-stack-lab.html, dist/core-worker.js; tests/wrapped.html
+./build.sh                 # node build.mjs → dist/nav-stack-lab.html (standalone page), dist/core-worker.js
 cd tests
 python3 test.py            # L1–L5 regression summary (goals, contacts, time, errors)
 python3 p5test.py          # every Try button runs without errors

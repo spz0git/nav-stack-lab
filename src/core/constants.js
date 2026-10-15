@@ -18,6 +18,7 @@ function integ(x,y,th,v,w,dt){
   return {x:x+r*(Math.sin(th2)-Math.sin(th)),y:y-r*(Math.cos(th2)-Math.cos(th)),th:wrap(th2)};
 }
 const isCar=()=>P.model==='car';
+const isDyn=()=>isCar()&&P.carPhys==='dyn';   // car with tyre slip (dynamic bicycle model, vehicle.js)
 const steerMax=()=>P.steerMaxDeg*Math.PI/180;
 const minTurnR=()=>P.wheelbase/Math.tan(steerMax());
 const planSteer=()=>steerMax()*P.planPct/100, planR=()=>P.wheelbase/Math.tan(planSteer());   // planners keep steering margin for feedback

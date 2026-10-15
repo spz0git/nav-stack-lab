@@ -164,6 +164,19 @@ async def main():
         print(f'  Nyquist Z = N + P against the eigenvalues: {n} cases (three tyre sets, one oversteering, five trackers, 1–4 m/s), mismatches {bad}')
         if bad: fails.append('Nyquist count disagrees with the eigenvalues')
 
+        print('== 6. the worker core (Experiments) runs the car with tyre slip as the page does')
+        WK=r'''async ({level,overrides,seed,secs})=>{const src=document.getElementById('core-worker-src').textContent;
+          const w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
+          return await new Promise((res,rej)=>{w.onmessage=e=>{if(e.data.done){w.terminate();res(e.data);}};w.onerror=e=>rej(e.message);w.postMessage({cmd:'run',id:1,level,overrides,seed,secs});});}'''
+        PG=r'''async ({level,overrides,seed,secs})=>{const N=window.__nav;N.setParam('seed',seed,false);N.loadLevel(level);for(const [k,v] of Object.entries(overrides))N.setParam(k,v,false);
+          document.querySelector('#run').click();document.querySelector('#run').click();const S=N.S;for(let i=0;i<Math.round(secs/0.05);i++){await N.advance(1);if(S.fsm.state==='DONE')break;}
+          return {t:+S.t.toFixed(2),goalsDone:N.WPS.filter(w=>w.done&&!w.skipped).length,coll:S.coll,cteRMS:S.cteN?+Math.sqrt(S.cteSq/S.cteN).toFixed(4):null,dist:+S.dist.toFixed(2)};}'''
+        job={'level':0,'overrides':{'veh':'dyn',**PRESETS['slippery'],'vmax':2,'vcruise':1.5,'alat':1.5},'seed':7,'secs':120}
+        wk=await pg.evaluate(WK,job);pgr=await pg.evaluate(PG,job);ws=wk.get('summary',{})
+        same={k:(ws.get(k),pgr[k]) for k in ['goalsDone','coll','cteRMS','dist']}   # t differs: the worker checks DONE every 40 ticks
+        print('  L1, slippery, 1.5 m/s: worker vs page',same,wk.get('error') or '')
+        if wk.get('error') or any(a!=b for a,b in same.values()): fails.append('worker and page differ for the dynamic car')
+
         print('== 4. L6 missions (low speed, reverse legs) with both presets')
         for name,pr in PRESETS.items():
             r=await pg.evaluate(MISSION,{'lvl':5,'set':{**pr,'carPhys':'dyn'},'secs':300})

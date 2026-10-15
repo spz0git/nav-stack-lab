@@ -3,6 +3,7 @@
 # Control health light, at 1440×900 and 390×844, light and dark.
 # Usage (from tests/, after ./build.sh): python3 shots_dyn.py <out-dir>            the Simulate set (step B)
 #                                          python3 shots_dyn.py --analyze <out-dir>  Analyze with the slippery car at 2 m/s (step C)
+#                                          python3 shots_dyn.py --learn <out-dir>    the lesson "Running out of grip" after its third Try (step D)
 import asyncio, os, sys
 from playwright.async_api import async_playwright
 SIZES={'desk':(1440,900),'phone':(390,844)}
@@ -61,13 +62,35 @@ async def analyze(b,out,size,dark,checks):
         checks['op']=await pg.evaluate("document.querySelector('#an-op').textContent")
     checks.setdefault('errors',[]).extend(errs)
     await ctx.close()
+async def learn(b,out,size,dark,checks):
+    w,h=SIZES[size]
+    ctx=await b.new_context(viewport={'width':w,'height':h},device_scale_factor=2 if size=='phone' else 1,color_scheme='dark' if dark else 'light',is_mobile=size=='phone',has_touch=size=='phone')
+    pg=await ctx.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
+    await pg.goto('file://'+os.path.abspath('wrapped.html')); await pg.wait_for_timeout(700)
+    lid=await pg.evaluate("window.__an.LESSON_GROUPS().find(g=>g.id==='ctl').items.findIndex(L=>L.t==='Running out of grip')")
+    await pg.click('#tab-learn'); await pg.evaluate(f"window.__an.openLesson('ctl:{lid}')"); await pg.wait_for_timeout(150)
+    # press the third Try (cap above the grip), pause in the same task, then run a fixed 26 s: the frame just after the car leaves the path
+    await pg.evaluate(f"async()=>{{await document.querySelector('button[data-try=\"ctl:{lid}:2\"]').onclick();document.querySelector('#run').click();await window.__nav.advance(520)}}")
+    await pg.wait_for_timeout(600); await pg.evaluate("window.scrollTo(0,0)")
+    await pg.screenshot(path=os.path.join(out,f"{size}-dyn-learn{'-dark' if dark else ''}.png"))
+    if size=='desk' and not dark:
+        # the lesson-to-lesson links: Gain scheduling breaks above v_ch ↔ Speed changes the plant
+        ln=await pg.evaluate("""async()=>{const A=window.__an,G=A.LESSON_GROUPS().find(g=>g.id==='ctl'),i=G.items.findIndex(L=>L.t==='Gain scheduling breaks above v_ch'),out=[];
+          const j=G.items.findIndex(L=>L.t==='Speed changes the plant: gain scheduling');
+          for(const [from,title] of [[i,'Speed changes the plant: gain scheduling'],[j,'Gain scheduling breaks above v_ch']]){A.openLesson('ctl:'+from);await new Promise(r=>setTimeout(r,100));
+            const a=document.querySelector(`#learnview details.lesson[data-l="ctl:${from}"] a.lsref`)||document.querySelector('#learnview a.lsref');if(!a){out.push('no link in '+from);continue;}a.click();await new Promise(r=>setTimeout(r,100));
+            out.push(G.items[+A.lessonOpen.split(':')[1]].t===title?'ok':'wrong: '+A.lessonOpen);}
+          return out;}""")
+        checks['lesson links']=ln
+    checks.setdefault('errors',[]).extend(errs)
+    await ctx.close()
 async def main():
-    an='--analyze' in sys.argv; args=[a for a in sys.argv[1:] if a!='--analyze']
+    an='--analyze' in sys.argv; le='--learn' in sys.argv; args=[a for a in sys.argv[1:] if a not in('--analyze','--learn')]
     out=args[0]; os.makedirs(out,exist_ok=True); checks={}
     async with async_playwright() as p:
         b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
         for size in SIZES:
-            for dark in (False,True): await (analyze if an else shot)(b,out,size,dark,checks)
+            for dark in (False,True): await (analyze if an else learn if le else shot)(b,out,size,dark,checks)
         await b.close()
     for k,v in checks.items(): print(k,':',v)
 asyncio.run(main())

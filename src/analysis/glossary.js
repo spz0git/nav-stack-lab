@@ -289,6 +289,23 @@ const GLOSS={
  stanley:['Stanley','Path tracker that steers by the heading error plus a term in the front axle\'s cross-track error.','',['Stanley']],
 };
 // Terms each lesson uses, in reading order (keyed by lesson title)
+// the car with tyre slip (lessons on the dynamic bicycle model)
+Object.assign(GLOSS,{
+ dynbike:['dynamic bicycle model','The bicycle model with mass, yaw inertia and tyres that slip. Its states are the lateral velocity and the yaw rate at the centre of mass (chapter 1 §4).','',['dynamic bicycle model']],
+ tyreslip:['tyre slip','A tyre pushes sideways only by sliding a little: the contact patch deforms and the wheel moves at a small angle to where it points.','',['tyre slip']],
+ slipang:['slip angle','Angle between where a tyre points and where it moves. Below the grip limit the tyre\'s sideways force is proportional to it.','rad',['slip angle','α_f','α_r']],
+ cornstiff:['cornering stiffness','Sideways force of an axle per radian of slip angle: <i>C</i><sub>f</sub> front, <i>C</i><sub>r</sub> rear.','N/rad',['cornering stiffness','C_f','C_r']],
+ kus:['<i>K</i><sub>us</sub>','Understeer gradient (<i>m</i>/<i>L</i>)(<i>l</i><sub>r</sub>/<i>C</i><sub>f</sub> − <i>l</i><sub>f</sub>/<i>C</i><sub>r</sub>): the extra steering per unit of lateral acceleration. Positive: understeer.','rad/(m/s²)',['understeer gradient','K_us']],
+ vch:['<i>v</i><sub>ch</sub>','Characteristic speed √(<i>L</i>/<i>K</i><sub>us</sub>): the yaw-rate gain per unit of steering peaks there, at half of <i>v</i>/<i>L</i>, and falls above it.','m/s',['characteristic speed','v_ch']],
+ understeer:['understeer','The car turns less than its steering geometry says, and the more so the faster it goes (<i>K</i><sub>us</sub> > 0).','',['understeer']],
+ sideslip:['sideslip β','Angle between the car\'s heading and the direction its centre of mass moves, atan(<i>v</i><sub>y</sub>/<i>v</i><sub>x</sub>).','rad',['sideslip','β']],
+ yawr:['<i>r</i>','Yaw rate of the car with tyre slip, a state of its own: θ̇ = <i>r</i>.','rad/s',['<i>r</i>']],
+ ay:['<i>a</i><sub>y</sub>','Lateral acceleration, <i>v</i>²κ in a steady turn.','m/s²',['lateral acceleration','a_y']],
+ mug:['μ<i>g</i>','Grip limit: the largest lateral acceleration the tyres can hold, the friction coefficient μ times <i>g</i>.','m/s²',['grip limit','μg']],
+ alatcap:['<i>a</i><sub>lat</sub>','The speed profile\'s lateral-acceleration cap (Control tab): <i>v</i> ≤ √(<i>a</i><sub>lat</sub>/κ) in a curve. The lab\'s stand-in for the grip limit.','m/s²',['a_lat']],
+ yawmode:['yaw mode','The car\'s own response of yaw rate to steering: two poles set by mass, inertia and tyres, fast and well damped at low speed, slower and less damped above <i>v</i><sub>ch</sub>.','',['yaw mode']],
+ gyro:['yaw-rate gyro','A sensor that measures the yaw rate directly, so the odometry\'s turn rate includes the slip.','',['yaw-rate gyro']],
+});
 const LESSON_TERMS={
  'Dead reckoning drifts, and knows it':'deadreck odometry arc v w covariance mu gmot uodo Sigma Gjac Vjac Modo sigx t thetaerr ellipse poserr band2s consistent',
  'The Kalman update, and NEES as a lie detector':'beacon rb ekf nu z zhat kgain Sinn Hjac Qmeas K mu Sigma Iid nees eerr overconf bias assumed',
@@ -317,6 +334,9 @@ const LESSON_TERMS={
  'Speed changes the plant: gain scheduling':'plantgain v0c Lwb v delta the Ld L0 kpp wc rwf curv cruise gainsched pp',
  'The speed loop is open, except for MPC':'tracker cruise openloop latency actlag Gs Tlat tau bandwidth rise mpc aacc Kv vref aprev steptest',
  'The estimator in the loop':'estimate ekf beacon odometry eest ectl Ls uc injection crossover',
+ 'When the wheels don\'t go where they point':'dynbike tyreslip slipang cornstiff understeer kus vch yawr v delta Lwb sideslip odometry deadreck gyro tracker cruise alatcap',
+ 'Running out of grip':'mug ay alatcap curv tyreslip slipang understeer fulllock tracker cruise kus',
+ 'Gain scheduling breaks above v_ch':'gainsched vch plantgain yawmode pp Ld rwf kth wc pm zeta Ms overshoot steptest kus v0c',
  'Curves: does the straight-line analysis hold?':'opoint findiff thdot gpl uc u0 edot v0c the pp rwf curv feedforward stanley pid offset steptest steerrate',
 };
 const lessonTerms=L=>(LESSON_TERMS[L.t]||'').split(' ').filter(id=>GLOSS[id]);

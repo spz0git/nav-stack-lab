@@ -1,0 +1,41 @@
+name: Bug in the simulator or the workspace
+description: Something runs wrong, crashes, or looks wrong on your screen.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. A run export makes most bugs reproducible in one click: Runs → Export saves the level, every changed
+        setting, the seed and the recorded signals as a JSON file; drag it into the box below. The "Copy link"
+        button in Changed gives a shorter version (the setup without the recording).
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The label next to the title, e.g. "v30 · 2026-10-15", and where you ran it (the demo, a local build, the artifact).
+      placeholder: v30 · 2026-10-15, demo
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you saw, what you expected. One bug per issue.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Run export or setup link
+      description: Attach the JSON from Runs → Export, or paste the link from Changed → Copy link. If neither applies, the level, the settings you changed and the seed.
+  - type: input
+    id: env
+    attributes:
+      label: Browser and device
+      placeholder: Firefox 131 on Windows 11; Safari on iPhone 15
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      description: Anything red in the browser console (F12 → Console), if you can get it.
+      render: text

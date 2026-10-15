@@ -1,0 +1,36 @@
+name: Error in a lesson or a chapter
+description: A number that does not reproduce, a derivation step that is wrong, notation that conflicts, a Try button that does not show what the text says.
+labels: [content]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The lessons' numbers are single runs at seed 7 (measured with the scripts in tests/); a Try button sets the lab
+        up exactly as measured. Say which lesson or chapter section and quote the sentence.
+  - type: input
+    id: where
+    attributes:
+      label: Lesson or chapter section
+      description: Group and title, or the chapter and heading; the link from "Copy link" or the #notes=… address is ideal.
+      placeholder: Control loop › 2 Lookahead sets the bandwidth; or ch6 §7
+    validations:
+      required: true
+  - type: textarea
+    id: claim
+    attributes:
+      label: What the text says
+      description: Quote it.
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What you measured or derived instead
+      description: The numbers you saw (and the version label), or the derivation step and why it is wrong.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: v30 · 2026-10-15

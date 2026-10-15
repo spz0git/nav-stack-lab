@@ -1,0 +1,28 @@
+name: Feature or improvement
+description: A planner, an estimator, a signal, a lesson, a workspace feature.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        docs/roadmap.md lists what is planned and what was tried and dropped; CONTRIBUTING.md says what the project
+        takes. Small, measured additions (a lesson with its numbers, a signal, a heuristic) are the easiest to accept.
+  - type: textarea
+    id: what
+    attributes:
+      label: What you want
+      description: What it does and where it shows up (which tab, lesson, chapter, plot).
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it belongs in the lab
+      description: What a student or a user would learn or do with it that they cannot now.
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: How it could be built
+      description: Optional; the module it touches, the reference it follows, whether you would like to do it.

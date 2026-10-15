@@ -28,7 +28,7 @@ function pathLen(p){let L=0;for(let i=1;i<p.length;i++)L+=hyp(p[i][0]-p[i-1][0],
 function astar(sx,sy,gx,gy){
   let s=cellIdx(sx,sy),g=cellIdx(gx,gy);
   if(s<0||g<0)return{ok:false,reason:'outside the map'};
-  if(S.cm.lethal[g])return{ok:false,reason:'goal is inside an inflated obstacle'};
+  if(S.cm.lethal[g])return{ok:false,reason:goalBlocked(gx,gy)||'goal is inside an inflated obstacle'};
   if(S.cm.lethal[s]){s=nearestFree(s);if(s<0)return{ok:false,reason:'start is enclosed'};}
   const R=gridSearch(s,g,P.eps);
   S.search={type:'astar',closed:R.closed};
@@ -43,7 +43,7 @@ function astar(sx,sy,gx,gy){
 }
 function rrtstar(sx,sy,gx,gy){
   const g=S.rngA,cm=S.cm;
-  const gk=cellIdx(gx,gy);if(gk<0||cm.lethal[gk])return{ok:false,reason:'goal is inside an inflated obstacle'};
+  const gk=cellIdx(gx,gy);if(gk<0||cm.lethal[gk])return{ok:false,reason:(gk>=0&&goalBlocked(gx,gy))||'goal is inside an inflated obstacle'};
   const X=[sx],Y=[sy],Pa=[-1],Co=[0],step=0.6,gam=8;
   for(let it=0;it<P.rrtIt;it++){
     let qx,qy;if(g.u()<0.1){qx=gx;qy=gy;}else{qx=g.u()*W;qy=g.u()*H;}

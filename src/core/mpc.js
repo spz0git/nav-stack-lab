@@ -1,14 +1,38 @@
 function mpcModel(){
   const car=isCar(),L=P.wheelbase,lag=P.mpcLag&&P.lag>0,tau=P.lag,sMax=car?steerMax():P.wmax;
+  const dyn=mpcTyres(),iy=lag?7:5;   // tyre model: v_y and r appended after the other states
   const sat=s=>clamp(s,-sMax,sMax);   // the actuator saturates; the model does too
+  const G=dyn?mpcDynGeom():null;
   const f=(x,u,dt)=>{
     const v=x[3],s=x[4],w=car?v*Math.tan(s)/L:s,thm=x[2]+0.5*w*dt;
-    const o=[x[0]+v*Math.cos(thm)*dt,x[1]+v*Math.sin(thm)*dt,x[2]+w*dt,0,0];
-    if(lag){const a=1-Math.exp(-dt/tau);o[3]=v+(x[5]-v)*a;o[4]=sat(s+(x[6]-s)*a);o.push(x[5]+u[0]*dt,sat(x[6]+u[1]*dt));}
+    const o=dyn?mpcDynPose(x,v,s,dt,G,iy):[x[0]+v*Math.cos(thm)*dt,x[1]+v*Math.sin(thm)*dt,x[2]+w*dt,0,0];
+    if(lag){const a=1-Math.exp(-dt/tau);o[3]=v+(x[5]-v)*a;o[4]=sat(s+(x[6]-s)*a);o[5]=x[5]+u[0]*dt;o[6]=sat(x[6]+u[1]*dt);}
     else{o[3]=v+u[0]*dt;o[4]=sat(s+u[1]*dt);}
     return o;
   };
-  return{n:lag?7:5,f,car,lag};
+  return{n:iy+(dyn?2:0),f,car,lag,dyn,iy};
+}
+// The prediction with tyre slip (P.mpcDyn on the car with tyre slip): the simulator's dynamic bicycle model (dynF in
+// vehicle.js: linear tyres clipped at μF_z, the same low-speed blend to the kinematic car), stepped MPC_DSUB times per
+// prediction step with one linearly implicit Euler stage (L-stable, so grippy tyres reduce to the kinematic car), and
+// the rear axle moved with the new velocities. Speed and steering are held over the step, as in the kinematic model.
+const MPC_DSUB=5,mpcTyres=()=>isDyn()&&!!P.mpcDyn;
+function mpcDynGeom(){const G=dynGeom();G.ff=P.mu*G.m*GRAV*G.lr/G.L;G.fr=P.mu*G.m*GRAV*G.lf/G.L;return G;}
+function mpcDynPose(x,vx,de,dt,G,iy){
+  G.td=Math.tan(de);const h=dt/MPC_DSUB,rk=vx*G.td/G.L,yk=G.lr*rk,wB=clamp((Math.abs(vx)-0.15)/0.15,0,1),f0=[0,0],fa=[0,0],fb=[0,0];
+  let vy=x[iy],yr=x[iy+1],px=x[0],py=x[1],th=x[2];
+  for(let i=0;i<MPC_DSUB;i++){
+    if(wB>0){
+      dynF(vy,yr,vx,de,G,f0);
+      const e1=1e-6*(1+Math.abs(vy)),e2=1e-6*(1+Math.abs(yr));dynF(vy+e1,yr,vx,de,G,fa);dynF(vy,yr+e2,vx,de,G,fb);
+      const m11=1-h*(fa[0]-f0[0])/e1,m12=-h*(fb[0]-f0[0])/e2,m21=-h*(fa[1]-f0[1])/e1,m22=1-h*(fb[1]-f0[1])/e2,d=m11*m22-m12*m21;
+      vy+=h*(m22*f0[0]-m12*f0[1])/d;yr+=h*(m11*f0[1]-m21*f0[0])/d;
+      if(wB<1){vy=wB*vy+(1-wB)*yk;yr=wB*yr+(1-wB)*rk;}
+    }else{vy=yk;yr=rk;}
+    const tm=th+0.5*yr*h,ly=vy-G.lr*yr,c=Math.cos(tm),sn=Math.sin(tm);
+    px+=(vx*c-ly*sn)*h;py+=(vx*sn+ly*c)*h;th+=yr*h;
+  }
+  const o=[px,py,th,0,0];o[iy]=vy;o[iy+1]=yr;return o;
 }
 // Central-difference Jacobians A = ∂f/∂x, B = ∂f/∂u. Not forward differences: the steering state saturates at ±s_max, and a
 // forward step from +s_max is clipped, which reads as zero sensitivity to steering at full left lock (the solver then cannot unwind it)
@@ -69,11 +93,14 @@ function ctlMPC(){
   // after any interruption (replan tick, controller switch) start again from the measured actuator state
   const LC=(S.mpcCmd&&S.mpcCmd.tick===S.tick-1)?S.mpcCmd:{v:S.odo.v,steer:S.robot.d,w:S.odo.w};
   if(M.lag)x0.push(LC.v||0,car?(LC.steer||0):(LC.w||0));
+  if(M.dyn)x0.push(S.robot.vy||0,S.robot.r||0);   // v_y and r as a gyro and a sideslip estimator would give them (here: the true values)
   // reference states (θ unwrapped next to the robot) and the inputs that would produce them
   const Xr=[],Ur=[];let thp=x0[2];
   for(let k=0;k<=Np;k++){const th=thp+wrap(ref[k].th-thp);thp=th;
     const sr=car?dir*Math.atan(P.wheelbase*ref[k].kap):ref[k].v*ref[k].kap;
-    const xr=[ref[k].x,ref[k].y,th,ref[k].v,sr];if(M.lag)xr.push(xr[3],xr[4]);Xr.push(xr);}
+    const xr=[ref[k].x,ref[k].y,th,ref[k].v,sr];if(M.lag)xr.push(xr[3],xr[4]);
+    if(M.dyn){const rr=ref[k].v*Math.tan(sr)/P.wheelbase;xr.push(dynGeom().lr*rr,rr);}   // no slip on the reference
+    Xr.push(xr);}
   for(let k=0;k<Np;k++)Ur.push([(Xr[k+1][3]-Xr[k][3])/dt,(Xr[k+1][4]-Xr[k][4])/dt]);
   // bounds and constraints
   const aMax=P.accel?P.amax:3,rMax=car?P.steerRate:(P.accel?P.alpha:8);
@@ -98,7 +125,7 @@ function ctlMPC(){
   const brk=[];
   if(agM){let xb=x0.slice();for(let k=0;k<=Np;k++){if(k)xb=M.f(xb,[clamp(-(M.lag?xb[5]:xb[3])/dt,-aMax,aMax),0],dt);brk.push(offs.map(o=>Math.max(0,agCons(k,xb,o)[0])));}}
   // warm start: shift the previous solution by one sim tick
-  const sig=`${P.mpcMode}|${Np}|${Nc}|${dt}|${n}|${nc}|${P.model}|${S.pathId}`;
+  const sig=`${P.mpcMode}|${Np}|${Nc}|${dt}|${n}|${nc}|${P.model}|${M.dyn}|${S.pathId}`;
   let W=S.mpc;
   if(!W||W.sig!==sig){W=S.mpc={sig,U:new Float64Array(nU),lam:new Float64Array(Np*nc),uPrev:[0,0]};
     for(let j=0;j<Nc;j++){W.U[2*j]=Ur[j][0];W.U[2*j+1]=Ur[j][1];}}

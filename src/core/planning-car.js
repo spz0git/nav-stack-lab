@@ -28,8 +28,8 @@ function hybridAstar(e,wp){
   const goalTh=wp.th!=null?wp.th:null,q1=[wp.x,wp.y,goalTh];
   const part=carLen()/3,rc=Math.hypot(part/2,CAR.width/2),offs=[0,1,2].map(i=>-CAR.rear+part*(i+0.5));
   const clearAt=(x,y,th)=>{const c=Math.cos(th),s=Math.sin(th);let m=Infinity;for(const o of offs){const k=cellIdx(x+o*c,y+o*s);if(k<0)return -1;const d=dist[k]-rc;if(d<m)m=d;}return m;};
-  if(goalTh!=null&&clearAt(wp.x,wp.y,goalTh)<MARG)return{ok:false,reason:'the goal pose overlaps an obstacle'};
-  if(goalTh==null&&cellIdx(wp.x,wp.y)>=0&&dist[cellIdx(wp.x,wp.y)]<CAR.width/2+MARG)return{ok:false,reason:'goal is too close to an obstacle for the car'};
+  if(goalTh!=null&&clearAt(wp.x,wp.y,goalTh)<MARG)return{ok:false,reason:goalBlocked(wp.x,wp.y)||'the goal pose overlaps an obstacle'};
+  if(goalTh==null&&cellIdx(wp.x,wp.y)>=0&&dist[cellIdx(wp.x,wp.y)]<CAR.width/2+MARG)return{ok:false,reason:goalBlocked(wp.x,wp.y)||'goal is too close to an obstacle for the car'};
   const startClear=clearAt(e.x,e.y,e.th);
   const h2=holoField(wp.x,wp.y,dist,CAR.width/2+0.02);
   const h2At=(x,y)=>{const k=cellIdx(x,y);if(k<0)return Infinity;const v=h2[k];return isFinite(v)?v:hyp(x-wp.x,y-wp.y)+20;};

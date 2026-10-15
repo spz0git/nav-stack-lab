@@ -21,6 +21,8 @@ const PARKING=(()=>{const s=[...BORDER,Rc(4,9.45,16,0.3)];
   for(const x of[4,7.2,9.7,12.5,15.5])s.push(Rc(x,0.3,1.0,0.56));   // 2.2 m parallel slot at x 5.0–7.2
   s.push(Ci(9,4.6,0.35),Ci(13,4.6,0.35),Ci(17,4.6,0.35),Rc(20.6,2.4,1.2,1.2));
   return s;})();
+// Moose test: a 3.2 m road with barriers, a box in the right lane, then one in the left lane (a slalom)
+const MOOSE=[...BORDER,Rc(0.2,6.1,23.6,0.3),Rc(0.2,9.6,23.6,0.3),Rc(8,6.4,0.6,1.5),Rc(15,8.1,0.6,1.5)];
 const LEVELS=[
  {id:'L1',name:'Open floor',
   adds:'Perfect pose and a known map, a few pillars, straight-line paths. Everything is ideal except the controller, so this is where you tune tracking.',
@@ -61,6 +63,7 @@ const LEVELS=[
    {t:'<b>Mission:</b> follow the replans in the event log as rooms are discovered.',b:[['Run',{tab:'mis'}]]},
    {t:'<b>Perceive:</b> set unknown space to lethal. Goals in unexplored rooms become unreachable, which is the gap frontier-based exploration fills.',b:[['Unknown = lethal',{set:{unknownAs:'lethal'},tab:'per'}]]},
    {t:'<b>Localize:</b> switch to dead reckoning and watch the map smear: mapping inherits pose error.',b:[['Dead reckoning',{set:{loc:'dr'},tab:'loc'}]]},
+   {t:'<b>Control:</b> the path tracker never reads the lidar; it follows a path planned on the map. With dead reckoning and the odometry bias doubled the map smears, and pure pursuit hits walls that are plainly in its scan (2 collisions). The lidar safety stop caps the speed for scan points on the arc it commands: no contact, but the robot still stops short of the goals the smeared map has wrong (1 of 4 either way).',b:[['Dead reckoning, bias ×2',{set:{loc:'dr',odoB:1},tab:'loc'}],['Same, safety stop on',{set:{loc:'dr',odoB:1,guard:true},tab:'ctl'}]]},
    {t:'<b>Layers:</b> hide the true-map ghost and judge the map as the robot sees it.',b:[['Hide the ghost',{layers:{ghost:false},tab:'view',keep:true}]]},
    {t:'<b>Control:</b> MPC with obstacle constraints handles the tight rooms. Switch it to LTV, which cannot take nonconvex obstacle constraints, and watch it clip the table.',b:[['MPC',{set:{ctl:'mpc'},tab:'ctl'}],['LTV',{set:{ctl:'mpc',mpcMode:'ltv'},tab:'ctl'}]]}],
   shapes:BUILDING,
@@ -103,4 +106,15 @@ const LEVELS=[
   cars:[{loop:[[3,12.4],[21,12.4],[21,6.6],[3,6.6]],v:0.6,s0:0.55}],
   start:[2,4,Math.PI/2],wps:[[10.5,15.3,-Math.PI/2],[15.5,8.35,Math.PI/2],[5.8,0.68,0],[2,13]],
   cfg:{model:'car',loc:'truth',per:'oracle',mis:'sequential',plan:'hybrid',ctl:'rwf',odoK:0,odoB:0,accel:false,lag:0,assoc:'known',clutter:0,replan:0,vcruise:0.6,ppL0:0.4,ppK:0.3,agents:'lidar',spd:'st'},layers:{cost:false}},
+ {id:'L7',name:'Moose test',
+  adds:'Speed. The car with tyre slip, on the slippery floor, enters a two-lane road at 3.5 m/s, above its characteristic speed of 2.6 m/s. A box blocks the right lane, a second one the left lane 7 m on: swerve left, then back (a slalom like the moose test). The map is known and the plan is fixed; what decides the run is whether the controller\'s model knows the tyres. The MPC starts with the kinematic model.',
+  tries:[
+   {t:'<b>Control:</b> the kinematic MPC drives into the first box. It starts the swerve at 1.35 s and steers up to 15°, expecting <i>v</i> tan δ / <i>L</i> of yaw rate, and gets about a third of it: 0.65 m right of its path at 2.4 s, it hits the box. Tick Tyre model in the prediction: the MPC knows the car turns at 40 % of what its wheels point, so it starts at 0.8 s, steers up to 21°, and passes both boxes, 0.40 m off the path at worst. The plots show the yaw rate <i>r</i> against <i>v</i> tan δ / <i>L</i>, and the cross-track error.',b:[['Kinematic MPC',{layers:{slip:true},tab:'ctl',panes:[['yawr','yawk'],['cte']]}],['Tyre model in the MPC',{set:{mpcDyn:true},layers:{slip:true},tab:'ctl',panes:[['yawr','yawk'],['cte']]}]]},
+   {t:'<b>Vehicle:</b> the car the kinematic model describes. The same MPC, plan and speed get through with at most 11° of steering and 0.18 m of cross-track error.',b:[['Kinematic car',{set:{veh:'car'},layers:{slip:true},tab:'veh',plot:'cte'}]]},
+   {t:'<b>Control:</b> entry speed. At 2.5 m/s, just below <i>v</i><sub>ch</sub>, the kinematic MPC gets through, but 0.98 m off its path on the way back and with an off-path replan; with the tyre model the MPC takes 4 m/s, the car\'s top speed, 0.47 m off at worst.',b:[['2.5 m/s, kinematic MPC',{set:{vcruise:2.5},layers:{slip:true},tab:'ctl',plot:'cte'}],['4 m/s, tyre model',{set:{vcruise:4,mpcDyn:true},layers:{slip:true},tab:'ctl',plot:'cte'}]]},
+   {t:'<b>Vehicle:</b> grippy tyres (characteristic speed 11.5 m/s). At 4 m/s the car turns at 89 % of <i>v</i> tan δ / <i>L</i>, nearly kinematic, and the kinematic MPC passes, 0.24 m off at worst.',b:[['Grippy, 4 m/s',{set:{Cf:500,Cr:700,mu:0.9,vcruise:4},layers:{slip:true},tab:'veh',plot:'cte'}]]},
+   {t:'<b>Control:</b> the path trackers at 3.5 m/s. Pure pursuit and rear-wheel feedback hit the first box, as the kinematic MPC does. Stanley gets through, but 0.98 m off its path, with the steering at its lock and an off-path replan.',b:[['Pure pursuit',{set:{ctl:'pp'},layers:{slip:true},tab:'ctl',plot:'cte'}],['Rear-wheel feedback',{set:{ctl:'rwf'},layers:{slip:true},tab:'ctl',plot:'cte'}],['Stanley',{set:{ctl:'stanley'},layers:{slip:true},tab:'ctl',plot:'cte'}]]}],
+  shapes:MOOSE,beacons:[[4,6.45],[12,6.45],[20,6.45],[6,9.55],[14,9.55],[22,9.55]],peds:[],
+  start:[1.2,7.2,0],wps:[[22.5,7.2,0]],
+  cfg:{model:'car',carPhys:'dyn',mass:10,Iz:0.9,lf:0.27,Cf:40,Cr:90,mu:0.25,loc:'truth',per:'oracle',mis:'sequential',plan:'hybrid',revOK:false,ctl:'mpc',odoK:0,odoB:0,accel:true,amax:3,lag:0,assoc:'known',clutter:0,replan:0,vcruise:3.5,vmax:4,alat:8,agents:'off',spd:'none'},layers:{cost:false}},
 ];

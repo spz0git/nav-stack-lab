@@ -42,6 +42,7 @@ const LIVE={
   // MPC (chapter 7)
   mpcNp:()=>String(Math.round(P.mpcNp)),mpcNc:()=>String(Math.min(Math.round(P.mpcNc),Math.round(P.mpcNp))),mpcDt:()=>liveF(P.mpcDt,2),mpcH:()=>liveF(Math.round(P.mpcNp)*P.mpcDt,1),
   mpcIt:()=>String(Math.round(P.mpcIt)),mpcQlat:()=>String(P.mpcQlat),mpcMarg:()=>liveF(P.mpcMarg,2),mpcRho:()=>String(P.mpcRho),
+  mpcTyres:()=>!isDyn()?'off (the kinematic car has no tyres to model)':P.mpcDyn?'on':'off',
   lagModel:()=>P.lag>0?(P.mpcLag?`τ = ${liveF(P.lag,2)} s, modeled`:`τ = ${liveF(P.lag,2)} s, not modeled`):'none',
   // planning (chapter 4)
   eps:()=>liveF(P.eps,1),rrtIt:()=>String(P.rrtIt),planPct:()=>String(P.planPct),Rmin:()=>liveF(P.wheelbase/Math.tan(steerMax()),2),Rplan:()=>liveF(planR(),2),

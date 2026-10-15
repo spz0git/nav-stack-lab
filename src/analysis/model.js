@@ -56,16 +56,17 @@ function anGains(v0){
   const est=AN.useEst;AN.useEst=false;   // gains are read with ground truth; the estimator enters through the experiments
   try{benchSettle(B);
   return inBench(B,()=>{
-    const x0=B.robot.x,y0=B.robot.y,th0=B.robot.th,d0=B.robot.d,w0=B.robot.w;
-    const out=(e,th,s,sc,up)=>{
-      B.robot.x=x0;B.robot.y=y0;B.robot.th=th0;benchPose(B,e,th);B.robot.v=v0;B.robot.d=car?d0+s:0;
+    const x0=B.robot.x,y0=B.robot.y,th0=B.robot.th,d0=B.robot.d,w0=B.robot.w,vy0=B.robot.vy||0,r0=B.robot.r||0;
+    const out=(e,th,s,sc,up,dv,dr)=>{
+      B.robot.x=x0;B.robot.y=y0;B.robot.th=th0;benchPose(B,e,th);B.robot.v=v0;B.robot.d=car?d0+s:0;B.robot.vy=vy0+(dv||0);B.robot.r=r0+(dr||0);
       const w=car?v0*Math.tan(B.robot.d)/P.wheelbase:w0+s;B.robot.w=w;B.odo={v:v0,w};B.ctlState={I:0,prev:null};const scc=(car?d0:w0)+sc;B.cmd={v:v0,w:scc,steer:scc};
       if(ctl==='mpc'){const it=P.mpcIt;P.mpcIt=25;const last=()=>{B.mpcCmd={v:v0,steer:car?scc:0,w:car?0:scc,tick:B.tick-1};};   // as if the MPC ran last tick
         try{B.mpc=null;last();ctlMPC();if(up){B.mpc.uPrev=[0,up];last();ctlMPC();}}finally{P.mpcIt=it;}return B.mpc.uPrev[1];}
       const c=normCmd(builtinRaw());return car?c.steer:c.w;};
     const d=f=>(f(h)-f(-h))/(2*h);
     const K={e:-d(x=>out(x,0,0,0,0)),th:-d(x=>out(0,x,0,0,0))};
-    if(ctl==='mpc'){K.s=-d(x=>out(0,0,x,0,0));K.c=-d(x=>out(0,0,0,x,0));K.u=d(x=>out(0,0,0,0,x));}
+    if(ctl==='mpc'){K.s=-d(x=>out(0,0,x,0,0));K.c=-d(x=>out(0,0,0,x,0));K.u=d(x=>out(0,0,0,0,x));
+      if(mpcTyres()){K.vy=-d(x=>out(0,0,0,0,0,x,0));K.r=-d(x=>out(0,0,0,0,0,0,x));}}   // the MPC with the tyre model also feeds back v_y and r
     K.ess=B.ess;return K;});
   }finally{AN.useEst=est;}
 }
@@ -98,7 +99,8 @@ function anBuild(){
   if(M.dyn){const{PE,PT,det}=M.dyn,K=M.K;   // the same loops with the tyres' yaw dynamics in the plant
     if(M.kind==='static'){M.N=pAdd(pScale(PE,M.Ke),pScale(PT,M.Kth));M.D=pMul(pMul([0,0,1],det),actD);M.Ne=pScale(PE,M.Ke);}
     else if(M.kind==='pid'){const Cn=[P.ki,P.kp,P.kd];M.N=pMul(Cn,pAdd(pScale(PE,1/M.Ld),PT));M.D=pMul(pMul([0,0,0,1],det),actD);M.Ne=pMul(Cn,pScale(PE,1/M.Ld));}
-    else{M.N=pAdd(pAdd(pMul(pMul([0,0,K.c],actD),det),pMul([0,0,K.s],det)),pAdd(pScale(PE,K.e),pScale(PT,K.th)));M.D=pMul(pMul([0,0,0,1],det),actD);M.Ne=pScale(PE,K.e);}}
+    else{M.N=pAdd(pAdd(pMul(pMul([0,0,K.c],actD),det),pMul([0,0,K.s],det)),pAdd(pScale(PE,K.e),pScale(PT,K.th)));M.D=pMul(pMul([0,0,0,1],det),actD);M.Ne=pScale(PE,K.e);
+      if(K.vy!=null)M.N=pAdd(M.N,pMul([0,0,1],pAdd(pScale(M.dyn.nvy,K.vy),pScale(M.dyn.nr,K.r))));}}
   return M;
 }
 // Loop transfer at complex s. The vehicle is continuous (two integrators) behind a zero-order hold
@@ -109,18 +111,19 @@ function Lparts(M,s){
   const g=M.g,v=M.v0,zi=Cx.exp(Cx.scale(s,-M.T)),one=[1,0],s2=Cx.mul(s,s);
   const zh=Cx.exp(Cx.scale(s,-M.T/2)),lat=Cx.exp(Cx.scale(s,-M.nL*M.T));   // hold delay T/2 on vehicle paths; latency on everything through the actuator
   const lag=M.tau>0?Cx.div([M.aL,0],Cx.sub(one,Cx.scale(zi,1-M.aL))):one;
-  let plantE=Cx.mul(zh,Cx.div([g*v,0],s2)),plantTh=Cx.mul(zh,Cx.div([g,0],s));   // u → e and u → θₑ
+  let plantE=Cx.mul(zh,Cx.div([g*v,0],s2)),plantTh=Cx.mul(zh,Cx.div([g,0],s)),plantVy=null,plantR=null;   // u → e and u → θₑ (and u → v_y, r with tyres)
   if(M.dyn){   // car with tyre slip: the exact sampled plant C (zI − Φ)⁻¹ Γ, z = e^{sT} (it holds δ over the tick itself, so no T/2;
     // the hold-as-delay approximation above is good for two integrators but not for tyre poles near the Nyquist frequency)
     const D=M.dyn,z=Cx.exp(Cx.scale(s,M.T)),X=cxSolve(D.Phi.map((r,i)=>r.map((x,j)=>i===j?[z[0]-x,z[1]]:[-x,0])),D.Gam.map(x=>[x,0]));
-    plantTh=X[2];plantE=X[3];}
+    plantTh=X[2];plantE=X[3];plantVy=X[0];plantR=X[1];}
   let L,Le;
   if(M.kind==='static'){const A=Cx.mul(lag,lat);L=Cx.mul(A,Cx.add(Cx.scale(plantE,M.Ke),Cx.scale(plantTh,M.Kth)));Le=Cx.mul(A,Cx.scale(plantE,M.Ke));}
   else if(M.kind==='pid'){const T=M.T,omz=Cx.sub(one,zi),C=Cx.add(Cx.add([P.kp,0],Cx.div([P.ki*T,0],omz)),Cx.scale(omz,P.kd/T));
     const A=Cx.mul(Cx.mul(lag,lat),C);L=Cx.mul(A,Cx.add(Cx.scale(plantE,1/M.Ld),plantTh));Le=Cx.mul(A,Cx.scale(plantE,1/M.Ld));}
   else{const K=M.K,integ=Cx.div([M.T,0],Cx.sub(one,zi)),mem=Cx.div(one,Cx.sub(one,Cx.scale(zi,K.u))),pre=Cx.mul(integ,mem),A=Cx.mul(lag,lat);
     // the controller reads its own last command (K_c) and the actuator position (K_s) one tick later: z⁻¹
-    const inner=Cx.add(Cx.scale(zi,K.s),Cx.add(Cx.scale(plantE,K.e),Cx.scale(plantTh,K.th)));
+    let inner=Cx.add(Cx.scale(zi,K.s),Cx.add(Cx.scale(plantE,K.e),Cx.scale(plantTh,K.th)));
+    if(K.vy!=null&&plantVy)inner=Cx.add(inner,Cx.add(Cx.scale(plantVy,K.vy),Cx.scale(plantR,K.r)));
     L=Cx.mul(pre,Cx.add(Cx.scale(zi,K.c),Cx.mul(A,inner)));Le=Cx.mul(pre,Cx.mul(A,Cx.scale(plantE,K.e)));}
   return{L,Le};
 }
@@ -139,7 +142,7 @@ function stepLin(M,L,X,k,d,r){
   const e=x[L.y]-r,th=x[L.psi];let c;
   if(M.kind==='static')c=-k*(M.Ke*e+M.Kth*th);
   else if(M.kind==='pid'){const al=-(e/M.Ld+th);let I=0;if(L.I!=null){x[L.I]+=al*T;I=x[L.I];}const D=(al-x[L.pv])/T;x[L.pv]=al;c=k*(P.kp*al+P.ki*I+P.kd*D);}
-  else{const K=M.K,sm=M.car?sa:sa+d;const sd=k*(-(K.e*e+K.th*th+K.s*sm+K.c*x[L.sc])+K.u*x[L.up]);x[L.up]=sd;
+  else{const K=M.K,sm=M.car?sa:sa+d,ty=K.vy!=null&&M.dyn?K.vy*x[L.vy]+K.r*x[L.r]:0;const sd=k*(-(K.e*e+K.th*th+K.s*sm+K.c*x[L.sc]+ty)+K.u*x[L.up]);x[L.up]=sd;
     c=x[L.sc]+sd*T;x[L.sc]=c;}
   x[L.q0+M.nL]=c;return x;
 }

@@ -72,7 +72,7 @@ function stAstar(sx,sy,gx,gy){
   const si=ci(sx),sj=cj(sy),gi=ci(gx),gj=cj(gy);
   // static lethal on the coarse grid: any fine lethal cell inside
   const leth=new Uint8Array(gw*gh);for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){let b=0;for(let a=0;a<CW&&!b;a++)for(let c=0;c<CW&&!b;c++)if(S.cm.lethal[(j*CW+a)*GW+i*CW+c])b=1;leth[j*gw+i]=b;}
-  if(leth[gj*gw+gi])return{ok:false,reason:'goal is inside an inflated obstacle'};
+  if(leth[gj*gw+gi])return{ok:false,reason:goalBlocked(gx,gy)||'goal is inside an inflated obstacle'};
   // agent discs per time slice
   const ags=agList(40),marg=P.stMarg,discs=[];for(let k=0;k<nt;k++){const t=k*dtc;discs.push(ags.map(a=>{const q=agPred(a,Math.min(t,T));return[q[0],q[1],q[2]+RR+marg];}));}
   const blocked=(i,j,k)=>{if(k>=nt)return false;const x=(i+0.5)*cw,y=(j+0.5)*cw;for(const d of discs[k])if(hyp(x-d[0],y-d[1])<d[2])return true;return false;};

@@ -1,11 +1,11 @@
 id: ch7
 num: 7
 sys: ctl
-summary: The derivations behind the MPC tracker: the receding-horizon idea, the prediction model with rate inputs and the optional actuator-lag model, the cost in path coordinates, constraints as box bounds and augmented-Lagrangian penalties, the condensed Gauss–Newton SQP that solves it in milliseconds, how the Analyze view turns it into gains, and why it integrates.
+summary: The derivations behind the MPC tracker: the receding-horizon idea, the prediction model with rate inputs and the optional actuator-lag model, the cost in path coordinates, constraints as box bounds and augmented-Lagrangian penalties, the condensed Gauss–Newton SQP that solves it in milliseconds, how the Analyze view turns it into gains, why it integrates, and the tyre model that replaces the kinematic prediction on the car with tyre slip.
 
 # Model predictive control
 
-The other trackers are laws: a formula from the errors to the command. MPC is a question asked every tick: of all the input sequences the vehicle could apply over the next two seconds, which one keeps it closest to the path at the right speed, within its limits and clear of what is around it? It applies the first step of the answer and asks again 50 ms later. This chapter derives the lab's MPC, in the order the Control lessons need it: the model it predicts with (§2), the cost (§3), the constraints (§4), the solver (§5), what the Analyze view sees when it linearizes the result (§6), why it integrates (§7), and the speed loop it closes (§8). The blue numbers follow your settings: horizon $N_p$ = {{live:mpcNp}} steps of {{live:mpcDt}} s ({{live:mpcH}} s), $N_c$ = {{live:mpcNc}} free moves, {{live:mpcIt}} Gauss–Newton iterations per tick, lateral weight {{live:mpcQlat}}, actuator lag {{live:lagModel}}.
+The other trackers are laws: a formula from the errors to the command. MPC is a question asked every tick: of all the input sequences the vehicle could apply over the next two seconds, which one keeps it closest to the path at the right speed, within its limits and clear of what is around it? It applies the first step of the answer and asks again 50 ms later. This chapter derives the lab's MPC, in the order the Control lessons need it: the model it predicts with (§2), the cost (§3), the constraints (§4), the solver (§5), what the Analyze view sees when it linearizes the result (§6), why it integrates (§7), the speed loop it closes (§8), where it stops (§9), and the tyre model that moves one of those limits (§10). The blue numbers follow your settings: horizon $N_p$ = {{live:mpcNp}} steps of {{live:mpcDt}} s ({{live:mpcH}} s), $N_c$ = {{live:mpcNc}} free moves, {{live:mpcIt}} Gauss–Newton iterations per tick, lateral weight {{live:mpcQlat}}, actuator lag {{live:lagModel}}, tyre model {{live:mpcTyres}}.
 
 ## 1. Receding horizon
 
@@ -86,4 +86,28 @@ The other trackers command speed from the profile open-loop; the MPC has $v$ as 
 
 ## 9. Where it stops
 
-Three limits are worth knowing. The horizon: {{live:mpcH}} s of prediction is enough for a 0.8 m/s robot to brake for what it sees, and nothing beyond it exists for the controller, which is why the speed planner's longer window supplies the reference. Local minima: a Gauss–Newton step from a warm start finds the nearby optimum, and a person directly ahead can leave the solver choosing between left and right by the accident of the last solution. And the model: the MPC is only as good as §2, and every lesson that adds something the model lacks, a lag, a bias, latency, shows the cost in margin before it shows in tracking error.
+Three limits are worth knowing. The horizon: {{live:mpcH}} s of prediction is enough for a 0.8 m/s robot to brake for what it sees, and nothing beyond it exists for the controller, which is why the speed planner's longer window supplies the reference. Local minima: a Gauss–Newton step from a warm start finds the nearby optimum, and a person directly ahead can leave the solver choosing between left and right by the accident of the last solution. And the model: the MPC is only as good as §2, and every lesson that adds something the model lacks, a lag, a bias, latency, tyres that slip, shows the cost in margin before it shows in tracking error. §10 puts the tyres into the model.
+
+## 10. The tyre model in the prediction
+
+On the car with tyre slip, the kinematic prediction of §2 is wrong in a way that grows with speed: it says the heading turns at $v\tan\delta/L$ the moment the wheels point, and the car turns at $v/(L + K_{us}v^2)$ per unit of steering, through a yaw mode of its own (chapter 1 §4–5). On the slippery floor at 3.5 m/s that is 36 % of the kinematic rate, and it builds up through poles at −3.9 ± 4.2j 1/s, a time constant of about a quarter of a second. Control → Tyre model in the prediction (shown for the car with tyre slip; now {{live:mpcTyres}}) replaces the model with the one the simulator runs.
+
+**States.** Two are added after the others: the lateral velocity $v_y$ and the yaw rate $r$ at the centre of mass, so $x = [x, y, \theta, v, \delta, v_y, r]$, with the lag states in between when the lag model is on. The inputs are still $u = [a, \dot\delta]$, so the bounds, the cost and the solver of §3–5 are unchanged; the cost still compares only the pose and the speed with the reference, and $v_y$ and $r$ matter through what they do to the pose.
+
+**One step.** Speed and steering are held over the step as in §2. Within it the lateral dynamics of chapter 1 §4 run with the tyre forces clipped at their friction limits,
+
+$$
+\dot v_y = \frac{F_f\cos\delta + F_r}{m} - v\,r,\qquad
+\dot r = \frac{l_f F_f\cos\delta - l_r F_r}{I_z},\qquad
+F_i = \operatorname{clamp}\big(C_i\,\alpha_i,\ \pm\mu F_{z,i}\big)
+$$
+
+with the slip angles $\alpha_f = \tan\delta - (v_y + l_f r)/v$ and $\alpha_r = -(v_y - l_r r)/v$ of the simulator. The yaw mode is fast with grippy tyres at low speed (time constants of a few milliseconds), so each 0.1 s prediction step takes five substeps of one linearly implicit Euler stage, $(I - hJ)\,\Delta = h\,f$ with the 2 × 2 Jacobian $J$ by differences: L-stable, so stiff tyres converge to the kinematic car instead of blowing up. After each substep the rear axle moves with the new velocities, forward at $v$ and sideways at $v_y - l_r r$, and the heading at $r$. Below 0.3 m/s the state blends to the kinematic one, as in the simulator.
+
+**What the optimizer sees.** The Jacobians of §5, by central differences, now carry the tyres: the sensitivity of the heading to a steering rate is small and delayed, and once a tyre is at its limit, more steering moves nothing in the prediction. With the same weights as before, the solution starts a swerve earlier and steers further. In the moose test (L7) at 3.5 m/s the kinematic MPC starts at 1.35 s, steers up to 15° and hits the first box; with the tyre model the MPC starts at 0.8 s, steers up to 21°, and passes both boxes 0.40 m off its path at worst. With stiff tyres ($C$ = 10⁶ N/rad) the two models drive the same line to within a centimetre, which is the check that nothing else changed. A solve takes about 0.2 ms longer.
+
+**What the Analyze view sees.** Nudging $v_y$ and $r$ at the operating point gives two more gains, $K_{v_y}$ and $K_r$, and the loop of §6 gets them as two more feedback paths, through the linear tyre model the Analyze view uses for the car with tyre slip. On the moose test at 3.5 m/s the kinematic MPC's loop has a phase margin of 69° but dominant poles with ζ 0.22 (50 % overshoot, 11.5 s to settle); with the tyre model, ζ 0.70 and 4.1 % overshoot, close to the kinematic MPC on the kinematic car (ζ 0.73, 3.2 %). The simulator's step test agrees with both to a tenth of a percent.
+
+[try: Moose test, kinematic MPC | {"sim":true,"level":6,"panes":[["yawr","yawk"],["cte"]],"layers":{"slip":true}}] [try: Moose test, tyre model | {"sim":true,"level":6,"set":{"mpcDyn":true},"panes":[["yawr","yawk"],["cte"]],"layers":{"slip":true}}] [try: Analyze, tyre model | {"level":6,"set":{"mpcDyn":true},"test":"step","stepKind":"offset","stepAmp":0.05}]
+
+**What it does not do.** It reads $v_y$ and $r$ from the simulator, where a real car would have a gyro for $r$ and an estimate of $v_y$. Its tyres are those of the simulator, linear up to a hard limit, so it is right about the car by construction; a real tyre model is never that good. And it does not brake for a swerve it cannot make: with μ 0.1 it hits the first box at full speed like the kinematic MPC. Its cost holds the speed to the reference, and with the tyres saturated, slowing down pays off only late in the horizon. A reference speed that respects the grip, $v \le \sqrt{\mu g/\kappa}$, is still the speed profile's job.

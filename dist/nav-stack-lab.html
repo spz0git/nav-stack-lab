@@ -243,6 +243,11 @@ details.how{border-top:1px dashed var(--line);padding-top:10px}
 details.how summary{cursor:pointer;font-family:var(--f-display);font-weight:600;font-size:.95rem}
 .how-body{font-size:.88rem;display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .how-body p{max-width:65ch}
+.bs-list{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:2px}
+.bs-tab{border-collapse:collapse;font-family:var(--f-mono);font-size:.76rem;font-variant-numeric:tabular-nums;width:100%}
+.bs-tab th{text-align:left;font-weight:500;color:var(--muted);border-bottom:1px solid var(--line);padding:2px 6px}
+.bs-tab td{padding:2px 6px;border-bottom:1px solid var(--line)}
+.bs-ok{color:var(--ok)}.bs-warn{color:var(--warn)}.bs-muted{color:var(--muted)}
 .eq{font-family:var(--f-mono);font-size:.78rem;background:var(--raise);border:1px solid var(--line);border-radius:4px;padding:8px 10px;overflow-x:auto;white-space:pre;line-height:1.55}
 textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;line-height:1.5;background:var(--raise);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:10px;resize:vertical;tab-size:2}
 .codestat{font-family:var(--f-mono);font-size:.78rem}
@@ -1053,7 +1058,7 @@ function setParam(k,v,live){
   if(k==='ctl'){S.ctlState={I:0,prev:null};S.ctlViz=null;SLOTS.ctl.lastErr='';if(SLOTS.ctl.worker)SLOTS.ctl.worker.reset();logE(`Controller → ${({pp:'pure pursuit',rwf:'rear-wheel feedback',pid:'PID',dwa:'DWA',stanley:'Stanley',mpc:'MPC',custom:'your code'})[v]}`);}
   if(k==='agPred'&&SLOTS.pred.worker)SLOTS.pred.worker.reset();
   if(k==='vehicles'||k==='people'){if(k==='vehicles'){S.peds=S.peds.filter(p=>!p.car);if(v)carsInit();}logE(k==='people'?`People → ${v}`:`Other vehicles → ${v?'on':'off'}`);}
-  if(k==='bOff'){const n=beaconsOff().size;logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)`:'All beacons on');}
+  if(k==='bOff'){const n=beaconsOff().size,u=beaconUse();logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)${u?`; note: ${u}`:''}`:'All beacons on',n&&u&&P.loc!=='custom'?'warn':'');}
   if(k==='bOut'&&!live)logE(v>0?`Random beacon outages: each beacon down ${v} % of the time`:'Random beacon outages off');
   if(k==='seed'&&!live)logE(`Seed ${v} takes effect on Reset`);
   if(k==='model'){S.robot.d=0;S.robot.w=0;S.cmd={v:0,w:0,steer:0};
@@ -1136,6 +1141,14 @@ function lidarSense(){
 // Each beacon is a two-state Markov chain stepped at every beacon scan: an outage lasts bOutLen s on average
 // and a beacon is down bOut % of the time. Outages draw from their own stream, so the sensor noise is unchanged.
 function beaconsOff(){return new Set(String(P.bOff||'').split(',').filter(s=>s.trim()!=='').map(Number));}
+// How the active estimator depends on the beacons, in words (null: it needs them)
+function beaconUse(){
+  if(P.loc==='truth')return'ground truth localization ignores the beacons (the estimate is the true pose)';
+  if(P.loc==='dr')return'dead reckoning never uses the beacons (odometry only)';
+  if(P.loc==='pf'&&P.pfLidar&&P.per==='oracle')return'the particle filter also matches lidar against the prior map, so it can localize without beacons';
+  if(P.loc==='custom')return'your localizer gets the beacon readings that remain';
+  return null;
+}
 function beaconDown(id){return beaconsOff().has(id)||!!(S.bDown&&S.bDown[id]);}
 function beaconOutages(){
   const n=S.beacons.length;if(!S.bDown)S.bDown=new Array(n).fill(false);
@@ -1147,11 +1160,15 @@ function senseBeacons(){
   const r=S.robot,g=S.rngW,sh=allShapes(),out=[];
   const sr=0.08*P.lmK, sb=0.03*P.lmK;
   const off=beaconsOff();beaconOutages();
+  // why each beacon did or did not answer this scan, and when it last answered (for the UI; nothing reads it back)
+  if(!S.bWhy)S.bWhy=[];if(!S.bSeen)S.bSeen=S.beacons.map(()=>[]);
   for(const b of S.beacons){
-    if(off.has(b.id)||S.bDown[b.id])continue;
+    const W=S.bSeen[b.id];while(W.length&&W[0]<S.t-5)W.shift();
+    if(off.has(b.id)||S.bDown[b.id]){S.bWhy[b.id]=off.has(b.id)?'off':'outage';continue;}
     const dx=b.x-r.x,dy=b.y-r.y,d=hyp(dx,dy);
-    if(d>P.lmRange||d<0.2)continue;
-    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12)continue;
+    if(d>P.lmRange||d<0.2){S.bWhy[b.id]='range';continue;}
+    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12){S.bWhy[b.id]='blocked';continue;}
+    S.bWhy[b.id]='ok';W.push(S.t);
     out.push({id:b.id,r:d+sr*g.n(),b:wrap(Math.atan2(dy,dx)-r.th+sb*g.n())});
   }
   if(P.assoc==='unknown'&&P.clutter>0){for(let k=0;k<3;k++)if(g.u()<P.clutter/3)out.push({id:-1,fake:true,r:0.5+g.u()*(P.lmRange-0.5),b:(g.u()*2-1)*Math.PI});}
@@ -3123,7 +3140,7 @@ function setParam(k,v,live){
   if(k==='ctl'){S.ctlState={I:0,prev:null};S.ctlViz=null;SLOTS.ctl.lastErr='';if(SLOTS.ctl.worker)SLOTS.ctl.worker.reset();logE(`Controller → ${({pp:'pure pursuit',rwf:'rear-wheel feedback',pid:'PID',dwa:'DWA',stanley:'Stanley',mpc:'MPC',custom:'your code'})[v]}`);}
   if(k==='agPred'&&SLOTS.pred.worker)SLOTS.pred.worker.reset();
   if(k==='vehicles'||k==='people'){if(k==='vehicles'){S.peds=S.peds.filter(p=>!p.car);if(v)carsInit();}logE(k==='people'?`People → ${v}`:`Other vehicles → ${v?'on':'off'}`);}
-  if(k==='bOff'){const n=beaconsOff().size;logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)`:'All beacons on');}
+  if(k==='bOff'){const n=beaconsOff().size,u=beaconUse();logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)${u?`; note: ${u}`:''}`:'All beacons on',n&&u&&P.loc!=='custom'?'warn':'');}
   if(k==='bOut'&&!live)logE(v>0?`Random beacon outages: each beacon down ${v} % of the time`:'Random beacon outages off');
   if(k==='seed'&&!live)logE(`Seed ${v} takes effect on Reset`);
   if(k==='model'){S.robot.d=0;S.robot.w=0;S.cmd={v:0,w:0,steer:0};
@@ -3206,6 +3223,14 @@ function lidarSense(){
 // Each beacon is a two-state Markov chain stepped at every beacon scan: an outage lasts bOutLen s on average
 // and a beacon is down bOut % of the time. Outages draw from their own stream, so the sensor noise is unchanged.
 function beaconsOff(){return new Set(String(P.bOff||'').split(',').filter(s=>s.trim()!=='').map(Number));}
+// How the active estimator depends on the beacons, in words (null: it needs them)
+function beaconUse(){
+  if(P.loc==='truth')return'ground truth localization ignores the beacons (the estimate is the true pose)';
+  if(P.loc==='dr')return'dead reckoning never uses the beacons (odometry only)';
+  if(P.loc==='pf'&&P.pfLidar&&P.per==='oracle')return'the particle filter also matches lidar against the prior map, so it can localize without beacons';
+  if(P.loc==='custom')return'your localizer gets the beacon readings that remain';
+  return null;
+}
 function beaconDown(id){return beaconsOff().has(id)||!!(S.bDown&&S.bDown[id]);}
 function beaconOutages(){
   const n=S.beacons.length;if(!S.bDown)S.bDown=new Array(n).fill(false);
@@ -3217,11 +3242,15 @@ function senseBeacons(){
   const r=S.robot,g=S.rngW,sh=allShapes(),out=[];
   const sr=0.08*P.lmK, sb=0.03*P.lmK;
   const off=beaconsOff();beaconOutages();
+  // why each beacon did or did not answer this scan, and when it last answered (for the UI; nothing reads it back)
+  if(!S.bWhy)S.bWhy=[];if(!S.bSeen)S.bSeen=S.beacons.map(()=>[]);
   for(const b of S.beacons){
-    if(off.has(b.id)||S.bDown[b.id])continue;
+    const W=S.bSeen[b.id];while(W.length&&W[0]<S.t-5)W.shift();
+    if(off.has(b.id)||S.bDown[b.id]){S.bWhy[b.id]=off.has(b.id)?'off':'outage';continue;}
     const dx=b.x-r.x,dy=b.y-r.y,d=hyp(dx,dy);
-    if(d>P.lmRange||d<0.2)continue;
-    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12)continue;
+    if(d>P.lmRange||d<0.2){S.bWhy[b.id]='range';continue;}
+    if(rayCast(r.x,r.y,dx/d,dy/d,d,sh)<d-0.12){S.bWhy[b.id]='blocked';continue;}
+    S.bWhy[b.id]='ok';W.push(S.t);
     out.push({id:b.id,r:d+sr*g.n(),b:wrap(Math.atan2(dy,dx)-r.th+sb*g.n())});
   }
   if(P.assoc==='unknown'&&P.clutter>0){for(let k=0;k<3;k++)if(g.u()<P.clutter/3)out.push({id:-1,fake:true,r:0.5+g.u()*(P.lmRange-0.5),b:(g.u()*2-1)*Math.PI});}
@@ -5219,7 +5248,11 @@ const SCHEMA={
       {type:'info',text:()=>'Dead reckoning never uses the beacons: it integrates odometry only, so its error and ellipse only grow. Switch to EKF or the particle filter to see beacons pull the estimate back.',show:()=>P.loc==='dr'},
       {type:'info',text:()=>'Odometry is perfect on this level (noise and bias 0), so dead reckoning matches the truth exactly.',show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
       {type:'btn',label:'Add odometry noise and bias (×1)',act:()=>{setParam('odoK',1,false);setParam('odoB',1,false);renderAllPanes();},show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
-      {type:'beacons',label:'Beacons on (tap to switch one off)',show:()=>P.loc!=='truth'},
+      {type:'info',text:()=>'Ground truth: the estimate is the true pose, so the beacons and their on/off state change nothing here (L1, L2 and L6 start this way). Pick EKF or Particle filter to see what the beacons are worth.',show:()=>P.loc==='truth'},
+      {type:'btn',label:'Use the EKF (beacons only)',act:()=>{setParam('loc','ekf',false);renderAllPanes();},show:()=>P.loc==='truth'},
+      {type:'beacons',label:'Beacons on (tap to switch one off)'},
+      {type:'bsensor'},
+      {type:'info',text:()=>`The particle filter scores particles with lidar against the prior map as well as with the beacons, so it stays localized with every beacon off (lidar localization, as AMCL does). Untick "Also weight particles by lidar" above to depend on the beacons alone.`,show:()=>P.loc==='pf'&&P.pfLidar&&P.per==='oracle'},
       {k:'bOut',label:'Random beacon outages (share of time each is down)',min:0,max:90,step:5,unit:'%',show:()=>P.loc!=='truth'},
       {k:'bOutLen',label:'Mean outage length (short = flicker)',min:0.2,max:10,step:0.2,unit:'s',show:()=>P.loc!=='truth'&&P.bOut>0}],
  per:[{k:'per',type:'seg',label:'Map source',opts:[['oracle','Prior map'],['mapping','Lidar mapping']]},
@@ -5327,6 +5360,7 @@ M = diag(σ_v², σ_ω²)  (assumed noise × filter scale)</div>
 H = [−Δx/√q  −Δy/√q   0 ;  Δy/q  −Δx/q  −1]
 S = HΣHᵀ + Q,  K = ΣHᵀS⁻¹,  μ += K(z − ẑ)
 unlabeled: pick min Mahalanobis d² = νᵀS⁻¹ν, gate d² < 9.21 (χ²₂, 99%)</div>
+<p><b>The beacon sensor.</b> One scan every 0.2 s (5 Hz) reads every beacon that is on, 0.2 m to the sensor range (7 m by default) away and in line of sight (walls, shelves, cars and people block it completely; there is no partial signal). Each reading is range and bearing with Gaussian noise σ<sub>r</sub> = 0.08 m, σ<sub>b</sub> = 0.03 rad (1.7°), × the noise scale, the same at every distance; a bearing error moves the implied position sideways by d·σ<sub>b</sub>, so far beacons pin the pose less. Open <i>Beacon sensor</i> below the beacon chips for a live line per beacon.</p>
 <p><b>Beacon availability.</b> Switch beacons off (the numbered chips, or the map's Beacon tool) or let them fail at random. While no beacon is in view the EKF and the particle filter only predict, exactly as dead reckoning does, and the ellipse grows; the first reading back pulls the estimate in. Dead reckoning never uses beacons, so the map draws no beacon readings for it. On the map a switched-off beacon is a grey hollow diamond with a stroke; one in a random outage is a hollow diamond.</p>
 <p><b>Particle filter</b> (Monte Carlo localization) samples the motion model per particle, weights by beacon likelihood with a robust floor, and resamples with the low-variance sampler when N_eff &lt; N/2. Augmented MCL tracks short- and long-term likelihood averages (α_fast = 0.1, α_slow = 0.001) and, when the short-term average drops, replaces up to 25% of particles with poses drawn from the current beacon readings (sensor-resetting localization). That is what recovers from kidnapping.</p>
 <p>With a prior map the particle filter can also score lidar scans (likelihood field, 24 beams, σ = 0.2 m, tempered by 0.4 because beams are correlated). Beacons alone are sparse; walls are everywhere.</p>
@@ -5488,6 +5522,24 @@ function renderAllPanes(){
   wirePane(t);
 }
 let btnActs=[],infoFns=[];
+/* ---------- the beacon sensor explained, with a live line per beacon ---------- */
+let bsOpen=false,bsKey='';
+const BS_WHY={ok:['reading','ok'],range:['out of range','muted'],blocked:['blocked (no line of sight)','warn'],off:['switched off','muted'],outage:['in an outage','warn']};
+function beaconSensorHTML(){
+  const k=P.lmK,sr=0.08*k,sb=0.03*k,R=P.lmRange,r=S.robot,u=beaconUse();
+  const rows=S.beacons.map(b=>{const d=hyp(b.x-r.x,b.y-r.y),w=(S.bWhy&&S.bWhy[b.id])||(beaconsOff().has(b.id)?'off':d>R?'range':''),W=S.bSeen?S.bSeen[b.id]:[],
+    rate=S.t>0.2?W.filter(t=>t>S.t-5).length/Math.min(5,S.t):0,st=BS_WHY[w]||['no scan yet','muted'];
+    return`<tr><td>${b.id}</td><td>${d.toFixed(1)} m</td><td class="bs-${st[1]}">${st[0]}</td><td>${rate.toFixed(1)}/s</td><td>${(d*sb).toFixed(2)} m</td></tr>`;}).join('');
+  return`<p>Each beacon is a fixed landmark at a known position (teal diamond on the map). The robot's beacon sensor takes one <b>scan every 0.2 s (5 Hz)</b> and in each scan reads every beacon that is</p>
+<ul class="bs-list"><li>switched on and not in an outage,</li><li>between <b>0.2 m and ${R} m</b> away (the sensor range; Vehicle → Beacon sensor range),</li><li>in <b>line of sight</b>: a wall, shelf, parked car or person on the straight line to the beacon blocks it completely. There is no partial or weakened signal.</li></ul>
+<p>A reading is a <b>range</b> r and a <b>bearing</b> b (relative to the robot's heading) with Gaussian noise: <b>σ<sub>r</sub> = ${sr.toFixed(3)} m</b> and <b>σ<sub>b</sub> = ${sb.toFixed(3)} rad (${deg(sb).toFixed(1)}°)</b>, which is 0.08 m and 0.03 rad × the noise scale ${k.toFixed(1)} (Vehicle → Beacon range/bearing noise). The noise does <b>not</b> grow with distance, but a bearing error moves the implied position sideways by d·σ<sub>b</sub>, so a far beacon pins the position less (last column). The EKF and the particle filter assume these same σ's.</p>
+<p>Also in play: Sensor latency (Vehicle) delivers readings late; Unlabeled association (above) drops the IDs and adds false detections; Random outages (below) switch beacons off for a while.${u?` <b>Right now ${u}.</b>`:''}</p>
+<table class="bs-tab"><thead><tr><th>#</th><th>distance</th><th>this scan</th><th title="Readings received per second over the last 5 s (at most 5)">readings</th><th title="Sideways position error of one bearing reading, d·σ_b">d·σ<sub>b</sub></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function renderBeaconSensor(){
+  const el=$('#bsens-body');if(!el||!bsOpen)return;
+  const key=Math.round(S.t*5)+'|'+P.lmK+P.lmRange+P.bOff+P.loc+P.pfLidar;if(key===bsKey)return;bsKey=key;el.innerHTML=beaconSensorHTML();
+}
 const TIPS={loc:'Which estimator produces the pose the planner and controller use.',assoc:'Whether beacon readings carry their ID. Unlabeled readings are matched by Mahalanobis distance.',npart:'More particles cost CPU and resolve the belief more finely.',inject:'Replace low-weight particles with poses sampled from beacon readings when the likelihood drops.',pfLidar:'Score particles against the prior map with 24 lidar beams.',filtK:'Motion noise the filter assumes, relative to the true noise. Too low makes it overconfident (NEES above 3).',
  per:'Prior map: the planner sees the true static map. Lidar mapping: an occupancy grid built from scans in the estimated frame.',unknownAs:'Whether unobserved cells block the planner.',infl:'Width of the soft cost band outside the lethal radius.',agents:'Off: people reach the stack only as lidar hits. Ground truth: perfect tracks. Lidar: clustering plus a Kalman filter per agent.',agPred:'Constant velocity extrapolates each track; Static freezes it where it is now.',agT:'How far ahead agents are predicted and the speed planner plans.',agGrow:'How fast the predicted radius grows per second of prediction.',agSigA:'White acceleration noise of the constant-velocity model. Higher follows turns faster but gives noisier velocity.',
  mis:'In order visits goals as numbered. Greedy picks the nearest next. Optimal solves the open-path TSP.',replan:'Replan on a timer in addition to the event-driven triggers.',lostGuard:'Stop when the position uncertainty exceeds 1 m.',
@@ -5504,6 +5556,7 @@ function fieldHTML(f){
   if(f.type==='bool')return`<label class="check${chgMark(f)?' chg':''}" title="${TIPS[f.k]||''}"><input type="checkbox" id="p-${f.k}" data-k="${f.k}" ${P[f.k]?'checked':''}><span>${f.label}${chgMark(f)}</span></label>`;
   if(f.type==='beacons'){const off=beaconsOff(),c=chgMark({k:'bOff'});
     return`<div class="field${c?' chg':''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b=>`<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="linkbtn" data-beacon="all">All on</button><button class="linkbtn" data-beacon="none">All off</button></div></div>`;}
+  if(f.type==='bsensor')return`<details class="how bsens" id="bsens" ${bsOpen?'open':''}><summary>Beacon sensor: rate, range, noise, what blocks it</summary><div class="how-body" id="bsens-body">${beaconSensorHTML()}</div></details>`;
   if(f.type==='btn'){btnActs.push(f.act);return`<div><button class="btn" data-act="${btnActs.length-1}">${f.label}</button></div>`;}
   return`<div class="field${chgMark(f)?' chg':''}"><div class="row"><label for="p-${f.k}" title="${TIPS[f.k]||''}">${f.label}${chgMark(f)}</label><output id="o-${f.k}">${fmtVal(f,P[f.k])}</output></div><input type="range" id="p-${f.k}" data-k="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${P[f.k]}"></div>`;
 }
@@ -5520,6 +5573,7 @@ function wirePane(t){
     if(v==='all')setParam('bOff','',false);else if(v==='none')setParam('bOff',S.beacons.map(x=>x.id).join(','),false);else toggleBeacon(+v);renderAllPanes();});
   pane.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>btnActs[+b.dataset.act]());
   btnActs=btnActs.slice(-20);infoFns=infoFns.slice(-20);
+  const bs=$('#bsens');if(bs)bs.ontoggle=()=>{bsOpen=bs.open;bsKey='';renderBeaconSensor();};
   pane.querySelectorAll('details[data-how]').forEach(d=>d.ontoggle=()=>{howOpen[d.dataset.how]=d.open;});
   pane.querySelectorAll('[data-sym]').forEach(b=>b.onclick=()=>showSym(b.dataset.sym));
   pane.querySelectorAll('[data-source]').forEach(b=>b.onclick=()=>showSource(b.dataset.source));
@@ -7924,7 +7978,9 @@ function selCard(V){
       row('velocity',`${f2(hyp(o.vx,o.vy))} m/s · ${deg(Math.atan2(o.vy,o.vx)).toFixed(0)}°`)+row('radius',`${f2(o.r)} m`)+row('hits',String(o.hits))+
       row('σ position',`${f2(Math.sqrt(Math.max(0,o.pxx)))} m`)+(pr?row(`in ${P.agT} s`,`${f2(pr[0])}, ${f2(pr[1])} m (r ${f2(pr[2])})`):'')];}
     case'beacon':{const d=hyp(r.x-o.x,r.y-o.y);return[`Beacon ${o.id}`,row('status',beaconsOff().has(o.id)?'switched off':V.bDown&&V.bDown[o.id]?'in an outage':'on')+
-      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('range',`${f2(d)} m from the robot${d>P.lmRange?' (beyond the '+P.lmRange+' m sensor range)':''}`)];}
+      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('range',`${f2(d)} m from the robot${d>P.lmRange?' (beyond the '+P.lmRange+' m sensor range)':''}`)+
+      (V===S&&S.bWhy?row('this scan',(BS_WHY[S.bWhy[o.id]]||['no scan yet'])[0])+row('readings',`${(S.bSeen[o.id].filter(t=>t>S.t-5).length/Math.max(0.2,Math.min(5,S.t))).toFixed(1)} per s (scan rate 5 Hz)`):'')+
+      row('noise',`σ_r ${(0.08*P.lmK).toFixed(2)} m · σ_b ${deg(0.03*P.lmK).toFixed(1)}° → ${f2(d*0.03*P.lmK)} m sideways here`)];}
   }
   return null;
 }
@@ -8382,7 +8438,7 @@ function healthNow(f){
    else if(st==='LOST'||sp!=null&&sp>1)H.loc=['bad',`lost: position σ ${sp!=null?sp.toFixed(1):'?'} m`];
    else if(nees!=null&&nees>9)H.loc=['warn',`overconfident: NEES ${nees.toFixed(1)} (3 is consistent)`];
    else if(neff!=null&&P.loc==='pf'&&neff<0.15*N)H.loc=['warn',`particles degenerate: N_eff ${neff.toFixed(0)} of ${N} (2 s mean)`];
-   else if(silent>3&&drive)H.loc=['warn',`no beacon readings for ${silent.toFixed(1)} s`];
+   else if(silent>3&&drive)H.loc=beaconUse()?['ok',`no beacon readings for ${silent.toFixed(0)} s; lidar against the map holds it (σ ${sp!=null?sp.toFixed(2):'—'} m)`]:['warn',`no beacon readings for ${silent.toFixed(1)} s`];
    else if(P.loc==='dr')H.loc=['ok',`dead reckoning${sp!=null?`: σ ${sp.toFixed(2)} m and growing`:''}`];
    else H.loc=['ok',`σ ${sp!=null?sp.toFixed(2):'—'} m${nees!=null?` · NEES ${nees.toFixed(1)}`:''}${neff!=null&&P.loc==='pf'?` · N_eff ${neff.toFixed(0)}`:''}`];}
   // perception
@@ -8598,7 +8654,7 @@ document.addEventListener('keydown',e=>{const t=e.target,tag=t&&t.tagName;if(e.k
 /* ---- ui/loop.js ---- */
 
 /* ---------- main loop ---------- */
-function refreshAll(){renderStatus();renderMetrics();renderLog();fsmRefresh();renderSelection();renderLayerPop();renderValues();renderChangedBadge();renderHealth();renderRunsBadge();renderGhostChip();}
+function refreshAll(){renderStatus();renderMetrics();renderLog();fsmRefresh();renderSelection();renderLayerPop();renderValues();renderChangedBadge();renderHealth();renderRunsBadge();renderGhostChip();renderBeaconSensor();}
 let lastTs=0,acc=0,frame=0;
 function loop(ts){
   const dt=Math.min(0.1,(ts-lastTs)/1000||0);lastTs=ts;

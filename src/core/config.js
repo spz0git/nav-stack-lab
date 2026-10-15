@@ -27,7 +27,7 @@ function setParam(k,v,live){
   if(k==='ctl'){S.ctlState={I:0,prev:null};S.ctlViz=null;SLOTS.ctl.lastErr='';if(SLOTS.ctl.worker)SLOTS.ctl.worker.reset();logE(`Controller → ${({pp:'pure pursuit',rwf:'rear-wheel feedback',pid:'PID',dwa:'DWA',stanley:'Stanley',mpc:'MPC',custom:'your code'})[v]}`);}
   if(k==='agPred'&&SLOTS.pred.worker)SLOTS.pred.worker.reset();
   if(k==='vehicles'||k==='people'){if(k==='vehicles'){S.peds=S.peds.filter(p=>!p.car);if(v)carsInit();}logE(k==='people'?`People → ${v}`:`Other vehicles → ${v?'on':'off'}`);}
-  if(k==='bOff'){const n=beaconsOff().size;logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)`:'All beacons on');}
+  if(k==='bOff'){const n=beaconsOff().size,u=beaconUse();logE(n?`Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length-n} of ${S.beacons.length} on)${u?`; note: ${u}`:''}`:'All beacons on',n&&u&&P.loc!=='custom'?'warn':'');}
   if(k==='bOut'&&!live)logE(v>0?`Random beacon outages: each beacon down ${v} % of the time`:'Random beacon outages off');
   if(k==='seed'&&!live)logE(`Seed ${v} takes effect on Reset`);
   if(k==='model'){S.robot.d=0;S.robot.w=0;S.cmd={v:0,w:0,steer:0};

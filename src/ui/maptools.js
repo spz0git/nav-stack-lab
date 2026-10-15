@@ -67,7 +67,9 @@ function selCard(V){
       row('velocity',`${f2(hyp(o.vx,o.vy))} m/s · ${deg(Math.atan2(o.vy,o.vx)).toFixed(0)}°`)+row('radius',`${f2(o.r)} m`)+row('hits',String(o.hits))+
       row('σ position',`${f2(Math.sqrt(Math.max(0,o.pxx)))} m`)+(pr?row(`in ${P.agT} s`,`${f2(pr[0])}, ${f2(pr[1])} m (r ${f2(pr[2])})`):'')];}
     case'beacon':{const d=hyp(r.x-o.x,r.y-o.y);return[`Beacon ${o.id}`,row('status',beaconsOff().has(o.id)?'switched off':V.bDown&&V.bDown[o.id]?'in an outage':'on')+
-      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('range',`${f2(d)} m from the robot${d>P.lmRange?' (beyond the '+P.lmRange+' m sensor range)':''}`)];}
+      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('range',`${f2(d)} m from the robot${d>P.lmRange?' (beyond the '+P.lmRange+' m sensor range)':''}`)+
+      (V===S&&S.bWhy?row('this scan',(BS_WHY[S.bWhy[o.id]]||['no scan yet'])[0])+row('readings',`${(S.bSeen[o.id].filter(t=>t>S.t-5).length/Math.max(0.2,Math.min(5,S.t))).toFixed(1)} per s (scan rate 5 Hz)`):'')+
+      row('noise',`σ_r ${(0.08*P.lmK).toFixed(2)} m · σ_b ${deg(0.03*P.lmK).toFixed(1)}° → ${f2(d*0.03*P.lmK)} m sideways here`)];}
   }
   return null;
 }

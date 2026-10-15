@@ -23,9 +23,9 @@ $('#pausec').onchange=e=>{pauseOnContact=e.target.checked;};
 $('#legendmore').onclick=()=>showSym('map');
 $('#an-src').onclick=()=>showSource('analysis/model.js');
 function syncAnControls(){
-  seg($('#an-loop'),[['lat','Lateral'],['spd','Speed']],()=>AN.loop,v=>{AN.loop=v;AN.msg='';renderAnalysis();});
+  seg($('#an-loop'),[['lat','Lateral'],['spd','Speed']],()=>AN.loop,v=>{if(v!==AN.loop){AN.meas={step:null,freq:null,spd:null};AN.play=null;}AN.loop=v;AN.msg='';renderAnalysis();});
   seg($('#an-curve'),[['0','Straight'],['4','Curve R 4 m'],['2','Curve R 2 m']],()=>String(AN.curveR||0),v=>{AN.curveR=+v;anInvalidate();renderAnalysis();});
-  const ce=$('#an-est');if(ce){ce.checked=AN.useEst;ce.onchange=()=>{AN.useEst=ce.checked;AN.meas={step:null,freq:null,spd:null};AN.msg=AN.useEst?'Experiments now run with the estimator; the model still assumes a known pose.':'';renderAnalysis();};}
+  const ce=$('#an-est');if(ce){ce.checked=AN.useEst;ce.onchange=()=>{AN.useEst=ce.checked;AN.meas={step:null,freq:null,spd:null};AN.msg=AN.useEst?`Simulator tests now close the loop through the ${({dr:'dead reckoning',ekf:'EKF',pf:'particle filter',slam:'EKF-SLAM'})[P.loc]||P.loc} estimate, with beacons every 4 m beside the path. The model curves, poles and margins still assume the true pose, so the gap between amber and black is what the estimator costs.${P.loc==='pf'||P.loc==='slam'?' With the particle filter and EKF-SLAM the offset step moves only the true pose, so the estimator sees it as a small kidnap.':''}`:'';renderAnalysis();};}
   seg($('#an-cl'),[['0','L only'],['1','+ closed loop']],()=>AN.showCL?'1':'0',v=>{AN.showCL=v==='1';renderAnalysis();});
   seg($('#an-nyq'),[['log','compressed'],['lin','linear']],()=>AN.nyqScale,v=>{AN.nyqScale=v;renderAnalysis();});
   seg($('#an-kind'),[['offset','path offset'],['bias','actuator bias']],()=>AN.stepKind,v=>{AN.stepKind=v;renderAnalysis();});

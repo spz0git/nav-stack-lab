@@ -288,6 +288,10 @@ textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;
 .bchips-all{display:flex;gap:14px;margin-top:4px}
 @media (max-width:760px){.bchips button{min-width:2.6rem;padding:9px 4px}}
 .an-exp{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.an-legend{display:flex;flex-wrap:wrap;gap:3px 14px;margin:2px 0 0;font-size:.76rem;color:var(--muted)}.an-legend sub{font-size:.7em}
+.lg-i{display:inline-flex;align-items:center;gap:6px}.lg-s{display:inline-block;width:18px;height:0;border-top:2px solid var(--c);flex:none}
+.lg-s.dash{border-top-style:dashed}.lg-s.dot2{border-top-style:dotted}.lg-s.dot{width:8px;height:8px;border:0;border-radius:50%;background:var(--c)}
+.lg-s.x{width:10px;height:10px;border:0;background:linear-gradient(45deg,transparent 42%,var(--c) 42% 58%,transparent 58%),linear-gradient(-45deg,transparent 42%,var(--c) 42% 58%,transparent 58%)}
 .an-play{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:.8rem}.an-play[hidden]{display:none}.an-play input[type=range]{flex:1 1 140px;min-width:100px;accent-color:var(--amber)}.an-pt{min-width:7.5em;color:var(--muted);order:9;flex:1 1 100%}
 .an-msg{font-size:.82rem;color:var(--muted);flex:1 1 220px}
 .an-foot{font-size:.78rem}
@@ -693,7 +697,7 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
       </section>
       </div>
       <div id="anview" class="view" hidden>
-        <div class="an-ctl"><span class="lbl">Loop</span><span class="seg sm" id="an-loop"></span><span class="lbl">Path</span><span class="seg sm" id="an-curve"></span><label class="check sm" id="an-est-l" title="Run the step and injection experiments with the estimator you picked in Localize, instead of ground truth"><input type="checkbox" id="an-est"><span>experiments use the estimator</span></label></div>
+        <div class="an-ctl"><span class="lbl">Loop</span><span class="seg sm" id="an-loop"></span><span class="lbl">Path</span><span class="seg sm" id="an-curve"></span><label class="check sm" id="an-est-l" title="Off: the simulator tests (Run step test, Measure L(jω) and the speed step test) feed the controller the true pose. On: they feed it the estimate from the estimator picked in Localize (odometry plus beacons every 4 m beside the path), so the amber curves include the estimation error. The model curves, gains, poles and margins always assume the true pose. With the particle filter or EKF-SLAM the offset step moves only the true pose, which the estimator sees as a small kidnap."><input type="checkbox" id="an-est"><span>simulator tests use the Localize estimator</span></label></div>
         <p class="an-op" id="an-op"></p>
         <div id="an-none" class="box an-none" hidden></div>
         <div id="an-body">
@@ -716,8 +720,8 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
               <div class="an-tf" id="an-tf"></div>
               <div class="an-chips" id="an-chips"></div>
               <div class="an-grid">
-                <figure class="an-fig"><figcaption><span>Bode · open loop L(jω)</span><span class="seg sm" id="an-cl"></span></figcaption><canvas id="cv-bode" aria-label="Bode plot"></canvas><p class="an-cap">Gain and phase of the open loop for a sinusoidal wiggle of ω rad/s. Where the gain crosses 0 dB (ω<sub>c</sub>) the phase must still be above −180°; the gap is the phase margin.</p></figure>
-                <figure class="an-fig"><figcaption><span>Nyquist</span><span class="seg sm" id="an-nyq"></span></figcaption><canvas id="cv-nyq" aria-label="Nyquist plot"></canvas><p class="an-cap">The same L(jω) in the complex plane. The loop is stable when the curve does not encircle −1; the closer it passes, the more fragile.</p></figure>
+                <figure class="an-fig"><figcaption><span>Bode · open loop L(jω)</span><span class="seg sm" id="an-cl"></span></figcaption><canvas id="cv-bode" aria-label="Bode plot"></canvas><p class="an-legend" id="lg-bode"></p><p class="an-cap">Gain and phase of the open loop for a sinusoidal wiggle of ω rad/s. Where the gain crosses 0 dB (ω<sub>c</sub>) the phase must still be above −180°; the gap is the phase margin.</p></figure>
+                <figure class="an-fig"><figcaption><span>Nyquist</span><span class="seg sm" id="an-nyq"></span></figcaption><canvas id="cv-nyq" aria-label="Nyquist plot"></canvas><p class="an-legend" id="lg-nyq"></p><p class="an-cap">The same L(jω) in the complex plane. The loop is stable when the curve does not encircle −1; the closer it passes, the more fragile.</p></figure>
                 <figure class="an-fig"><figcaption><span>Root locus</span><span class="lbl">s-plane [1/s]</span></figcaption><canvas id="cv-loc" aria-label="Root locus"></canvas><p class="an-cap">Where the closed-loop poles go when every controller gain is scaled by ×0.06 to ×16 (dots); × and ○ are the open-loop poles and zeros.</p></figure>
               </div>
               <div class="an-exp">
@@ -6581,6 +6585,21 @@ function anFrame(G,box,xr,yr,opt){ // returns mappers; xr may be log
 function niceStep(r){const raw=r/5,p=Math.pow(10,Math.floor(Math.log10(raw))),m=raw/p;return(m<1.5?1:m<3.5?2:m<7.5?5:10)*p;}
 function fmtTick(v,st){const d=st>=1?0:st>=0.1?1:2;return(Math.abs(v)<1e-9?0:v).toFixed(d);}
 function polyline2(c,pts,X,Y,clip){c.beginPath();let up=true;for(const p of pts){if(p==null||!isFinite(p[1])){up=true;continue;}const x=X(p[0]),y=Y(p[1]);if(clip&&(y<clip[0]-50||y>clip[1]+50)){up=true;continue;}if(up){c.moveTo(x,y);up=false;}else c.lineTo(x,y);}c.stroke();}
+// items: [colour, dash, text, kind] with kind 'line' (default), 'dot', 'band' or 'x'; corner 'tr', 'tl', 'mr', 'br' or 'bl' of box [x0,y0,x1,y1]
+function anLegend(G,items,box,corner='tr'){
+  const{c,dpr}=G,[x0,y0,x1,y1]=box;anFont(G,10);const lh=13*dpr,sw=16*dpr,pad=5*dpr,tw=Math.max(...items.map(i=>c.measureText(i[2]).width));
+  const bw=sw+6*dpr+tw+2*pad,bh=items.length*lh+2*pad-3*dpr,bx=corner[1]==='r'?x1-bw-4*dpr:x0+4*dpr,by=corner[0]==='t'?y0+4*dpr:corner[0]==='m'?(y0+y1-bh)/2:y1-bh-4*dpr;
+  c.fillStyle=rgba(TOK['map-bg'],0.86);c.strokeStyle=TOK.line;c.lineWidth=1;c.fillRect(bx,by,bw,bh);c.strokeRect(bx+.5,by+.5,bw,bh);
+  items.forEach(([col,dash,t,kind],i)=>{const y=by+pad+i*lh+5*dpr,x=bx+pad;c.strokeStyle=col;c.fillStyle=col;c.lineWidth=2*dpr;c.setLineDash(dash||[]);
+    if(kind==='dot'){c.beginPath();c.arc(x+sw/2,y,3.2*dpr,0,TAU);c.fill();}
+    else if(kind==='band'){c.fillStyle=rgba(col,0.18);c.fillRect(x,y-4*dpr,sw,8*dpr);}
+    else if(kind==='x'){const s=3.5*dpr;c.beginPath();c.moveTo(x+sw/2-s,y-s);c.lineTo(x+sw/2+s,y+s);c.moveTo(x+sw/2-s,y+s);c.lineTo(x+sw/2+s,y-s);c.stroke();}
+    else{c.beginPath();c.moveTo(x,y);c.lineTo(x+sw,y);c.stroke();}
+    c.setLineDash([]);c.fillStyle=TOK.ink;c.textAlign='left';c.textBaseline='middle';c.fillText(t,x+sw+6*dpr,y);});
+}
+// the same key as HTML under a plot: items [colour, '' | 'dash' | 'dot2' | 'dot' | 'x', text]
+function anKeyHTML(id,items){const el=document.getElementById(id);if(!el)return;
+  el.innerHTML=items.map(([col,k,t])=>`<span class="lg-i"><i class="lg-s ${k||'line'}" style="--c:${col}"></i>${t}</span>`).join('');}
 function label(G,t,x,y,col,al='left',bl='bottom'){anFont(G,10);G.c.fillStyle=col;G.c.textAlign=al;G.c.textBaseline=bl;G.c.fillText(t,x,y);}
 
 function drawBode(R){
@@ -6609,7 +6628,10 @@ function drawBode(R){
     {const rt=x>w*0.72;label(G,`GM ${fmt(F.gm,1)} dB`,rt?x-5*dpr:x+4*dpr,A.Y(Math.max(mn,m/2)),c.strokeStyle,rt?'right':'left','middle');}}
   if(AN.meas.freq&&AN.meas.freq.length){c.fillStyle=TOK.amber;for(const q of AN.meas.freq){let ph=q.ph*180/Math.PI;const ref=F.pts.reduce((a,p)=>Math.abs(Math.log(p.w/q.w))<Math.abs(Math.log(a.w/q.w))?p:a).phu*180/Math.PI;ph+=360*Math.round((ref-ph)/360);
     c.beginPath();c.arc(A.X(q.w),A.Y(20*Math.log10(q.mag)),3.2*dpr,0,TAU);c.fill();c.beginPath();c.arc(B.X(q.w),B.Y(ph),3.2*dpr,0,TAU);c.fill();}}
-  const nm=R.loop==='spd'&&R.M.kind!=='mpc'?'G':'L';label(G,`|${nm}| dB`,L+4*dpr,mid-6*dpr,TOK.muted);label(G,`∠${nm} °`,L+4*dpr,bot-4*dpr,TOK.muted);label(G,'ω [rad/s]',w-Rm,h-2*dpr,TOK.muted,'right','bottom');
+  const nm=R.loop==='spd'&&R.M.kind!=='mpc'?'G':'L',spdOpen=nm==='G';
+  anKeyHTML('lg-bode',[[TOK.ink,'',spdOpen?'G(jω): speed command → speed (no feedback)':'L(jω): open loop (gain on top, phase below)'],...(AN.showCL&&!R.noCL?[[TOK.rose,'','S = 1/(1+L): share of a disturbance that gets through'],[TOK.ok,'',R.loop==='spd'?'T: reference → speed':'T: closed-loop tracking']]:[]),
+    ...(F.wc?[[TOK.accent,'','gain crossover ω<sub>c</sub>, and the phase margin bar']]:[]),[TOK.bad,'dash','−180°: the phase where the loop would oscillate'],[TOK.muted,'dot2','π/T: the highest frequency a 20 Hz loop sees'],...(AN.meas.freq&&AN.meas.freq.length?[[TOK.amber,'dot','measured in the simulator']]:[])]);
+  label(G,`|${nm}| dB`,L+4*dpr,mid-6*dpr,TOK.muted);label(G,`∠${nm} °`,L+4*dpr,bot-4*dpr,TOK.muted);label(G,'ω [rad/s]',w-Rm,h-2*dpr,TOK.muted,'right','bottom');
 }
 function drawNyq(R){
   const G=anCanvas('cv-nyq');if(!G)return;const{c,dpr,w,h}=G,F=R.F,lg=AN.nyqScale==='log';
@@ -6633,6 +6655,8 @@ function drawNyq(R){
   if(AN.meas.freq){c.fillStyle=TOK.amber;for(const q of AN.meas.freq){const u=map(q.L);c.beginPath();c.arc(X(u[0]),Y(u[1]),3.2*dpr,0,TAU);c.fill();}}
   const Z=F.Ncw+(F.P||0),ok=Z===0;label(G,`N = ${F.Ncw} encirclement${Math.abs(F.Ncw)===1?'':'s'} of −1 · Z = N + P = ${F.P?`${F.Ncw} + ${F.P} = `:''}${Z}  →  ${ok?'stable':'unstable'}`,6*dpr,h-4*dpr,ok?TOK.ok:TOK.bad,'left','bottom');
   label(G,lg?'radius log₂(1+|L|): −1 and the unit circle stay in place':'linear scale',6*dpr,4*dpr,TOK.muted,'left','top');
+  anKeyHTML('lg-nyq',[[TOK.ink,'','L(jω) for ω > 0 (the arrow points to rising ω)'],[TOK.muted,'dash','ω < 0: its mirror image'],[TOK.muted,'dash','unit circle |L| = 1'],[TOK.rose,'','closest approach to −1, length 1/M<sub>s</sub>'],
+    ...(F.wc?[[TOK.accent,'dot','crossover ω<sub>c</sub>']]:[]),[TOK.bad,'x','−1: the point the curve must not circle'],...(AN.meas.freq&&AN.meas.freq.length?[[TOK.amber,'dot','measured in the simulator']]:[])]);
 }
 function drawStep(R){
   if(R.loop!=='spd')return drawResp(R);
@@ -6648,11 +6672,13 @@ function drawStep(R){
   c.fillStyle=rgba(TOK.ok,0.12);c.fillRect(A.X(0),A.Y(fin+band),A.X(R.tEnd)-A.X(0),A.Y(fin-band)-A.Y(fin+band));
   if(R.stable&&m.settle&&m.settle<R.tEnd){c.strokeStyle=TOK.ok;c.setLineDash([3*dpr,3*dpr]);c.beginPath();c.moveTo(A.X(m.settle),A.Y(lo));c.lineTo(A.X(m.settle),A.Y(hi));c.stroke();c.setLineDash([]);
     label(G,`settles ${fmt(m.settle,1)} s`,A.X(m.settle)+3*dpr,8*dpr+2*dpr,TOK.ok,'left','top');}
+  if(spd){c.strokeStyle=TOK.accent;c.lineWidth=1.5*dpr;c.setLineDash([6*dpr,4*dpr]);c.beginPath();c.moveTo(A.X(0),A.Y(1));c.lineTo(A.X(R.tEnd),A.Y(1));c.stroke();c.setLineDash([]);}
   c.save();c.beginPath();c.rect(44*dpr,8*dpr,w-54*dpr,h-26*dpr);c.clip();
   c.lineWidth=2*dpr;c.strokeStyle=TOK.ink;polyline2(c,pred,A.X,A.Y);
   if(ms){c.lineWidth=2*dpr;c.strokeStyle=TOK.amber;c.setLineDash([5*dpr,3*dpr]);polyline2(c,ms,A.X,A.Y);c.setLineDash([]);}c.restore();
-  label(G,spd?`(v − v₀) / Δv for a reference step of ${fmt(AN.spdAmp||0.2)} m/s`:kind==='offset'?'e(t) / e₀  (path offset step)':`e(t) [m] for a ${bu.val}${bu.unit} actuator bias`,48*dpr,h-20*dpr,TOK.muted,'left','bottom');
+  label(G,spd?`(v − v₀) / Δv, Δv = ${fmt(AN.spdAmp||0.2)} m/s`:kind==='offset'?'e(t) / e₀  (path offset step)':`e(t) [m] for a ${bu.val}${bu.unit} actuator bias`,48*dpr,h-20*dpr,TOK.muted,'left','bottom');
   label(G,'t [s]',w-14*dpr,h-21*dpr,TOK.muted,'right','bottom');
+  if(spd)anLegend(G,[[TOK.accent,[6*dpr,4*dpr],'new reference speed'],[TOK.ink,[],'model (linear)'],...(ms?[[TOK.amber,[5*dpr,3*dpr],'simulator (Run step test)']]:[]),[TOK.ok,[],'within 2 % of the reference','band']],[44*dpr,8*dpr,w-10*dpr,h-18*dpr],'mr');
 }
 function drawLocus(R){
   const G=anCanvas('cv-loc');if(!G)return;const{c,dpr,w,h}=G;
@@ -6962,7 +6988,7 @@ function renderSpeed(){
     chip('Settled within 2 %',fmt(sm.settle,2)+' s'+(msm?` (sim ${fmt(msm.settle,2)} s)`:''),'','')+chip('Overshoot',fmt(sm.overshoot,0)+' %'+(msm?` (sim ${fmt(msm.overshoot,0)} %)`:''),'','')+
     (mpc?chip('Speed loop',R.stable?'stable':`unstable (${R.unstableZ})`,R.stable?'good':'badc',''):chip('Speed feedback','none (feedforward)','',''));
   $('#cap-step-t').textContent='Response: speed after a step in the reference';
-  $('#cap-step').innerHTML='Speed change as a fraction of the step (1 = the new reference). Dashed amber: measured in the simulator with Run step test.';
+  $('#cap-step').innerHTML=`The reference speed steps up by ${fmt(AN.spdAmp||0.2)} m/s at t = 0. The curve is how much of that change the real speed has made: 0 is the old speed, 1 (the dashed blue line) the new reference. The solid curve is the linear model; dashed amber is the full simulator (Run step test); the green band is ±2 % of the reference, where "settled" is measured.`;
   $('#fig-pz').hidden=true;$('#an-wi-x').hidden=true;$('#an-why').hidden=true;$('#an-play-row').hidden=true;
   $('#an-msg').textContent=AN.msg+(ms&&ms.satT>0.1?` The acceleration limit was active for ${fmt(ms.satT,2)} s of the test, which the linear model does not include.`:'');
   $('#an-step').disabled=AN.busy;$('#an-inj').hidden=true;$('#an-inja').hidden=true;$('#an-amp').hidden=true;$('#an-kind').hidden=true;$('#an-cl').hidden=true;
@@ -8584,9 +8610,9 @@ $('#pausec').onchange=e=>{pauseOnContact=e.target.checked;};
 $('#legendmore').onclick=()=>showSym('map');
 $('#an-src').onclick=()=>showSource('analysis/model.js');
 function syncAnControls(){
-  seg($('#an-loop'),[['lat','Lateral'],['spd','Speed']],()=>AN.loop,v=>{AN.loop=v;AN.msg='';renderAnalysis();});
+  seg($('#an-loop'),[['lat','Lateral'],['spd','Speed']],()=>AN.loop,v=>{if(v!==AN.loop){AN.meas={step:null,freq:null,spd:null};AN.play=null;}AN.loop=v;AN.msg='';renderAnalysis();});
   seg($('#an-curve'),[['0','Straight'],['4','Curve R 4 m'],['2','Curve R 2 m']],()=>String(AN.curveR||0),v=>{AN.curveR=+v;anInvalidate();renderAnalysis();});
-  const ce=$('#an-est');if(ce){ce.checked=AN.useEst;ce.onchange=()=>{AN.useEst=ce.checked;AN.meas={step:null,freq:null,spd:null};AN.msg=AN.useEst?'Experiments now run with the estimator; the model still assumes a known pose.':'';renderAnalysis();};}
+  const ce=$('#an-est');if(ce){ce.checked=AN.useEst;ce.onchange=()=>{AN.useEst=ce.checked;AN.meas={step:null,freq:null,spd:null};AN.msg=AN.useEst?`Simulator tests now close the loop through the ${({dr:'dead reckoning',ekf:'EKF',pf:'particle filter',slam:'EKF-SLAM'})[P.loc]||P.loc} estimate, with beacons every 4 m beside the path. The model curves, poles and margins still assume the true pose, so the gap between amber and black is what the estimator costs.${P.loc==='pf'||P.loc==='slam'?' With the particle filter and EKF-SLAM the offset step moves only the true pose, so the estimator sees it as a small kidnap.':''}`:'';renderAnalysis();};}
   seg($('#an-cl'),[['0','L only'],['1','+ closed loop']],()=>AN.showCL?'1':'0',v=>{AN.showCL=v==='1';renderAnalysis();});
   seg($('#an-nyq'),[['log','compressed'],['lin','linear']],()=>AN.nyqScale,v=>{AN.nyqScale=v;renderAnalysis();});
   seg($('#an-kind'),[['offset','path offset'],['bias','actuator bias']],()=>AN.stepKind,v=>{AN.stepKind=v;renderAnalysis();});

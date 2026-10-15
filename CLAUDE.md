@@ -3,6 +3,8 @@
 - Single-page artifact built from `src/` by `./build.sh` (runs `node build.mjs`); `dist/nav-stack-lab.html` is a complete standalone document (the tests load it directly) with the fonts embedded (`src/fonts/`), so it makes no network request at runtime.
   Modules share one scope, concatenated in `src/manifest.json` order; `core/` never touches the DOM (UI hooks in `core/state.js`).
 - Published artifact: https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7 (the live page; the owner opens it on desktop and phone).
+  The public demo is GitHub Pages (https://spz0git.github.io/nav-stack-lab/, deployed from `main` by a workflow). The full
+  release procedure is in `docs/maintaining.md`; the rules below are the short form.
   Commit the rebuilt `dist/` with every source change so artifact and commit match.
 - Publishing rules:
   - Work on a branch and open a PR. While it is open, do not touch the live artifact; when asked to "preview", publish

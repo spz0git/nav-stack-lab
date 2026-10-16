@@ -343,6 +343,18 @@ details.see>p{margin:0 0 5px}
 .lesson{border-top:1px solid var(--line);padding:8px 0 4px}
 .lesson .lmin{margin-left:auto;font-family:var(--f-mono);font-size:.7rem;font-weight:400;color:var(--muted);white-space:nowrap;padding-left:8px}
 .learncol.reading .lesson .lmin{display:none}
+.lesson .ldot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--muted);margin-right:7px;align-self:center;background:transparent}
+.lesson .ldot[data-st="part"]{background:linear-gradient(90deg,var(--sys,var(--muted)) 50%,transparent 50%)}
+.lesson .ldot[data-st="done"]{background:var(--sys,var(--ok));border-color:var(--sys,var(--ok))}
+.learncol.reading .lesson .ldot{display:none}
+.starthere ol.path li.done a{color:var(--muted);font-weight:500}.starthere .ldone{color:var(--ok);font-weight:600}
+/* progress (Phase 1.4) */
+.progress{display:flex;flex-direction:column;gap:4px}
+.pbars{display:flex;gap:6px}
+.pbar{position:relative;flex:1 1 0;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.pbar i{position:absolute;left:0;top:0;height:100%;background:var(--sys,var(--accent));border-radius:3px}
+.pbar i.part{opacity:.35;z-index:-1}
+.pbar{isolation:isolate}
 /* Start here: the card at the top of the lesson list */
 .starthere{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;background:var(--raise);padding:8px 12px}
 .starthere summary{cursor:pointer;list-style:none;display:flex;align-items:center}

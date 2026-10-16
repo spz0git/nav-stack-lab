@@ -16,6 +16,8 @@ Phase 1, the learning path (from the assessment of 2026-10-15):
   see" stays folded until the learner has picked one, then the pick and the measured answer are marked. Every lesson
   ends with a numeric self-check (type a number, Check; the working appears after a second miss). Picks and passed
   checks are remembered in this browser.
+- Progress: a dot per lesson (started, done), a bar per group and a count above the list, ticks on the first pass,
+  "Continue with lesson n" on the Start here card; Next follows the first pass while the open lesson is on it.
 
 ## v33 · 2026-10-16
 

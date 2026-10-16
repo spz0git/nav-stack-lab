@@ -22,6 +22,10 @@ Phase 2, workspace polish (from the assessment of 2026-10-15):
 - The recording plays: ▶ next to the timeline (or P) plays it at the speed setting from the shown moment; I and O
   set a loop region's in and out points (handles on the track drag them, × clears), playback wraps inside it, and
   "Whole run" in the plots and the CSV export are trimmed to it.
+- A health light is the worst of its subsystem's checks; a click opens the list: every check with its state, the
+  subsystem's recent events (a click seeks the timeline) and the button to its tab.
+- Settings applied from a link re-render the tabs at once (the Localize tab could still show the level's default
+  estimator while the link's one ran).
 
 ## v34 · 2026-10-16
 

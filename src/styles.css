@@ -542,6 +542,22 @@ details.see>p{margin:0 0 5px}
 .hl.warn{background:color-mix(in srgb,var(--warn) 12%,var(--panel))}.hl.bad{background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
 .hl.warn span,.hl.bad span{color:var(--ink)}
 .tl-m.h-warn,.tl-m.h-bad{top:0;height:6px;width:6px;margin-left:-3px;border-radius:50%;background:var(--warn)}.tl-m.h-bad{background:var(--bad)}
+/* the check list behind a light (Phase 2.6) */
+.healthpop{position:fixed;z-index:55;width:min(360px,calc(100vw - 16px));max-height:min(70vh,520px);overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.22);padding:8px 10px 10px;font-size:.84rem}
+.healthpop[hidden]{display:none}
+.hp-head{display:flex;align-items:center;gap:8px;padding:0 0 6px;border-bottom:1px solid var(--line);border-left:3px solid var(--sys);padding-left:8px}
+.hp-head b{font-family:var(--f-display);font-size:1rem}.hp-head span{color:var(--muted);flex:1 1 auto;min-width:0}.hp-head .ibtn{padding:0 7px;font-size:1rem}
+.hl-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--line)}
+.hl-dot.ok{background:var(--ok)}.hl-dot.warn{background:var(--warn)}.hl-dot.bad{background:var(--bad)}.hl-dot.idle{background:var(--muted)}
+.hp-list,.hp-ev{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:3px}
+.hp-list li{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:0 8px;align-items:baseline}
+.hp-list li .hl-dot{align-self:center}.hp-list li b{font-weight:600;white-space:nowrap}.hp-list li span{color:var(--muted);overflow-wrap:anywhere}
+.hp-list li.off{color:var(--muted)}.hp-list li.off b{font-weight:500}
+.hp-list li.warn span,.hp-list li.bad span{color:var(--ink)}
+.hp-h{margin:8px 0 0;font-family:var(--f-mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.hp-ev li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:6px;font-family:var(--f-mono);font-size:.74rem;cursor:pointer;border-radius:3px}
+.hp-ev li:hover{background:var(--raise)}.hp-ev li span{color:var(--muted);text-align:right}
+.hp-foot{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}.hp-foot .note{font-size:.76rem}
 /* Runs (7.7) */
 .runpanel{width:min(560px,calc(100vw - 32px))}
 .runs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}

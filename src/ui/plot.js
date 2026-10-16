@@ -49,6 +49,8 @@ function drawPlot() {
   else drawPlotMain();
   drawPanes();
 }
+// The preset plot: one channel (and a compared one on the right axis) over the shared time window, with the 2σ band,
+// the previous run, the compared run, and the time cursors with their values.
 function drawPlotMain() {
   const dpr = sizeCanvas(pv),
     w = pv.width,

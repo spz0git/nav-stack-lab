@@ -187,6 +187,27 @@ function draw() {
   ctx.imageSmoothingEnabled = false;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
+  drawGrid(dpr, k, px);
+  drawMapLayer(dpr, k, px);
+  drawSearch(dpr, k, px);
+  drawBeacons(dpr, k, px);
+  drawPeople(dpr, k, px);
+  drawGhostRun(dpr, k, px);
+  drawTrails(dpr, k, px);
+  drawBeam(dpr, k, px);
+  drawLidar(dpr, k, px);
+  drawPath(dpr, k, px);
+  drawRollouts(dpr, k, px);
+  drawAgents(dpr, k, px);
+  drawSlamMap(dpr, k, px);
+  drawBelief(dpr, k, px);
+  drawWaypoints(dpr, k, px);
+  drawRobots(dpr, k, px);
+  drawOverlays(dpr, k, px);
+  drawScaleBar(dpr, k, px);
+}
+// The layers of the map, one function each, in drawing order (called by draw with the scale: dpr, k world→px, px(n) a size in screen px)
+function drawGrid(dpr, k, px) {
   // 1 m grid
   ctx.strokeStyle = TOK.grid;
   ctx.lineWidth = px(1);
@@ -200,6 +221,8 @@ function draw() {
     ctx.lineTo(W, y);
   }
   ctx.stroke();
+}
+function drawMapLayer(dpr, k, px) {
   // map
   if (P.per === 'mapping') {
     if (dirty.occ) {
@@ -228,6 +251,8 @@ function draw() {
     }
     ctx.drawImage(costCv, 0, 0, W, H);
   }
+}
+function drawSearch(dpr, k, px) {
   // search
   if (SP.on && running) searchPlayEnd(); // Run ends a playback
   if (SP.on) drawSearchPlay(px);
@@ -255,6 +280,8 @@ function draw() {
       ctx.stroke();
     }
   }
+}
+function drawBeacons(dpr, k, px) {
   // beacons
   // switched off: hollow and grey; down in a random outage: hollow
   {
@@ -282,6 +309,8 @@ function draw() {
       }
     }
   }
+}
+function drawPeople(dpr, k, px) {
   // people
   for (const p of S.peds) {
     if (p.car) {
@@ -311,6 +340,8 @@ function draw() {
     ctx.lineTo(p.x + p.vx * 0.8, p.y + p.vy * 0.8);
     ctx.stroke();
   }
+}
+function drawGhostRun(dpr, k, px) {
   // ghost of the previous run
   if (LAYERS.ghostrun && GHOST && GHOST.level === LV.id) {
     ctx.lineWidth = px(2);
@@ -322,6 +353,8 @@ function draw() {
   }
   drawCompare(px); // a run picked in Runs → Compare (runs.js)
   if (LAYERS.sweep) drawSweep(px); // the paths of an experiment's runs (experiments.js)
+}
+function drawTrails(dpr, k, px) {
   // trails
   if (LAYERS.trail) {
     ctx.lineWidth = px(1.3);
@@ -334,6 +367,8 @@ function draw() {
     ctx.stroke();
     ctx.setLineDash([]);
   }
+}
+function drawBeam(dpr, k, px) {
   // beacon measurements (drawn from the estimate); dead reckoning never uses them, so they are not drawn for it
   if (LAYERS.beam && P.loc !== 'truth' && P.loc !== 'dr') {
     const e = S.est;
@@ -353,6 +388,8 @@ function draw() {
       ctx.fill();
     }
   }
+}
+function drawLidar(dpr, k, px) {
   // lidar (perceived points)
   if (LAYERS.lidar) {
     ctx.fillStyle = TOK.amber;
@@ -360,6 +397,8 @@ function draw() {
       ctx.fillRect(p[0] - px(1.5), p[1] - px(1.5), px(3), px(3));
     }
   }
+}
+function drawPath(dpr, k, px) {
   // global path: forward legs solid, reverse legs dashed, finished legs faded
   if (S.plan && !(SP.on && SP.n < SP.tr.n)) {
     S.plan.segs.forEach((g, i) => {
@@ -373,6 +412,8 @@ function draw() {
       ctx.globalAlpha = 1;
     });
   }
+}
+function drawRollouts(dpr, k, px) {
   // DWA rollouts
   if (LAYERS.dwa && S.ctlViz && S.ctlViz.pred) {
     const V = S.ctlViz;
@@ -423,6 +464,8 @@ function draw() {
       ctx.stroke();
     }
   }
+}
+function drawAgents(dpr, k, px) {
   // tracked agents (estimate frame) with predicted positions, and the ego's predicted positions at the same times
   const egoM = LAYERS.agents && S.agents && agOn() ? agEgoMarks() : [];
   if (LAYERS.agents && S.agents && agOn()) {
@@ -483,6 +526,8 @@ function draw() {
     ctx.arc(c[0], c[1], px(4), 0, TAU);
     ctx.fill();
   }
+}
+function drawSlamMap(dpr, k, px) {
   // SLAM map: estimated beacon positions with their 95 % ellipses
   if (LAYERS.belief && S.slam) {
     for (const lm of slamLandmarks()) {
@@ -497,6 +542,8 @@ function draw() {
       ctx.stroke();
     }
   }
+}
+function drawBelief(dpr, k, px) {
   // belief
   if (LAYERS.belief) {
     if (S.pf) {
@@ -508,6 +555,8 @@ function draw() {
       ellipse(S.est.x, S.est.y, S.Pc);
     }
   }
+}
+function drawWaypoints(dpr, k, px) {
   // waypoints
   const order = S.fsm.queue;
   WPS.forEach((w, i) => {
@@ -570,6 +619,8 @@ function draw() {
       ctx.setLineDash([]);
     }
   }
+}
+function drawRobots(dpr, k, px) {
   // robots
   robotShape(S.est.x, S.est.y, S.est.th, false, px);
   robotShape(S.robot.x, S.robot.y, S.robot.th, true, px);
@@ -577,9 +628,15 @@ function draw() {
   if (sg) slipArrow(sg, px);
   drawHoverGhost(px); // the robot at the time hovered on the timeline or the plot (replay.js)
   drawSelection(px); // the Select tool's pick (maptools.js)
-  // text overlays in screen space
+}
+function drawOverlays(dpr, k, px) {
+  // text overlays in screen space: agent ids and prediction times, the ego's prediction times, the sideslip angle, goal numbers
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  const toS = (x, y) => [x * k + tx, ty - y * k];
+  const {tx, ty} = viewXform(),
+    toS = (x, y) => [x * k + tx, ty - y * k],
+    egoM = LAYERS.agents && S.agents && agOn() ? agEgoMarks() : [],
+    sg = LAYERS.slip && isDyn() ? slipGeom(S.robot, px) : null,
+    order = S.fsm.queue;
   ctx.font = `600 ${Math.round(10 * dpr)}px ${getComputedStyle(document.body).getPropertyValue('--f-mono') || 'monospace'}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -623,6 +680,8 @@ function draw() {
     ctx.fillStyle = q === 0 ? TOK.ok : TOK.ink;
     ctx.fillText(String(q >= 0 ? q + 1 : i + 1), sx, sy + 0.5);
   });
+}
+function drawScaleBar(dpr, k, px) {
   // scale bar
   const sb = 2 * k;
   if (VIEW.z > 1) {

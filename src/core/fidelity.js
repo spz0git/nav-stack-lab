@@ -229,6 +229,7 @@ function carCircles(p) {
    Cells 0.2 m, time quantized by the move time at the reference speed; moves to 8 neighbours or wait.
    Agents block a cell at a time when the predicted disc (plus the robot radius and a margin) covers it;
    beyond the prediction horizon only the static map counts. The ST speed planner then enforces the timing. */
+// Space-time A* for the diff-drive robot: a search over (x, y, t) with waits, against the agents' predicted positions.
 function stAstar(sx, sy, gx, gy) {
   const CW = 2,
     cw = RES * CW,

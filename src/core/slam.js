@@ -87,6 +87,7 @@ function slamAdd(id, r, b) {
   M.ids.push(id);
   M.n++;
 }
+// EKF-SLAM measurement update: known or unlabeled IDs, Mahalanobis gating, new landmarks appended to the state and covariance.
 function slamUpdate(z) {
   const M = S.slam,
     sr = sigR(),

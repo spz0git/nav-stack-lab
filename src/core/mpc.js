@@ -241,6 +241,8 @@ function mpcReference(Np, dt) {
   }
   return {ref, dir};
 }
+// The MPC controller: reference, bounds, constraints (lidar, agents), warm start, then Gauss–Newton SQP with a box QP
+// and a line search within the time budget; the command is returned in Δu form (see the notes at the top of the file).
 function ctlMPC() {
   const t0 = performance.now(),
     M = mpcModel(),
@@ -291,79 +293,11 @@ function ctlMPC() {
   const pts = obs
     ? ((S.agents && S.agents.staticPts) || S.scanPts).filter(p => hyp(p[0] - e.x, p[1] - e.y) < Np * dt * Math.max(vMax, 0.3) + 1.5)
     : [];
-  // predicted agents at each step's time. The prediction ends at Np·dt, but the robot does not vanish there: at the end of a leg
-  // (a cusp, a goal) it stops and waits. So the terminal state must also stay clear while the robot waits there, out to the
-  // speed planner's window T_p + 3 s, with the radius growth frozen at the horizon (the same terminal test as stPlan).
-  const tN = Np * dt,
-    QA = agM ? Array.from({length: Np + 1}, (_, k) => ags.map(a => agPred(a, k * dt))) : null;
-  if (agM)
-    for (const a of ags) {
-      const r = agPred(a, tN)[2];
-      for (let tt = tN + 0.5; tt <= Math.max(P.agT, tN) + 3 + 1e-6; tt += 0.5) {
-        const q = agPred(a, tt);
-        QA[Np].push([q[0], q[1], r]);
-      }
-    }
-  // clearance to the nearest predicted agent for footprint circle o at step k, as c ≤ 0 with its gradient
-  const agCons = (k, x, o) => {
-    const c = Math.cos(x[2]),
-      sn = Math.sin(x[2]),
-      cx = x[0] + o * c,
-      cy = x[1] + o * sn;
-    let bd = Infinity,
-      bq = null;
-    for (const q of QA[k]) {
-      const d = hyp(q[0] - cx, q[1] - cy) - q[2];
-      if (d < bd) {
-        bd = d;
-        bq = q;
-      }
-    }
-    if (!bq) return [-1, [0, 0, 0, 0, 0]];
-    const d = Math.max(hyp(cx - bq[0], cy - bq[1]), 1e-6),
-      ux = (cx - bq[0]) / d,
-      uy = (cy - bq[1]) / d;
-    return [rc + bq[2] + P.mpcMarg - d, [-ux, -uy, -(ux * (-o * sn) + uy * (o * c)), 0, 0]];
-  };
-  // Passive safety: the robot answers for the clearance it can still control. A person may walk into it whatever it does,
-  // so each agent constraint is relaxed by what braking to a stop now (and waiting) would violate. Braking then always
-  // satisfies them, the problem stays feasible, and the multipliers cannot wind up against the speed-sign bound.
-  const brk = [];
-  if (agM) {
-    let xb = x0.slice();
-    for (let k = 0; k <= Np; k++) {
-      if (k) xb = M.f(xb, [clamp(-(M.lag ? xb[5] : xb[3]) / dt, -aMax, aMax), 0], dt);
-      brk.push(offs.map(o => Math.max(0, agCons(k, xb, o)[0])));
-    }
-  }
+  const QA = mpcAgentPredictions(agM, ags, Np, dt);
+  const {agCons, brk} = mpcAgentConstraints(agM, QA, offs, rc, x0, M, aMax, Np, dt);
   // warm start: shift the previous solution by one sim tick
   const sig = `${P.mpcMode}|${Np}|${Nc}|${dt}|${n}|${nc}|${P.model}|${M.dyn}|${S.pathId}`;
-  let W = S.mpc;
-  if (!W || W.sig !== sig) {
-    W = S.mpc = {sig, U: new Float64Array(nU), lam: new Float64Array(Np * nc), uPrev: [0, 0]};
-    for (let j = 0; j < Nc; j++) {
-      W.U[2 * j] = Ur[j][0];
-      W.U[2 * j + 1] = Ur[j][1];
-    }
-  } else {
-    const sh = DT / dt,
-      U = W.U,
-      Un = new Float64Array(nU),
-      ln = new Float64Array(Np * nc);
-    for (let j = 0; j < Nc; j++) {
-      const p = Math.min(j + sh, Nc - 1),
-        j0 = Math.floor(p),
-        j1 = Math.min(j0 + 1, Nc - 1),
-        f = p - j0;
-      for (let c = 0; c < 2; c++) Un[2 * j + c] = U[2 * j0 + c] * (1 - f) + U[2 * j1 + c] * f;
-    }
-    for (let k = 0; k < Np; k++) {
-      const kk = Math.min(Np - 1, Math.round(k + sh));
-      for (let c = 0; c < nc; c++) ln[k * nc + c] = W.lam[kk * nc + c];
-    }
-    W.U = Un;
-    W.lam = ln;
-  }
+  const W = mpcWarmStart(sig, Np, Nc, nc, nU, Ur, dt);
   const ulo = j => (j % 2 ? -rMax : -aMax),
     uhi = j => (j % 2 ? rMax : aMax);
   let U = W.U.map((u, j) => clamp(u, ulo(j), uhi(j)));
@@ -371,77 +305,9 @@ function ctlMPC() {
     const j = Math.min(k, Nc - 1);
     return [U[2 * j], U[2 * j + 1]];
   };
-  // LTV: Jacobians and defects along the reference, computed once
-  let ABr = null;
-  if (ltv) {
-    ABr = [];
-    for (let k = 0; k < Np; k++) {
-      const J = mpcJac(M, Xr[k], Ur[k], dt);
-      ABr.push({A: J.A, B: J.B, d: J.f0.map((v, i) => v - Xr[k + 1][i])});
-    }
-  }
-  const rollout = U => {
-    const X = [x0.slice()];
-    if (!ltv) {
-      for (let k = 0; k < Np; k++) X.push(M.f(X[k], uk(U, k), dt));
-      return X;
-    }
-    let dx = x0.map((v, i) => v - Xr[0][i]);
-    for (let k = 0; k < Np; k++) {
-      const {A, B, d} = ABr[k],
-        u = uk(U, k),
-        du = [u[0] - Ur[k][0], u[1] - Ur[k][1]],
-        nx = new Array(n);
-      for (let i = 0; i < n; i++) {
-        let s = d[i] + B[i * 2] * du[0] + B[i * 2 + 1] * du[1];
-        for (let m = 0; m < n; m++) s += A[i * n + m] * dx[m];
-        nx[i] = s;
-      }
-      dx = nx;
-      X.push(dx.map((v, i) => v + Xr[k + 1][i]));
-    }
-    return X;
-  };
-  // constraint values c ≤ 0 and gradients (w.r.t. state) at step k
-  const cons = (k, x) => {
-    const v = x[3],
-      s = x[4],
-      out = [];
-    out.push(dir > 0 ? [-v, [0, 0, 0, -1, 0]] : [v, [0, 0, 0, 1, 0]]);
-    out.push(dir > 0 ? [v - vMax, [0, 0, 0, 1, 0]] : [-v - vMax, [0, 0, 0, -1, 0]]);
-    out.push([s - sMax, [0, 0, 0, 0, 1]], [-s - sMax, [0, 0, 0, 0, -1]]);
-    if (obs) {
-      const c = Math.cos(x[2]),
-        sn = Math.sin(x[2]);
-      for (const o of offs) {
-        const cx = x[0] + o * c,
-          cy = x[1] + o * sn;
-        let bd = Infinity,
-          bp = null;
-        for (const p of pts) {
-          const d = (p[0] - cx) ** 2 + (p[1] - cy) ** 2;
-          if (d < bd) {
-            bd = d;
-            bp = p;
-          }
-        }
-        if (!bp) {
-          out.push([-1, [0, 0, 0, 0, 0]]);
-          continue;
-        }
-        const d = Math.max(Math.sqrt(bd), 1e-6),
-          ux = (cx - bp[0]) / d,
-          uy = (cy - bp[1]) / d;
-        out.push([rc + P.mpcMarg - d, [-ux, -uy, -(ux * (-o * sn) + uy * (o * c)), 0, 0]]);
-      }
-      if (agM)
-        offs.forEach((o, oi) => {
-          const [cv, g] = agCons(k, x, o);
-          out.push([cv - brk[k][oi], g]);
-        });
-    }
-    return out;
-  };
+  const ABr = ltv ? mpcLinearize(M, Xr, Ur, Np, dt) : null;
+  const rollout = U => mpcRollout(U, x0, M, ltv, Np, dt, uk, ABr, Xr, Ur, n);
+  const cons = mpcConstraintFn(dir, vMax, sMax, obs, offs, pts, rc, agM, agCons, brk);
   // residuals of step k (1..Np) as [r, grad over state]; inputs handled separately
   const sq = Math.sqrt,
     lamOf = (k, c) => W.lam[(k - 1) * nc + c];
@@ -589,4 +455,167 @@ function ctlMPC() {
     sc = bs + u0[1] * DT; // u = u_prev + u̇·T
   S.mpcCmd = {v: vc, steer: car ? clamp(sc, -steerMax(), steerMax()) : 0, w: car ? 0 : clamp(sc, -P.wmax, P.wmax), tick: S.tick};
   return car ? {v: vc, steer: sc} : {v: vc, w: sc};
+}
+
+// Predicted agents at each step of the horizon (null when agents are not constrained). The prediction ends at Np·dt, but
+// the robot does not vanish there: at the end of a leg (a cusp, a goal) it stops and waits, so the terminal state must
+// also stay clear while it waits, out to the speed planner's window T_p + 3 s, with the radius growth frozen at the
+// horizon (the same terminal test as stPlan).
+function mpcAgentPredictions(agM, ags, Np, dt) {
+  if (!agM) return null;
+  const tN = Np * dt,
+    QA = Array.from({length: Np + 1}, (_, k) => ags.map(a => agPred(a, k * dt)));
+  for (const a of ags) {
+    const r = agPred(a, tN)[2];
+    for (let tt = tN + 0.5; tt <= Math.max(P.agT, tN) + 3 + 1e-6; tt += 0.5) {
+      const q = agPred(a, tt);
+      QA[Np].push([q[0], q[1], r]);
+    }
+  }
+  return QA;
+}
+
+// The agent constraints: clearance to the nearest predicted agent for footprint circle o at step k, as c ≤ 0 with its
+// gradient (agCons), and the passive-safety relaxation brk[k][o]: what braking to a stop now (and waiting) would violate.
+// The robot answers for the clearance it can still control: a person may walk into it whatever it does, so braking
+// always satisfies the relaxed constraints, the problem stays feasible, and the multipliers cannot wind up.
+function mpcAgentConstraints(agM, QA, offs, rc, x0, M, aMax, Np, dt) {
+  const agCons = (k, x, o) => {
+    const c = Math.cos(x[2]),
+      sn = Math.sin(x[2]),
+      cx = x[0] + o * c,
+      cy = x[1] + o * sn;
+    let bd = Infinity,
+      bq = null;
+    for (const q of QA[k]) {
+      const d = hyp(q[0] - cx, q[1] - cy) - q[2];
+      if (d < bd) {
+        bd = d;
+        bq = q;
+      }
+    }
+    if (!bq) return [-1, [0, 0, 0, 0, 0]];
+    const d = Math.max(hyp(cx - bq[0], cy - bq[1]), 1e-6),
+      ux = (cx - bq[0]) / d,
+      uy = (cy - bq[1]) / d;
+    return [rc + bq[2] + P.mpcMarg - d, [-ux, -uy, -(ux * (-o * sn) + uy * (o * c)), 0, 0]];
+  };
+  const brk = [];
+  if (agM) {
+    let xb = x0.slice();
+    for (let k = 0; k <= Np; k++) {
+      if (k) xb = M.f(xb, [clamp(-(M.lag ? xb[5] : xb[3]) / dt, -aMax, aMax), 0], dt);
+      brk.push(offs.map(o => Math.max(0, agCons(k, xb, o)[0])));
+    }
+  }
+  return {agCons, brk};
+}
+
+// Warm start: the previous solution shifted by one sim tick (a new signature starts from the reference inputs)
+function mpcWarmStart(sig, Np, Nc, nc, nU, Ur, dt) {
+  let W = S.mpc;
+  if (!W || W.sig !== sig) {
+    W = S.mpc = {sig, U: new Float64Array(nU), lam: new Float64Array(Np * nc), uPrev: [0, 0]};
+    for (let j = 0; j < Nc; j++) {
+      W.U[2 * j] = Ur[j][0];
+      W.U[2 * j + 1] = Ur[j][1];
+    }
+  } else {
+    const sh = DT / dt,
+      U = W.U,
+      Un = new Float64Array(nU),
+      ln = new Float64Array(Np * nc);
+    for (let j = 0; j < Nc; j++) {
+      const p = Math.min(j + sh, Nc - 1),
+        j0 = Math.floor(p),
+        j1 = Math.min(j0 + 1, Nc - 1),
+        f = p - j0;
+      for (let c = 0; c < 2; c++) Un[2 * j + c] = U[2 * j0 + c] * (1 - f) + U[2 * j1 + c] * f;
+    }
+    for (let k = 0; k < Np; k++) {
+      const kk = Math.min(Np - 1, Math.round(k + sh));
+      for (let c = 0; c < nc; c++) ln[k * nc + c] = W.lam[kk * nc + c];
+    }
+    W.U = Un;
+    W.lam = ln;
+  }
+  return W;
+}
+
+// LTV: Jacobians and defects along the reference, computed once per tick
+function mpcLinearize(M, Xr, Ur, Np, dt) {
+  const ABr = [];
+  for (let k = 0; k < Np; k++) {
+    const J = mpcJac(M, Xr[k], Ur[k], dt);
+    ABr.push({A: J.A, B: J.B, d: J.f0.map((v, i) => v - Xr[k + 1][i])});
+  }
+  return ABr;
+}
+
+// The predicted states for inputs U: the nonlinear model (NMPC) or the linearized one about the reference (LTV)
+function mpcRollout(U, x0, M, ltv, Np, dt, uk, ABr, Xr, Ur, n) {
+  const X = [x0.slice()];
+  if (!ltv) {
+    for (let k = 0; k < Np; k++) X.push(M.f(X[k], uk(U, k), dt));
+    return X;
+  }
+  let dx = x0.map((v, i) => v - Xr[0][i]);
+  for (let k = 0; k < Np; k++) {
+    const {A, B, d} = ABr[k],
+      u = uk(U, k),
+      du = [u[0] - Ur[k][0], u[1] - Ur[k][1]],
+      nx = new Array(n);
+    for (let i = 0; i < n; i++) {
+      let s = d[i] + B[i * 2] * du[0] + B[i * 2 + 1] * du[1];
+      for (let m = 0; m < n; m++) s += A[i * n + m] * dx[m];
+      nx[i] = s;
+    }
+    dx = nx;
+    X.push(dx.map((v, i) => v + Xr[k + 1][i]));
+  }
+  return X;
+}
+
+// Constraint values c ≤ 0 and their gradients with respect to the state at step k: speed sign and limit, steering (or
+// turn rate) limit, and with obstacle constraints the lidar clearance per footprint circle and the relaxed agent clearance
+function mpcConstraintFn(dir, vMax, sMax, obs, offs, pts, rc, agM, agCons, brk) {
+  return (k, x) => {
+    const v = x[3],
+      s = x[4],
+      out = [];
+    out.push(dir > 0 ? [-v, [0, 0, 0, -1, 0]] : [v, [0, 0, 0, 1, 0]]);
+    out.push(dir > 0 ? [v - vMax, [0, 0, 0, 1, 0]] : [-v - vMax, [0, 0, 0, -1, 0]]);
+    out.push([s - sMax, [0, 0, 0, 0, 1]], [-s - sMax, [0, 0, 0, 0, -1]]);
+    if (obs) {
+      const c = Math.cos(x[2]),
+        sn = Math.sin(x[2]);
+      for (const o of offs) {
+        const cx = x[0] + o * c,
+          cy = x[1] + o * sn;
+        let bd = Infinity,
+          bp = null;
+        for (const p of pts) {
+          const d = (p[0] - cx) ** 2 + (p[1] - cy) ** 2;
+          if (d < bd) {
+            bd = d;
+            bp = p;
+          }
+        }
+        if (!bp) {
+          out.push([-1, [0, 0, 0, 0, 0]]);
+          continue;
+        }
+        const d = Math.max(Math.sqrt(bd), 1e-6),
+          ux = (cx - bp[0]) / d,
+          uy = (cy - bp[1]) / d;
+        out.push([rc + P.mpcMarg - d, [-ux, -uy, -(ux * (-o * sn) + uy * (o * c)), 0, 0]]);
+      }
+      if (agM)
+        offs.forEach((o, oi) => {
+          const [cv, g] = agCons(k, x, o);
+          out.push([cv - brk[k][oi], g]);
+        });
+    }
+    return out;
+  };
 }

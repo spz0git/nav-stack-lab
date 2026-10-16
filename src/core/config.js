@@ -41,6 +41,7 @@ function loadLevel(i) {
   UI.levelChanged();
   UI.invalidate();
 }
+// Set one parameter and apply what changing it implies (a new estimator, a replan, a model switch); the if-chain of effects.
 function setParam(k, v, live) {
   if (k === 'veh') {
     const m = v === 'diff' ? 'diff' : 'car';

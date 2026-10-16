@@ -12,6 +12,10 @@ Phase 1, the learning path (from the assessment of 2026-10-15):
 - Opening a lesson sets the stage up as its first experiment would, without running it: the simulator on the
   lesson's level with its settings, tab and plot, or the Analyze view for a control lesson (`hold` in `tryGo`).
   Back from a chapter and the Try buttons leave the stage as it is.
+- Predict first: an experiment can carry a question with three answers, asked before its button; "What you will
+  see" stays folded until the learner has picked one, then the pick and the measured answer are marked. Every lesson
+  ends with a numeric self-check (type a number, Check; the working appears after a second miss). Picks and passed
+  checks are remembered in this browser.
 
 ## v33 · 2026-10-16
 

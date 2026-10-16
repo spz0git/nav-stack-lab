@@ -52,12 +52,38 @@ function lessonLink(id){const[g,i]=id.split(':');return location.href.split('#')
 // [label, cfg, {setup, see, shows}]; explained tries render as numbered cards. L.q = [[question, answer], …].
 function lessonBodyHTML(L,id){
   const explained=L.tries.some(t=>t[2]),btn=j=>`<button class="btn small" data-try="${id}:${j}">\u0002${j}\u0002</button>`;   // labels are restored after marking
+  // Predict first: an experiment with a `predict` question hides "What you will see" until the learner has picked an
+  // answer (or opens it); the pick is remembered in this browser. Without a question the text shows as before.
   const tries=explained
-    ?`<h4 class="exph">Experiments</h4><ol class="experiments">`+L.tries.map((t,j)=>{const x=t[2]||{};return`<li><div class="exp-head">${btn(j)}</div>`+
-        (x.setup?`<p><b>Setup.</b> ${x.setup}</p>`:'')+(x.see?`<p><b>What you will see.</b> ${x.see}</p>`:'')+(x.shows?`<p><b>What it shows.</b> ${x.shows}</p>`:'')+`</li>`;}).join('')+`</ol>`
+    ?`<h4 class="exph">Experiments</h4><ol class="experiments">`+L.tries.map((t,j)=>{const x=t[2]||{},pr=x.predict,pk=`${id}:${j}`,ch=pr?LEARN.pred[pk]:undefined;
+        const shows=x.shows?`<p><b>What it shows.</b> ${x.shows}</p>`:'',see=(x.see?`<p><b>What you will see.</b> ${x.see}</p>`:'')+shows;
+        return`<li><div class="exp-head">${btn(j)}</div>`+(x.setup?`<p><b>Setup.</b> ${x.setup}</p>`:'')+
+        (pr?`<div class="predict" data-pk="${pk}"><p><b>Before you press.</b> ${pr.q}</p><div class="pred-opts">${pr.opts.map((o,k)=>`<button type="button" class="pred-opt${ch==null?'':k===pr.a?' ok':k===ch?' no':''}" data-k="${k}" aria-pressed="${ch===k}">${o}</button>`).join('')}</div><p class="pred-res">${ch==null?'':predResText(pr,ch)}</p></div>`+
+            `<details class="see"${ch!=null?' open':''}><summary>What you will see</summary>${x.see?`<p>${x.see}</p>`:''}${shows}</details>`:see)+`</li>`;}).join('')+`</ol>`
     :`<div class="tries">${L.tries.map((t,j)=>btn(j)).join('')}</div>`;
+  const c=L.check,done=c&&LEARN.check[id];
+  const check=c?`<h4 class="exph">Check yourself</h4><div class="selfcheck" data-ck="${id}"><p>${c.q}</p><div class="sc-row"><input type="text" inputmode="decimal" autocomplete="off" aria-label="Your answer"${done?` value="${c.a}"`:''}>${c.unit?`<span class="unit">${c.unit}</span>`:''}<button type="button" class="btn small sc-go">Check</button></div><p class="sc-res${done?' ok':''}">${done?`Right. ${c.how}`:''}</p></div>`:'';
   const q=L.q&&L.q.length?`<h4 class="exph">Think about</h4><div class="questions">${L.q.map(([qq,a])=>`<details class="q"><summary>${qq}</summary><p>${a}</p></details>`).join('')}</div>`:'';
-  return glossMarkFor(L,L.b+tries+q).replace(/\u0002(\d+)\u0002/g,(_,j)=>L.tries[+j][0])+glossTermsHTML(L);
+  return glossMarkFor(L,L.b+tries+check+q).replace(/\u0002(\d+)\u0002/g,(_,j)=>L.tries[+j][0])+glossTermsHTML(L);
+}
+const predResText=(pr,k)=>k===pr.a?`You predicted right: ${pr.opts[k]}. Press the button and watch for it.`:`You predicted "${pr.opts[k]}". The measurement says: ${pr.opts[pr.a]}. Press the button and see why.`;
+// A prediction picked: mark the pick and the measured answer, say which, open "What you will see", remember it
+function predPick(div,k){
+  const pk=div.dataset.pk,[g,i,j]=pk.split(':'),it=lessonItem(g+':'+i),pr=it&&it.L.tries[+j][2]&&it.L.tries[+j][2].predict;if(!pr)return;
+  LEARN.pred[pk]=k;learnSave();
+  div.querySelectorAll('.pred-opt').forEach(b=>{const kk=+b.dataset.k;b.setAttribute('aria-pressed',String(kk===k));b.classList.toggle('ok',kk===pr.a);b.classList.toggle('no',kk===k&&k!==pr.a);});
+  div.querySelector('.pred-res').textContent=predResText(pr,k);
+  const d=div.nextElementSibling;if(d&&d.classList.contains('see'))d.open=true;
+}
+// The numeric self-check: right within the tolerance, or the working after a second miss
+const scTries={};
+function selfCheck(div){
+  const id=div.dataset.ck,it=lessonItem(id),c=it&&it.L.check,inp=div.querySelector('input'),res=div.querySelector('.sc-res');if(!c)return;
+  const x=parseFloat(String(inp.value).replace(',','.').replace(/[^\d.eE+-]/g,''));
+  if(!isFinite(x)){res.className='sc-res';res.textContent='Type a number.';return;}
+  if(Math.abs(x-c.a)<=c.tol){res.className='sc-res ok';res.textContent=`Right. ${c.how}`;LEARN.check[id]=true;learnSave();return;}
+  scTries[id]=(scTries[id]||0)+1;res.className='sc-res no';
+  res.textContent=scTries[id]<2?'Not quite. Check the units and try once more.':`Not quite. ${c.how}`;
 }
 function renderLearn(){
   const v=$('#learnview');v.classList.remove('chapter');if(chapterOpen)return renderChapter();
@@ -69,6 +95,8 @@ function renderLearn(){
    LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}" data-sys="${G.id}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
     G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}<span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonBodyHTML(L,id)}</div></details>`;}).join('')+`</section>`).join('')+(cur?'':chaptersListHTML());
   wireStartHere(v);
+  v.querySelectorAll('.pred-opt').forEach(b=>b.onclick=()=>predPick(b.closest('.predict'),+b.dataset.k));
+  v.querySelectorAll('.selfcheck').forEach(d=>{d.querySelector('.sc-go').onclick=()=>selfCheck(d);d.querySelector('input').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();selfCheck(d);}};});
   v.querySelectorAll('.chapter-open').forEach(b=>b.onclick=()=>openChapter(b.dataset.ch));
   v.querySelectorAll('a.chref').forEach(a=>a.onclick=e=>{e.preventDefault();const m=/^#notes=([\w-]+)(?:\/([\w-]+))?$/.exec(a.getAttribute('href'));   // "Derivation: chapter 2 §4" links in lessons
     if(!m)return;try{history.replaceState(null,'',a.getAttribute('href'));}catch(_){}openChapter(m[1],m[2]);});

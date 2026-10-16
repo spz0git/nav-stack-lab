@@ -4,8 +4,9 @@
    What the reader has opened is remembered in this browser (localStorage, guarded).
    ============================================================ */
 const LEARN_KEY='nav-stack-lab.learn';
-const LEARN={start:true};   // start: the Start here card is unfolded
+const LEARN={start:true,pred:{},check:{}};   // start: the Start here card is unfolded; pred: predictions picked; check: self-checks passed
 try{const s=JSON.parse(localStorage.getItem(LEARN_KEY)||'null');if(s&&typeof s==='object')Object.assign(LEARN,s);}catch(_){}
+for(const k of['pred','check'])if(!LEARN[k]||typeof LEARN[k]!=='object')LEARN[k]={};
 function learnSave(){try{localStorage.setItem(LEARN_KEY,JSON.stringify(LEARN));}catch(_){}}
 // The first pass: concrete and visual first (the simulator), the linear analysis once the loop has been seen running.
 const LEARN_PATH=[

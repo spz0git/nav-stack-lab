@@ -334,6 +334,24 @@ canvas.an-drag{touch-action:none;cursor:crosshair}canvas.an-drag:focus-visible{o
 .experiments .exp-head::before{content:counter(exp);font-family:var(--f-mono);font-size:.74rem;color:var(--sys,var(--muted));min-width:1em}
 .experiments .exp-head .btn{font-weight:600}
 .experiments p{margin:0}
+/* predict first (Phase 1.3): a question before the button, the answer text folded until a pick */
+.predict{border:1px solid var(--line);border-radius:6px;background:var(--raise);padding:6px 10px 8px;display:flex;flex-direction:column;gap:6px}
+.pred-opts{display:flex;flex-wrap:wrap;gap:5px}
+.pred-opt{border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink);padding:3px 11px;font-size:.84rem;text-align:left}
+.pred-opt:hover{border-color:var(--muted)}
+.pred-opt[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.pred-opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,var(--panel))}
+.pred-opt.no{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,var(--panel));text-decoration:line-through}
+.pred-res{font-size:.86rem;color:var(--muted)}.pred-res:empty{display:none}
+details.see>summary{cursor:pointer;font-weight:600;font-size:.9rem;color:var(--accent)}
+details.see[open]>summary{color:var(--muted);font-weight:500;margin-bottom:4px}
+details.see>p{margin:0 0 5px}
+/* the numeric self-check at the end of a lesson */
+.selfcheck{display:flex;flex-direction:column;gap:6px;border-left:3px solid var(--sys,var(--line));padding-left:12px}
+.sc-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.sc-row input{width:8em;font:inherit;font-family:var(--f-mono);font-size:.9rem;padding:5px 8px;border:1px solid var(--line);border-radius:5px;background:var(--raise);color:var(--ink)}
+.sc-row .unit{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.sc-res{font-size:.88rem;color:var(--muted)}.sc-res:empty{display:none}.sc-res.ok{color:var(--ok)}.sc-res.no{color:var(--bad)}
 .how-body a.chref{display:inline-block;font-family:var(--f-mono);font-size:.76rem;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:1px 9px;margin-left:2px;white-space:nowrap;vertical-align:baseline}
 .how-body a.chref:hover{border-color:var(--accent)}
 .questions{display:flex;flex-direction:column;gap:4px}
@@ -8428,12 +8446,38 @@ function lessonLink(id){const[g,i]=id.split(':');return location.href.split('#')
 // [label, cfg, {setup, see, shows}]; explained tries render as numbered cards. L.q = [[question, answer], …].
 function lessonBodyHTML(L,id){
   const explained=L.tries.some(t=>t[2]),btn=j=>`<button class="btn small" data-try="${id}:${j}">\u0002${j}\u0002</button>`;   // labels are restored after marking
+  // Predict first: an experiment with a `predict` question hides "What you will see" until the learner has picked an
+  // answer (or opens it); the pick is remembered in this browser. Without a question the text shows as before.
   const tries=explained
-    ?`<h4 class="exph">Experiments</h4><ol class="experiments">`+L.tries.map((t,j)=>{const x=t[2]||{};return`<li><div class="exp-head">${btn(j)}</div>`+
-        (x.setup?`<p><b>Setup.</b> ${x.setup}</p>`:'')+(x.see?`<p><b>What you will see.</b> ${x.see}</p>`:'')+(x.shows?`<p><b>What it shows.</b> ${x.shows}</p>`:'')+`</li>`;}).join('')+`</ol>`
+    ?`<h4 class="exph">Experiments</h4><ol class="experiments">`+L.tries.map((t,j)=>{const x=t[2]||{},pr=x.predict,pk=`${id}:${j}`,ch=pr?LEARN.pred[pk]:undefined;
+        const shows=x.shows?`<p><b>What it shows.</b> ${x.shows}</p>`:'',see=(x.see?`<p><b>What you will see.</b> ${x.see}</p>`:'')+shows;
+        return`<li><div class="exp-head">${btn(j)}</div>`+(x.setup?`<p><b>Setup.</b> ${x.setup}</p>`:'')+
+        (pr?`<div class="predict" data-pk="${pk}"><p><b>Before you press.</b> ${pr.q}</p><div class="pred-opts">${pr.opts.map((o,k)=>`<button type="button" class="pred-opt${ch==null?'':k===pr.a?' ok':k===ch?' no':''}" data-k="${k}" aria-pressed="${ch===k}">${o}</button>`).join('')}</div><p class="pred-res">${ch==null?'':predResText(pr,ch)}</p></div>`+
+            `<details class="see"${ch!=null?' open':''}><summary>What you will see</summary>${x.see?`<p>${x.see}</p>`:''}${shows}</details>`:see)+`</li>`;}).join('')+`</ol>`
     :`<div class="tries">${L.tries.map((t,j)=>btn(j)).join('')}</div>`;
+  const c=L.check,done=c&&LEARN.check[id];
+  const check=c?`<h4 class="exph">Check yourself</h4><div class="selfcheck" data-ck="${id}"><p>${c.q}</p><div class="sc-row"><input type="text" inputmode="decimal" autocomplete="off" aria-label="Your answer"${done?` value="${c.a}"`:''}>${c.unit?`<span class="unit">${c.unit}</span>`:''}<button type="button" class="btn small sc-go">Check</button></div><p class="sc-res${done?' ok':''}">${done?`Right. ${c.how}`:''}</p></div>`:'';
   const q=L.q&&L.q.length?`<h4 class="exph">Think about</h4><div class="questions">${L.q.map(([qq,a])=>`<details class="q"><summary>${qq}</summary><p>${a}</p></details>`).join('')}</div>`:'';
-  return glossMarkFor(L,L.b+tries+q).replace(/\u0002(\d+)\u0002/g,(_,j)=>L.tries[+j][0])+glossTermsHTML(L);
+  return glossMarkFor(L,L.b+tries+check+q).replace(/\u0002(\d+)\u0002/g,(_,j)=>L.tries[+j][0])+glossTermsHTML(L);
+}
+const predResText=(pr,k)=>k===pr.a?`You predicted right: ${pr.opts[k]}. Press the button and watch for it.`:`You predicted "${pr.opts[k]}". The measurement says: ${pr.opts[pr.a]}. Press the button and see why.`;
+// A prediction picked: mark the pick and the measured answer, say which, open "What you will see", remember it
+function predPick(div,k){
+  const pk=div.dataset.pk,[g,i,j]=pk.split(':'),it=lessonItem(g+':'+i),pr=it&&it.L.tries[+j][2]&&it.L.tries[+j][2].predict;if(!pr)return;
+  LEARN.pred[pk]=k;learnSave();
+  div.querySelectorAll('.pred-opt').forEach(b=>{const kk=+b.dataset.k;b.setAttribute('aria-pressed',String(kk===k));b.classList.toggle('ok',kk===pr.a);b.classList.toggle('no',kk===k&&k!==pr.a);});
+  div.querySelector('.pred-res').textContent=predResText(pr,k);
+  const d=div.nextElementSibling;if(d&&d.classList.contains('see'))d.open=true;
+}
+// The numeric self-check: right within the tolerance, or the working after a second miss
+const scTries={};
+function selfCheck(div){
+  const id=div.dataset.ck,it=lessonItem(id),c=it&&it.L.check,inp=div.querySelector('input'),res=div.querySelector('.sc-res');if(!c)return;
+  const x=parseFloat(String(inp.value).replace(',','.').replace(/[^\d.eE+-]/g,''));
+  if(!isFinite(x)){res.className='sc-res';res.textContent='Type a number.';return;}
+  if(Math.abs(x-c.a)<=c.tol){res.className='sc-res ok';res.textContent=`Right. ${c.how}`;LEARN.check[id]=true;learnSave();return;}
+  scTries[id]=(scTries[id]||0)+1;res.className='sc-res no';
+  res.textContent=scTries[id]<2?'Not quite. Check the units and try once more.':`Not quite. ${c.how}`;
 }
 function renderLearn(){
   const v=$('#learnview');v.classList.remove('chapter');if(chapterOpen)return renderChapter();
@@ -8445,6 +8489,8 @@ function renderLearn(){
    LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}" data-sys="${G.id}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
     G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}<span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonBodyHTML(L,id)}</div></details>`;}).join('')+`</section>`).join('')+(cur?'':chaptersListHTML());
   wireStartHere(v);
+  v.querySelectorAll('.pred-opt').forEach(b=>b.onclick=()=>predPick(b.closest('.predict'),+b.dataset.k));
+  v.querySelectorAll('.selfcheck').forEach(d=>{d.querySelector('.sc-go').onclick=()=>selfCheck(d);d.querySelector('input').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();selfCheck(d);}};});
   v.querySelectorAll('.chapter-open').forEach(b=>b.onclick=()=>openChapter(b.dataset.ch));
   v.querySelectorAll('a.chref').forEach(a=>a.onclick=e=>{e.preventDefault();const m=/^#notes=([\w-]+)(?:\/([\w-]+))?$/.exec(a.getAttribute('href'));   // "Derivation: chapter 2 §4" links in lessons
     if(!m)return;try{history.replaceState(null,'',a.getAttribute('href'));}catch(_){}openChapter(m[1],m[2]);});
@@ -8494,8 +8540,9 @@ function hideTerm(){if(termAt)termAt.removeAttribute('aria-describedby');termAt=
    What the reader has opened is remembered in this browser (localStorage, guarded).
    ============================================================ */
 const LEARN_KEY='nav-stack-lab.learn';
-const LEARN={start:true};   // start: the Start here card is unfolded
+const LEARN={start:true,pred:{},check:{}};   // start: the Start here card is unfolded; pred: predictions picked; check: self-checks passed
 try{const s=JSON.parse(localStorage.getItem(LEARN_KEY)||'null');if(s&&typeof s==='object')Object.assign(LEARN,s);}catch(_){}
+for(const k of['pred','check'])if(!LEARN[k]||typeof LEARN[k]!=='object')LEARN[k]={};
 function learnSave(){try{localStorage.setItem(LEARN_KEY,JSON.stringify(LEARN));}catch(_){}}
 // The first pass: concrete and visual first (the simulator), the linear analysis once the loop has been seen running.
 const LEARN_PATH=[

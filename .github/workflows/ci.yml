@@ -1,0 +1,22 @@
+# Every pull request and every push to main: the committed dist/ must equal a fresh build, and the Node golden
+# tests (the L1–L5 regression summary against tests/node/golden.json) must pass. About one minute, no browser.
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build
+        run: node build.mjs
+      - name: The committed dist/ matches the build
+        run: git diff --exit-code --stat -- dist/
+      - name: Node golden tests
+        run: npm test

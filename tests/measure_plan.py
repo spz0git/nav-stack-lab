@@ -24,7 +24,7 @@ async def main():
         pg=await b.new_page(viewport={'width':1280,'height':900})
         errs=[]
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+__import__('os').path.abspath('wrapped.html'))
+        await pg.goto('file://'+__import__('os').path.abspath('../dist/nav-stack-lab.html'))
         await pg.wait_for_timeout(800)
         for c in cases:
             seeds=c.get('seeds') or [None]

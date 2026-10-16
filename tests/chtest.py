@@ -9,7 +9,7 @@ async def main():
         pg=await b.new_page(viewport={'width':1440,'height':900}); errs=[]
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
         pg.on('console', lambda m: errs.append(m.text) if m.type=='error' and 'ERR_TUNNEL' not in m.text else None)
-        await pg.goto('file://'+os.path.abspath('wrapped.html')); await pg.wait_for_timeout(600)
+        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(600)
         await pg.click('#tab-learn'); await pg.wait_for_timeout(200)
         ids=await pg.evaluate("[...document.querySelectorAll('.chapter-open')].map(b=>b.dataset.ch)"); print('chapters listed',ids)
         for ch in ids:
@@ -22,7 +22,10 @@ async def main():
             for i,t in enumerate(tries):
                 await pg.evaluate(f"document.querySelectorAll('#learnview button.try')[{i}].click()"); await pg.wait_for_timeout(250)
                 if 'Measure' in t or 'sine' in t or ('EKF' in t and ch=='ch6'):
-                    await pg.wait_for_function("!window.__an.AN.busy",timeout=60000)
+                    for _ in range(600):   # wait_for_function would eval() its predicate, which the page's CSP forbids
+                        if not await pg.evaluate("window.__an.AN.busy"): break
+                        await pg.wait_for_timeout(100)
+                    else: raise TimeoutError('analysis still busy after 60 s: '+t)
                 if await pg.evaluate("window.__nav.S.fsm.state")=='DRIVE': await pg.evaluate("window.__nav.advance(40)")
                 v=await pg.evaluate("[...document.querySelectorAll('#learnview .live')].slice(0,6).map(e=>e.textContent).join(' ')")
                 print(f'  try {i:2d} {t[:34]:34s} → {v}')
@@ -42,7 +45,7 @@ async def main():
         # deep links on a phone
         pg2=await b.new_page(viewport={'width':390,'height':844},device_scale_factor=2)
         for h in ['#notes=ch6','#notes=ch2/4-the-kalman-update-derived']:
-            await pg2.goto('file://'+os.path.abspath('wrapped.html')+h); await pg2.wait_for_timeout(700)
+            await pg2.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')+h); await pg2.wait_for_timeout(700)
             print('deep link',h,'open:',await pg2.evaluate("!!document.querySelector('#learnview article.chapter')"),'scrollW',await pg2.evaluate("document.documentElement.scrollWidth"))
         if OUT: await pg2.screenshot(path=f'{OUT}/ch_mobile.png')
         print('ERRORS',errs[:5])

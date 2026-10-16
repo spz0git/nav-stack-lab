@@ -44,7 +44,7 @@ async def main():
         b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
         pg=await b.new_page(viewport={'width':1280,'height':900});errs=[]
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+os.path.abspath('wrapped.html'));await pg.wait_for_timeout(800)
+        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html'));await pg.wait_for_timeout(800)
         expanded=[]
         for c in cases:   # {"lesson": title} expands to every Try button of that control lesson, pressed exactly
             if 'lesson' in c:

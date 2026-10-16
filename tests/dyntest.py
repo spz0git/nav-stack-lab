@@ -79,7 +79,7 @@ async def main():
         pg=await b.new_page(viewport={'width':1280,'height':900})
         errs=[]
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+os.path.abspath('wrapped.html'))
+        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html'))
         await pg.wait_for_timeout(800)
         L=await pg.evaluate('window.__nav.P.wheelbase')
         await pg.evaluate("window.__nav.loadLevel(5)");L=await pg.evaluate('window.__nav.P.wheelbase')

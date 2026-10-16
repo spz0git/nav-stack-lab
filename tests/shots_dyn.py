@@ -23,7 +23,7 @@ async def shot(b,out,size,dark,checks):
     w,h=SIZES[size]
     ctx=await b.new_context(viewport={'width':w,'height':h},device_scale_factor=2 if size=='phone' else 1,color_scheme='dark' if dark else 'light',is_mobile=size=='phone',has_touch=size=='phone')
     pg=await ctx.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
-    await pg.goto('file://'+os.path.abspath('wrapped.html')); await pg.wait_for_timeout(700)
+    await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(700)
     r=await pg.evaluate(SETUP)
     await pg.evaluate("()=>{const P=window.__plots;P.addPane(['ay','mug']);P.addPane(['yawr','yawk','beta']);}")
     await pg.wait_for_timeout(300)
@@ -49,7 +49,7 @@ async def analyze(b,out,size,dark,checks):
     w,h=SIZES[size]
     ctx=await b.new_context(viewport={'width':w,'height':h},device_scale_factor=2 if size=='phone' else 1,color_scheme='dark' if dark else 'light',is_mobile=size=='phone',has_touch=size=='phone')
     pg=await ctx.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
-    await pg.goto('file://'+os.path.abspath('wrapped.html')); await pg.wait_for_timeout(700)
+    await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(700)
     await pg.evaluate("()=>{const N=window.__nav;N.loadLevel(0);N.setParam('veh','dyn',false);for(const [k,v] of Object.entries({Cf:40,Cr:90,mu:0.25,vmax:4,vcruise:2}))N.setParam(k,v,false);window.__an.setMode('an');}")
     await pg.wait_for_timeout(500)
     await pg.screenshot(path=os.path.join(out,f"{size}-dyn-an{'-dark' if dark else ''}.png"))
@@ -66,7 +66,7 @@ async def learn(b,out,size,dark,checks):
     w,h=SIZES[size]
     ctx=await b.new_context(viewport={'width':w,'height':h},device_scale_factor=2 if size=='phone' else 1,color_scheme='dark' if dark else 'light',is_mobile=size=='phone',has_touch=size=='phone')
     pg=await ctx.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
-    await pg.goto('file://'+os.path.abspath('wrapped.html')); await pg.wait_for_timeout(700)
+    await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(700)
     lid=await pg.evaluate("window.__an.LESSON_GROUPS().find(g=>g.id==='ctl').items.findIndex(L=>L.t==='Running out of grip')")
     await pg.click('#tab-learn'); await pg.evaluate(f"window.__an.openLesson('ctl:{lid}')"); await pg.wait_for_timeout(150)
     # press the third Try (cap above the grip), pause in the same task, then run a fixed 26 s: the frame just after the car leaves the path

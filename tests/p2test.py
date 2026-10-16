@@ -4,7 +4,7 @@ async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
         pg=await b.new_page(viewport={'width':1440,'height':900}); errs=[]; pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: errs.append('C:'+m.text) if m.type=='error' and 'ERR_' not in m.text else None)
-        await pg.goto('file://'+os.path.abspath('wrapped.html')); await pg.wait_for_timeout(600)
+        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(600)
         # run, pause, scrub, reset → ghost
         await pg.evaluate("async()=>{const N=window.__nav;N.loadLevel(0);document.querySelector('#run').click();document.querySelector('#run').click();await N.advance(600)}")
         await pg.wait_for_timeout(300)

@@ -61,7 +61,79 @@ function agDetect() {
       y = e.y + R[k] * Math.sin(a);
     if (!agExplained(x, y)) pts[k] = [x, y, k];
   }
-  const cl = [];
+  agCluster(pts, false);
+}
+// The previous scan as it would look from the current pose if everything stood still: its points moved by the
+// odometry increment into the current body frame and binned by beam (LMAX where no point lands). The difference to
+// the current scan is then a motion cue with the robot's own motion taken out: near zero on walls, large on a person.
+function scanReproject(prev, v, w, dt) {
+  const out = new Float32Array(NBEAM).fill(LMAX);
+  if (!prev) return out;
+  const dth = w * dt,
+    dx = v * dt * Math.cos(dth / 2),
+    dy = v * dt * Math.sin(dth / 2),
+    c = Math.cos(-dth),
+    s = Math.sin(-dth);
+  for (let k = 0; k < NBEAM; k++) {
+    if (prev[k] >= LMAX - 1e-3) continue;
+    const a = -Math.PI + (k * TAU) / NBEAM,
+      px = prev[k] * Math.cos(a) - dx, // the point in the previous body frame, then into the current one
+      py = prev[k] * Math.sin(a) - dy,
+      x = c * px - s * py,
+      y = s * px + c * py,
+      r = hyp(x, y),
+      kk = Math.round(((Math.atan2(y, x) + Math.PI) / TAU) * NBEAM) % NBEAM;
+    if (r < out[kk]) out[kk] = r;
+  }
+  return out;
+}
+// @code ag-learned | agDetectLearned: the learned per-beam detector, its clusters and the hit points it hands on
+// The learned detector: a 1D convolution over the beams (MODELS.detector, trained in training/detector) gives each
+// beam the probability that its hit lies on a person; beams above 0.5 are clustered as agDetect clusters unexplained
+// hits. It needs no prior map and no settled built map: a person is recognized by the shape and motion of the hits.
+function agDetectLearned() {
+  const A = S.agents,
+    e = S.est,
+    R = S.scan,
+    M = MODELS.detector;
+  A.det = [];
+  A.dynPts = [];
+  A.beamP = null;
+  if (!R || !M) return;
+  const CH = M.input.channels,
+    v = S.odo ? S.odo.v : 0,
+    w = S.odo ? S.odo.w : 0,
+    prev = A.prevScan ? scanReproject(A.prevScan, v, w, S.t - (A.prevT || S.t)) : null,
+    f = new Float32Array(NBEAM * CH);
+  for (let k = 0; k < NBEAM; k++) {
+    const rk = Math.min(R[k], LMAX),
+      rp = prev ? prev[k] : rk;
+    f[k * CH] = rk / LMAX;
+    f[k * CH + 1] = rp / LMAX;
+    f[k * CH + 2] = clamp(rk - rp, -1, 1);
+    f[k * CH + 3] = R[k] < LMAX - 1e-3 ? 1 : 0;
+    f[k * CH + 4] = v / 1.5;
+    f[k * CH + 5] = w / 2;
+  }
+  A.prevScan = Float32Array.from(R);
+  A.prevT = S.t;
+  const p = nnForward(M, f, NBEAM);
+  A.beamP = p;
+  const pts = new Array(NBEAM).fill(null);
+  for (let k = 0; k < NBEAM; k++) {
+    if (R[k] >= LMAX - 1e-3 || p[k] < 0.6) continue;
+    const a = e.th - Math.PI + (k * TAU) / NBEAM;
+    pts[k] = [e.x + R[k] * Math.cos(a), e.y + R[k] * Math.sin(a), k];
+  }
+  agCluster(pts, true);
+}
+// @end
+// Consecutive hit points (one gap allowed) become clusters; a cluster of a person's size becomes a detection,
+// its centre pushed to the far side of the hits (which lie on the near side of the person)
+function agCluster(pts, learned) {
+  const A = S.agents,
+    e = S.est,
+    cl = [];
   let cur = null,
     miss = 0;
   for (let k = 0; k < NBEAM; k++) {
@@ -103,12 +175,13 @@ function agDetect() {
     for (const p of c) ext = Math.max(ext, hyp(p[0] - mx, p[1] - my));
     ext *= 2;
     if (ext > (S.peds.some(p => p.car) ? 2.2 : 1.2)) continue;
+    if (learned && c.length < 2) continue; // one lone beam is not a person
     const dx = mx - e.x,
       dy = my - e.y,
       d = hyp(dx, dy) || 1,
       r = clamp(0.5 * ext + 0.1, 0.3, S.peds.some(p => p.car) ? 0.9 : 0.55),
       sh = 0.6 * r; // hits lie on the near side
-    A.det.push({x: mx + (dx / d) * sh, y: my + (dy / d) * sh, r, n: c.length});
+    A.det.push({x: mx + (dx / d) * sh, y: my + (dy / d) * sh, r, n: c.length, pts: c.map(p => [p[0], p[1]]), learned});
   }
   for (const p of pts) if (p) A.dynPts.push(p);
 }
@@ -185,6 +258,28 @@ function agTrack() {
       t.vy *= 2.5 / sp;
     }
     t.r = 0.8 * t.r + 0.2 * d.r;
+    // per-target scan matching: the person's hits of this scan aligned to the hits of the last one give the
+    // displacement, a direct velocity measurement that the Kalman filter's velocity state takes with its own gain
+    if (P.agICP && t.pts && d.pts && t.pts.length >= 3 && d.pts.length >= 3) {
+      const cx = t.px,
+        cy = t.py,
+        src = t.pts.map(q => [q[0] - cx, q[1] - cy]),
+        dst = d.pts.map(q => [q[0] - cx, q[1] - cy]),
+        m = icp2d(src, dst, {x: t.vx * dt, y: t.vy * dt, th: 0}, 3); // a person is a handful of hits
+      if (m && m.inl >= 0.6 && m.rms < 0.08) {
+        const vmx = m.x / dt,
+          vmy = m.y / dt,
+          Rv = 0.5 * 0.5,
+          kv = t.pvv / (t.pvv + Rv);
+        t.vx += kv * (vmx - t.vx);
+        t.vy += kv * (vmy - t.vy);
+        t.pvv *= 1 - kv;
+        t.icp = (t.icp || 0) + 1;
+      }
+    }
+    t.pts = d.pts;
+    t.px = d.x;
+    t.py = d.y;
     t.hits++;
     t.lastUpd = S.t;
     if (!t.conf && t.hits >= 3) {
@@ -194,7 +289,23 @@ function agTrack() {
   }
   A.det.forEach((d, j) => {
     if (!ud.has(j))
-      A.tracks.push({id: A.nextId++, x: d.x, y: d.y, vx: 0, vy: 0, r: d.r, pxx: R, pxv: 0, pvv: 1, hits: 1, conf: false, lastUpd: S.t});
+      A.tracks.push({
+        id: A.nextId++,
+        x: d.x,
+        y: d.y,
+        vx: 0,
+        vy: 0,
+        r: d.r,
+        pxx: R,
+        pxv: 0,
+        pvv: 1,
+        hits: 1,
+        conf: false,
+        lastUpd: S.t,
+        pts: d.pts,
+        px: d.x,
+        py: d.y
+      });
   });
   A.tracks = A.tracks.filter(t => S.t - t.lastUpd < (t.conf ? 1.0 : 0.25)); // confirmed tracks coast through 1 s of occlusion
 }
@@ -484,7 +595,10 @@ function agentsTick() {
     return;
   }
   const lid = S.scanTick === S.tick;
-  if (lid) agDetect();
+  if (lid) {
+    if (P.agents === 'learned') agDetectLearned();
+    else agDetect();
+  }
   if (agOn() && (lid || P.agents === 'truth')) agTrack();
   if (!agOn()) A.tracks = [];
 }

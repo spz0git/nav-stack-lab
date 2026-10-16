@@ -480,10 +480,13 @@ function drawBeam(dpr, k, px) {
 function drawLidar(dpr, k, px) {
   // lidar (perceived points)
   if (LAYERS.lidar) {
+    // with the learned detector the hits are coloured by their probability of lying on a person
+    const bp = P.agents === 'learned' && S.agents && S.agents.beamP;
     ctx.fillStyle = TOK.amber;
-    for (const p of S.scanPts) {
+    S.scanPts.forEach((p, i) => {
+      if (bp) ctx.fillStyle = bp[p[2] != null ? p[2] : i] > 0.5 ? TOK.rose : TOK.amber;
       ctx.fillRect(p[0] - px(1.5), p[1] - px(1.5), px(3), px(3));
-    }
+    });
   }
 }
 function drawPath(dpr, k, px) {

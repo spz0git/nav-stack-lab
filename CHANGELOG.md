@@ -3,6 +3,21 @@
 The version label in the page header (`v39 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+Phase 4, Track B (modular learning), first block:
+
+- A learned people detector (Perceive → Agent tracking → Learned detector + Kalman): a 1D convolutional network over the
+  120 beams (circular padding, 8 017 parameters, 66 KB inlined) that labels each beam "person" or "static" from six
+  features, among them the previous scan reprojected through the odometry so that the robot's own motion is taken out;
+  beams above 0.6 are clustered as the rule's unexplained hits are and handed to the tracker. Trained in PyTorch
+  (`training/detector/train.py`) on 19 200 scans collected by `tools/collect-detector.mjs` over the headless core;
+  the forward pass runs in `src/core/nn.js` with no dependency. The lidar layer colours hits by the probability.
+  Measured on L5: precision 0.66 under lidar mapping against 0.07 for the rule without a settled map; 0.73 against
+  the rule's 0.92 with a prior map. Per-target scan matching (Perceive → Agent tracking) aligns a track's hits from one
+  scan to the next by ICP and fuses the displacement as a velocity measurement (0.40 to 0.25 m/s RMS). Perception
+  lesson 7, chapter 3 §9, `tests/measure_det.py`, a Node test of the forward pass, `training/README.md`.
+
 ## v39 · 2026-10-16
 
 - Velocity obstacles (Control → Response to agents → Velocity obstacles, for the path trackers): one cone per tracked

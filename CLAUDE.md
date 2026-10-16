@@ -31,6 +31,10 @@
   and `tools/lessons.mjs`); the page cuts the text from its own source at runtime, the build only indexes and validates.
   Slot examples live in `src/examples/<slot>/<nn>-<id>.js` (first line `// @example <name>`; not formatted by Prettier) and
   fill the Code tab's menu and the lessons' "Edit and run". `tests/extest.py` runs every example against its built-in.
+- Learned blocks: weights in `src/models/<name>.json`, inlined by the build as `MODELS` and run by `src/core/nn.js` (plain
+  loops, no dependency; keep each model under about 1 MB). Training is Python under `training/` (PyTorch in `.venv`; see
+  `training/README.md`); data from `tools/collect-*.mjs` over the headless core into `training/data/`, which is not
+  committed. Changing a model's input features means changing the collector, the trainer and the page's feature code.
 - Lessons are markdown in `docs/lessons/<group>/*.md` (format in the header of `tools/lessons.mjs`; the build inlines them as
   `LESSON_DATA`): a `## Try: Label` section per experiment with `cfg:`, `Setup:`, `See:`, `Shows:`, `Predict:` + options + `Answer:`;
   `## Think about` Q:/A: pairs; `## Check yourself`. Their terms stay in `LESSON_TERMS` (`src/analysis/glossary.js`), keyed by title. Numbers in a lesson's "What you will see" are measured headless first

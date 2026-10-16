@@ -30,6 +30,17 @@ export function buildCode(manifestFile = 'src/manifest.json') {
   }
   return out;
 }
+// src/models/<name>.json → {name: model}: the learned blocks' weights the page runs (nn.js)
+export function buildModels(dir = 'src/models') {
+  const out = {};
+  if (!fs.existsSync(dir)) return out;
+  for (const f of fs
+    .readdirSync(dir)
+    .filter(f => f.endsWith('.json'))
+    .sort())
+    out[f.replace(/\.json$/, '')] = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+  return out;
+}
 export function buildExamples(dir = 'src/examples') {
   const out = {};
   for (const slot of fs.readdirSync(dir).sort()) {

@@ -249,8 +249,23 @@ const SCHEMA = {
       opts: [
         ['off', 'Off'],
         ['truth', 'Ground truth'],
-        ['lidar', 'Lidar (clusters + Kalman)']
+        ['lidar', 'Lidar (clusters + Kalman)'],
+        ['learned', 'Learned detector + Kalman']
       ]
+    },
+    {
+      type: 'info',
+      text: () =>
+        MODELS.detector
+          ? `A 1D convolution over the beams (${MODELS.detector.params} parameters, trained in training/detector on ${MODELS.detector.trained_on.scans} simulated scans) labels each beam "person" or "static" from the shape and motion of the hits: no prior map and no settled built map needed. Hits are coloured by the probability on the map.`
+          : 'No detector model in this build: train one with training/detector/train.py and rebuild.',
+      show: () => P.agents === 'learned'
+    },
+    {
+      k: 'agICP',
+      type: 'bool',
+      label: "Per-target scan matching (the person's hits aligned frame to frame give its velocity)",
+      show: () => P.agents === 'lidar' || P.agents === 'learned'
     },
     {
       k: 'agPred',

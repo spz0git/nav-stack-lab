@@ -125,6 +125,33 @@ For evaluating a planner the point is in lesson 5: reactive people absorb the pl
 
 [try: Reactive people, speed planning | {"sim":true,"level":4,"set":{"people":"reactive"},"tab":"veh"}] [try: Scripted people, ignored | {"sim":true,"level":4,"set":{"spd":"none"},"tab":"ctl"}]
 
-## 9. What to carry into the next chapters
+## 9. A learned detector
+
+**What it replaces.** §4 finds people as hits the map cannot explain. While the map is being built nothing is explained, so on a level the robot explores for the first time the rule returns thousands of detections, nearly all walls (precision 0.07 on L5 under lidar mapping, measured below). The learned detector replaces that one stage and nothing else: it still hands clusters to the tracker of §5.
+
+**The network.** The scan is a ring of $120$ beams with six numbers each: the range $r/8$, the previous scan reprojected through the odometry into the current body frame, $\tilde r_{prev}/8$ (each previous point moved by $(v\,\Delta t, \omega\,\Delta t)$ and re-binned by beam, so that a static wall reads the same range twice and a person does not), the difference $\mathrm{clip}(r - \tilde r_{prev}, \pm 1)$, the hit flag, and $v/1.5$ and $\omega/2$ broadcast. Four one-dimensional convolutions with circular padding (beam 119 is next to beam 0), kernels of 7, 7, 5 and 1 beams and 24 channels, ReLU between them and a sigmoid at the end, give one probability per beam from a receptive field of 17 beams: 8 017 parameters. Beams above 0.6 are clustered as §4 clusters unexplained hits; a cluster of at least two beams and a person's width is a detection.
+
+**Training.** `tools/collect-detector.mjs` runs sixteen headless missions on the two levels with people (L5, L6; scripted and reacting; seeds 1–8) and labels each beam from the true pose and the true discs: 19 200 scans, 3.1 % person beams. `training/detector/train.py` holds the last run out and minimizes a binary cross-entropy with the positive class weighted by $\sqrt{(1-\pi)/\pi}$ (the full ratio of 30 gives recall and drowns in false beams; its square root is the compromise that leaves precision at 0.63 and recall at 0.93 on the held-out run at the page's threshold). Forty epochs, four minutes on a laptop. The weights are written as flat lists to `src/models/detector.json`, the build inlines them, and `nnForward` in `src/core/nn.js` runs the same four layers in plain loops: a fraction of a millisecond per scan, no dependency.
+
+**Measured** on L5 at seed 7, 120 s, the speed planner, per scan against the truth (a person is detectable when a beam hits it; a detection is true within 0.5 m of a person; velocity RMS over the confirmed tracks):
+
+| Detector | Map | Detections | Precision | Recall | Velocity RMS |
+| --- | --- | --- | --- | --- | --- |
+| rule (unexplained hits) | prior | 1 034 | 0.92 | 1.00 | 0.26 m/s |
+| rule, with scan matching | prior | 1 038 | 0.92 | 1.00 | 0.24 m/s |
+| rule | built by lidar | 8 214 | 0.07 | 1.00 | 0.35 m/s |
+| learned | built by lidar | 1 017 | 0.66 | 0.70 | 0.40 m/s |
+| learned, with scan matching | built by lidar | 954 | 0.67 | 0.84 | 0.25 m/s |
+| learned | prior (unused) | 1 146 | 0.73 | 0.88 | 0.25 m/s |
+| rule | L6 parking lot, built | 6 618 | 0.29 | 0.89 | 0.28 m/s |
+| learned | L6 parking lot, built | 1 768 | 0.69 | 0.64 | 0.18 m/s |
+
+The reading: with a map the rule wins (0.92 against 0.73), because a map is strong prior knowledge the network never sees; without one the network wins by a factor ten in precision. The learned block's misses are people seen edge-on far down an aisle, two or three beams, below what a 7-beam filter can tell from a post. Per-target scan matching (§5, ICP of a track's hits from one scan to the next, fused as a velocity measurement with the filter's own gain) helps most where the detections are noisiest.
+
+**The pipeline.** Collect in Node over the headless core, train in Python, export JSON, inline at build, run in plain JavaScript: this is how every learned block of the lab arrives, and the reason training is the only place Python enters the project (`training/README.md`).
+
+[try: The learned detector, building its own map | {"sim":true,"level":4,"set":{"agents":"learned","spd":"st","per":"mapping"},"tab":"per","layers":{"lidar":true,"agents":true}}] [try: The rule, building its own map | {"sim":true,"level":4,"set":{"agents":"lidar","spd":"st","per":"mapping"},"tab":"per"}]
+
+## 10. What to carry into the next chapters
 
 The log-odds map and the costmap are what the planners of chapter 4 search; the inflation penalty is the term that makes A* prefer the middle of an aisle, and the unknown-cell policy decides whether an unexplored room is a route or a wall. The tracks and their growing radii are what the space-time planner blocks cells with and what the speed planner slows down for, and everything in §7 is why those planners work on timestamps rather than on "now". The pattern from chapter 2 holds throughout: the covariance, or its stand-in, is consumed downstream, and a tracker that reports a velocity it does not really know yet is as dangerous to the speed planner as an overconfident EKF is to the costmap.

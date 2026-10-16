@@ -60,7 +60,8 @@ const LESSON_LAYERS = {
     ['lidar', 'agents'],
     ['lidar', 'agents'],
     ['agents', 'lidar'],
-    ['agents', 'vo', 'trail']
+    ['agents', 'vo', 'trail'],
+    ['lidar', 'agents']
   ],
   plan: [
     ['search', 'cost'],

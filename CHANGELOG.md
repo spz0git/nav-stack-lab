@@ -13,6 +13,13 @@ Phase 3, code health (from the assessment of 2026-10-15):
 - The source is formatted with Prettier at 140 columns (`npm run fmt`, checked in CI); one reformat commit, listed
   in `.git-blame-ignore-revs`. The lines go from 6,277 to 19,610 with no change in behaviour (the golden tests and
   the browser gate are identical).
+- The three biggest functions are split: `draw` (477 lines) into eighteen layer functions in drawing order, `ctlMPC`
+  (349) into the controller plus six helpers (agent predictions, agent constraints, warm start, linearization,
+  rollout, the constraint set) with explicit parameters, `renderAnalysis` into the view plus four section helpers.
+  The lint found the two locals the first cuts had missed. Every remaining function over 100 lines has a header
+  that says what it does.
+- Fix: switching to DWA (or your code) while the step test was playing threw in the response plot's playback; the
+  playback now stops when the tracker has no linear model.
 
 ## v35 · 2026-10-16
 

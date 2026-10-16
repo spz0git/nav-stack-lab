@@ -95,6 +95,8 @@ function spdStep(M, L, X, k, ref) {
   x[L.q0 + M.nL] = c;
   return x;
 }
+// The speed loop's linear analysis: the actuator chain from command to speed (lag, acceleration limit, MPC), its step
+// response metrics and, for MPC, the closed loop.
 function spdCompute() {
   const M = spdBuild(),
     R = {M, loop: 'spd', noCL: true};

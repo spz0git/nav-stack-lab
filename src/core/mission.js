@@ -175,6 +175,8 @@ function wpLabel(i) {
   return i + 1;
 }
 const posSigma = () => (S.Pc ? Math.sqrt(Math.max(0, S.Pc[0] + S.Pc[4])) : 0);
+// One tick of the mission state machine (IDLE, PLAN, DRIVE, NO_PATH, LOST, DONE): goals reached by the estimate, replans on
+// blocked, off path, stuck or timer, the lost guard, and the heading alignment at posed goals.
 function missionTick() {
   const F = S.fsm;
   if (F.state === 'PLAN') {

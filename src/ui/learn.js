@@ -217,6 +217,7 @@ function selfCheck(div) {
   res.className = 'sc-res no';
   res.textContent = scTries[id] < 2 ? 'Not quite. Check the units and try once more.' : `Not quite. ${c.how}`;
 }
+// Renders the Learn column: the list (Start here, progress, the groups, the chapters) or the open lesson, and wires every control.
 function renderLearn() {
   const v = $('#learnview');
   v.classList.remove('chapter');

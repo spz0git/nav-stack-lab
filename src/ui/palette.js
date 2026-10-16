@@ -96,6 +96,7 @@ const PAL = {items: [], q: '', sel: 0, shown: [], recent: []};
 try {
   PAL.recent = JSON.parse(localStorage.getItem('nav-stack-lab.recent') || '[]').slice(0, 6);
 } catch (_) {}
+// Builds the palette's items: every setting, the actions, levels, layers, lessons, chapters and sections, symbols and signals.
 function palItems() {
   const I = [],
     add = (id, name, kind, sys, run, detail, keys) =>

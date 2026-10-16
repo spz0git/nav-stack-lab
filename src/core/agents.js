@@ -219,6 +219,8 @@ function agList(rng) {
 const ST_DT = 0.2,
   ST_DS = 0.1,
   ST_DV = 0.05;
+// The ST speed planner: dynamic programming over (time, distance along the path, speed) against the predicted agents,
+// with a terminal test past the horizon; its speed at 0.2 s caps the tracker.
 function stPlan() {
   const A = S.agents,
     T = S.track,

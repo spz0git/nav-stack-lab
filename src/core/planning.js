@@ -116,6 +116,7 @@ function astar(sx, sy, gx, gy) {
   if (P.smooth) pts = smoothPath(pts);
   return {ok: true, pts, exp: R.exp, cost: R.gs[g]};
 }
+// RRT*: sample, steer from the nearest node, connect to the cheapest parent within the radius, rewire; the radius shrinks with n.
 function rrtstar(sx, sy, gx, gy) {
   const g = S.rngA,
     cm = S.cm;

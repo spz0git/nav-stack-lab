@@ -62,6 +62,7 @@ function drawPanes() {
     if (el) drawPane(P1, el, i);
   });
 }
+// One added plot pane: its signals on the shared time window, the compared run dashed, legend chips with the values at the cursor.
 function drawPane(P1, c, pi) {
   const g = c.getContext('2d'),
     dpr = sizeCanvas(c),

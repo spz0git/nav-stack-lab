@@ -172,6 +172,7 @@ function label(G, t, x, y, col, al = 'left', bl = 'bottom') {
   G.c.fillText(t, x, y);
 }
 
+// Bode plot of L(jω) with the margins marked, and optionally |S| and |T|.
 function drawBode(R) {
   const G = anCanvas('cv-bode');
   if (!G) return;
@@ -343,6 +344,7 @@ function drawBode(R) {
   label(G, `∠${nm} °`, L + 4 * dpr, bot - 4 * dpr, TOK.muted);
   label(G, 'ω [rad/s]', w - Rm, h - 2 * dpr, TOK.muted, 'right', 'bottom');
 }
+// Nyquist plot of L(jω) (compressed or linear radius) with the −1 point, the closest approach and the encirclement count.
 function drawNyq(R) {
   const G = anCanvas('cv-nyq');
   if (!G) return;
@@ -470,6 +472,7 @@ function drawNyq(R) {
     ...(AN.meas.freq && AN.meas.freq.length ? [[TOK.amber, 'dot', 'measured in the simulator']] : [])
   ]);
 }
+// The response plot seen from above: the offset or the bias response of the linear model, with the simulator's step test over it.
 function drawStep(R) {
   if (R.loop !== 'spd') return drawResp(R);
   const G = anCanvas('cv-step');
@@ -921,7 +924,8 @@ function anPlayTick(now) {
   const pl = AN.play;
   if (!pl || !pl.on) return;
   const R = AN.res;
-  if (AN.mode !== 'an' || AN.loop !== 'lat' || !R) {
+  if (AN.mode !== 'an' || AN.loop !== 'lat' || !R || !R.step) {
+    // no linear model (DWA, your code) or none computed yet: nothing to play
     pl.on = false;
     anPlayUI();
     return;
@@ -954,6 +958,7 @@ function anPlayUI() {
 
 /* ---------- poles you can drag ---------- */
 const PZ = {view: null, map: null, drag: false, raf: 0};
+// The pole plot: closed-loop poles, the root locus or the knob curve, and the draggable what-if design.
 function drawPoles(R) {
   const G = anCanvas('cv-pz');
   if (!G) return;
@@ -1508,18 +1513,48 @@ function renderAnalysis() {
   }
   $('#an-op').innerHTML =
     `<b>${isDyn() ? 'Car with tyre slip' : isCar() ? 'Car-like' : 'Diff-drive'} · ${ctlN}</b> · ${anR() ? `left turn R ${anR()} m` : 'straight path'} at ${fmt(M.v0)} m/s · settings come from the Control and Vehicle tabs`;
-  if (M.kind === 'none') {
-    $('#an-body').hidden = true;
-    $('#an-none').hidden = false;
-    $('#an-none').innerHTML =
-      `<p><b>${ctlN}</b> has no linear model to analyze. ${P.ctl === 'dwa' ? 'DWA picks the best of a grid of sampled commands, so its output is piecewise constant in the state and has no meaningful derivative.' : 'Your code runs as a black box in a worker.'} Pick pure pursuit, rear-wheel feedback, Stanley (car), PID or MPC in the Control tab.</p>`;
-    return;
-  }
+  if (M.kind === 'none') return renderAnalysisNone(ctlN);
   $('#an-body').hidden = false;
   $('#an-none').hidden = true;
   if (R.knob === undefined) R.knob = anKnobCurve(R);
   $('#an-story').innerHTML = anStory(R);
   $('#an-key').innerHTML = anKeyChips(R);
+  renderAnalysisWhy(R);
+  renderAnalysisCaptions(R);
+  $('#an-wi-x').hidden = !AN.wi;
+  const ap = $('#an-wi-apply');
+  if (ap) ap.onclick = anApplyWhatIf;
+  const ms = AN.meas.step;
+  $('#an-msg').textContent =
+    AN.msg +
+    (ms && ms.satT > 0
+      ? ` The steering-rate limit was active for ${fmt(ms.satT, 2)} s of the test${ms.satT > 0.3 ? ', so the response departs from the linear prediction' : ''}.`
+      : '') +
+    (ms && ms.coll ? ' The robot collided during the test.' : '');
+  $('#an-step').disabled = AN.busy;
+  $('#an-inj').disabled = AN.busy;
+  $('#an-inj').hidden = false;
+  $('#an-inja').hidden = false;
+  $('#an-amp').hidden = false;
+  $('#an-kind').hidden = false;
+  $('#an-cl').hidden = false;
+  drawStep(R);
+  drawPoles(R);
+  anPlayUI();
+  renderAnalysisAdvanced(R);
+}
+
+// The Analyze view when the tracker has no linear model (DWA, your code): the explanation instead of the plots
+function renderAnalysisNone(ctlN) {
+  $('#an-body').hidden = true;
+  $('#an-none').hidden = false;
+  $('#an-none').innerHTML =
+    `<p><b>${ctlN}</b> has no linear model to analyze. ${P.ctl === 'dwa' ? 'DWA picks the best of a grid of sampled commands, so its output is piecewise constant in the state and has no meaningful derivative.' : 'Your code runs as a black box in a worker.'} Pick pure pursuit, rear-wheel feedback, Stanley (car), PID or MPC in the Control tab.</p>`;
+  return;
+}
+
+// The "where these numbers come from" section: the derivation (or why there is none), with chapter links that open Learn
+function renderAnalysisWhy(R) {
   const why = $('#an-why');
   if (why) {
     why.hidden = false;
@@ -1544,6 +1579,10 @@ function renderAnalysis() {
       );
     }
   }
+}
+
+// The captions of the response and pole plots for the current step kind
+function renderAnalysisCaptions(R) {
   $('#cap-step-t').textContent = AN.stepKind === 'offset' ? 'Response: back to the path' : 'Response: a constant actuator error';
   const watch = `The amber ${isCar() ? 'car' : 'robot'} is the full simulator driving the same test (▶ replays it); sideways is stretched about ×${fmt(AN.stretch || 1, 0)} so the offset is visible, and its heading is stretched with it.`;
   $('#cap-step').innerHTML =
@@ -1552,26 +1591,10 @@ function renderAnalysis() {
       : `A ${biasUnit().val} ${biasUnit().unit} ${isCar() ? 'steering misalignment' : 'turn-rate bias'} acts from the start, with the ${isCar() ? 'car' : 'robot'} on the path: it drifts off and, without integral action, settles to the side, where the offset makes the controller cancel the error. ${watch}`;
   $('#fig-pz').hidden = false;
   $('#cap-pz').innerHTML = anPzCaption(R);
-  $('#an-wi-x').hidden = !AN.wi;
-  const ap = $('#an-wi-apply');
-  if (ap) ap.onclick = anApplyWhatIf;
-  const ms = AN.meas.step;
-  $('#an-msg').textContent =
-    AN.msg +
-    (ms && ms.satT > 0
-      ? ` The steering-rate limit was active for ${fmt(ms.satT, 2)} s of the test${ms.satT > 0.3 ? ', so the response departs from the linear prediction' : ''}.`
-      : '') +
-    (ms && ms.coll ? ' The robot collided during the test.' : '');
-  $('#an-step').disabled = AN.busy;
-  $('#an-inj').disabled = AN.busy;
-  $('#an-inj').hidden = false;
-  $('#an-inja').hidden = false;
-  $('#an-amp').hidden = false;
-  $('#an-kind').hidden = false;
-  $('#an-cl').hidden = false;
-  drawStep(R);
-  drawPoles(R);
-  anPlayUI();
+}
+
+// The collapsed section for control engineers: block diagram, transfer function, margin chips, Bode, Nyquist, root locus
+function renderAnalysisAdvanced(R) {
   const adv = $('#an-adv');
   if (adv && adv.open !== !!AN.adv) adv.open = !!AN.adv;
   if (AN.adv) {

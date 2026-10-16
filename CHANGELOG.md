@@ -30,6 +30,8 @@ Phase 2, workspace polish (from the assessment of 2026-10-15):
   when one numeric parameter is varied the chart is the metric against its value, a dot per run with the mean as a
   line; hovering a dot (or a bar) makes that run's path bold on the map and names it, and a click runs that setup
   live with its seed.
+- The telemetry dock takes the height that leaves the map at the world's 3:2 aspect (between 150 and 320 px) until
+  the splitter is dragged, so the map no longer sits letterboxed between empty margins on the wide layout.
 
 ## v34 · 2026-10-16
 

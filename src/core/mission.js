@@ -261,6 +261,12 @@ function exploreMore(failedKey) {
   if (failedKey != null) (S.exploreFailed || (S.exploreFailed = new Set())).add(failedKey);
   return exploreNext(failedKey != null ? 'that one failed' : 'next');
 }
+// A goal list from outside (a Try's own goals, the collectors' random goals): the mission restarts on it
+function setGoals(list) {
+  WPS = list.map(g => ({x: g[0], y: g[1], th: g.length > 2 && g[2] != null ? g[2] : null, done: false}));
+  startMission();
+  doPlan('initial');
+}
 function startMission() {
   const F = S.fsm;
   if (exploring()) {
@@ -297,6 +303,7 @@ const PLAN_NAMES = {
   straight: 'Straight',
   astar: 'A*',
   dstar: 'D* Lite',
+  policy: 'Learned policy',
   rrtstar: 'RRT*',
   rs: 'Reeds–Shepp',
   hybrid: 'Hybrid A*',
@@ -333,11 +340,12 @@ function doPlan(reason) {
     };
   else if (P.plan === 'astar') res = astar(e.x, e.y, wp.x, wp.y);
   else if (P.plan === 'dstar') res = dstarPlan(e.x, e.y, wp.x, wp.y);
+  else if (P.plan === 'policy') res = policyPlan(e, wp);
   else if (P.plan === 'rs') res = rsPlan(e, wp);
   else if (P.plan === 'hybrid') res = hybridAstar(e, wp);
   else if (P.plan === 'stastar') res = stAstar(e.x, e.y, wp.x, wp.y);
   else res = rrtstar(e.x, e.y, wp.x, wp.y);
-  if (P.plan === 'straight') S.search = null;
+  if (P.plan === 'straight' || P.plan === 'policy') S.search = null;
   applyPlanResult(res, PLAN_NAMES[P.plan], reason, t0, agL);
 }
 function applyPlanResult(res, name, reason, t0, agL) {
@@ -522,7 +530,8 @@ function missionTick() {
     F.pendingReason = 'off path';
     return;
   }
-  if (P.replan > 0 && S.t - F.lastPlanT >= P.replan) {
+  const per = P.plan === 'policy' ? Math.min(0.5, P.replan || 0.5) : P.replan; // the policy's trajectory is 4 s long: refreshed every half second
+  if (per > 0 && S.t - F.lastPlanT >= per) {
     F.state = 'PLAN';
     F.pendingReason = 'periodic';
     return;

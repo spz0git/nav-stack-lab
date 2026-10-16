@@ -3,7 +3,7 @@ const SRC_FILES = {
   loc: ['core/localization.js', 'core/slam.js', 'core/pgslam.js', 'core/sensors.js'],
   per: ['core/perception.js', 'core/agents.js', 'core/sensors.js'],
   mis: ['core/mission.js'],
-  plan: ['core/planning.js', 'core/planning-dstar.js', 'core/planning-car.js', 'core/path.js'],
+  plan: ['core/planning.js', 'core/planning-dstar.js', 'core/planning-policy.js', 'core/planning-car.js', 'core/path.js'],
   ctl: ['core/controllers.js', 'core/mpc.js', 'core/dispatch.js', 'core/agents.js', 'core/custom-controller.js'],
   veh: ['core/vehicle.js', 'core/worlds.js', 'core/constants.js'],
   an: ['analysis/model.js', 'analysis/num.js']

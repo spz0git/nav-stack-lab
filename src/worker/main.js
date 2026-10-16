@@ -53,6 +53,12 @@ self.__core = {
   startMission,
   scanReproject,
   nnForward,
+  mlpForward,
+  policyFeatures,
+  setGoals,
+  randomFree,
+  pointAt,
+  project,
   LEVELS,
   loadLevel,
   setParam,
@@ -60,6 +66,9 @@ self.__core = {
   clamp,
   get S() {
     return S;
+  },
+  get WPS() {
+    return WPS;
   },
   get P() {
     return P;

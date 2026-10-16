@@ -218,6 +218,28 @@ No real root, or a negative one, means no collision; a root within the horizon $
 
 [try: Velocity obstacles, 3 s horizon | {"sim":true,"level":4,"set":{"spd":"vo"},"tab":"ctl","layers":{"vo":true,"agents":true}}] [try: People who react | {"sim":true,"level":4,"set":{"spd":"vo","people":"reactive"},"tab":"ctl","layers":{"vo":true,"agents":true}}]
 
-## 10. What to carry into the next chapters
+## 10. An end-to-end policy
+
+**The setup.** Behaviour cloning fits a function from what the expert sees to what it does. The lab's expert is its own classical stack (A*, the speed planner, pure pursuit); what it sees is the policy's input, $x \in \mathbb{R}^{139}$: the 120 ranges, the nearest range in each of 12 sectors of 30° (a flat network reads an obstacle more easily from those than from 120 raw beams), the goal in the robot frame as $(g_x/10, g_y/10, |g|/10, \cos\beta, \sin\beta)$ and the odometry's $v/1.5$, $\omega/2$; what it does is $y \in \mathbb{R}^{16}$, the A* route ahead resampled to eight points 0.4 m apart in the robot frame, in units of 4 m. The function is $f: 139 \to 256 \to 256 \to 16$ with ReLU, 105 744 parameters, fitted by least squares with Adam for a hundred epochs. In the page `policyPlan` turns $4 f(x)$ into world points every half second, moves any point inside an inflated obstacle to the nearest free cell (the policy's error is about 20 cm, the expert's clearance 40), and hands the path to the tracker.
+
+**Compounding error.** With $T$ steps and a per-step error $\epsilon$ on the expert's states, the imitator's cost grows like $T^2\epsilon$ rather than $T\epsilon$ (Ross & Bagnell 2010): each mistake takes the robot to a state the expert never showed, where the next mistake is larger. Three remedies, all in the lab: *noise injection* (DART), the expert drives with its executed commands perturbed by $\sigma_\omega = 0.4$ rad/s and 10 % on speed while the labels stay the expert's route from wherever the robot is, so the data covers a tube around the demonstrations; *DAgger*, the trained policy drives, the expert labels the states it reaches, and the policy is retrained on everything; and the *classical subgoal*, the policy is pointed at a point 3 m along the A* route, which removes the long-range part of the problem.
+
+**Measured** at seed 7, goals reached of the level's own, and collisions, against A* on the same run:
+
+| Stage | L1 open floor | L2 aisles | L4 building | L5 busy floor (unseen) |
+| --- | --- | --- | --- | --- |
+| driven trajectories as labels, clean demonstrations | 2 of 4 | 1 of 4, 1 collision | 0 of 4, 1 | 4 of 5, 3 |
+| + noise injection, expert-route labels | 4 of 4 | 1 of 4, 3 | 0 of 4, 4 | 4 of 5, 1 |
+| + sector features, two DAgger rounds, the safety layer | 4 of 4 | 0 of 4, 3 | 1 of 4, 1 | 4 of 5, 2 |
+| the same, pointed at a classical subgoal | 4 of 4 | 1 of 4, 2 | 0 of 4, 4 | – |
+| A* | 4 of 4 | 4 of 4 | 4 of 4 | 5 of 5 |
+
+Open-loop, on the held-out expert run, the policy trained on expert data alone is 9 cm off at the first waypoint and 66 cm at the eighth; after the DAgger data joins, 22 cm and 1.68 m, because the held-out moments are now judged by a policy that also had to fit the harder states. The closed loop is the only test that matters, and it says: fine on the open floor, mostly fine on a floor of the same kind it never saw, and a collision at the first shelf corner of the aisles, every time, where a 10 cm corner cut pins the robot and no demonstration showed how to back out. The subgoal does not help, because the failure is local. The building adds the long-range failure on top: a goal behind a wall points a reactive policy at the wall.
+
+**What it would take.** More data near corners and doors, a convolutional encoder over the beams rather than a flat layer, a recurrent memory or the map as an input, a recovery behaviour in the safety layer, and reinforcement learning on top of the imitation: all standard, none free. The contrast with §9 of chapter 3 is the lesson of the learning track: a learned block with a local, well-posed target was trained in an afternoon and beat the rule where the rule had no map; a learned planner with a global, averaged target was not, and the modular stack around it is what kept the robot on the floor.
+
+[try: The open floor, where it works | {"sim":true,"level":0,"set":{"plan":"policy"},"tab":"plan"}] [try: The warehouse aisles, where it fails | {"sim":true,"level":1,"set":{"plan":"policy"},"tab":"plan"}]
+
+## 11. What to carry into the next chapters
 
 Every planner here produces a path, and every path is a promise the tracker has to keep. Chapter 5 is about the trackers, and the margin Hybrid A* leaves on the steering lock is the first place the two chapters meet: a path planned at the vehicle's limit cannot be tracked, because tracking needs authority in reserve. The second meeting point is time: the space-time plan and the speed planner both assume the predictions of chapter 3, and the delay margin of chapter 6 is the same idea one layer down, how much lateness a loop can absorb before it fails.

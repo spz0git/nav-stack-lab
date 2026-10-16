@@ -70,7 +70,8 @@ const LESSON_LAYERS = {
     ['search', 'cost', 'trail'],
     ['search', 'agents'],
     ['frontier', 'lidar', 'trail'],
-    ['search', 'cost', 'trail']
+    ['search', 'cost', 'trail'],
+    ['cost', 'lidar', 'trail']
   ],
   ctl: []
 };

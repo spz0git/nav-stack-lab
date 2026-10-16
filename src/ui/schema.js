@@ -334,6 +334,7 @@ const SCHEMA = {
         ['astar', 'A*'],
         ['dstar', 'D* Lite'],
         ['rrtstar', 'RRT*'],
+        ['policy', 'Learned policy (end-to-end)'],
         ...(isCar()
           ? [
               ['rs', 'Reeds–Shepp'],
@@ -342,6 +343,24 @@ const SCHEMA = {
           : [['stastar', 'Space-time A*']]),
         ['custom', 'Your code']
       ]
+    },
+    {
+      type: 'info',
+      text: () =>
+        MODELS.policy
+          ? `An end-to-end policy: the scan (with the nearest range per 30° sector), the odometry and the goal in the robot frame go into a multilayer perceptron (${MODELS.policy.params} parameters, behaviour-cloned in training/policy from ${MODELS.policy.trained_on.samples} moments of the classical stack's driving) and eight waypoints over the next 4 s come out, refreshed every 0.5 s; the tracker follows them. No map, no search.${S && (S.policySnap || S.policyBad) ? ` This run: ${S.policySnap || 0} waypoints moved out of an inflated obstacle, ${S.policyBad || 0} paths cut.` : ''}`
+          : 'No policy model in this build: train one with training/policy/train.py and rebuild.',
+      show: () => P.plan === 'policy'
+    },
+    {
+      k: 'policyGoal',
+      type: 'seg',
+      label: 'What the policy is pointed at',
+      opts: [
+        ['final', 'The mission goal'],
+        ['subgoal', 'A subgoal 3 m along the A* route']
+      ],
+      show: () => P.plan === 'policy'
     },
     {
       type: 'info',

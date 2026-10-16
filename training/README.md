@@ -9,4 +9,7 @@ tens of kilobytes each). Training happens here, offline, in Python: this is the 
 - Train: `source .venv/bin/activate && python3 training/detector/train.py`. It prints precision and recall on a
   held-out run and writes `src/models/detector.json`; rebuild the page with `./build.sh`.
 
+- The end-to-end policy: `training/policy/README.md` (collect with `tools/collect-policy.mjs`, including DAgger
+  rounds that need the current policy built into the page).
+
 Each block's folder has its own notes: what the network sees, what it is trained against, what the lesson measures.

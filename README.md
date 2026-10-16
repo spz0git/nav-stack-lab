@@ -22,11 +22,12 @@ The page has three modes:
   health lights per subsystem, and runs you can keep and compare.
 - **Analyze** linearizes the steering loop and shows you Bode and Nyquist plots, step responses and poles you can
   drag, then checks the linear model against the real simulation.
-- **Learn** has 40 lessons and eight chapters. Each lesson has buttons that set the lab up and run the experiment
+- **Learn** has 41 lessons and eight chapters. Each lesson has buttons that set the lab up and run the experiment
   for you, and shows the code behind what it teaches: the page's own function, with the lesson's lines marked, and an
   "Edit and run" button that puts a plain version of it in the Code tab for you to change. The numbers in the lessons
-  come from the simulator, not from a textbook. A learning track has begun: a learned people detector, trained on
-  the simulator's own ground truth in PyTorch (`training/`) and run in the page as plain JavaScript.
+  come from the simulator, not from a textbook. A learning track has begun: a learned people detector and an
+  end-to-end driving policy, both trained in PyTorch on the simulator's own ground truth (`training/`) and run in the page
+  as plain JavaScript, with lessons that measure where each works and where it does not.
 
 It is meant for students and engineers who want to see localization, perception, planning and control interact,
 change one thing, and watch what happens. Design notes, known limits and what comes next are in

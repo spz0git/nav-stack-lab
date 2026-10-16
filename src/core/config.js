@@ -113,7 +113,7 @@ const PARAM_EFFECTS = [
     }
   ],
   [
-    ['plan', 'smooth'],
+    ['plan', 'smooth', 'policyGoal'],
     () => {
       S.dstar = null; // D* Lite's search is tied to its planner and ε
       requestReplan('planner changed');

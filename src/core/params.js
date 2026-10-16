@@ -85,6 +85,8 @@ const DEFAULTS = {
   amax: 0.8,
   alpha: 3.0,
   lag: 0,
+  actNoise: 0, // random perturbation of the executed command (σ in rad/s on the turn rate, relative on speed): the collectors use it
+  policyGoal: 'final', // what the learned policy is pointed at: the mission goal, or a subgoal 3 m along the A* route
   odoK: 0,
   odoB: 0,
   lmK: 1,
@@ -122,7 +124,8 @@ const PARAM_OPTS = {
   agents: ['off', 'truth', 'lidar', 'learned'],
   agPred: ['cv', 'static', 'custom'],
   mis: ['sequential', 'greedy', 'optimal', 'explore'],
-  plan: ['straight', 'astar', 'dstar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'custom'],
+  plan: ['straight', 'astar', 'dstar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'policy', 'custom'],
+  policyGoal: ['final', 'subgoal'],
   hybH: ['both', '2d'],
   ctl: ['pp', 'rwf', 'stanley', 'pid', 'dwa', 'mpc', 'custom'],
   spd: ['none', 'stop', 'st', 'vo'],

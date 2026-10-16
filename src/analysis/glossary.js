@@ -779,6 +779,36 @@ const GLOSS = {
     'A learned block meeting inputs unlike its training data: a new sensor, site or behaviour; the central risk of learned components.',
     '',
     ['distribution shift']
+  ],
+  bc: [
+    'behaviour cloning',
+    'Imitation as regression: fit a function from what the expert saw to what it did, and run the function.',
+    '',
+    ['behaviour cloning', 'Behaviour cloning', 'imitation']
+  ],
+  compounding: [
+    'compounding error',
+    "An imitator's small mistakes take it to states the expert never showed, where the next mistakes are larger: the cost grows with the square of the horizon.",
+    '',
+    ['compounding error', 'Compounding error', 'compound']
+  ],
+  dagger: [
+    'DAgger',
+    'Dataset aggregation: let the learned policy drive, have the expert label the states it reaches, retrain on everything.',
+    '',
+    ['DAgger']
+  ],
+  dart: [
+    'noise injection',
+    "Perturb the expert's executed commands while recording its intended ones, so the demonstrations cover the states a learner will drift into (DART).",
+    '',
+    ['noise injection', 'Noise injection', 'DART']
+  ],
+  mlp: [
+    'multilayer perceptron',
+    'Dense layers with a nonlinearity between them: the plainest neural network, a function of a flat input vector.',
+    '',
+    ['multilayer perceptron', 'dense layers']
   ]
 };
 // Terms each lesson uses, in reading order (keyed by lesson title)
@@ -908,6 +938,8 @@ const LESSON_TERMS = {
   'RRT*: sampling, rewiring, and luck': 'rrtstar samples parent rewire neigh asym rrad ntree seed',
   'Hybrid A*: planning for a car': 'hybrid heading minturn arcs reverse heur hcost eps dijkstra rs analytic steerlimit fulllock tracker',
   'Replanning and the behaviour layer': 'fsm replan lethal estimate speedplanner agent states costmap',
+  'An end-to-end policy: from the scan to a path, and why it is hard':
+    'bc compounding dagger dart mlp distshift astar costmap inflation tracker lidar precision speedplanner',
   'D* Lite: repairing the plan instead of starting over':
     'dstar rhs km astar heur expansions costmap lethal inflation penalty replan fsm eps node',
   'Frontier exploration: the robot picks its own goals':

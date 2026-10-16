@@ -241,17 +241,31 @@ function dynSig(rb) {
 /* ---------- odometry model ---------- */
 const sigV = (v, w, k) => k * (0.1 * Math.abs(v) + 0.02);
 const sigW = (v, w, k) => k * (0.2 * Math.abs(w) + 0.1 * Math.abs(v) + 0.02);
+const gyroSig = () => (P.gyroSig * Math.PI) / 180,
+  gyroBias = () => (P.gyroBias * Math.PI) / 180;
 function odometry() {
   const r = S.robot,
     g = S.rngW,
     k = P.odoK;
   // the car with tyre slip measures ω from the wheels and the steering encoder (v tanδ / L), so slip is odometry error;
-  // a yaw-rate gyro (P.gyro) reports the true yaw rate instead
+  // a yaw-rate gyro (P.gyro) reports the true yaw rate instead, for every vehicle, with its own noise and bias and
+  // none of the wheels' turn-rate bias; standing still, the zero-velocity update averages the reading into a bias
+  // estimate that is subtracted from then on (what a real IMU driver does at every stop)
   const w = isDyn() && !P.gyro && r.wk != null ? r.wk : r.w;
   const vb = r.v * (1 + 0.02 * P.odoB),
-    wb = w + 0.01 * P.odoB * r.v;
-  S.odo = {v: vb + sigV(r.v, w, k) * g.n(), w: wb + sigW(r.v, w, k) * g.n()};
+    vo = vb + sigV(r.v, w, k) * g.n(); // the speed's draw first, then the turn rate's: the random sequence of every run before the gyro
+  let wo;
+  if (P.gyro) {
+    wo = w + gyroBias() + gyroSig() * g.n();
+    if (P.zupt) {
+      if (Math.abs(r.v) < 0.01 && Math.abs(S.cmd.w || 0) < 1e-6 && Math.abs(r.w) < 1e-4) S.gyroBiasEst += 0.1 * (wo - S.gyroBiasEst); // settles within a 2 s hold (40 readings), noise averaged about 4× down
+      wo -= S.gyroBiasEst;
+    }
+  } else wo = w + 0.01 * P.odoB * r.v + sigW(r.v, w, k) * g.n();
+  S.odo = {v: vo, w: wo};
 }
+// the filter's assumed turn-rate noise: the gyro's σ (scaled by the assumed-noise slider) when the gyro is on
+const filtSigW = (v, w) => (P.gyro ? P.filtK * gyroSig() : sigW(v, w, assumedK()));
 const assumedK = () => P.filtK * Math.max(P.odoK, 0.25);
 // odometry error when driving straight at v, for the UI and notes: random σ per reading and the fixed bias (as in odometry())
 const odoErr = v => ({sv: sigV(v, 0, P.odoK), sw: sigW(v, 0, P.odoK), bv: 0.02 * P.odoB * v, bw: 0.01 * P.odoB * v});

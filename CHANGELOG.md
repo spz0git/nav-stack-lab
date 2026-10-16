@@ -3,6 +3,16 @@
 The version label in the page header (`v36 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+Phase 4, content (from the assessment of 2026-10-15 and the owner's direction):
+
+- A yaw-rate gyro for every vehicle (Vehicle → Yaw-rate gyro): the turn rate comes from the gyro instead of the
+  wheels, with its own noise σ and a bias the filter is not told, and a zero-velocity update that holds the robot
+  still for 2 s at the start of a run, averages the gyro into a bias estimate and subtracts it. The filters' assumed
+  turn-rate noise follows. Lesson 6 of the localization group, *A gyro in the loop: heading is the expensive error*,
+  with six measured experiments, and chapter 2 §9 with the random walk, the bias integrals and the update.
+
 ## v36 · 2026-10-16
 
 Phase 3, code health (from the assessment of 2026-10-15):

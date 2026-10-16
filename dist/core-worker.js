@@ -882,6 +882,9 @@ const DEFAULTS = {
   Cr: 700,
   mu: 0.9,
   gyro: false,
+  gyroSig: 0.3, // yaw-rate gyro noise σ per reading [°/s]
+  gyroBias: 0, // the gyro's bias the filter is not told [°/s]
+  zupt: false, // estimate the gyro bias while standing still (zero-velocity update) and subtract it
   wheelbase: 0.6,
   steerMaxDeg: 32,
   steerRate: 1.5,
@@ -1262,6 +1265,7 @@ function reset() {
     scan: null,
     scanPts: [],
     lastZ: [],
+    gyroBiasEst: 0, // the zero-velocity update's running estimate of the gyro bias [rad/s]
     fsm: {state: 'IDLE', queue: [], lastPlanT: -99, lastBlockT: 0, prog: {t: 0, x: st[0], y: st[1]}, fails: 0, cost: null},
     track: null,
     pathId: 0,
@@ -1430,6 +1434,17 @@ const PARAM_EFFECTS = [
     }
   ],
   [['spd'], (k, v) => logE(`Response to agents → ${{none: 'ignore', stop: 'reactive stop', st: 'speed planning'}[v]}`)],
+  [
+    ['gyro', 'zupt'],
+    (k, v) => {
+      S.gyroBiasEst = 0;
+      logE(
+        k === 'gyro'
+          ? `Yaw-rate gyro → ${v ? 'on: the turn rate comes from the gyro' : 'off: the turn rate comes from the wheels'}`
+          : `Zero-velocity bias update → ${v ? 'on' : 'off'}`
+      );
+    }
+  ],
   [
     ['per'],
     (k, v) => {
@@ -1842,17 +1857,31 @@ function dynSig(rb) {
 /* ---------- odometry model ---------- */
 const sigV = (v, w, k) => k * (0.1 * Math.abs(v) + 0.02);
 const sigW = (v, w, k) => k * (0.2 * Math.abs(w) + 0.1 * Math.abs(v) + 0.02);
+const gyroSig = () => (P.gyroSig * Math.PI) / 180,
+  gyroBias = () => (P.gyroBias * Math.PI) / 180;
 function odometry() {
   const r = S.robot,
     g = S.rngW,
     k = P.odoK;
   // the car with tyre slip measures ω from the wheels and the steering encoder (v tanδ / L), so slip is odometry error;
-  // a yaw-rate gyro (P.gyro) reports the true yaw rate instead
+  // a yaw-rate gyro (P.gyro) reports the true yaw rate instead, for every vehicle, with its own noise and bias and
+  // none of the wheels' turn-rate bias; standing still, the zero-velocity update averages the reading into a bias
+  // estimate that is subtracted from then on (what a real IMU driver does at every stop)
   const w = isDyn() && !P.gyro && r.wk != null ? r.wk : r.w;
   const vb = r.v * (1 + 0.02 * P.odoB),
-    wb = w + 0.01 * P.odoB * r.v;
-  S.odo = {v: vb + sigV(r.v, w, k) * g.n(), w: wb + sigW(r.v, w, k) * g.n()};
+    vo = vb + sigV(r.v, w, k) * g.n(); // the speed's draw first, then the turn rate's: the random sequence of every run before the gyro
+  let wo;
+  if (P.gyro) {
+    wo = w + gyroBias() + gyroSig() * g.n();
+    if (P.zupt) {
+      if (Math.abs(r.v) < 0.01 && Math.abs(S.cmd.w || 0) < 1e-6 && Math.abs(r.w) < 1e-4) S.gyroBiasEst += 0.1 * (wo - S.gyroBiasEst); // settles within a 2 s hold (40 readings), noise averaged about 4× down
+      wo -= S.gyroBiasEst;
+    }
+  } else wo = w + 0.01 * P.odoB * r.v + sigW(r.v, w, k) * g.n();
+  S.odo = {v: vo, w: wo};
 }
+// the filter's assumed turn-rate noise: the gyro's σ (scaled by the assumed-noise slider) when the gyro is on
+const filtSigW = (v, w) => (P.gyro ? P.filtK * gyroSig() : sigW(v, w, assumedK()));
 const assumedK = () => P.filtK * Math.max(P.odoK, 0.25);
 // odometry error when driving straight at v, for the UI and notes: random σ per reading and the fixed bias (as in odometry())
 const odoErr = v => ({sv: sigV(v, 0, P.odoK), sw: sigW(v, 0, P.odoK), bv: 0.02 * P.odoB * v, bw: 0.01 * P.odoB * v});
@@ -2032,7 +2061,7 @@ function locPredict() {
     const G = [1, 0, -v * DT * Math.sin(th), 0, 1, v * DT * Math.cos(th), 0, 0, 1];
     const k = assumedK(),
       sv = sigV(v, w, k),
-      sw = sigW(v, w, k);
+      sw = filtSigW(v, w);
     const c = Math.cos(th),
       s = Math.sin(th),
       a = DT * DT * sv * sv,
@@ -2049,7 +2078,7 @@ function locPredict() {
       g = S.rngA,
       k = assumedK();
     const sv = Math.max(sigV(v, w, k), 0.02),
-      sw = Math.max(sigW(v, w, k), 0.02);
+      sw = Math.max(filtSigW(v, w), 0.02);
     for (let i = 0; i < f.N; i++) {
       const n = integ(f.x[i], f.y[i], f.th[i], v + sv * g.n(), w + sw * g.n(), DT);
       f.x[i] = n.x;
@@ -2342,7 +2371,7 @@ function slamPredict(v, w) {
     nx = integ(M.x[0], M.x[1], th, v, w, DT);
   const k = assumedK(),
     sv = sigV(v, w, k),
-    sw = sigW(v, w, k),
+    sw = filtSigW(v, w),
     c = Math.cos(th),
     s = Math.sin(th),
     a = DT * DT * sv * sv,
@@ -6366,6 +6395,8 @@ function normCmd(c) {
 }
 // Control latency: commands wait latency/DT ticks before reaching the actuators
 function applyCmd(c) {
+  // the zero-velocity update needs the robot still: with it on, the first 2 s of a run are a calibration hold
+  if (P.gyro && P.zupt && S.t < 2) c = {v: 0, w: 0, steer: 0};
   S.cmdIssued = c;
   const n = Math.round(P.latency / DT);
   if (!n) {

@@ -121,11 +121,27 @@ const SCHEMA = {
     {k: 'odoK', label: 'Odometry noise (× base σ)', min: 0, max: 3, step: 0.1, unit: '×'},
     {k: 'odoB', label: 'Odometry calibration bias (× base bias)', min: 0, max: 3, step: 0.1, unit: '×'},
     {type: 'info', text: odoInfo},
+    {type: 'head', label: 'Yaw-rate gyro'},
     {
       k: 'gyro',
       type: 'bool',
-      label: 'Yaw-rate gyro in the odometry (off: turn rate from the steering encoder, v tan δ / L, so tyre slip reads as odometry error)',
-      show: isDyn
+      label:
+        "Yaw-rate gyro: the turn rate comes from a gyro instead of the wheels (the car with tyre slip: instead of the steering encoder, so slip no longer reads as odometry error); its own noise and bias, none of the wheels'"
+    },
+    {k: 'gyroSig', label: 'Gyro noise σ per reading', min: 0, max: 3, step: 0.05, unit: '°/s', show: () => P.gyro},
+    {k: 'gyroBias', label: 'Gyro bias (the filter is not told)', min: 0, max: 2, step: 0.05, unit: '°/s', show: () => P.gyro},
+    {
+      k: 'zupt',
+      type: 'bool',
+      label:
+        'Zero-velocity update: average the gyro while standing still into a bias estimate and subtract it (the robot holds still for the first 2 s of a run to calibrate)',
+      show: () => P.gyro
+    },
+    {
+      type: 'info',
+      text: () =>
+        `Heading drift from the gyro alone at the cruise speed: noise σ ${P.gyroSig.toFixed(2)}°/s per reading walks about ${(P.gyroSig * Math.sqrt(60 / 0.05) * 0.05).toFixed(1)}° in a minute; a bias of ${P.gyroBias.toFixed(2)}°/s drifts ${(60 * P.gyroBias).toFixed(0)}° in a minute${P.zupt ? `, of which the zero-velocity update removes what it has learnt at stops (estimate now ${((S.gyroBiasEst * 180) / Math.PI).toFixed(2)}°/s)` : ''}.`,
+      show: () => P.gyro
     },
     {type: 'head', label: 'Beacons'},
     {type: 'beacons', label: 'Beacons on (tap to switch one off)'},

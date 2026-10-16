@@ -159,6 +159,7 @@ function reset() {
     scan: null,
     scanPts: [],
     lastZ: [],
+    gyroBiasEst: 0, // the zero-velocity update's running estimate of the gyro bias [rad/s]
     fsm: {state: 'IDLE', queue: [], lastPlanT: -99, lastBlockT: 0, prog: {t: 0, x: st[0], y: st[1]}, fails: 0, cost: null},
     track: null,
     pathId: 0,

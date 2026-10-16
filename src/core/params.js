@@ -47,6 +47,9 @@ const DEFAULTS = {
   Cr: 700,
   mu: 0.9,
   gyro: false,
+  gyroSig: 0.3, // yaw-rate gyro noise σ per reading [°/s]
+  gyroBias: 0, // the gyro's bias the filter is not told [°/s]
+  zupt: false, // estimate the gyro bias while standing still (zero-velocity update) and subtract it
   wheelbase: 0.6,
   steerMaxDeg: 32,
   steerRate: 1.5,

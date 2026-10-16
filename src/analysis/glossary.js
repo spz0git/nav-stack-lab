@@ -773,12 +773,20 @@ Object.assign(GLOSS, {
   ],
   gyro: [
     'yaw-rate gyro',
-    "A sensor that measures the yaw rate directly, so the odometry's turn rate includes the slip.",
+    'A sensor that measures the yaw rate directly, independent of the wheels: no wheel-calibration bias, its own small noise and its own bias. On the car with tyre slip it also sees the slip.',
     '',
     ['yaw-rate gyro']
+  ],
+  zupt: [
+    'zero-velocity update',
+    'Standing still, the gyro should read zero, so its average then is its bias; subtracting that estimate from later readings removes the drift it would cause. Every stop re-calibrates.',
+    '',
+    ['zero-velocity update', 'ZUPT', 'zero-velocity updates']
   ]
 });
 const LESSON_TERMS = {
+  'A gyro in the loop: heading is the expensive error':
+    'gyro bias zupt deadreck odometry thetaerr sigx Modo poserr consistent nees band2s ekf beacon',
   'Dead reckoning drifts, and knows it':
     'deadreck odometry arc v w covariance mu gmot uodo Sigma Gjac Vjac Modo sigx t thetaerr ellipse poserr band2s consistent',
   'The Kalman update, and NEES as a lie detector':

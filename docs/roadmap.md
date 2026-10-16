@@ -147,7 +147,7 @@ A third vehicle option, so that the control lessons can show understeer, the cha
 
 ## Candidate next steps
 - Agents: interaction-aware prediction (the predictor does not know people react); multi-modal prediction; JPDA/multi-hypothesis tracking.
-- Localization: timestamped (lagged-state) filtering to absorb sensor latency; scan matching for SLAM without beacons.
+- Localization: timestamped (lagged-state) filtering to absorb sensor latency; scan matching for SLAM without beacons. (A yaw-rate gyro with bias and a zero-velocity update was delivered in Phase 4, 2026-10-16: lesson 6 of the localization group, chapter 2 §9.)
 - Planning: space-time planning for the car (Hybrid A* in time).
 - Analysis: disturbance/noise spectra.
 - MPC across cusps (reference spanning the next leg, per-step speed-sign constraints) so it pre-steers for the next gear.

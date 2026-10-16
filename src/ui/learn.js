@@ -49,7 +49,8 @@ const LESSON_LAYERS = {
     ['belief', 'beam', 'trail'],
     ['belief', 'beam', 'trail'],
     ['belief', 'beam', 'lidar'],
-    ['belief', 'beam', 'trail']
+    ['belief', 'beam', 'trail'],
+    ['belief', 'trail']
   ],
   per: [
     ['lidar', 'ghost'],

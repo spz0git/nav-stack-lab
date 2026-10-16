@@ -93,6 +93,8 @@ function normCmd(c) {
 }
 // Control latency: commands wait latency/DT ticks before reaching the actuators
 function applyCmd(c) {
+  // the zero-velocity update needs the robot still: with it on, the first 2 s of a run are a calibration hold
+  if (P.gyro && P.zupt && S.t < 2) c = {v: 0, w: 0, steer: 0};
   S.cmdIssued = c;
   const n = Math.round(P.latency / DT);
   if (!n) {

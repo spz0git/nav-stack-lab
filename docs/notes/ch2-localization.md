@@ -211,6 +211,40 @@ The cost is the dense $P$: each update is $O(n^2)$ and memory is $O(n^2)$ in the
 
 [try: EKF-SLAM, range 7 m | {"sim":true,"level":2,"set":{"loc":"slam"},"tab":"loc","plot":"pos"}] [try: Range 12 m | {"sim":true,"level":2,"set":{"loc":"slam","lmRange":12},"tab":"loc","plot":"pos"}]
 
-## 9. What to carry into the next chapters
+## 9. Heading sensors: a gyro in the motion model
+
+Nothing in the filter changes when the turn rate comes from a yaw-rate gyro instead of the wheel encoders. The input is still $u = (v, \omega)$ and the prediction is still the arc model of §2 with its Jacobians $G$ and $V$; what changes is the input noise. The wheels' turn rate is a difference of two wheel speeds, so its noise is large and it carries the wheel-calibration bias; the gyro reads the body's yaw rate directly, with a small noise of its own and none of the wheel geometry. In the lab the gyro's reading is
+
+$$
+\omega_g = \omega + b + n, \qquad n \sim \mathcal N(0, \sigma_g^2), \qquad \sigma_g = 0.3°/\mathrm s \text{ per reading}
+$$
+
+against the wheels' $\sigma_\omega = 0.2|\omega| + 0.1|v| + 0.02$ rad/s, about $5.7°/\mathrm s$ at 0.8 m/s, plus their bias of $0.01\,v$ rad/s. So $M = \mathrm{diag}(\sigma_v^2, \sigma_g^2)$ and the heading's share of $V M V^{\mathsf T}$ shrinks by $(\sigma_\omega/\sigma_g)^2$, about 360 times at the cruise speed.
+
+**The random walk.** Each tick adds $\sigma_g^2 \Delta t^2$ to the heading variance (the $b$ term of §2), so after $t$ seconds of noise alone
+
+$$
+\sigma_\theta^2(t) = \sigma_g^2\,\Delta t\, t,
+$$
+
+a random walk: the standard deviation grows with $\sqrt t$. With $\sigma_g = 0.3°/\mathrm s$ and $\Delta t = 0.05$ s that is $0.5°$ after a minute, against $10°$ for the wheels' noise alone, and the wheels' bias adds $0.46°/\mathrm s$ on top, which is not a random walk but a straight line.
+
+**A constant bias.** A gyro bias $b$ the filter does not know integrates once into the heading and twice into the sideways position:
+
+$$
+\theta_{err}(t) = b\,t, \qquad e_\perp(t) \approx \int_0^t v\,\theta_{err}\,\mathrm d\tau = \tfrac12\, v\, b\, t^2.
+$$
+
+At $0.5°/\mathrm s$ and 0.8 m/s that is $30°$ and 7.9 m after a minute of straight driving. Meanwhile $\Sigma$ grows only by the noise term, so the filter is overconfident by the ratio of the two, which is why NEES explodes in the lesson. On a real MEMS gyro the bias is a few tenths of a degree per second and moves with temperature; this is the dominant error of every IMU-based dead reckoning, not the noise.
+
+**The zero-velocity update.** While the robot stands still the true yaw rate is exactly zero, so every reading is $b + n$ and their mean is an estimate of $b$ with standard deviation $\sigma_g / \sqrt N$ over $N$ readings. The lab uses an exponential average,
+
+$$
+\hat b \leftarrow \hat b + \alpha(\omega_g - \hat b), \qquad \alpha = 0.1,
+$$
+
+which settles in the 2 s hold at the start of a run (40 readings; the remaining fraction of the bias is $0.9^{40} \approx 1.5\,\%$) and averages the noise down by $\sqrt{\alpha/(2-\alpha)} \approx 0.23$, so the estimate is good to about $0.07°/\mathrm s$. The estimate is then subtracted from every reading, and refreshed at every later stop. The alternative, used when stops are rare, is to make $b$ a fourth state of the filter: the beacons then observe it through the heading, and §4 corrects it like everything else. Both are standard; the lab keeps the three-state filter and uses the stop.
+
+## 10. What to carry into the next chapters
 
 Three ideas from this chapter recur everywhere in the stack. Linearize, then propagate covariance through the Jacobian: the tracker's constant-velocity filter in chapter 3 is the same machinery on a person's position and velocity. Measure surprise in units of the expected spread: the Mahalanobis gate reappears in data association for tracks, and NEES is the test for any filter that claims a covariance. And keep the uncertainty honest rather than small: the costmap margins, the speed planner's growing radii and the lost guard all consume $\Sigma$, and all of them are only as good as it is.

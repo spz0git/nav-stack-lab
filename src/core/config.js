@@ -71,6 +71,17 @@ const PARAM_EFFECTS = [
   ],
   [['spd'], (k, v) => logE(`Response to agents → ${{none: 'ignore', stop: 'reactive stop', st: 'speed planning'}[v]}`)],
   [
+    ['gyro', 'zupt'],
+    (k, v) => {
+      S.gyroBiasEst = 0;
+      logE(
+        k === 'gyro'
+          ? `Yaw-rate gyro → ${v ? 'on: the turn rate comes from the gyro' : 'off: the turn rate comes from the wheels'}`
+          : `Zero-velocity bias update → ${v ? 'on' : 'off'}`
+      );
+    }
+  ],
+  [
     ['per'],
     (k, v) => {
       if (v === 'mapping') S.lo.fill(0);

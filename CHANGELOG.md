@@ -1,9 +1,9 @@
 # Changelog
 
-The version label in the page header (`v36 · 2026-10-16`) is the number used here; `src/version.json` holds it.
+The version label in the page header (`v37 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v37 · 2026-10-16
 
 Phase 4, content (from the assessment of 2026-10-15 and the owner's direction):
 

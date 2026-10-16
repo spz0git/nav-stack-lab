@@ -1,1 +1,1 @@
-{"version": 36, "date": "2026-10-16", "note": "Phase 3, code health (PRs #71–#76): ESLint over the shared scope in CI, the source formatted with Prettier at 140 columns, draw, ctlMPC and renderAnalysis split with headers on every long function, setParam validates its values with an ordered effects table, unit tests for the numerics, the manifest's core/ui split made exact"}
+{"version": 37, "date": "2026-10-16", "note": "Phase 4 Part A: gyro + ZUPT, pole placement + LQR, frontier exploration (PRs #77–#79)"}

@@ -69,7 +69,7 @@
         <div class="tele-grid">
           <div class="plotcol" id="plotcol" data-n="1"><canvas id="plot" aria-label="Time series plot"></canvas></div>
           <div class="tele-side">
-            <div class="tele-log"><h3>Event log</h3><ol class="log" id="log"></ol></div>
+            <div class="tele-log"><div class="logbar"><h3>Event log</h3><input type="search" id="log-q" class="logq" placeholder="Search" aria-label="Search the event log" autocomplete="off"><span class="seg sm" id="log-sev" aria-label="Severity"></span><button type="button" class="ibtn" id="log-order" aria-pressed="false" title="Oldest first">↓</button><span class="lbl" id="log-n"></span></div><ol class="log" id="log"></ol></div>
             <div class="tele-met"><h3>Metrics</h3><dl class="metrics" id="metrics"></dl></div>
           </div>
         </div>

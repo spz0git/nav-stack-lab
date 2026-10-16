@@ -462,6 +462,14 @@ details.see>p{margin:0 0 5px}
 .log li.later,.log li.later span{color:var(--muted)}   /* after the replayed moment: dimmer, still readable (5.9:1) */
 .log li span{color:var(--muted);text-align:right}
 .log li.warn{color:var(--warn)} .log li.bad{color:var(--bad)} .log li.ok{color:var(--ok)}
+/* the log's toolbar (Phase 2.4): search, severity, order */
+.logbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.logbar h3{margin-right:auto}
+.logq{width:9em;font:inherit;font-size:.78rem;padding:2px 6px;border:1px solid var(--line);border-radius:4px;background:var(--raise);color:var(--ink)}
+.logbar .ibtn{padding:1px 7px;font-size:.8rem}.logbar .ibtn[aria-pressed="true"]{color:var(--ink);border-color:var(--muted)}
+.logbar .lbl{font-family:var(--f-mono);font-size:.72rem}
+.log li.hit{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.tl-m.hit{background:var(--accent);top:1px;height:26px;width:2px;opacity:.7}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
 
 .srcdlg{width:min(96vw,980px);max-height:90vh;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:0;display:flex;flex-direction:column}

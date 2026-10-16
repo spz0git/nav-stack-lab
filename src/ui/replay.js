@@ -36,10 +36,11 @@ function syncScrub(){
   $('#scrubt').textContent=n<2?'no recording yet':REPLAY.active?`${f.t.toFixed(1)} / ${tEnd.toFixed(1)} s · replay`:`${S.t.toFixed(1)} s · live`;
   $('#scrub-live').hidden=!REPLAY.active;
   // marks: redrawn when the log or the recorded span changes
-  const t0=n?F[0].t:0,span=Math.max(1e-6,tEnd-t0),key=S.log.length+'|'+(S.log[0]&&S.log[0].t)+'|'+t0.toFixed(1)+'|'+tEnd.toFixed(0)+'|'+HEALTH.ev.length;
+  const t0=n?F[0].t:0,span=Math.max(1e-6,tEnd-t0),key=S.log.length+'|'+(S.log[0]&&S.log[0].t)+'|'+t0.toFixed(1)+'|'+tEnd.toFixed(0)+'|'+HEALTH.ev.length+'|'+LOGV.q;
   if(key!==tlKey){tlKey=key;
     $('#tl-marks').innerHTML=n<2?'':S.log.map(l=>{const k=tlKind(l.msg);if(!k||l.t<t0-1e-6||l.t>tEnd+1e-6)return'';return`<i class="tl-m ${k[0]}" style="left:${(100*(l.t-t0)/span).toFixed(2)}%" title="${l.t.toFixed(1)} s · ${esc(l.msg)}"></i>`;}).join('')+
-      HEALTH.ev.filter(h=>h.t>=t0-1e-6&&h.t<=tEnd+1e-6).map(h=>`<i class="tl-m h-${h.lvl}" style="left:${(100*(h.t-t0)/span).toFixed(2)}%" title="${h.t.toFixed(1)} s · ${esc(h.msg)}"></i>`).join('');}   // health lights turning amber or red (health.js)
+      HEALTH.ev.filter(h=>h.t>=t0-1e-6&&h.t<=tEnd+1e-6).map(h=>`<i class="tl-m h-${h.lvl}" style="left:${(100*(h.t-t0)/span).toFixed(2)}%" title="${h.t.toFixed(1)} s · ${esc(h.msg)}"></i>`).join('')+   // health lights turning amber or red (health.js)
+      (LOGV.q?S.log.filter(l=>logShow(l)&&l.t>=t0-1e-6&&l.t<=tEnd+1e-6).map(l=>`<i class="tl-m hit" style="left:${(100*(l.t-t0)/span).toFixed(2)}%" title="${l.t.toFixed(1)} s · ${esc(l.msg)}"></i>`).join(''):'');}   // lines matching the log search
 }
 {const r=$('#scrubr');
  r.oninput=e=>{seekFrame(+e.target.value);};

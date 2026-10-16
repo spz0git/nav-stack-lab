@@ -17,6 +17,8 @@ Phase 2, workspace polish (from the assessment of 2026-10-15):
   `mode=an` in Analyze and `t=12.3` while a recorded moment is replayed; `#learn`, `#lesson=…` or `#notes=…` in
   Learn. A pasted link applies while the page is open, and a link with `t=` runs the setup to that moment and shows
   it paused (`ui/urlstate.js`).
+- The event log has a search box (matching lines are marked on the timeline), a severity filter (All, Warnings,
+  Errors), an order toggle (oldest first) and follows the replayed moment.
 
 ## v34 · 2026-10-16
 

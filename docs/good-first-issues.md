@@ -5,7 +5,7 @@ a test or a measurement that says when it is done. The gate every PR passes is i
 
 ## 1. A lesson on the gate: what Mahalanobis gating does to a wrong beacon (content)
 
-**Where:** `src/analysis/lessons2.js`, localization group; chapter 2 §6 already derives the gate.
+**Where:** a new file `docs/lessons/loc/06-….md` (the format is in the header of `tools/lessons.mjs`); chapter 2 §6 already derives the gate.
 **What:** a lesson with two Trys on L3: beacons with clutter (`clutter` setting) with the gate on, then the gate
 opened wide (the `gate` setting), and the NEES and pose RMS of both measured with `tests/measure_loc.py` and quoted in
 "What you will see". Link the formula to `#notes=ch2/data-association-and-the-gate`.

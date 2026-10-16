@@ -42,6 +42,7 @@ src/
   analysis/         linear loop analysis (num, model, plots, lessons, glossary)
   worker/main.js    headless runner: core/* + this file = dist/core-worker.js, embedded in the page
 docs/notes/         the eight companion chapters (markdown + TeX), converted by tools/notes.mjs at build time
+docs/lessons/       the 32 lessons (markdown with HTML bodies), read by tools/lessons.mjs at build time
 tests/              Playwright tests, the Node golden test, and the measurement scripts the lessons' numbers come from
 ```
 
@@ -51,8 +52,11 @@ Build: `node build.mjs` → `dist/nav-stack-lab.html` (the page) and `dist/core-
 
 `docs/notes/*.md` are the chapters shown in Learn mode: markdown with TeX formulas, plus `{{live:key}}` for numbers
 the app computes from the current settings (defined in `src/ui/chapters.js`) and `[try: Label | {cfg}]` for
-buttons that set the simulator or the analysis up; the header of `tools/notes.mjs` documents both. A lesson
-(`src/analysis/lessons.js`, `lessons2.js`) links to the section that derives its formula with
-`<a class="chref" href="#notes=ch2/<section-slug>">`, and Back from the chapter returns to the lesson. A Try is
-`['Label', cfg]` or, explained, `['Label', cfg, {setup, see, shows}]`; a lesson may carry `q: [[question, answer], …]`.
-The numbers in a lesson's "What you will see" are measured headless first with the `tests/measure_*.py` scripts.
+buttons that set the simulator or the analysis up; the header of `tools/notes.mjs` documents both. A lesson is a
+markdown file in `docs/lessons/<group>/*.md` (front matter, the body, then `## Try: Label` sections with `cfg:`,
+`Setup:`, `See:`, `Shows:`, `Predict:` with options and `Answer:`, a `## Think about` section of Q:/A: pairs and a
+`## Check yourself`); the header of `tools/lessons.mjs` documents the format, and the build inlines them as
+`LESSON_DATA` (`analysis/lessons-data.js`), which `analysis/lessons.js` and `lessons2.js` expose as before. A lesson
+links to the section that derives its formula with `<a class="chref" href="#notes=ch2/<section-slug>">`, and Back
+from the chapter returns to the lesson. The numbers in a lesson's "What you will see" are measured headless first
+with the `tests/measure_*.py` scripts.

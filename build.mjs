@@ -1,9 +1,10 @@
 // Build: src/ → dist/nav-stack-lab.html (single file). Usage: node build.mjs [--check]
-import fs from 'node:fs';import path from 'node:path';import {execSync} from 'node:child_process';import {buildNotes} from './tools/notes.mjs';
+import fs from 'node:fs';import path from 'node:path';import {execSync} from 'node:child_process';import {buildNotes} from './tools/notes.mjs';import {buildLessons} from './tools/lessons.mjs';
 const src=p=>fs.readFileSync(path.join('src',p),'utf8');
 const manifest=JSON.parse(src('manifest.json'));
 const notes=buildNotes();   // docs/notes/*.md → the Learn column's companion chapters
-const js=manifest.map(f=>`/* ---- ${f} ---- */\n`+src(f)).join('\n').replace('/*__CHAPTERS__*/[]',()=>JSON.stringify(notes).replace(/<\/script/g,'<\\/script'));
+const lessons=buildLessons();   // docs/lessons/<group>/*.md → the lessons
+const js=manifest.map(f=>`/* ---- ${f} ---- */\n`+src(f)).join('\n').replace('/*__CHAPTERS__*/[]',()=>JSON.stringify(notes).replace(/<\/script/g,'<\\/script')).replace('/*__LESSONS__*/{loc:[],per:[],plan:[],ctl:[],ctlExtra:[]}',()=>JSON.stringify(lessons).replace(/<\/script/g,'<\\/script'));
 // Version label: src/version.json is bumped with every release (no build time or commit hash, so dist/ stays reproducible)
 const ver=JSON.parse(src('version.json')),verText=`v${ver.version} · ${ver.date}`;
 // Fonts: src/fonts/fonts.json lists the faces; each file is embedded as a data: URI so the page makes no network request at runtime
@@ -18,4 +19,4 @@ const page2=page.replace('/*__WORKER__*/',()=>worker.replace(/<\/script/g,'<\\/s
 fs.writeFileSync('dist/nav-stack-lab.html',page2);
 fs.writeFileSync('dist/app.js',"(()=>{\n'use strict';\n"+js+"\n})();");
 try{execSync('node --check dist/app.js',{stdio:'pipe'});}catch(e){console.error(String(e.stderr));process.exit(1);}
-console.log('BUILD_OK',verText,'·',manifest.length,'modules,',notes.length,'chapters,',(page2.length/1024).toFixed(0),'KB');
+console.log('BUILD_OK',verText,'·',manifest.length,'modules,',notes.length,'chapters,',Object.values(lessons).reduce((a,b)=>a+b.length,0),'lessons,',(page2.length/1024).toFixed(0),'KB');

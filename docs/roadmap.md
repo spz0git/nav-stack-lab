@@ -130,6 +130,13 @@ A third vehicle option, so that the control lessons can show understeer, the cha
   lesson; measured against scripted people (who walk through the robot in an aisle: contacts no velocity avoids),
   reacting people (none) and the shelves (the cones know no walls; the safety stop stops the mission too). Part A is
   complete; what the four items showed about the lab is in their lessons.
+- Track B, first block (B1, the owner's revised order: detection before occupancy): the learned people detector,
+  `training/detector/`, `src/models/detector.json`, `src/core/nn.js`, `agDetectLearned`. Design notes: the decisive
+  feature is the previous scan reprojected through the odometry (without it precision was 0.20; with it 0.73); the
+  class weight is the square root of the ratio (the full ratio buys recall with false beams); a 0.6 threshold and a
+  two-beam minimum per detection; both levels with people are in the training set, so the only shift the lab can
+  show is a new seed, which the lesson says. Per-target scan matching is a Kalman velocity measurement from ICP of
+  a track's hits (ICP got a minimum-pairs parameter for that). Next: C1, the end-to-end lidar-to-trajectory policy.
 - The code behind every lesson (owner's direction: show the code and let the learner change it; "Your code" was a
   button with no explanation). A function marked `// @code <id> | <title>` … `// @end` in the source is a snippet; the
   build indexes the markers (`tools/code.mjs`) and the page cuts the text from its own script tag at runtime

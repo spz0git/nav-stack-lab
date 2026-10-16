@@ -88,7 +88,7 @@ function pgPoints(ranges) {
 // frame. Each step pairs every source point with its nearest destination point, then solves the pairing's best rigid
 // transform in closed form (centroids, the 2×2 cross-covariance M, θ = atan2(M₁₀ − M₀₁, M₀₀ + M₁₁)). Returns the pose,
 // the residual RMS over the final pairs and the share of source points paired within 0.3 m.
-function icp2d(src, dst, T0) {
+function icp2d(src, dst, T0, minPairs = 12) {
   let T = {...T0};
   const PAIR = 0.5;
   let pairs = [],
@@ -111,7 +111,7 @@ function icp2d(src, dst, T0) {
       }
       if (bq) pairs.push([p, bq, bd]);
     }
-    if (pairs.length < 12) return null;
+    if (pairs.length < minPairs) return null;
     let sx = 0,
       sy = 0,
       dx = 0,

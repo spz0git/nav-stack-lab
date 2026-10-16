@@ -251,6 +251,8 @@ function renderBeaconSensor() {
   el.innerHTML = beaconSensorHTML();
 }
 const TIPS = {
+  agICP:
+    "Each track keeps the hit points of its last detection; the next detection's points are aligned to them by ICP, and the displacement over the 0.1 s between scans is a velocity measurement the Kalman filter fuses directly, instead of inferring velocity from positions over a second.",
   voT: "How far ahead a collision counts: a robot velocity that meets a person within this time is inside that person's velocity obstacle. Short: late, sharp detours; long: wide berths and more false alarms from people who will have turned.",
   voMargin: "Added to the sum of the robot's and the person's radii when the cones are built: the gap the detour keeps.",
   pgKf: 'A new keyframe (a pose with its scan, joined to the previous one by an odometry edge) every time the robot has moved this far or turned 20°. Closer keyframes give more loop closures and a bigger graph to optimize.',

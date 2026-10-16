@@ -4,13 +4,14 @@ import path from 'node:path';
 import {execSync} from 'node:child_process';
 import {buildNotes} from './tools/notes.mjs';
 import {buildLessons} from './tools/lessons.mjs';
-import {buildCode, buildExamples} from './tools/code.mjs';
+import {buildCode, buildExamples, buildModels} from './tools/code.mjs';
 const src = p => fs.readFileSync(path.join('src', p), 'utf8');
 const manifest = JSON.parse(src('manifest.json'));
 const notes = buildNotes(); // docs/notes/*.md → the Learn column's companion chapters
 const lessons = buildLessons(); // docs/lessons/<group>/*.md → the lessons
 const code = buildCode(), // the "// @code" snippets the lessons show
-  examples = buildExamples(); // src/examples → the Code tab's slot examples
+  examples = buildExamples(), // src/examples → the Code tab's slot examples
+  models = buildModels(); // src/models → the learned blocks' weights
 for (const g of Object.keys(lessons))
   for (const L of lessons[g]) {
     if (!L.code) continue;
@@ -23,6 +24,7 @@ for (const g of Object.keys(lessons))
 const inlineData = s =>
   s
     .replace(/\/\*__EXAMPLES__\*\/\s*\{\s*\}/, () => JSON.stringify(examples).replace(/<\/script/g, '<\\/script'))
+    .replace(/\/\*__MODELS__\*\/\s*\{\s*\}/, () => JSON.stringify(models))
     .replace(/\/\*__CODE__\*\/\s*\{\s*\}/, () => JSON.stringify(code).replace(/<\/script/g, '<\\/script'));
 const js = inlineData(manifest.map(f => `/* ---- ${f} ---- */\n` + src(f)).join('\n'))
   // the placeholders are a comment plus an empty literal, matched loosely so that a formatter cannot break them
@@ -63,7 +65,7 @@ try {
   process.exit(1);
 }
 const page2 = page.replace('/*__WORKER__*/', () => worker.replace(/<\/script/g, '<\\/script'));
-if (!/"id":"ch1"/.test(page2) || !/"t":"Dead reckoning drifts/.test(page2) || /__EXAMPLES__|__CODE__/.test(page2)) {
+if (!/"id":"ch1"/.test(page2) || !/"t":"Dead reckoning drifts/.test(page2) || /__EXAMPLES__|__CODE__|__MODELS__/.test(page2)) {
   console.error('BUILD FAILED: the chapters, the lessons, the examples or the code snippets did not get inlined (placeholder mismatch)');
   process.exit(1);
 }

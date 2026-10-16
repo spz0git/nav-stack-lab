@@ -67,7 +67,7 @@ const PARAM_EFFECTS = [
     ['agents'],
     (k, v) => {
       S.agents = agInit();
-      logE(`Agent tracking → ${{off: 'off', truth: 'ground truth', lidar: 'lidar'}[v]}`);
+      logE(`Agent tracking → ${{off: 'off', truth: 'ground truth', lidar: 'lidar', learned: 'learned detector'}[v]}`);
     }
   ],
   [

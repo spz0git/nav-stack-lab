@@ -166,3 +166,20 @@ test('pgOptimize: a square of odometry edges with a closing edge comes out squar
   near(C.wrap(n[3].th + Math.PI / 2), 0, 0.035, 'th3');
   assert.ok(G.opt.chi2 < 50, `chi2 ${G.opt.chi2}`);
 });
+
+test('nnForward: a circular 1D convolution matches the hand-computed values', () => {
+  // 4 positions, 1 channel, kernel 3 with weights [1, 2, 3], bias 0.5, no activation; then a 1-wide sigmoid layer
+  const model = {
+    layers: [
+      {cin: 1, cout: 1, k: 3, w: [1, 2, 3], b: [0.5], act: 'none'},
+      {cin: 1, cout: 1, k: 1, w: [1], b: [0], act: 'sigmoid'}
+    ]
+  };
+  const x = new Float32Array([1, 0, 0, 2]),
+    y = C.nnForward(model, x, 4);
+  // position 0 sees (x3, x0, x1) = (2, 1, 0): 1·2 + 2·1 + 3·0 + 0.5 = 4.5; position 3 sees (x2, x3, x0) = (0, 2, 1): 0 + 4 + 3 + 0.5 = 7.5
+  const sig = v => 1 / (1 + Math.exp(-v));
+  near(y[0], sig(4.5), 1e-6, 'y0');
+  near(y[1], sig(1 * 1 + 2 * 0 + 3 * 0 + 0.5), 1e-6, 'y1');
+  near(y[3], sig(7.5), 1e-6, 'y3');
+});

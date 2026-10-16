@@ -765,6 +765,20 @@ const GLOSS = {
     'Velocity obstacles for two parties that both avoid: each takes half the detour, which stops the dance of two VO agents.',
     '',
     ['Reciprocal velocity obstacles', 'reciprocal velocity obstacles', 'RVO']
+  ],
+  conv1d: [
+    '1D convolution',
+    'A small filter slid along the ring of beams, so each output depends on a few neighbouring beams; stacked, the layers see further.',
+    '',
+    ['one-dimensional convolution', '1D convolution', 'convolution']
+  ],
+  precision: ['precision', 'The share of detections that are real: true detections over all detections.', '', ['precision']],
+  recall: ['recall', 'The share of real people that were detected: true detections over detectable people.', '', ['recall']],
+  distshift: [
+    'distribution shift',
+    'A learned block meeting inputs unlike its training data: a new sensor, site or behaviour; the central risk of learned components.',
+    '',
+    ['distribution shift']
   ]
 };
 // Terms each lesson uses, in reading order (keyed by lesson title)
@@ -885,6 +899,8 @@ const LESSON_TERMS = {
   'Tracking people: from lidar hits to tracks':
     'cluster lidar cvkf track mahal confirm coast xag pxy vxy Fcv Qproc siga d2 pt pag vag t rt rag ggrow groundtruth',
   'Sensor latency: stale readings, moving prediction': 'latency tick lidar beacon nu Ts v nees ekf pf inject timestamp lagged biased',
+  'A learned detector: people from the shape and motion of the hits':
+    'conv1d precision recall distshift track cvkf cluster lidar logodds agent icp speedplanner odometry',
   'Velocity obstacles: steering around people in velocity space':
     'vo rvo track cvkf agent speedplanner socialforce contacts closest lidar costmap tracker',
   'People who react': 'socialforce Fsf v0p edir vp tausf sumO Asf rij dpp Bsf ndir contacts closest',

@@ -35,7 +35,7 @@ function lidarApply(ranges) {
   for (let k = 0; k < NBEAM; k++) {
     if (ranges[k] >= LMAX - 1e-3) continue;
     const a = e.th - Math.PI + (k * TAU) / NBEAM;
-    pts.push([e.x + ranges[k] * Math.cos(a), e.y + ranges[k] * Math.sin(a)]);
+    pts.push([e.x + ranges[k] * Math.cos(a), e.y + ranges[k] * Math.sin(a), k]); // with the beam index (the learned detector's colouring)
   }
   S.scanPts = pts;
   S.scanTick = S.tick;

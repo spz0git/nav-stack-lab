@@ -3,6 +3,13 @@
 The version label in the page header (`v33 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+Phase 1, the learning path (from the assessment of 2026-10-15):
+
+- Learn opens with a "Start here" card: who the lessons are for, what they assume, how lessons, chapters, levels and
+  the Symbols tab relate, and a first pass of eight lessons with a reading time each (`src/ui/path.js`).
+
 ## v33 · 2026-10-16
 
 README rewritten in plain language; the module map and the lesson/chapter format move to `src/README.md`; the

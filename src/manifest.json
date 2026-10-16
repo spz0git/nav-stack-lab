@@ -43,6 +43,7 @@
  "analysis/lessons.js",
  "analysis/glossary.js",
  "ui/learn.js",
+ "ui/path.js",
  "ui/chapters.js",
  "ui/experiments.js",
  "ui/replay.js",

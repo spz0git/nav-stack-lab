@@ -5608,7 +5608,7 @@ function renderStatus(){
   const st=contact?'CONTACT':ready?'READY':F.state.replace('_',' '),cls=contact?'bad':ready?'ready':STATE_CLS[F.state];
   const cell=(k,v,c='',tip='')=>`<span class="kv"${tip?` title="${tip}"`:''}><span>${k}</span><b class="${c}">${v}</b></span>`;
   $('#status').innerHTML=`<span class="pill ${cls}">${st}</span>${F.state==='IDLE'&&WPS.length===0?`<span class="st-note">tap the map to add goals</span>`:''}`+
-   cell('t',`${V.t.toFixed(1)} s`,f?'replay':'',f?'Replaying a recorded moment; Live or Run returns to the live state':'')+cell('goals',`${done}/${f?f.done.length:WPS.length}`)+cell('pose error',`${ep.toFixed(2)} m`,ep>0.5?'bad':'','Distance between the true pose and the estimate')+
+   cell('t',`${V.t.toFixed(1)} s`,f?'replay':'',f?'Replaying a recorded moment; Live or Run returns to the live state':'')+cell('goals',`${done}/${f?f.done.length:WPS.length}`)+(P.loc==='truth'?cell('pose','known','','Ground truth: the estimate is the true pose; pick an estimator in Localize to see an error'):cell('pose error',`${ep.toFixed(2)} m`,ep>0.5?'bad':'','Distance between the true pose and the estimate'))+
    cell('collisions',String(nc),nc?'bad':'',`${V.coll} static, ${V.collPed} people`)+(isCar()?cell('gear · steer',`${r.v<-0.01?'R':r.v>0.01?'D':'–'} · ${deg(r.d).toFixed(0)}°`):'')+(f?`<span class="st-replay" title="The page shows a recorded moment. Live or Run returns to the live state.">replay</span>`:'');
   $('#run').textContent=running?'Pause':'Run';
 }
@@ -5619,9 +5619,10 @@ function renderMetrics(){
   const items=[
     ['Distance',`${S.dist.toFixed(1)} m`],
     ['Collisions',`${S.coll} static, ${S.collPed} people${S.collPedStill?` (${S.collPedStill} into the stopped robot)`:''}`],
+    ...(P.loc==='truth'?[['Localization','ground truth: the pose is known, no estimate error','loc']]:[
     ['Pose error',`${ep.toFixed(2)} m · ${deg(Math.abs(wrap(r.th-e.th))).toFixed(1)}°`,'loc'],
     ['Pose RMS',S.errN?`${Math.sqrt(S.errSq/S.errN).toFixed(2)} m`:'—','loc'],
-    ['NEES (3 = consistent)',nees==null?'—':`${nees.toFixed(1)}${nees>7.8?' · overconfident':''}`,'loc'],
+    ['NEES (3 = consistent)',nees==null?'—':`${nees.toFixed(1)}${nees>7.8?' · overconfident':''}`,'loc']]),
     ['Cross-track RMS',S.cteN?`${Math.sqrt(S.cteSq/S.cteN).toFixed(3)} m`:'—','ctl'],
     ['Last plan',ps?`${ps.name} · ${ps.len.toFixed(1)} m${ps.extra?' · '+ps.extra:''} · ${ps.ms.toFixed(0)} ms`:'—','plan'],
     ['Search effort',ps&&ps.exp?`${ps.exp} ${ps.name==='RRT*'?'tree nodes':'expansions'}`:'—','plan'],
@@ -8264,7 +8265,11 @@ $('#an-play').onclick=()=>{const pl=AN.play,R=AN.res;if(!R)return;if(!pl||pl.t>=
 $('#an-scrub').oninput=e=>{const R=AN.res;if(!R)return;const sp=AN.play?AN.play.speed:1;AN.play={t:+e.target.value/100,on:false,last:performance.now(),speed:sp};drawStep(R);anPlayUI();};
 seg($('#an-pspeed'),[['0.5','½×'],['1','1×'],['2','2×']],()=>String(AN.play?AN.play.speed:1),v=>{if(!AN.play)AN.play={t:0,on:false,last:performance.now(),speed:1};AN.play.speed=+v;});
 const PLOT_OPTS=[['pos','Position error'],['eth','θ error'],['cte','Cross-track'],['v','Speed'],['turn','Steering'],['st','ST graph']];
-seg($('#plotsel'),PLOT_OPTS,()=>plotCh,v=>{plotCh=v;drawPlot();});
+seg($('#plotsel'),PLOT_OPTS,()=>plotCh,v=>{plotCh=v;plotUser=true;drawPlot();});
+// The preset plot follows the level until the user picks one: cross-track where the pose is known (L1, L2, L6, L7:
+// the position error would be a flat zero), position error where there is an estimate to judge.
+let plotUser=false;
+function plotDefault(){if(plotUser)return;const ch=P.loc==='truth'?'cte':'pos';if(ch!==plotCh){plotCh=ch;seg($('#plotsel'),PLOT_OPTS,()=>plotCh,v=>{plotCh=v;plotUser=true;drawPlot();});}}
 $('#plotsel2').onchange=e=>{plotCh2=e.target.value;drawPlot();};
 let firstRun=true;function firstRunDone(){if(!firstRun)return;firstRun=false;const h=$('#firstrun');if(h)h.hidden=true;}
 $('#firstrun-x').onclick=firstRunDone;
@@ -9224,7 +9229,7 @@ wsApply();
 /* ---- ui/boot.js ---- */
 
 /* ---------- boot ---------- */
-UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{SEL=null;buildLevels();applyTabLayers(true);renderAllPanes();};UI.mode=()=>AN.mode;
+UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{SEL=null;buildLevels();applyTabLayers(true);plotDefault();renderAllPanes();};UI.mode=()=>AN.mode;
 buildTabs();loadLevel(0);{const c=configFromHash();if(c){try{applyConfig(c);logE('Setup restored from the link','ok');}catch(e){logE('Could not restore the setup from the link: '+e.message,'warn');}}}syncModeUI();renderLearn();lessonFromHash()||chapterFromHash();readTokens();draw();drawPlot();
 requestAnimationFrame(loop);
 window.__an={AN,anCompute,GLOSS,LESSON_TERMS,glossMark,lessonTerms,LESSONS_EXTRA,LESSON_GROUPS,spdCompute,runStepTest,runInjection,setMode,setUIMode,openLesson,lessonBack,openChapter,chapterBack,get lessonOpen(){return lessonOpen;},lessonGo,LESSONS,stepMetrics,Ljw,anBuild};window.__runs={RUNS,runSnapshot,runImport,runExportJSON:r=>{const{_S,id,...run}=r;return JSON.stringify({format:'nav-stack-lab-run',version:1,run});}};window.__plots={TW,runCSV,plotsImage,PANES,addPane,SIGNALS,sigAt,timeWindow};window.__nav={scatter:()=>scatterParticles(),kidnapTo,get S(){return S;},P,LEVELS,loadLevel,advance,setParam,get WPS(){return WPS;},toScreen:(x,y)=>toScreen(x,y),get VIEW(){return VIEW;},get GHOST(){return GHOST;},LAYERS,EXP,expCSV,configURL,get LV(){return LV;},SLOTS,slotLoad,slamLandmarks,tryGo,actuate,dynInfo,dynSlip,health:()=>healthNow(null)};

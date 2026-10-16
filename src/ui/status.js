@@ -9,7 +9,7 @@ function renderStatus(){
   const st=contact?'CONTACT':ready?'READY':F.state.replace('_',' '),cls=contact?'bad':ready?'ready':STATE_CLS[F.state];
   const cell=(k,v,c='',tip='')=>`<span class="kv"${tip?` title="${tip}"`:''}><span>${k}</span><b class="${c}">${v}</b></span>`;
   $('#status').innerHTML=`<span class="pill ${cls}">${st}</span>${F.state==='IDLE'&&WPS.length===0?`<span class="st-note">tap the map to add goals</span>`:''}`+
-   cell('t',`${V.t.toFixed(1)} s`,f?'replay':'',f?'Replaying a recorded moment; Live or Run returns to the live state':'')+cell('goals',`${done}/${f?f.done.length:WPS.length}`)+cell('pose error',`${ep.toFixed(2)} m`,ep>0.5?'bad':'','Distance between the true pose and the estimate')+
+   cell('t',`${V.t.toFixed(1)} s`,f?'replay':'',f?'Replaying a recorded moment; Live or Run returns to the live state':'')+cell('goals',`${done}/${f?f.done.length:WPS.length}`)+(P.loc==='truth'?cell('pose','known','','Ground truth: the estimate is the true pose; pick an estimator in Localize to see an error'):cell('pose error',`${ep.toFixed(2)} m`,ep>0.5?'bad':'','Distance between the true pose and the estimate'))+
    cell('collisions',String(nc),nc?'bad':'',`${V.coll} static, ${V.collPed} people`)+(isCar()?cell('gear · steer',`${r.v<-0.01?'R':r.v>0.01?'D':'–'} · ${deg(r.d).toFixed(0)}°`):'')+(f?`<span class="st-replay" title="The page shows a recorded moment. Live or Run returns to the live state.">replay</span>`:'');
   $('#run').textContent=running?'Pause':'Run';
 }
@@ -20,9 +20,10 @@ function renderMetrics(){
   const items=[
     ['Distance',`${S.dist.toFixed(1)} m`],
     ['Collisions',`${S.coll} static, ${S.collPed} people${S.collPedStill?` (${S.collPedStill} into the stopped robot)`:''}`],
+    ...(P.loc==='truth'?[['Localization','ground truth: the pose is known, no estimate error','loc']]:[
     ['Pose error',`${ep.toFixed(2)} m · ${deg(Math.abs(wrap(r.th-e.th))).toFixed(1)}°`,'loc'],
     ['Pose RMS',S.errN?`${Math.sqrt(S.errSq/S.errN).toFixed(2)} m`:'—','loc'],
-    ['NEES (3 = consistent)',nees==null?'—':`${nees.toFixed(1)}${nees>7.8?' · overconfident':''}`,'loc'],
+    ['NEES (3 = consistent)',nees==null?'—':`${nees.toFixed(1)}${nees>7.8?' · overconfident':''}`,'loc']]),
     ['Cross-track RMS',S.cteN?`${Math.sqrt(S.cteSq/S.cteN).toFixed(3)} m`:'—','ctl'],
     ['Last plan',ps?`${ps.name} · ${ps.len.toFixed(1)} m${ps.extra?' · '+ps.extra:''} · ${ps.ms.toFixed(0)} ms`:'—','plan'],
     ['Search effort',ps&&ps.exp?`${ps.exp} ${ps.name==='RRT*'?'tree nodes':'expansions'}`:'—','plan'],

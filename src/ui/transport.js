@@ -42,7 +42,11 @@ $('#an-play').onclick=()=>{const pl=AN.play,R=AN.res;if(!R)return;if(!pl||pl.t>=
 $('#an-scrub').oninput=e=>{const R=AN.res;if(!R)return;const sp=AN.play?AN.play.speed:1;AN.play={t:+e.target.value/100,on:false,last:performance.now(),speed:sp};drawStep(R);anPlayUI();};
 seg($('#an-pspeed'),[['0.5','½×'],['1','1×'],['2','2×']],()=>String(AN.play?AN.play.speed:1),v=>{if(!AN.play)AN.play={t:0,on:false,last:performance.now(),speed:1};AN.play.speed=+v;});
 const PLOT_OPTS=[['pos','Position error'],['eth','θ error'],['cte','Cross-track'],['v','Speed'],['turn','Steering'],['st','ST graph']];
-seg($('#plotsel'),PLOT_OPTS,()=>plotCh,v=>{plotCh=v;drawPlot();});
+seg($('#plotsel'),PLOT_OPTS,()=>plotCh,v=>{plotCh=v;plotUser=true;drawPlot();});
+// The preset plot follows the level until the user picks one: cross-track where the pose is known (L1, L2, L6, L7:
+// the position error would be a flat zero), position error where there is an estimate to judge.
+let plotUser=false;
+function plotDefault(){if(plotUser)return;const ch=P.loc==='truth'?'cte':'pos';if(ch!==plotCh){plotCh=ch;seg($('#plotsel'),PLOT_OPTS,()=>plotCh,v=>{plotCh=v;plotUser=true;drawPlot();});}}
 $('#plotsel2').onchange=e=>{plotCh2=e.target.value;drawPlot();};
 let firstRun=true;function firstRunDone(){if(!firstRun)return;firstRun=false;const h=$('#firstrun');if(h)h.hidden=true;}
 $('#firstrun-x').onclick=firstRunDone;

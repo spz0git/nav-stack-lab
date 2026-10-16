@@ -3,6 +3,14 @@
 The version label in the page header (`v34 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+Phase 2, workspace polish (from the assessment of 2026-10-15):
+
+- The preset plot follows the level until you pick one: cross-track where the pose is known (L1, L2, L6, L7),
+  position error where there is an estimate to judge. With ground truth the status strip says "pose known" and the
+  metrics show one line instead of a zero pose error, a zero RMS and an empty NEES.
+
 ## v34 · 2026-10-16
 
 Phase 1, the learning path (from the assessment of 2026-10-15):

@@ -9,6 +9,8 @@ function initLoc(fromStart) {
   else S.Pc = null;
   if (P.loc === 'slam') slamInit();
   else S.slam = null;
+  if (P.loc === 'pgslam') pgInit();
+  else S.pg = null;
   if (P.loc === 'pf') {
     const N = P.npart,
       g = S.rngA;
@@ -67,6 +69,10 @@ function locPredict() {
   if (P.loc === 'truth') return;
   if (P.loc === 'slam') {
     slamPredict(v, w);
+    return;
+  }
+  if (P.loc === 'pgslam') {
+    pgPredict(v, w);
     return;
   }
   if (P.loc === 'dr' || P.loc === 'ekf') {
@@ -378,10 +384,11 @@ function scatterParticles() {
 // d the bilinearly interpolated distance to the nearest wall; its Jacobian is ∇d times the derivative of the transform.
 // Hits farther than 0.5 m from any wall (people, outliers) are left out. Returns the pose, a covariance s² H⁻¹ (s² the
 // residual variance, inflated for the beams' correlation), the residual RMS, the count and the iterations, or null.
+// D is the prior map's distance field unless pose-graph SLAM passes the one of the map it has built.
 // @code scan-match | scanMatch: Gauss–Newton alignment of a scan to the map's distance field
-function scanMatch(ranges, pose) {
-  const D = LV.truthDist,
-    HIT = 0.5,
+function scanMatch(ranges, pose, D = LV.truthDist) {
+  // D: a distance field; the prior map's, or the built map's for pose-graph SLAM
+  const HIT = 0.5,
     pts = [];
   for (let k = 0; k < NBEAM; k += 2) {
     const r = ranges[k];

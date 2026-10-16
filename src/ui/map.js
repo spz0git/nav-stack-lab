@@ -206,6 +206,35 @@ function draw() {
   drawOverlays(dpr, k, px);
   drawScaleBar(dpr, k, px);
 }
+// The pose graph: keyframes as dots, odometry edges thin, loop closures in the accent colour
+function drawGraph(px) {
+  if (!LAYERS.graph || !S.pg) return;
+  const G = S.pg;
+  ctx.lineWidth = px(1);
+  ctx.strokeStyle = rgba(TOK.ink, 0.35);
+  ctx.beginPath();
+  for (const E of G.edges) {
+    if (E.loop) continue;
+    ctx.moveTo(G.nodes[E.i].x, G.nodes[E.i].y);
+    ctx.lineTo(G.nodes[E.j].x, G.nodes[E.j].y);
+  }
+  ctx.stroke();
+  ctx.lineWidth = px(2);
+  ctx.strokeStyle = rgba(TOK.accent, 0.9);
+  ctx.beginPath();
+  for (const E of G.edges) {
+    if (!E.loop) continue;
+    ctx.moveTo(G.nodes[E.i].x, G.nodes[E.i].y);
+    ctx.lineTo(G.nodes[E.j].x, G.nodes[E.j].y);
+  }
+  ctx.stroke();
+  ctx.fillStyle = rgba(TOK.ink, 0.7);
+  for (const K of G.nodes) {
+    ctx.beginPath();
+    ctx.arc(K.x, K.y, px(2.2), 0, TAU);
+    ctx.fill();
+  }
+}
 // The frontiers (known free next to unknown) as amber cells, the chosen one brighter, while exploring
 function drawFrontiers(px) {
   if (!LAYERS.frontier || !exploring() || !S.frontiers) return;
@@ -365,6 +394,7 @@ function drawGhostRun(dpr, k, px) {
     ctx.setLineDash([]);
   }
   drawFrontiers(px); // frontier exploration: the frontiers of the last pick (mission.js)
+  drawGraph(px); // pose-graph SLAM: keyframes and edges (pgslam.js)
   drawCompare(px); // a run picked in Runs → Compare (runs.js)
   if (LAYERS.sweep) drawSweep(px); // the paths of an experiment's runs (experiments.js)
 }

@@ -32,6 +32,7 @@ function beaconUse() {
   if (P.loc === 'dr') return 'dead reckoning never uses the beacons (odometry only)';
   if (P.loc === 'pf' && P.pfLidar && P.per === 'oracle')
     return 'the particle filter also matches lidar against the prior map, so it can localize without beacons';
+  if (P.loc === 'pgslam') return 'pose-graph SLAM uses the lidar only: the beacons are ignored';
   if (P.loc === 'ekf' && P.scanMatch && P.per === 'oracle')
     return 'the EKF also matches the lidar scan against the prior map, so it can localize without beacons';
   if (P.loc === 'custom') return 'your localizer gets the beacon readings that remain';

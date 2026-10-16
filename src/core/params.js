@@ -8,6 +8,9 @@ const DEFAULTS = {
   inject: true,
   pfLidar: true,
   scanMatch: false,
+  pgKf: 0.5,
+  pgLoop: true,
+  pgMatch: true,
   filtK: 1,
   per: 'oracle',
   unknownAs: 'free',
@@ -109,7 +112,7 @@ const P = {...DEFAULTS};
 // The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
 // The UI's option lists (ui/schema.js) are views on these, narrowed by the vehicle where it matters.
 const PARAM_OPTS = {
-  loc: ['truth', 'dr', 'ekf', 'pf', 'slam', 'custom'],
+  loc: ['truth', 'dr', 'ekf', 'pf', 'slam', 'pgslam', 'custom'],
   assoc: ['known', 'unknown'],
   per: ['oracle', 'mapping'],
   unknownAs: ['free', 'lethal'],
@@ -156,5 +159,6 @@ const LAYERS = {
   agents: true,
   ghostrun: true,
   sweep: true,
-  frontier: true
+  frontier: true,
+  graph: true
 };

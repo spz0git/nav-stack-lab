@@ -5,6 +5,15 @@ const L_FREE = -0.4,
   L_OCC = 0.85,
   L_CLAMP = 4;
 // @code logodds | integrateScan: a lidar scan into the log-odds grid
+// the same, from hit points in the body frame (a keyframe's scan): each point is a beam that hit at its range
+function integrateScanPts(pts) {
+  const ranges = new Float32Array(NBEAM).fill(LMAX);
+  for (const [px, py] of pts) {
+    const k = Math.round(((Math.atan2(py, px) + Math.PI) / TAU) * NBEAM) % NBEAM;
+    ranges[k] = Math.min(ranges[k], hyp(px, py));
+  }
+  integrateScan(ranges);
+}
 function integrateScan(ranges) {
   const e = S.est,
     lo = S.lo;

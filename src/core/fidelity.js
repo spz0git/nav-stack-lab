@@ -42,6 +42,7 @@ function lidarApply(ranges) {
   if (P.per === 'mapping') integrateScan(ranges);
   if (P.loc === 'pf' && P.pfLidar && P.per === 'oracle' && S.tick % 4 === 3) pfLidarUpdate(ranges);
   if (P.loc === 'ekf' && P.scanMatch && P.per === 'oracle' && S.tick % 4 === 3) ekfScanUpdate(ranges); // 5 Hz, like the PF's
+  if (P.loc === 'pgslam') pgLidar(ranges);
 }
 function beaconsApply(z) {
   S.lastZ = z;

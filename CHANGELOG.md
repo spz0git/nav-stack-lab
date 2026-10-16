@@ -3,6 +3,19 @@
 The version label in the page header (`v38 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- Pose-graph SLAM (Localize → Pose-graph SLAM, lidar only): keyframes every 0.5 m with their scans, each first aligned
+  to the hit map of the earlier keyframes and fused with the odometry (the edge carries the matched motion), loop
+  closures by scan-to-scan ICP against keyframes at least ten back within a reach that grows with the uncertainty,
+  Gauss–Newton over all poses with the first fixed (dense Cholesky, one optimization per second), the current pose's
+  covariance from the marginal, the hit map and the planning grid rebuilt from every kept scan at the new poses. A
+  Pose graph layer, a Localize info line, the "Loop closures" and "Map agreement" signals, switches for the two levels
+  and the keyframe spacing, `goals` in a Try cfg (the mission restarts on them). Localization lesson 8, *Pose-graph
+  SLAM: the map that closes the loop*, six experiments on an out-and-back tour of L4 (with the honest finding that
+  scan-to-map matching does most of the work and closures need a gyro-grade odometry to be found), chapter 2 §11,
+  Node tests for the pose algebra, ICP and the optimizer.
+
 ## v38 · 2026-10-16
 
 - Scan matching (Localize → Lidar scan matching, with the EKF and a prior map): every fourth tick the scan is aligned

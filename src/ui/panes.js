@@ -62,6 +62,12 @@ async function tryGo(cfg) {
   if (cfg.level != null) LV = LEVELS[cfg.level];
   if (!cfg.keep) loadLevel(LEVELS.indexOf(LV));
   for (const [k, v] of Object.entries(cfg.set || {})) setParam(k, v, false);
+  if (cfg.goals) {
+    // a Try with its own goals (a loop to close): the mission restarts on them
+    WPS = cfg.goals.map(g => ({x: g[0], y: g[1], th: g.length > 2 && g[2] != null ? g[2] : null, done: false}));
+    startMission();
+    doPlan('initial');
+  }
   if (cfg.tab) {
     activeTab = cfg.tab;
     consoleOpen = true;
@@ -245,6 +251,11 @@ function renderBeaconSensor() {
   el.innerHTML = beaconSensorHTML();
 }
 const TIPS = {
+  pgKf: 'A new keyframe (a pose with its scan, joined to the previous one by an odometry edge) every time the robot has moved this far or turned 20°. Closer keyframes give more loop closures and a bigger graph to optimize.',
+  pgMatch:
+    'Each new keyframe is first aligned to the map the keyframes have built so far (Gauss–Newton on its distance field) and fused with the odometry; the edge to the previous keyframe then carries that matched motion. Off: the edges are the raw odometry, and only loop closures correct the drift.',
+  pgLoop:
+    "When a new keyframe comes within 2 m of a keyframe at least ten back, its scan is aligned to that one by ICP from the graph's own guess; a good fit (60 % of the hits paired, residual under 8 cm, correction under 1 m) becomes a loop-closure edge and the whole graph is re-optimized. Off: odometry edges only, which is dead reckoning with a graph.",
   scanMatch:
     'Every fourth tick the lidar scan is aligned to the prior map (Gauss–Newton on the distance field, from the current estimate) and the result is fused into the EKF as a pose measurement with the covariance of the fit. The lidar becomes a position sensor; beacons are optional.',
   loc: 'Which estimator produces the pose the planner and controller use.',
@@ -351,6 +362,19 @@ function chgMark(f) {
   const o = f.opts && (typeof f.opts === 'function' ? f.opts() : f.opts).find(x => x[0] === d);
   const dv = typeof d === 'number' ? fmtVal(f, d) : typeof d === 'boolean' ? (d ? 'on' : 'off') : o ? o[1] : d === '' ? 'none' : d;
   return `<button class="rst" data-reset="${f.k}" title="Back to this level's default (${dv})">↺</button>`;
+}
+// The info lines of the rendered tabs follow the state they describe (keyframes and closures, the floor seen, the
+// loaded code): re-evaluated with the rest of the refresh, written only when the text changed
+function renderInfoLines() {
+  document.querySelectorAll('.console [data-info]').forEach(el => {
+    const fn = infoFns[+el.dataset.info];
+    if (!fn) return;
+    const t = fn();
+    if (el.dataset.last !== t) {
+      el.innerHTML = t;
+      el.dataset.last = t;
+    }
+  });
 }
 function fieldHTML(f) {
   if (f.type === 'head') return `<h3 class="fhead">${f.label}</h3>`;

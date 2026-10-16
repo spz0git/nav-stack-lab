@@ -94,6 +94,10 @@ window.__nav = {
   loadLevel,
   advance,
   exploredFrac,
+  mapAgree,
+  scanMatch,
+  distanceTransform,
+  pgPoints,
   setParam,
   get WPS() {
     return WPS;

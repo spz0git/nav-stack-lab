@@ -722,6 +722,19 @@ const GLOSS = {
     'Least squares by repeated linearization: each step solves H δ = −b with H = Σ JᵀJ, b = Σ Jᵀ r, and moves the estimate by δ.',
     '',
     ['Gauss–Newton', 'Gauss-Newton']
+  ],
+  posegraph: [
+    'pose graph',
+    'Keyframe poses as nodes, relative-pose measurements (odometry, loop closures) as edges; optimizing it moves every past pose at once.',
+    '',
+    ['pose graph', 'pose-graph']
+  ],
+  keyframe: ['keyframe', 'A pose kept with its scan, every half metre or so; the nodes of the pose graph.', '', ['keyframes', 'keyframe']],
+  icp: [
+    'ICP',
+    'Iterative closest point: pair each point with its nearest in the other scan, solve the best rigid alignment of the pairs, repeat.',
+    '',
+    ['ICP']
   ]
 };
 // Terms each lesson uses, in reading order (keyed by lesson title)
@@ -822,6 +835,8 @@ Object.assign(GLOSS, {
 });
 const LESSON_TERMS = {
   'Placing the poles on purpose: pole placement and LQR': 'poleplace lqr pole zeta wn Ke kth rwf DM pm overshoot ts plantgain hold',
+  'Pose-graph SLAM: the map that closes the loop':
+    'posegraph keyframe loopclosure icp scanmatch gaussnewton drift odometry covariance gyro lidar logodds frontier',
   'Scan matching: the lidar as a position sensor':
     'scanmatch gaussnewton lidar disttrans ekf kgain nees gate d2 kidnap covariance ellipse poserr beacon',
   'A gyro in the loop: heading is the expensive error':

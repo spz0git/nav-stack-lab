@@ -283,6 +283,47 @@ L2's aisles, with odometry noise and bias ×1 and no beacons: 0.04 m RMS, all fo
 
 [try: Lidar only: every beacon off | {"sim":true,"level":2,"set":{"loc":"ekf","bOff":"all","scanMatch":true},"tab":"loc","plot":"pos"}] [try: Kidnapped, lidar only | {"sim":true,"level":2,"set":{"loc":"ekf","bOff":"all","scanMatch":true},"tab":"loc","plot":"pos","act":"kidnap"}]
 
-## 11. What to carry into the next chapters
+## 11. Pose-graph SLAM: the map as a set of constraints
+
+**The graph.** A node is a keyframe pose $x_i = (x, y, \theta)_i$; an edge $(i, j, z_{ij}, \Omega_{ij})$ is a measurement of pose $j$ in the frame of pose $i$ with information matrix $\Omega_{ij}$ (the inverse of its covariance). Two kinds: the odometry edge from each keyframe to the next, and loop-closure edges between a keyframe and an earlier one that saw the same place. The maximum-likelihood poses minimize
+$$
+F(x) = \sum_{ij} e_{ij}^\top \Omega_{ij}\, e_{ij}, \qquad e_{ij} = z_{ij}^{-1} \oplus \left(x_i^{-1} \oplus x_j\right),
+$$
+the mismatch between what the chain says about $j$ relative to $i$ and what the edge measured, with $\oplus$ the pose composition and the heading wrapped.
+
+**The Jacobians.** With $\Delta = x_i^{-1} \oplus x_j$ (so $\Delta_t = R_i^\top (t_j - t_i)$, $\Delta_\theta = \theta_j - \theta_i$) and $e = (R_z^\top(\Delta_t - z_t),\ \Delta_\theta - z_\theta)$,
+$$
+B_{ij} = \frac{\partial e}{\partial x_j} = \begin{bmatrix} R_z^\top R_i^\top & 0 \\ 0 & 1 \end{bmatrix}, \qquad
+A_{ij} = \frac{\partial e}{\partial x_i} = \begin{bmatrix} -R_z^\top R_i^\top & R_z^\top \dfrac{\partial R_i^\top}{\partial \theta_i}(t_j - t_i) \\ 0 & -1 \end{bmatrix},
+$$
+with $\partial R^\top/\partial\theta = \begin{bmatrix} -s & c \\ -c & -s\end{bmatrix}$. Gauss–Newton linearizes each error, $e_{ij}(x + \delta) \approx e_{ij} + A_{ij}\delta_i + B_{ij}\delta_j$, and the normal equations $H\delta = -b$ sum, per edge, $A^\top\Omega A$ into block $(i,i)$, $A^\top\Omega B$ into $(i,j)$ and its transpose, $B^\top\Omega B$ into $(j,j)$, and $A^\top\Omega e$, $B^\top\Omega e$ into $b_i$, $b_j$. Every edge touches two poses, so $H$ has non-zero blocks only where edges are: sparse, and the reason real solvers (g2o, Ceres, GTSAM) handle tens of thousands of poses. The lab's graphs have a few hundred, and a dense Cholesky takes a tenth of a second at two hundred keyframes.
+
+**The gauge.** Shifting and turning every pose together changes no edge, so $H$ has a three-dimensional null space. One pose has to be fixed; the lab adds a prior of $10^6$ on the first pose's three unknowns, which comes to the same as removing them. The map is then expressed in the first keyframe's frame, consistent within itself and aligned to nothing outside it.
+
+**The marginal covariance.** After an optimization the covariance of the last pose is the corresponding $3\times 3$ block of $H^{-1}$, obtained with three solves against the factored $H$ (one per unit vector); between optimizations it grows by the odometry edges, composed the way §2 composes an uncertain motion onto an uncertain pose (the heading uncertainty of the keyframe swings the leg sideways). The current estimate is the last keyframe composed with the odometry since, and its covariance that marginal plus the odometry's, which is what the ellipse on the map draws.
+
+**Two levels.** The matcher of §10 is the local level: before a keyframe's odometry edge is written, its scan is aligned to the map the keyframes have built so far (a hit map, the cells the earlier scans' beams ended in, never carved by free-space updates, because carving erodes walls seen only a few times) and the result is fused with the odometry as a Kalman update, so that along a corridor, where the fit is undetermined, the odometry keeps its say. The edge then carries the matched motion with the fit's information. The graph is the global level: a keyframe within reach of one at least ten keyframes back (the reach grows with the pose uncertainty) has its scan aligned to that one by ICP, from the chain's own guess, and a fit with most of the hits paired within 30 cm and a small residual becomes a closure. Closures are batched into one optimization per second, at once when one moved a pose by more than 0.3 m; after it the maps, the hit map and the planning grid, are rebuilt from the scans at the new poses, every scan hung off its keyframe by the relative pose it had.
+
+**ICP.** Point-to-point: pair every source point with its nearest destination point within half a metre, then the best rigid transform of the pairs in closed form, centroids $\bar p$, $\bar q$, the $2\times 2$ cross-covariance $M = \sum (q - \bar q)(p - \bar p)^\top$, $\theta = \operatorname{atan2}(M_{10} - M_{01},\ M_{00} + M_{11})$, $t = \bar q - R\bar p$; repeat until the transform stops moving. It converges to the nearest fit from where it starts, which is why a closure needs a guess within its reach, and why, when the chain's guess is far off, the lab tries a grid of starts around it and accepts only a stricter fit.
+
+**Measured** on L4 at seed 7, the out-and-back tour (the four goals and back along them, about 100 m), 200 s:
+
+| Estimator | Pose RMS | Worst | Goals | Map agreement | Closures |
+| --- | --- | --- | --- | --- | --- |
+| Dead reckoning, wheels | 1.97 m | 3.68 m | 2 of 7 | 86 % | – |
+| Graph, loop closures only, wheels | 1.27 m | 1.40 m | 4 of 7 | 90 % | 17, none onto the outbound pass |
+| Graph, scan-to-map only, wheels | 0.25 m | 0.38 m | 7 | 93 % | – |
+| Graph, both, wheels | 0.33 m | 0.51 m | 7 | 92 % | 89 |
+| Dead reckoning, gyro | 0.23 m | 0.29 m | 7 | 94 % | – |
+| Graph, loop closures only, gyro | 0.20 m | 0.25 m | 7 | 94 % | 88 |
+| Graph, both, gyro | 0.09 m | 0.11 m | 7 | 97 % | 90 |
+| EKF with the beacons | 0.03 m | 0.07 m | 7 | 96 % | – |
+| Graph, both, gyro, frontier exploration | 0.08 m | 0.08 m | – | 97 % | 7 |
+
+The honest reading: on a building this size the scan-to-map level does most of the work, and loop closures need an odometry good enough to put the chain's guess within ICP's reach; with the gyro the lidar alone builds a better map than the beacon EKF.
+
+[try: Pose-graph SLAM on wheel odometry | {"sim":true,"level":3,"set":{"loc":"pgslam"},"goals":[[5,13],[13.5,14],[21,13],[22.5,5.5],[21,13],[13.5,14],[5,13]],"tab":"loc","plot":"pos"}] [try: Both levels, with the gyro | {"sim":true,"level":3,"set":{"loc":"pgslam","gyro":true},"goals":[[5,13],[13.5,14],[21,13],[22.5,5.5],[21,13],[13.5,14],[5,13]],"tab":"loc","plot":"pos"}]
+
+## 12. What to carry into the next chapters
 
 Three ideas from this chapter recur everywhere in the stack. Linearize, then propagate covariance through the Jacobian: the tracker's constant-velocity filter in chapter 3 is the same machinery on a person's position and velocity. Measure surprise in units of the expected spread: the Mahalanobis gate reappears in data association for tracks, and NEES is the test for any filter that claims a covariance. And keep the uncertainty honest rather than small: the costmap margins, the speed planner's growing radii and the lost guard all consume $\Sigma$, and all of them are only as good as it is.

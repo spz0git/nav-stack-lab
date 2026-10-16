@@ -51,7 +51,7 @@ function wireSym(pane) {
 if (!('look' in LAYERS)) LAYERS.look = true;
 if (!('slip' in LAYERS)) LAYERS.slip = true; // the sideslip arrow of the car with tyre slip, also UI-only
 const TAB_LAYERS = {
-  loc: ['belief', 'beam', 'trail', 'ghost', 'ghostrun', 'slip'],
+  loc: ['belief', 'beam', 'trail', 'ghost', 'ghostrun', 'slip', 'graph'],
   per: ['lidar', 'cost', 'ghost', 'ghostrun', 'slip', 'frontier'],
   mis: ['ghostrun', 'slip', 'frontier', 'lidar'],
   plan: ['search', 'ghostrun', 'slip', 'frontier'],
@@ -75,6 +75,7 @@ function applyTabLayers(force) {
 function layersPane() {
   const L = [
     ['frontier', 'Frontiers: known free cells next to unknown space, while exploring'],
+    ['graph', 'Pose graph: keyframes and edges, loop closures in the accent colour'],
     ['sweep', 'Experiment runs: the paths of the last experiment, coloured by the varied value'],
     ['ghost', 'True-map outline over the built map'],
     ['cost', 'Costmap inflation'],

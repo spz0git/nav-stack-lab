@@ -3,11 +3,14 @@ from playwright.async_api import async_playwright
 from _browser import launch, page_url
 # Measures what the localization lessons' Try buttons show, headless: pose error, filter σ, NEES, rejected readings,
 # particle-filter N_eff and injections over time. A case: {name, lvl, set, secs, every, act, dense}.
-# act 'kidnap' or 'scatter' happens after 8 s (as tryGo does); dense = seconds sampled every second after the act.
+# act 'kidnap' or 'scatter' happens after 8 s (as tryGo does); dense = seconds sampled every second after the act;
+# tour: the level's goals and then back to its start (a loop for pose-graph SLAM to close); 'back': out along the goals and
+# back along them to the first (the lesson's tour).
 RUN=r'''
-async ({lvl, overrides, secs, every, act, dense}) => {
-  const N=window.__nav; N.loadLevel(lvl);
-  for(const [k,v] of Object.entries(overrides)) N.setParam(k,v,false);
+async ({lvl, overrides, secs, every, act, dense, tour}) => {
+  const N=window.__nav;
+  if(tour){const L=N.LEVELS[lvl]; await N.tryGo({sim:true, level:lvl, set:overrides, goals:tour==='back'?L.wps.map(w=>[w[0],w[1]]).concat(L.wps.slice(0,-1).reverse().map(w=>[w[0],w[1]])):L.wps.map(w=>[w[0],w[1]]).concat([[L.start[0],L.start[1]]]), hold:true});}
+  else{N.loadLevel(lvl); for(const [k,v] of Object.entries(overrides)) N.setParam(k,v,false);}
   document.querySelector('#run').click(); document.querySelector('#run').click();
   const S=N.S, rows=[]; let inside=0,n=0,t0=0;
   const samp=()=>{const r=S.robot,e=S.est,err=Math.hypot(r.x-e.x,r.y-e.y);
@@ -17,14 +20,16 @@ async ({lvl, overrides, secs, every, act, dense}) => {
     const row={t:+S.t.toFixed(1),err:+err.toFixed(2),dth:+dth.toFixed(0),sig:s==null?null:+s.toFixed(2),nees:nees==null?null:+nees.toFixed(1),rej:S.rejected||0,st:S.fsm.state,done:N.WPS.filter(w=>w.done&&!w.skipped).length,skip:N.WPS.filter(w=>w.skipped).length,coll:S.coll};
     if(S.pf){row.neff=Math.round(S.pf.neff);row.inj=S.pf.inj;row.wf=+S.pf.wfast.toFixed(3);row.ws=+S.pf.wslow.toFixed(3);}
     if(S.slam&&S.slam.lm)row.lms=S.slam.lm.length;
+    if(S.pg){row.kf=S.pg.nodes.length;row.loops=S.pg.loops;row.mt=S.pg.matched;if(S.pg.opt)row.opt=+S.pg.opt.ms.toFixed(0);row.optMax=+(S.pg.optMax||0).toFixed(0);}
+    if(N.P.per==='mapping'){const a=N.mapAgree();if(a!=null)row.map=+(100*a).toFixed(0);}
     rows.push(row);};
   const step=async(secsRun,evry)=>{const total=Math.round(secsRun/evry),per=Math.round(evry/0.05);
     for(let i=0;i<total;i++){for(let j=0;j<per;j++){await N.advance(1);const r=S.robot,e=S.est,err=Math.hypot(r.x-e.x,r.y-e.y);
       if(S.Pc){const s=Math.sqrt(Math.max(0,S.Pc[0]+S.Pc[4]));n++;if(err<2*s)inside++;}}samp();}};
   if(act){await N.advance(160);samp();if(act==='kidnap')N.kidnapTo(null);else N.scatter();samp();await step(dense||20,1);await step(secs-8-(dense||20),every);}
   else await step(secs,every);
-  return {rows, inside2s:n?+(inside/n).toFixed(2):null, poseRMS:S.errN?+Math.sqrt(S.errSq/S.errN).toFixed(2):null,
-    log:S.log.filter(l=>/kidnap|Scatter|inject|Replan|skip|lost/i.test(l.msg)).slice(0,12).map(l=>l.t.toFixed(1)+' '+l.msg).reverse()};
+  return {rows, inside2s:n?+(inside/n).toFixed(2):null, poseRMS:S.errN?+Math.sqrt(S.errSq/S.errN).toFixed(2):null, errMax:+Math.max(...rows.map(r=>r.err)).toFixed(2),
+    log:S.log.filter(l=>/kidnap|Scatter|inject|Replan|skip|lost/i.test(l.msg)||(/Loop closure/.test(l.msg)&&(/wide search/.test(l.msg)||+(/correction (\d+) cm/.exec(l.msg)||[0,0])[1]>=30))).slice(0,16).map(l=>l.t.toFixed(1)+' '+l.msg).reverse()};
 }'''
 async def main():
     cases=json.loads(sys.argv[1])
@@ -36,8 +41,8 @@ async def main():
         await pg.goto(page_url())
         await pg.wait_for_timeout(800)
         for c in cases:
-            r=await pg.evaluate(RUN,{'lvl':c['lvl'],'overrides':c.get('set',{}),'secs':c.get('secs',150),'every':c.get('every',10),'act':c.get('act'),'dense':c.get('dense')})
-            print('==',c.get('name',''),'L%d'%(c['lvl']+1),c.get('set',{}),c.get('act',''),'inside2σ',r['inside2s'],'poseRMS',r['poseRMS'])
+            r=await pg.evaluate(RUN,{'lvl':c['lvl'],'overrides':c.get('set',{}),'secs':c.get('secs',150),'every':c.get('every',10),'act':c.get('act'),'dense':c.get('dense'),'tour':c.get('tour')})
+            print('==',c.get('name',''),'L%d'%(c['lvl']+1),c.get('set',{}),c.get('act',''),'inside2σ',r['inside2s'],'poseRMS',r['poseRMS'],'errMax',r['errMax'])
             for row in r['rows']: print('   ',row)
             for l in r['log']: print('      ',l)
         print('ERRORS:',errs[:5])

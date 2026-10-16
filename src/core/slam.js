@@ -16,7 +16,7 @@ function slamPredict(v, w) {
     nx = integ(M.x[0], M.x[1], th, v, w, DT);
   const k = assumedK(),
     sv = sigV(v, w, k),
-    sw = sigW(v, w, k),
+    sw = filtSigW(v, w),
     c = Math.cos(th),
     s = Math.sin(th),
     a = DT * DT * sv * sv,

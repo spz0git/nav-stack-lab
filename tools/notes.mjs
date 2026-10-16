@@ -99,6 +99,12 @@ export function convert(md) {
       i++;
       continue;
     }
+    if (/^\$\$.+\$\$\s*$/.test(l.trim())) {
+      // display math on one line
+      blocks.push(`<div class="math">${tex(l.trim().slice(2, -2).trim(), true)}</div>`);
+      i++;
+      continue;
+    }
     if (l.trim() === '$$') {
       const buf = [];
       i++;
@@ -133,6 +139,10 @@ export function convert(md) {
     }
     const buf = [];
     while (i < lines.length && lines[i].trim() && !/^(#|\$\$|\||[-*] |\d+\. |<)/.test(lines[i])) buf.push(lines[i++]);
+    if (!buf.length) {
+      console.error(`notes: cannot parse line ${i + 1}: ${l.slice(0, 80)}`);
+      process.exit(1);
+    }
     blocks.push(`<p>${inline(buf.join(' '))}</p>`);
   }
   return {id: meta.id, sys: meta.sys || '', num: meta.num || '', summary: meta.summary || '', title, toc, html: blocks.join('\n')};

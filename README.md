@@ -22,7 +22,7 @@ The page has three modes:
   health lights per subsystem, and runs you can keep and compare.
 - **Analyze** linearizes the steering loop and shows you Bode and Nyquist plots, step responses and poles you can
   drag, then checks the linear model against the real simulation.
-- **Learn** has 32 lessons and eight chapters. Each lesson has buttons that set the lab up and run the experiment
+- **Learn** has 33 lessons and eight chapters. Each lesson has buttons that set the lab up and run the experiment
   for you. The numbers in the lessons come from the simulator, not from a textbook.
 
 It is meant for students and engineers who want to see localization, perception, planning and control interact,

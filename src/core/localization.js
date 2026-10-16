@@ -75,7 +75,7 @@ function locPredict() {
     const G = [1, 0, -v * DT * Math.sin(th), 0, 1, v * DT * Math.cos(th), 0, 0, 1];
     const k = assumedK(),
       sv = sigV(v, w, k),
-      sw = sigW(v, w, k);
+      sw = filtSigW(v, w);
     const c = Math.cos(th),
       s = Math.sin(th),
       a = DT * DT * sv * sv,
@@ -92,7 +92,7 @@ function locPredict() {
       g = S.rngA,
       k = assumedK();
     const sv = Math.max(sigV(v, w, k), 0.02),
-      sw = Math.max(sigW(v, w, k), 0.02);
+      sw = Math.max(filtSigW(v, w), 0.02);
     for (let i = 0; i < f.N; i++) {
       const n = integ(f.x[i], f.y[i], f.th[i], v + sv * g.n(), w + sw * g.n(), DT);
       f.x[i] = n.x;

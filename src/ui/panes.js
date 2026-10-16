@@ -23,6 +23,7 @@ async function tryGo(cfg){
   if(cfg.panes){PANES.length=0;for(const p of cfg.panes)addPane(p.slice());if(WS.dockOff)wsDock(true);}   // added plots: a list of signal lists
   if(AN.mode!=='sim')setMode('sim');
   if(cfg.keep){draw();return;}
+  if(cfg.hold){running=false;draw();refreshAll();return;}   // set up but do not run (a lesson being opened)
   if((S.fsm.state==='IDLE'||S.fsm.state==='DONE')&&remaining().length)startMission();
   if(cfg.searchStep&&searchPlayStart(true)){refreshAll();return;}   // planning lessons: the search plays first, Run drives
   if(cfg.act){running=false;await advance(160);

@@ -314,6 +314,24 @@ canvas.an-drag{touch-action:none;cursor:crosshair}canvas.an-drag:focus-visible{o
 .experiments .exp-head::before{content:counter(exp);font-family:var(--f-mono);font-size:.74rem;color:var(--sys,var(--muted));min-width:1em}
 .experiments .exp-head .btn{font-weight:600}
 .experiments p{margin:0}
+/* predict first (Phase 1.3): a question before the button, the answer text folded until a pick */
+.predict{border:1px solid var(--line);border-radius:6px;background:var(--raise);padding:6px 10px 8px;display:flex;flex-direction:column;gap:6px}
+.pred-opts{display:flex;flex-wrap:wrap;gap:5px}
+.pred-opt{border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink);padding:3px 11px;font-size:.84rem;text-align:left}
+.pred-opt:hover{border-color:var(--muted)}
+.pred-opt[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.pred-opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,var(--panel))}
+.pred-opt.no{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,var(--panel));text-decoration:line-through}
+.pred-res{font-size:.86rem;color:var(--muted)}.pred-res:empty{display:none}
+details.see>summary{cursor:pointer;font-weight:600;font-size:.9rem;color:var(--accent)}
+details.see[open]>summary{color:var(--muted);font-weight:500;margin-bottom:4px}
+details.see>p{margin:0 0 5px}
+/* the numeric self-check at the end of a lesson */
+.selfcheck{display:flex;flex-direction:column;gap:6px;border-left:3px solid var(--sys,var(--line));padding-left:12px}
+.sc-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.sc-row input{width:8em;font:inherit;font-family:var(--f-mono);font-size:.9rem;padding:5px 8px;border:1px solid var(--line);border-radius:5px;background:var(--raise);color:var(--ink)}
+.sc-row .unit{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.sc-res{font-size:.88rem;color:var(--muted)}.sc-res:empty{display:none}.sc-res.ok{color:var(--ok)}.sc-res.no{color:var(--bad)}
 .how-body a.chref{display:inline-block;font-family:var(--f-mono);font-size:.76rem;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:1px 9px;margin-left:2px;white-space:nowrap;vertical-align:baseline}
 .how-body a.chref:hover{border-color:var(--accent)}
 .questions{display:flex;flex-direction:column;gap:4px}

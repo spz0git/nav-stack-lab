@@ -44,6 +44,13 @@ Predict: Hand the planner each person's current position with zero velocity. Wha
 - It falls: a wrong velocity was misleading the planner
 Answer: 0
 
+## Code: agTrack, the constant-velocity filter
+snippet: ag-track
+focus: t.y += t.vy * dt; // predict
+focus: A.tracks = A.tracks.filter
+example: pred/cv
+Note: The predict line moves each track by its velocity; the filter line coasts a confirmed track through one second without hits and drops a tentative one after a quarter. Edit and run: the predictor example receives these tracks; make it ignore vx, vy (the standing-still example does) and see what the speed planner loses.
+
 ## Think about
 Q: Why is velocity so much harder than position for this tracker?
 A: Position is measured directly every 0.1 s with 10 cm noise. Velocity is the difference of two such positions divided by 0.1 s: a 10 cm noise becomes a 1 m/s noise, larger than the walking speed. The filter averages that down over many updates, which is where the lag comes from. A sensor that measured velocity (Doppler radar) changes the problem completely.

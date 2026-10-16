@@ -109,6 +109,25 @@ A third vehicle option, so that the control lessons can show understeer, the cha
 - Lidar safety stop (`P.guard`, Control tab for pure pursuit, rear-wheel feedback, Stanley, PID; `lidarGuard` in `core/dispatch.js`): sweeps the footprint along the commanded arc against the current scan (placed with the estimate, so relative positions are as measured) for v²/2a + 0.4 m and caps the speed at what stops 5 cm before the first point the arc approaches; logged at most every 3 s. Off by default: on, it fires near pillars and shelves in normal runs and changes the L1–L5 regression. Why it exists (user question, 2026-10-16): with odometry noise and bias and lidar mapping, the map is built in the estimated (global) frame and smears; the path trackers follow a path planned on that map and never read the lidar, so they side-swipe walls that are plainly in the scan (both instrumented collisions: the nearest hit 0.29 m away at ±80°, already in the map, while pure pursuit swung round a corner). DWA (0 of 9 drift cases) and MPC (1 of 9) read the scan; pure pursuit collided in 6 of 9, with the safety stop in 0 of 9 (goals still missed where the map is wrong). L4 Try: dead reckoning with bias ×2, 2 collisions → 0, 1/4 goals either way. A change that limited the path-blocked check's exemption for lethal cells near the robot made no difference in these cases and was not kept.
 - Unknown space as lethal (user question): by design the planners plan only through seen-free space, so at the start every goal in an unseen room is lethal and nothing explores; the robot never moves. The planners now say so ("goal is in unexplored space, and unknown space is lethal …", `goalBlocked` in `core/perception.js`) instead of "inside an inflated obstacle", and Perceive explains it under the setting. Frontier exploration landed in Phase 4 (Mission → Goal order → Explore, `frontiers` in `core/mission.js`): a frontier goal is on seen floor by construction, so it is the one mission the cautious policy does not block.
 
+## Phase 4 — content, and the code behind the lessons (in progress, 2026-10-16)
+
+- Part A, classical: a yaw-rate gyro with a zero-velocity update (loc lesson 6, ch2 §9), pole placement and LQR in
+  Analyze (ctl lesson 18, ch6 §8), frontier exploration (plan lesson 6, ch4 §7): v37, PRs #77–#79. Still open: scan
+  matching, pose-graph SLAM, D* Lite, velocity obstacles.
+- The code behind every lesson (owner's direction: show the code and let the learner change it; "Your code" was a
+  button with no explanation). A function marked `// @code <id> | <title>` … `// @end` in the source is a snippet; the
+  build indexes the markers (`tools/code.mjs`) and the page cuts the text from its own script tag at runtime
+  (`codeSnippet` in `ui/source.js`), so the shown code is the running code and the page does not carry a copy. A lesson's
+  `## Code:` section names the snippet, the lines to tint (by substring, so an edit to the code does not break it), a
+  note and a slot example; "Edit and run" loads the example into the Code tab as Your code on the lesson's level and
+  switches to the Simulate layout, where the console is. The examples (`src/examples/<slot>/`) are teaching versions of
+  the built-ins against the slot API, kept compact (not formatted), and `tests/extest.py` runs each against its
+  built-in. Limits: the examples assume the lab's default noise and gains (the sliders do not reach into a slot); they
+  are written for the unicycle and drive the car with simpler speed logic (reverse legs at 0.35 m/s, a ramp into each
+  leg end); SLAM, the perception stages, the behaviour layer, Hybrid A*, space-time A* and the MPC have no slot, so
+  those lessons show the code without "Edit and run". A killed slot worker now resolves its pending call (a load during
+  a pending plan used to surface 3 s later as a spurious timeout).
+
 ## Moving agents (v7)
 - Before v7 people only reached the stack as lidar hits: the global planner never saw them, DWA and MPC treated hits as static at scan time, and pure pursuit ignored them.
 - Architecture: global path static on purpose; agents handled at the trajectory level (path–velocity decomposition); escalate to a replan only when speed alone cannot resolve the conflict.

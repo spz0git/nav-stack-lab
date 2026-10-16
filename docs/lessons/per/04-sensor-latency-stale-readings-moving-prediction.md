@@ -40,6 +40,11 @@ Predict: Mapping the building with scans 0.3 s late at cruise speed: what happen
 - Drawn too far away, beyond their true position
 Answer: 0
 
+## Code: sensDeliver
+snippet: sens-deliver
+focus: if (it.due > S.tick) { … continue;
+Note: Every reading is queued with a due tick; a reading whose tick has not come is kept, so the filter sees the world as it was latency ago. A localizer in the Code tab gets obs.beacons and obs.scan from this queue, already late.
+
 ## Think about
 Q: Why does the EKF's NEES recover when the robot stops but the map does not?
 A: The EKF's latency error is proportional to speed, so it vanishes at rest and the filter is instantly consistent again. The map keeps everything it was told: the walls drawn 24 cm too close are still there until enough free beams erase them, and the walls it failed to draw are still missing.

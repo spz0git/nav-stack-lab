@@ -53,6 +53,12 @@ Predict: Adding K_i = 0.4: what happens to the residual and the settling time?
 - Residual halves; the loop rings from the lost phase
 Answer: 0
 
+## Code: ctlPID, the integral
+snippet: pid
+focus: C.I = clamp(C.I + err * DT, -1, 1); … C.prev = err;
+example: ctl/pid
+Note: The integral accumulates the heading error, clamped so that it cannot wind up without bound; the derivative is the error's change per tick. Edit and run: the PID example with Ki = 0 as shipped; set Ki to 0.3 and watch the steady-state error of the lesson disappear, then overshoot.
+
 ## Think about
 Q: Why does the MPC on the car not remove the misalignment completely?
 A: Its integrator acts on the steering it measures, and the encoder reads the angle before the misaligned link, so the measured steering is correct and the vehicle turns anyway. What the MPC can integrate is the pose error through its tracking terms, which is slower and leaves a residual. An integrator removes the bias it can observe; sensor placement decides which biases those are.

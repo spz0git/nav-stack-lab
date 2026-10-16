@@ -69,6 +69,7 @@ function computeOrder(idx) {
 // goal the planner gets is the nearest known-free cell with some margin beyond the inflated obstacles (a frontier
 // cell sits next to unknown space, which the cautious policy inflates); a frontier with no such cell nearby is skipped.
 const exploring = () => P.mis === 'explore' && P.per === 'mapping';
+// @code frontiers | frontiers: the frontier cells, clustered, with a goal cell each
 function frontiers() {
   const lo = S.lo,
     isF = new Uint8Array(NC),
@@ -136,6 +137,7 @@ function frontiers() {
   }
   return out;
 }
+// @end
 // the nearest known-free cell 0.2 m or more beyond the inflated obstacles, within about 2 m of cell s; in a corridor
 // too narrow for that margin the nearest known-free cell that is merely not lethal; for a sliver seen through a door,
 // where every known cell is lethal, the nearest cell that is not lethal at all (unknown, when unknown counts as free:
@@ -369,6 +371,7 @@ function wpLabel(i) {
 const posSigma = () => (S.Pc ? Math.sqrt(Math.max(0, S.Pc[0] + S.Pc[4])) : 0);
 // One tick of the mission state machine (IDLE, PLAN, DRIVE, NO_PATH, LOST, DONE): goals reached by the estimate, replans on
 // blocked, off path, stuck or timer, the lost guard, and the heading alignment at posed goals.
+// @code mission-tick | missionTick: the behaviour layer, one tick of the state machine
 function missionTick() {
   const F = S.fsm;
   if (F.state === 'PLAN') {
@@ -564,3 +567,4 @@ function missionTick() {
     F.prog = {t: S.t, x: e.x, y: e.y};
   }
 }
+// @end

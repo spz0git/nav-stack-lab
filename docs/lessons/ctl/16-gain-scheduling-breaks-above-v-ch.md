@@ -65,6 +65,11 @@ Predict: Softer k_e = 1.5 and k_θ = 2.5 on the same car: what will the step sho
 - Overdamped and very slow, tens of seconds
 Answer: 0
 
+## Code: dynLin, the car linearized
+snippet: dyn-lin
+focus: A: [ … B: [
+Note: The 2×2 state matrix of the lateral dynamics at speed v, in v_y and r; its eigenvalues are the tyre poles the lesson tracks with speed, and the characteristic speed is where the understeer gradient makes the steady-state gain peak.
+
 ## Think about
 Q: Why does the crossover fall with speed above v_ch, when on the kinematic car it rises?
 A: Pure pursuit's gains fall as 1/v (K_e = 2v/L_d², with L_d growing as v), and on the kinematic car the plant gain v/L rises as v, so the loop gain levels off. With tyres the plant gain v/(L + K_us v²) falls as 1/v above v_ch, so the product falls as 1/v² and the crossover with it.

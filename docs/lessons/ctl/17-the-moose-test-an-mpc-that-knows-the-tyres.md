@@ -66,6 +66,10 @@ Predict: Grippy tyres (v_ch 11.5 m/s) at 4 m/s with the kinematic MPC: how will 
 - Passes only because it slows down
 Answer: 1
 
+## Code: mpcDynPose, the tyre model inside the MPC
+snippet: mpc-dyn-pose
+Note: The prediction model of the tyre-aware MPC: the same slip and force equations as the vehicle, stepped inside the horizon, so the controller knows the moose test's limit before it gets there.
+
 ## Think about
 Q: The tyre model got through without braking. Would it brake for a swerve it cannot make?
 A: Not in this lab. At μ 0.1 it hits the first box at 3.5 m/s, as the kinematic MPC does. Its cost holds the speed to the reference, and with the front tyres saturated, slowing down pays off in its prediction only late in the two-second horizon, through a lateral error the Gauss–Newton step does not trade for a speed error. The speed has to come from upstream: a reference speed that respects the grip, v ≤ √(μg/κ), which is the curve cap a_lat set to the real μg.

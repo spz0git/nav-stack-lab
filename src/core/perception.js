@@ -4,6 +4,7 @@
 const L_FREE = -0.4,
   L_OCC = 0.85,
   L_CLAMP = 4;
+// @code logodds | integrateScan: a lidar scan into the log-odds grid
 function integrateScan(ranges) {
   const e = S.est,
     lo = S.lo;
@@ -40,6 +41,8 @@ function integrateScan(ranges) {
     }
   }
 }
+// @end
+// @code costmap | buildCostmap: lethal cells and the inflation band from the distance transform
 function buildCostmap() {
   const cm = S.cm,
     occ = cm.occ;
@@ -61,6 +64,7 @@ function buildCostmap() {
   }
   dirty.cost = true;
 }
+// @end
 // Why a goal cell is lethal, for the planners' log line: under the cautious policy, unexplored cells are obstacles,
 // so a goal in or next to unseen space is blocked by the unknown, not by anything the lidar saw
 function goalBlocked(gx, gy) {

@@ -41,6 +41,12 @@ Predict: Doubling the damper again to k_θ = 6: what happens to the settling tim
 - The loop goes unstable from too much heading gain
 Answer: 1
 
+## Code: stepMetrics
+snippet: step-metrics
+focus: return {overshoot: Math.max(0, -mn) * 100, rise: t10 != null && t90 != null ? t10 - t90 : null, settle: ts, final: fin};
+example: ctl/rwf
+Note: Overshoot, rise and settling time are read off the response exactly as the lesson defines them: the deepest undershoot past zero, the time from 90 % to 10 % of the offset, the last moment the error was outside 2 cm. Edit and run: the rear-wheel-feedback example with the design row's gains.
+
 ## Think about
 Q: The formula says ζ = 1.22 at k_θ = 6 but the chip says 1.0. Which is right?
 A: Both, about different things. The formula is for the delay-free second-order model, where ζ > 1 means two distinct real poles. The exact discrete loop has those two real poles plus the delay's own dynamics; the chip reports the dominant pole and calls any real pole ζ = 1. Overdamped is overdamped either way; the number past 1 has no shape to describe.

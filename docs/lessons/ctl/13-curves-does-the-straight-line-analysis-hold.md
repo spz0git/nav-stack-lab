@@ -41,6 +41,13 @@ Predict: Stanley on the 4 m circle: what will the Offset chip and the step show?
 - A few cm of offset inside the turn and a slow, overdamped step
 Answer: 2
 
+## Code: ctlRWF, the curvature feedforward
+snippet: rwf
+focus: const k = clamp(kapAt(pr.s + 0.2), -kmax, kmax); // fixed preview covers steering-rate lag
+focus: const kc = (k * Math.cos(the)) / Math.max(0.3, 1 - k * el) - P.rwKth * the - P.rwKe * sinc * el;
+example: ctl/rwf
+Note: The path curvature 0.2 m ahead enters as feedforward, so on a curve the feedback terms only correct the residual; without that term the lesson's straight-line analysis would be all the controller has. Edit and run: the rear-wheel-feedback example; set k to 0 and drive L2's curves.
+
 ## Think about
 Q: Why read the gains on the circle rather than reuse the straight-line ones?
 A: Because the controller's law is nonlinear in the errors and the derivatives differ between operating points: pure pursuit's chord geometry, Stanley's arctangent, PID's bearing all have different local slopes on a curve. Finite differences at the settled point give the loop the controller actually closes there; the straight-line gains would be a guess that is 10 % off for pure pursuit and worse for the others.

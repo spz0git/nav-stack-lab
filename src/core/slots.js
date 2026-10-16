@@ -2,103 +2,9 @@
    Code slots: user JavaScript for the controller, the global planner, the localizer and the agent predictor.
    Each slot runs in its own Web Worker, called in lockstep with the simulation, with a timeout.
    ============================================================ */
-const SLOT_EXAMPLES = {
-  plan: `// Your global planner. Called whenever the mission needs a path (initial plan, replans).
-// Return { path: [[x, y], ...] } from the start to the goal, or { error: 'reason' } when there is none.
-// A car may return { segs: [{ pts: [[x, y, th], ...], dir: +1 | -1 }, ...] } with reverse legs.
-//
-// obs.start  {x, y, th}      estimated pose
-// obs.goal   {x, y, th|null} the goal, heading only for posed goals
-// obs.grid   {w, h, res}     the costmap grid: w × h cells of res metres
-// obs.lethal Uint8Array      1 where the robot centre may not go (w*h, row-major, cell (i, j) = j*w + i)
-// obs.dist   Float32Array    distance to the nearest obstacle per cell [m]
-// obs.vehicle {model, wheelbase, steerMax, minTurnR, revOK}
-// Budget: 3 s per call. mem persists between calls.
-
-function plan(obs, mem) {
-  const { w, h, res } = obs.grid, L = obs.lethal;
-  const cell = (x, y) => [Math.floor(x / res), Math.floor(y / res)];
-  const [si, sj] = cell(obs.start.x, obs.start.y), [gi, gj] = cell(obs.goal.x, obs.goal.y);
-  // 8-connected A* with the octile heuristic
-  const g = new Float32Array(w * h).fill(Infinity), par = new Int32Array(w * h).fill(-1), closed = new Uint8Array(w * h);
-  const heur = (i, j) => { const dx = Math.abs(i - gi), dy = Math.abs(j - gj); return Math.max(dx, dy) + 0.414 * Math.min(dx, dy); };
-  const open = [[heur(si, sj), sj * w + si]]; g[sj * w + si] = 0;
-  const NB = [[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];
-  let found = false, expansions = 0;
-  while (open.length) {
-    let b = 0; for (let k = 1; k < open.length; k++) if (open[k][0] < open[b][0]) b = k;   // a heap would be faster
-    const [, u] = open.splice(b, 1)[0]; if (closed[u]) continue; closed[u] = 1; expansions++;
-    if (u === gj * w + gi) { found = true; break; }
-    const ui = u % w, uj = (u / w) | 0;
-    for (const [di, dj, c] of NB) { const vi = ui + di, vj = uj + dj; if (vi < 0 || vj < 0 || vi >= w || vj >= h) continue;
-      const v = vj * w + vi; if (L[v] || closed[v]) continue;
-      if (di && dj && (L[uj * w + vi] || L[vj * w + ui])) continue;           // no corner cutting
-      const ng = g[u] + c * (1 + 3 * Math.max(0, 0.6 - obs.dist[v]));         // stay away from walls when it is cheap to
-      if (ng < g[v]) { g[v] = ng; par[v] = u; open.push([ng + heur(vi, vj), v]); } }
-  }
-  if (!found) return { error: 'no path on the grid' };
-  const path = []; for (let u = gj * w + gi; u >= 0; u = par[u]) path.push([(u % w + 0.5) * res, (((u / w) | 0) + 0.5) * res]);
-  path.reverse(); path[0] = [obs.start.x, obs.start.y]; path[path.length - 1] = [obs.goal.x, obs.goal.y];
-  return { path, expansions };
-}
-`,
-  loc: `// Your localizer. Called every 50 ms tick, before the planner and controller use the estimate.
-// Return { x, y, th } and optionally cov: a 3×3 covariance as 9 numbers, row-major (drawn as an ellipse).
-//
-// obs.init    {x, y, th} on the first call only (the start pose), else null
-// obs.dt      0.05 s
-// obs.odom    {v, w}   measured speed and yaw rate (noisy, slightly biased)
-// obs.beacons [{id, r, b}] or null: range and bearing (body frame) to beacons seen this tick; id is -1 when unlabeled
-// obs.map     [{id, x, y}] beacon positions
-// obs.scan    Float32Array(120) of lidar ranges or null; beam k points at -π + k·2π/120 in the body frame, 8 m max
-// mem persists between calls. Budget: 200 ms per call.
-
-function localize(obs, mem) {
-  if (obs.init) { mem.x = obs.init.x; mem.y = obs.init.y; mem.th = obs.init.th; }
-  // dead reckoning with the exact arc
-  const v = obs.odom.v, w = obs.odom.w, dt = obs.dt;
-  if (Math.abs(w) < 1e-6) { mem.x += v * dt * Math.cos(mem.th); mem.y += v * dt * Math.sin(mem.th); }
-  else { const r = v / w, t2 = mem.th + w * dt; mem.x += r * (Math.sin(t2) - Math.sin(mem.th)); mem.y -= r * (Math.cos(t2) - Math.cos(mem.th)); mem.th = t2; }
-  // pull toward each labeled beacon reading: a fixed-gain correction, not a Kalman filter
-  if (obs.beacons) for (const z of obs.beacons) {
-    const b = obs.map.find(m => m.id === z.id); if (!b) continue;
-    const dx = b.x - mem.x, dy = b.y - mem.y, rHat = Math.hypot(dx, dy), bHat = Math.atan2(dy, dx) - mem.th;
-    const er = z.r - rHat, eb = Math.atan2(Math.sin(z.b - bHat), Math.cos(z.b - bHat));
-    const ux = dx / rHat, uy = dy / rHat;
-    mem.x -= 0.2 * er * ux; mem.y -= 0.2 * er * uy; mem.th -= 0.2 * eb;   // a larger measured bearing means the heading estimate is too large
-  }
-  mem.th = Math.atan2(Math.sin(mem.th), Math.cos(mem.th));
-  return { x: mem.x, y: mem.y, th: mem.th };
-}
-`,
-  pred: `// Your agent predictor. Called at 10 Hz with the current tracks.
-// Return { trajectories: { [id]: [[x, y, r], ...] } }: one sample per step of obs.dt from t = 0 to obs.horizon, per track.
-// The speed planner, DWA and MPC read these samples instead of the built-in constant-velocity model.
-//
-// obs.tracks  [{id, x, y, vx, vy, r, age}]  position, velocity estimate, radius, seconds since confirmed
-// obs.horizon seconds to predict (the Prediction horizon slider)
-// obs.dt      sample step (0.1 s)
-// obs.lethal, obs.grid  the static map, as for the planner (people do not walk through walls)
-// mem persists between calls. Budget: 200 ms per call.
-
-function predict(obs, mem) {
-  const out = {}, n = Math.round(obs.horizon / obs.dt);
-  for (const t of obs.tracks) {
-    const samples = [];
-    let vx = t.vx, vy = t.vy;
-    for (let k = 0; k <= n; k++) {
-      const tt = k * obs.dt;
-      // constant velocity, with the velocity decaying toward a walking pace after 2 s: people rarely keep running
-      const sp = Math.hypot(vx, vy), cap = tt > 2 ? 1.2 : Infinity;
-      if (sp > cap) { vx *= cap / sp; vy *= cap / sp; }
-      samples.push([t.x + vx * tt, t.y + vy * tt, t.r + 0.1 * tt]);
-    }
-    out[t.id] = samples;
-  }
-  return { trajectories: out };
-}
-`
-};
+// The slot examples come from src/examples/<slot>/*.js (tools/code.mjs inlines them as SLOT_LIBRARY); the editor starts
+// on the first one of each slot.
+const slotExample = (k, id) => (SLOT_LIBRARY[k] || []).find(e => !id || e.id === id) || {id: '', name: '', code: ''};
 const SLOT_DEFS = {
   ctl: {
     name: 'Controller',
@@ -131,7 +37,7 @@ const SLOT_DEFS = {
 };
 const SLOTS = {};
 for (const k of Object.keys(SLOT_DEFS))
-  SLOTS[k] = {code: k === 'ctl' ? DEFAULT_CODE : SLOT_EXAMPLES[k], worker: null, status: {msg: 'Not loaded.', cls: ''}, lastErr: ''};
+  SLOTS[k] = {code: slotExample(k).code, worker: null, status: {msg: 'Not loaded.', cls: ''}, lastErr: ''};
 function slotWorker(k, code) {
   const D = SLOT_DEFS[k];
   const src = `"use strict";\n${code}\n;const __mem={};const __wrap=${D.wrap.toString()};self.onmessage=(e)=>{if(e.data&&e.data.reset){for(const k in __mem)delete __mem[k];return;}try{if(typeof ${D.fn}!=='function')throw new Error('Define a function named ${D.fn}(obs, mem)');const r=${D.fn}(e.data,__mem)||{};self.postMessage(__wrap(r));}catch(err){self.postMessage({ok:false,error:String(err&&err.message||err)});}};`;
@@ -181,6 +87,14 @@ function slotWorker(k, code) {
     if (!W_.dead) wk.postMessage({reset: true});
   };
   W_.kill = () => {
+    // a call still pending resolves as failed now, or its timer would fire later as a spurious timeout
+    W_.dead = true;
+    const p = W_.pending;
+    W_.pending = null;
+    if (p) {
+      clearTimeout(p.to);
+      p.res({ok: false, error: 'replaced by a new load'});
+    }
     try {
       wk.terminate();
     } catch (_) {}
@@ -205,7 +119,11 @@ function slotLoad(k, code) {
   sl.worker = w;
   sl.lastErr = '';
   slotStatus(k, `Loaded. ${SLOT_DEFS[k].name} set to Your code.`, 'ok');
-  if (S) setParam(SLOT_DEFS[k].param, 'custom', false);
+  if (S) {
+    const already = P[SLOT_DEFS[k].param] === 'custom';
+    setParam(SLOT_DEFS[k].param, 'custom', false);
+    if (already && k === 'plan' && S.fsm.state !== 'IDLE' && S.fsm.state !== 'DONE') requestReplan('planner loaded'); // the old worker's plan died with it
+  }
   return true;
 }
 function slotErr(k, err) {

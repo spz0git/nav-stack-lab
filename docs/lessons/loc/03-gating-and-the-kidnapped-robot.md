@@ -42,6 +42,13 @@ Predict: The particle filter with injection on, unlabeled beacons, kidnapped at 
 - Never: unlabeled readings cannot relocalize it
 Answer: 0
 
+## Code: ekfUpdate, the gate
+snippet: ekf-update
+focus: const d2 = nu[0] * (Si[0] * nu[0] + Si[1] * nu[1]) + nu[1] * (Si[2] * nu[0] + Si[3] * nu[1]);
+focus: const gate = P.assoc === 'unknown' ? 9.21 : 1e9; … continue;
+example: loc/ekf
+Note: d² is the Mahalanobis distance of the innovation; the gate is χ² with two degrees of freedom at 99 %, applied only when the beacons are unlabeled. Edit and run: the EKF example has no gate; add one (skip the update when d² > 9.21) and kidnap the robot to see the difference the lesson describes.
+
 ## Think about
 Q: The gate rejects a correct reading 1 % of the time. What would a 99.99 % gate (d² < 18.4) change?
 A: Fewer good readings lost, more clutter admitted, and no difference at all after a kidnapping: the innovations there are hundreds of σ, far beyond any gate anyone would set. The gate is a tool for the normal case; recovery from gross error needs a separate mechanism.

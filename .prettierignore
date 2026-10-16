@@ -8,3 +8,4 @@ src/index.html
 *.md
 *.json
 *.yml
+src/examples/

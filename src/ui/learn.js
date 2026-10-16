@@ -155,6 +155,8 @@ function lessonBodyHTML(L, id) {
         .join('') +
       `</ol>`
     : `<div class="tries">${L.tries.map((t, j) => btn(j)).join('')}</div>`;
+  const triesAndCode = tries + '\u0003'; // the code block is inserted after the glossary marking (it must not be marked)
+  const code = lessonCodeHTML(L, id);
   const c = L.check,
     done = c && LEARN.check[id];
   const check = c
@@ -164,7 +166,60 @@ function lessonBodyHTML(L, id) {
     L.q && L.q.length
       ? `<h4 class="exph">Think about</h4><div class="questions">${L.q.map(([qq, a]) => `<details class="q"><summary>${qq}</summary><p>${a}</p></details>`).join('')}</div>`
       : '';
-  return glossMarkFor(L, L.b + tries + check + q).replace(/\u0002(\d+)\u0002/g, (_, j) => L.tries[+j][0]) + glossTermsHTML(L);
+  return (
+    glossMarkFor(L, L.b + triesAndCode + check + q)
+      .replace(/\u0002(\d+)\u0002/g, (_, j) => L.tries[+j][0])
+      .replace('\u0003', () => code) + glossTermsHTML(L)
+  );
+}
+// The code behind a lesson (L.code from "## Code:" in its markdown): the marked snippet of the page's own source,
+// read-only, the lesson's focus lines tinted, with "Edit and run" (the slot example into the Code tab, the matching
+// parameter on "Your code", the lesson's level set up and paused) and the whole module in the source viewer.
+function lessonCodeHTML(L, id) {
+  const c = L.code,
+    sn = c && lessonOpen === id && codeSnippet(c.snip); // only the open lesson's: every lesson body is in the DOM
+  if (!sn) return '';
+  const lines = sn.text.split('\n'),
+    focus = new Set();
+  for (const f of c.focus) {
+    const a = lines.findIndex(l => l.includes(f[0]));
+    if (a < 0) continue;
+    const b = f[1] ? lines.findIndex((l, k) => k >= a && l.includes(f[1])) : a;
+    for (let k = a; k <= (b < 0 ? a : b); k++) focus.add(k + 1);
+  }
+  const ex = c.ex ? slotExample(c.ex.split('/')[0], c.ex.split('/')[1]) : null,
+    slot = c.ex ? SLOT_DEFS[c.ex.split('/')[0]] : null;
+  return (
+    `<h4 class="exph">The code</h4><div class="lcode"><div class="lcode-head"><span class="lcode-fn">${esc(c.t)}</span><span class="lbl">${sn.file} · lines ${sn.from}–${sn.to}</span></div>` +
+    `<pre class="codehl lcode-pre" tabindex="0" aria-label="${esc(c.t)}">${codeHighlight(sn.text, 0, focus)}</pre>` +
+    (c.note ? `<p class="note">${c.note}</p>` : '') +
+    `<div class="tries">${ex && ex.code ? `<button class="btn small" data-ex="${c.ex}" data-exl="${id}" title="Open the Code tab with this example as your ${slot.name.toLowerCase()}, on this lesson's level">Edit and run: ${esc(ex.name)} as your ${slot.name.toLowerCase()}</button>` : ''}<button class="btn small" data-src="${sn.file}">Whole module</button></div></div>`
+  );
+}
+// "Edit and run": the example into the editor and the worker, the parameter on "Your code", the lesson's level
+// (its first simulator experiment, or the vehicle's level for an Analyze lesson) set up on the Code tab, paused.
+function codeOpen(exId, lessonId) {
+  const [k, eid] = exId.split('/'),
+    ex = slotExample(k, eid),
+    D = SLOT_DEFS[k];
+  if (!ex.code) return;
+  const it = lessonId && lessonItem(lessonId),
+    t = it && it.L.tries.find(x => x[1].sim),
+    cfg0 = t ? t[1] : it ? {sim: true, level: LV_DIFF} : {sim: true, keep: true}; // an Analyze lesson: the unicycle's level (the examples are written for it)
+  SLOTS[k].code = ex.code;
+  codeSlot = k;
+  tryGo({
+    ...cfg0,
+    set: {...(cfg0.set || {}), [D.param]: 'custom'},
+    tab: 'code',
+    hold: true,
+    layers: lessonId ? lessonLayers(lessonId) : undefined
+  });
+  if (uiMode === 'learn') setUIMode('sim'); // the console with the Code tab is the Simulate layout's; Learn brings the lesson back
+  if (slotLoad(k, ex.code))
+    logE(`Loaded the example "${ex.name}" as your ${D.name.toLowerCase()}: Run drives with it; edit, Load and use, Run again to compare`);
+  renderAllPanes();
+  refreshAll();
 }
 const predResText = (pr, k) =>
   k === pr.a
@@ -262,6 +317,8 @@ function renderLearn() {
     };
   });
   v.querySelectorAll('.chapter-open').forEach(b => (b.onclick = () => openChapter(b.dataset.ch)));
+  v.querySelectorAll('[data-ex]').forEach(b => (b.onclick = () => codeOpen(b.dataset.ex, b.dataset.exl)));
+  v.querySelectorAll('[data-src]').forEach(b => (b.onclick = () => showSource(b.dataset.src)));
   v.querySelectorAll('a.chref').forEach(
     a =>
       (a.onclick = e => {

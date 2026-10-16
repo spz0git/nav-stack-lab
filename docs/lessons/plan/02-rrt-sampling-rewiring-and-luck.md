@@ -41,6 +41,13 @@ Predict: Raise the budget from 1500 to 4000 samples. What happens to the long th
 - It gets worse: a denser tree commits to more wrong aisles
 Answer: 1
 
+## Code: rrtstar, near nodes and rewiring
+snippet: rrtstar
+focus: rad = Math.min(gam * Math.sqrt(Math.log(n + 1) / (n + 1)), 1.5), … r2 = rad * rad;
+focus: for (const i of near) { … Pa[i] = n;
+example: plan/rrtstar
+Note: The radius shrinks as the tree grows (the log n / n of the paper); the first loop over the near nodes picks the cheapest parent, the second rewires them through the new node. Edit and run: the RRT* example; delete the rewiring loop and you have plain RRT, and the path length shows it.
+
 ## Think about
 Q: Why does the planner choose the cheapest parent in a radius rather than the nearest node?
 A: Connecting to the nearest node is RRT, which converges to a feasible path but not to the optimal one; its paths wander. Choosing the parent that gives the lowest cost-to-come, and then rewiring the neighbours, is what makes RRT* improve the tree as it grows. Without the rewiring step the tree never corrects an early bad connection.

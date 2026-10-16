@@ -73,7 +73,7 @@ const SCHEMA = {
       text: () =>
         SLOTS.loc.worker
           ? 'Your localizer is loaded (Code tab).'
-          : 'Load a localizer in the Code tab; until then the estimate stays at the start pose.',
+          : 'No localizer loaded: the estimate stays at the start pose. <button type="button" class="linkbtn" data-code="loc/ekf">Open the Code tab with the EKF example</button>',
       show: () => P.loc === 'custom'
     },
     {
@@ -240,7 +240,7 @@ const SCHEMA = {
       text: () =>
         SLOTS.pred.worker
           ? 'Your predictor is loaded (Code tab).'
-          : 'Load a predictor in the Code tab; until then constant velocity is used.',
+          : 'No predictor loaded: constant velocity is used. <button type="button" class="linkbtn" data-code="pred/cv">Open the Code tab with the constant-velocity example</button>',
       show: () => agOn() && P.agPred === 'custom'
     },
     {k: 'agT', label: 'Prediction horizon T_p', min: 1, max: 6, step: 0.5, unit: 's', show: agOn},
@@ -314,7 +314,9 @@ const SCHEMA = {
     {
       type: 'info',
       text: () =>
-        SLOTS.plan.worker ? 'Your planner is loaded (Code tab).' : 'Load a planner in the Code tab; until then every plan fails.',
+        SLOTS.plan.worker
+          ? 'Your planner is loaded (Code tab).'
+          : 'No planner loaded: every plan fails. <button type="button" class="linkbtn" data-code="plan/astar">Open the Code tab with the A* example</button>',
       show: () => P.plan === 'custom'
     },
     {
@@ -380,6 +382,14 @@ const SCHEMA = {
         ['mpc', 'MPC'],
         ['custom', 'Your code']
       ]
+    },
+    {
+      type: 'info',
+      text: () =>
+        SLOTS.ctl.worker
+          ? 'Your controller is loaded (Code tab).'
+          : 'No controller loaded: the robot stands still. <button type="button" class="linkbtn" data-code="ctl/pp">Open the Code tab with the pure pursuit example</button>',
+      show: () => P.ctl === 'custom'
     },
     {
       k: 'vcruise',

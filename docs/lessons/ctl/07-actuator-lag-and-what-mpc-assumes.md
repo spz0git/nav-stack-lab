@@ -44,6 +44,11 @@ Predict: Adding the lag to the MPC's model: what will the analysis show?
 - No change: the gains are the same, only the prediction differs
 Answer: 0
 
+## Code: mpcModel, the lag inside the prediction
+snippet: mpc-model
+focus: if (lag) { … o[6] = sat(x[6] + u[1] * dt);
+Note: With the lag modelled, the state carries the commanded and the actual speed and steering, and the prediction filters one toward the other with the same time constant the vehicle has; without it the command is assumed to act at once. The MPC has no code slot (its QP solver is the page's); the controller slot gets the same obs it does.
+
 ## Think about
 Q: Why does the gain margin improve with the lag while the phase margin worsens?
 A: The lag attenuates: its magnitude 1/√(1 + ω²τ²) falls at high frequency, so where the phase reaches −180° the magnitude is lower than before, which is a larger gain margin. The phase loss at crossover is the cost; the attenuation above crossover is a side benefit. Lag and pure delay differ exactly here, since delay attenuates nothing.

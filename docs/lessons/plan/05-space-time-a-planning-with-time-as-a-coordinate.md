@@ -44,6 +44,12 @@ Predict: Space-time A* against reactive people: what will the contact count be?
 - Zero
 Answer: 2
 
+## Code: stAstar, time as a coordinate
+snippet: stastar
+focus: // agent discs per time slice
+focus: if (di === 0 && dj === 0 && vk >= nt) continue; // waiting past the horizon is pointless
+Note: The people's predicted discs are stamped into one lethal grid per time slice, and the search runs over (cell, time) with waiting as a move, except past the horizon, where waiting changes nothing. The planner slot gets no time dimension; a space-time planner of your own would need the predictions, which only the predictor slot sees.
+
 ## Think about
 Q: Why are the space-time cells 0.2 m when the spatial grid is 0.1 m?
 A: Adding a time axis multiplies the state space by the number of time steps (17 at the default horizon), so the grid is coarsened to keep the search tractable: 0.2 m cells have a quarter of the cells, and the budget of 60 000 expansions stays enough. The price is a coarser route that the tracker smooths.

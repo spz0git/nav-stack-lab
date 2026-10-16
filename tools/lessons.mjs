@@ -5,6 +5,12 @@
 //     cfg: {json}              the Try configuration (tryGo when it has "sim": true, lessonGo otherwise)
 //     Setup: … / See: … / Shows: …    the explanation (optional; all three make an explained Try)
 //     Predict: <question>      then one "- option" line per answer and "Answer: <index>" (0-based)
+//   ## Code: <title>         the code behind the lesson (optional, one per lesson): the lines that follow
+//     snippet: <id>            a "// @code <id>" snippet in the source (tools/code.mjs)
+//     focus: <text>            a line of the snippet to mark, by a substring (repeatable); "focus: a … b" marks the
+//                              lines from the first match of a to the first match of b
+//     example: <slot>/<id>     the slot example "Edit and run" loads (src/examples/<slot>/<nn>-<id>.js)
+//     Note: …                  what to look at, what to change
 //   ## Think about           "Q: …" and "A: …" pairs
 //   ## Check yourself        Q: … / Answer: <number> / Tolerance: <number> / Unit: … / How: …
 // The output has the same shape as the objects the JS files used to hold: {t, b, tries:[[label, cfg, {setup, see,
@@ -67,6 +73,22 @@ export function parseLesson(md, file) {
       if (!cfg) throw new Error(`${file}: Try "${label}" has no cfg`);
       if (predict) x.predict = predict;
       L.tries.push(Object.keys(x).length ? [label, cfg, x] : [label, cfg]);
+    } else if (/^Code:/.test(sec)) {
+      const c = {t: sec.replace(/^Code:\s*/, ''), focus: []};
+      for (const l of items) {
+        const p = kv(l);
+        if (!p) throw new Error(`${file}: Code: cannot read "${l.slice(0, 60)}"`);
+        const [k, v] = p;
+        if (k === 'snippet') c.snip = v.trim();
+        else if (k === 'focus') {
+          const m = /^(.*?)\s+…\s+(.*)$/.exec(v);
+          c.focus.push(m ? [m[1], m[2]] : [v]);
+        } else if (k === 'example') c.ex = v.trim();
+        else if (k === 'Note') c.note = v;
+        else throw new Error(`${file}: Code: unknown key ${k}`);
+      }
+      if (!c.snip) throw new Error(`${file}: Code section without a snippet`);
+      L.code = c;
     } else if (sec === 'Think about') {
       L.q = [];
       let q = null;

@@ -55,6 +55,11 @@ Predict: Adding the yaw-rate gyro: what does it fix and what remains?
 - Nothing: the gyro measures the same turn as the encoder
 Answer: 1
 
+## Code: dynF, the tyre forces
+snippet: tyre-model
+focus: af = sg * (G.td - (vy + G.lf * yr) / vx), … Fr = clamp(P.Cr * ar, -G.fr, G.fr),
+Note: The slip angles of the front and rear tyres, and the lateral forces as stiffness times slip, clamped at the friction limit. The controller slot sees none of this directly; it sees the pose, and the slip as the difference between where it steered and where the car went.
+
 ## Think about
 Q: Why does the car turn less than its steering says, rather than more?
 A: Because this car understeers: K_us > 0, which needs l_r/C_f > l_f/C_r. With the centre of mass slightly forward and softer front tyres, the fronts must slip more than the rears to carry their share of the turn, and the extra front slip is steering that does not turn the car. Swap the stiffnesses (C_f 90, C_r 40) and K_us turns negative: the car turns more than geometry says, and above a critical speed its yaw motion is unstable.

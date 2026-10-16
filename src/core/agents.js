@@ -114,6 +114,7 @@ function agDetect() {
 }
 // Tracking: one constant-velocity Kalman filter per agent, gated greedy nearest-neighbour association
 const AG_SZ = 0.1; // measurement noise σ [m]
+// @code ag-track | agTrack: clusters to tracks, with the constant-velocity Kalman filter
 function agTrack() {
   const A = S.agents;
   if (P.agents === 'truth') {
@@ -197,6 +198,7 @@ function agTrack() {
   });
   A.tracks = A.tracks.filter(t => S.t - t.lastUpd < (t.conf ? 1.0 : 0.25)); // confirmed tracks coast through 1 s of occlusion
 }
+// @end
 // Prediction: constant velocity (or frozen), radius inflated with time
 function agPred(t, tt) {
   if (P.agPred === 'custom') {

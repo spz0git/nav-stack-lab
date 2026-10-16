@@ -32,6 +32,13 @@ Predict: Switching from the diff-drive to the car with the same pure pursuit: wh
 - Roughly the same crossover and the same ζ ≈ 0.71
 Answer: 2
 
+## Code: Lparts, the loop in factors
+snippet: loop-parts
+focus: lat = Cx.exp(Cx.scale(s, -M.nL * M.T)); // hold delay T/2 on vehicle paths; latency on everything through the actuator
+focus: const lag = M.tau > 0 ? Cx.div([M.aL, 0], Cx.sub(one, Cx.scale(zi, 1 - M.aL))) : one;
+example: ctl/rwf
+Note: Every block of the lesson's diagram is one factor here: the hold as e^{−sT/2}, the latency as e^{−s n T}, the actuator lag as a first-order discrete filter, then the plant and the controller's gains multiplied together. Edit and run: the rear-wheel-feedback example is the controller this loop is built on.
+
 ## Think about
 Q: Why does feedback on e alone oscillate for ever?
 A: Two integrators with a proportional gain give ë = −K_e v e: a mass on a spring with no damper. The solution is a sinusoid that never decays. Feedback on θ_e = ė/v is the damper. Every tracker has one; pure pursuit hides it in the geometry of the carrot.

@@ -1733,6 +1733,7 @@ function dynInfo() {
   return {K, vch: K > 0 ? Math.sqrt(L / K) : null, vcrit: K < 0 ? Math.sqrt(-L / K) : null, aMax: P.mu * GRAV, L, lf, lr};
 }
 // The linear model about straight driving at speed vx: [v̇_y, ṙ] = A [v_y, r] + B tanδ (chapter 1 §4; Analyze uses it)
+// @code dyn-lin | dynLin: the linearized car at speed v, and the characteristic speed
 function dynLin(vx) {
   const {L, lf, lr, m, Iz} = dynGeom(),
     Cf = P.Cf,
@@ -1747,6 +1748,7 @@ function dynLin(vx) {
     B: [(sg * Cf) / m, (sg * lf * Cf) / Iz]
   };
 }
+// @end
 // Its yaw mode in words: natural frequency and damping, or two time constants
 function dynModes(vx) {
   const {A} = dynLin(vx),
@@ -1764,6 +1766,7 @@ function dynModes(vx) {
   return {tau: [-1 / l1, -1 / l2], text: `time constants ${(-1000 / l1).toFixed(0)} and ${(-1000 / l2).toFixed(0)} ms`};
 }
 // Lateral dynamics at forward speed vx and wheel angle de: o = [v̇_y, ṙ]; also returns slip angles and forces in T
+// @code tyre-model | dynF: the lateral tyre forces of the dynamic bicycle
 function dynF(vy, yr, vx, de, G, o, T) {
   const sg = vx < 0 ? -1 : 1,
     af = sg * (G.td - (vy + G.lf * yr) / vx),
@@ -1781,6 +1784,8 @@ function dynF(vy, yr, vx, de, G, o, T) {
   }
   return o;
 }
+// @end
+// @code dyn-step | dynStep: one step of the car with tyre slip
 function dynStep(r, vx, de) {
   const G = dynGeom();
   G.ff = (P.mu * G.m * GRAV * G.lr) / G.L;
@@ -1840,6 +1845,7 @@ function dynStep(r, vx, de) {
   }
   return {x, y, th, vy, r: yr};
 }
+// @end
 // Slip state of the current motion (UI signals): slip angles, sideslip at the CoM, lateral acceleration
 function dynSlip(rb) {
   const G = dynGeom();
@@ -1866,6 +1872,7 @@ const sigV = (v, w, k) => k * (0.1 * Math.abs(v) + 0.02);
 const sigW = (v, w, k) => k * (0.2 * Math.abs(w) + 0.1 * Math.abs(v) + 0.02);
 const gyroSig = () => (P.gyroSig * Math.PI) / 180,
   gyroBias = () => (P.gyroBias * Math.PI) / 180;
+// @code odometry | odometry: the wheel encoders and the gyro, with their noise and bias
 function odometry() {
   const r = S.robot,
     g = S.rngW,
@@ -1887,6 +1894,7 @@ function odometry() {
   } else wo = w + 0.01 * P.odoB * r.v + sigW(r.v, w, k) * g.n();
   S.odo = {v: vo, w: wo};
 }
+// @end
 // the filter's assumed turn-rate noise: the gyro's σ (scaled by the assumed-noise slider) when the gyro is on
 const filtSigW = (v, w) => (P.gyro ? P.filtK * gyroSig() : sigW(v, w, assumedK()));
 const assumedK = () => P.filtK * Math.max(P.odoK, 0.25);
@@ -2054,6 +2062,7 @@ function m3inv(A) {
     (a * e - b * d) / det
   ];
 }
+// @code ekf-predict | locPredict: the prediction step of dead reckoning, the EKF and the particle filter
 function locPredict() {
   const {v, w} = S.odo;
   if (P.loc === 'truth') return;
@@ -2098,6 +2107,8 @@ function locPredict() {
     pfEstimate();
   }
 }
+// @end
+// @code ekf-update | ekfUpdate: the Kalman update per beacon reading, with the gate
 function ekfUpdate(z) {
   const sr = sigR(),
     sb = sigB();
@@ -2166,6 +2177,8 @@ function ekfUpdate(z) {
     S.Pc = Pn;
   }
 }
+// @end
+// @code pf-update | pfUpdate: weighting the particles by the beacon readings, with the augmented-MCL averages
 function pfUpdate(z) {
   const f = S.pf,
     N = f.N;
@@ -2205,6 +2218,7 @@ function pfUpdate(z) {
   f.inj = pinj;
   pfResample(pinj, z);
 }
+// @end
 // Lidar likelihood-field model against the prior map (as in AMCL). 24 of 120 beams, tempered.
 function pfLidarUpdate(ranges) {
   const f = S.pf,
@@ -2231,6 +2245,7 @@ function pfLidarUpdate(ranges) {
   }
   pfResample(0, null);
 }
+// @code pf-resample | pfResample: N_eff, low-variance resampling and the injected samples
 function pfResample(pinj, z) {
   const f = S.pf,
     N = f.N;
@@ -2281,6 +2296,7 @@ function pfResample(pinj, z) {
   }
   pfEstimate();
 }
+// @end
 // Sensor-resetting sample: a pose consistent with one current beacon reading (Lenser & Veloso)
 function srlSample(z, g) {
   const real = z.filter(m => P.assoc === 'unknown' || !m.fake);
@@ -2413,6 +2429,7 @@ function slamExport() {
   S.est = {x: M.x[0], y: M.x[1], th: M.x[2]};
   S.Pc = [M.P[0], M.P[1], M.P[2], M.P[n], M.P[n + 1], M.P[n + 2], M.P[2 * n], M.P[2 * n + 1], M.P[2 * n + 2]];
 }
+// @code slam-add | slamAdd: a new landmark enters the state, with its cross-covariance
 function slamAdd(id, r, b) {
   const M = S.slam,
     n0 = slamDim(),
@@ -2449,7 +2466,9 @@ function slamAdd(id, r, b) {
   M.ids.push(id);
   M.n++;
 }
+// @end
 // EKF-SLAM measurement update: known or unlabeled IDs, Mahalanobis gating, new landmarks appended to the state and covariance.
+// @code slam-update | slamUpdate: the EKF-SLAM update, correlations and all
 function slamUpdate(z) {
   const M = S.slam,
     sr = sigR(),
@@ -2551,6 +2570,7 @@ function slamUpdate(z) {
   }
   slamExport();
 }
+// @end
 // S (innovation covariance) recovered from its inverse
 function S00of(b) {
   const d = b.Si[0] * b.Si[3] - b.Si[1] * b.Si[2];
@@ -2588,6 +2608,7 @@ function slamLandmarks() {
 const L_FREE = -0.4,
   L_OCC = 0.85,
   L_CLAMP = 4;
+// @code logodds | integrateScan: a lidar scan into the log-odds grid
 function integrateScan(ranges) {
   const e = S.est,
     lo = S.lo;
@@ -2624,6 +2645,8 @@ function integrateScan(ranges) {
     }
   }
 }
+// @end
+// @code costmap | buildCostmap: lethal cells and the inflation band from the distance transform
 function buildCostmap() {
   const cm = S.cm,
     occ = cm.occ;
@@ -2645,6 +2668,7 @@ function buildCostmap() {
   }
   dirty.cost = true;
 }
+// @end
 // Why a goal cell is lethal, for the planners' log line: under the cautious policy, unexplored cells are obstacles,
 // so a goal in or next to unseen space is blocked by the unknown, not by anything the lidar saw
 function goalBlocked(gx, gy) {
@@ -2720,6 +2744,7 @@ const NB = [
   [-1, 1, SQ2],
   [-1, -1, SQ2]
 ];
+// @code astar | gridSearch: A* on the costmap, with ε and the trace
 function gridSearch(s, g, eps, tr) {
   // tr: an object to receive the expansion order (closedAt, openAt: 1-based step)
   const cm = S.cm,
@@ -2778,6 +2803,7 @@ function gridSearch(s, g, eps, tr) {
   }
   return {gs, par, closed, exp, found};
 }
+// @end
 const center = k => [((k % GW) + 0.5) * RES, (((k / GW) | 0) + 0.5) * RES];
 function smoothPath(pts) {
   if (pts.length < 3) return pts;
@@ -2826,6 +2852,7 @@ function astar(sx, sy, gx, gy) {
   return {ok: true, pts, exp: R.exp, cost: R.gs[g]};
 }
 // RRT*: sample, steer from the nearest node, connect to the cheapest parent within the radius, rewire; the radius shrinks with n.
+// @code rrtstar | rrtstar: sampling, the nearest node, choosing a parent and rewiring
 function rrtstar(sx, sy, gx, gy) {
   const g = S.rngA,
     cm = S.cm;
@@ -2929,6 +2956,7 @@ function rrtstar(sx, sy, gx, gy) {
   if (P.smooth) pts = smoothPath(pts);
   return {ok: true, pts, exp: X.length, cost: pathLen(pts)};
 }
+// @end
 
 /* RS_BEGIN */
 const RS = (() => {
@@ -3256,6 +3284,7 @@ function holoField(gx, gy, dist, thr) {
 }
 // Hybrid A*: a search over (x, y, θ) with arc primitives at the planning lock, Reeds–Shepp shots to the goal, the
 // max(2D Dijkstra, Reeds–Shepp) heuristic, gear and steering penalties, and an expansion budget.
+// @code hybrid | hybridAstar: motion primitives on a pose grid, with Reeds–Shepp shots
 function hybridAstar(e, wp) {
   const dist = S.cm.dist,
     L = P.wheelbase,
@@ -3494,6 +3523,7 @@ function hybridAstar(e, wp) {
   for (const g of segs) len += pathLen(g.pts);
   return {ok: true, segs, len, exp, extra: `${segs.length - 1} cusp${segs.length === 2 ? '' : 's'}${tail ? ' · RS shot' : ''}`};
 }
+// @end
 
 /* ---- core/path.js ---- */
 /* ---------- path tracking helpers ---------- */
@@ -3658,6 +3688,7 @@ function computeOrder(idx) {
 // goal the planner gets is the nearest known-free cell with some margin beyond the inflated obstacles (a frontier
 // cell sits next to unknown space, which the cautious policy inflates); a frontier with no such cell nearby is skipped.
 const exploring = () => P.mis === 'explore' && P.per === 'mapping';
+// @code frontiers | frontiers: the frontier cells, clustered, with a goal cell each
 function frontiers() {
   const lo = S.lo,
     isF = new Uint8Array(NC),
@@ -3725,6 +3756,7 @@ function frontiers() {
   }
   return out;
 }
+// @end
 // the nearest known-free cell 0.2 m or more beyond the inflated obstacles, within about 2 m of cell s; in a corridor
 // too narrow for that margin the nearest known-free cell that is merely not lethal; for a sliver seen through a door,
 // where every known cell is lethal, the nearest cell that is not lethal at all (unknown, when unknown counts as free:
@@ -3958,6 +3990,7 @@ function wpLabel(i) {
 const posSigma = () => (S.Pc ? Math.sqrt(Math.max(0, S.Pc[0] + S.Pc[4])) : 0);
 // One tick of the mission state machine (IDLE, PLAN, DRIVE, NO_PATH, LOST, DONE): goals reached by the estimate, replans on
 // blocked, off path, stuck or timer, the lost guard, and the heading alignment at posed goals.
+// @code mission-tick | missionTick: the behaviour layer, one tick of the state machine
 function missionTick() {
   const F = S.fsm;
   if (F.state === 'PLAN') {
@@ -4153,6 +4186,7 @@ function missionTick() {
     F.prog = {t: S.t, x: e.x, y: e.y};
   }
 }
+// @end
 
 /* ---- core/controllers.js ---- */
 /* ============================================================
@@ -4180,6 +4214,7 @@ function kapAt(sArc) {
   return T.kv[i] + (T.kv[i + 1] - T.kv[i]) * t;
 }
 // Rear-wheel feedback (Samson; Paden et al. 2016 §V-A): curvature feedforward + heading and lateral feedback
+// @code rwf | ctlRWF: rear-wheel feedback with the curvature feedforward
 function ctlRWF() {
   const {e, T, pr, dir, thv} = trackPre(),
     q = pointAt(pr.s),
@@ -4205,6 +4240,7 @@ function ctlRWF() {
   if (Math.abs(the) > Math.PI / 2) return {v: 0, w: -Math.sign(the) * P.wmax * 0.7};
   return {v, w: clamp(v * kc, -P.wmax, P.wmax)};
 }
+// @end
 const vCap = dir => (dir > 0 ? P.vmax : Math.min(0.35, 0.5 * P.vmax)); // reverse legs: manoeuvring speed
 function trackPre() {
   const e = S.est,
@@ -4214,6 +4250,7 @@ function trackPre() {
   const dir = T.dir || 1;
   return {e, T, pr, dir, thv: dir > 0 ? e.th : wrap(e.th + Math.PI)};
 }
+// @code pp | ctlPP: pure pursuit, the carrot and the curvature
 function ctlPP() {
   const {e, pr, dir, thv} = trackPre();
   const Ld = Math.max(0.1, P.ppL0 + P.ppK * Math.abs(S.odo.v));
@@ -4246,6 +4283,8 @@ function ctlPP() {
   }
   return {v, w};
 }
+// @end
+// @code pid | ctlPID: PID on the heading error to the carrot
 function ctlPID() {
   const {e, pr, dir, thv} = trackPre();
   const Ld = Math.max(0.1, P.ppL0 + P.ppK * Math.abs(S.odo.v));
@@ -4267,7 +4306,9 @@ function ctlPID() {
   v = Math.min(v, decelCap(goalDist(pr)));
   return {v, w};
 }
+// @end
 // Stanley (Hoffmann et al. 2007): front-axle cross-track + heading error. Forward legs only.
+// @code stanley | ctlStanley: front-axle cross-track and heading error
 function ctlStanley() {
   if (!isCar() || (S.track.dir || 1) < 0) return ctlPP();
   const {e, T, pr} = trackPre(),
@@ -4307,6 +4348,8 @@ function ctlStanley() {
   if (k > 1e-6) v = Math.min(v, Math.sqrt(P.alat / k));
   return {v: Math.min(v, decelCap(goalDist(pr))), steer: d};
 }
+// @end
+// @code dwa | ctlDWA: the dynamic window, rolled out and scored
 function ctlDWA() {
   const {e, pr, dir} = trackPre(),
     car = isCar();
@@ -4391,6 +4434,7 @@ function ctlDWA() {
   }
   return car ? {v: best.v, steer: best.u} : {v: best.v, w: best.u};
 }
+// @end
 /* ============================================================
    Model predictive control
    Gauss–Newton SQP on the condensed (single-shooting) problem.
@@ -4402,6 +4446,7 @@ function ctlDWA() {
 // State x = [x, y, θ, v, s, (v_cmd, s_cmd)], s = δ (car) or ω (diff); input u = [a, ṡ]
 
 /* ---- core/mpc.js ---- */
+// @code mpc-model | mpcModel: the prediction model MPC assumes, with the actuator lag
 function mpcModel() {
   const car = isCar(),
     L = P.wheelbase,
@@ -4432,6 +4477,7 @@ function mpcModel() {
   };
   return {n: iy + (dyn ? 2 : 0), f, car, lag, dyn, iy};
 }
+// @end
 // The prediction with tyre slip (P.mpcDyn on the car with tyre slip): the simulator's dynamic bicycle model (dynF in
 // vehicle.js: linear tyres clipped at μF_z, the same low-speed blend to the kinematic car), stepped MPC_DSUB times per
 // prediction step with one linearly implicit Euler stage (L-stable, so grippy tyres reduce to the kinematic car), and
@@ -4444,6 +4490,7 @@ function mpcDynGeom() {
   G.fr = (P.mu * G.m * GRAV * G.lf) / G.L;
   return G;
 }
+// @code mpc-dyn-pose | mpcDynPose: the tyre model inside the MPC prediction
 function mpcDynPose(x, vx, de, dt, G, iy) {
   G.td = Math.tan(de);
   const h = dt / MPC_DSUB,
@@ -4493,6 +4540,7 @@ function mpcDynPose(x, vx, de, dt, G, iy) {
   o[iy + 1] = yr;
   return o;
 }
+// @end
 // Central-difference Jacobians A = ∂f/∂x, B = ∂f/∂u. Not forward differences: the steering state saturates at ±s_max, and a
 // forward step from +s_max is clipped, which reads as zero sensitivity to steering at full left lock (the solver then cannot unwind it)
 function mpcJac(M, x, u, dt) {
@@ -5038,8 +5086,8 @@ function builtinCmd() {
 // the lidar, so a wall the map has wrong (drift, a late scan) or a corner cut on the swing round it is hit side-on.
 // Sweep the footprint along the commanded arc against this scan's points (placed with the estimate, so their positions
 // relative to the robot are as measured) and cap the speed at what stops before the first point closer than MARGIN
-// that the arc approaches. DWA and MPC check the scan themselves.
-const GUARD_CTL = ['pp', 'pid', 'stanley', 'rwf'],
+// that the arc approaches. DWA and MPC check the scan themselves; a controller in the Code tab gets the guard like the trackers.
+const GUARD_CTL = ['pp', 'pid', 'stanley', 'rwf', 'custom'], // your code is a path tracker too (switch the guard off to drive without it)
   GUARD_MARG = 0.05;
 function lidarGuard(c) {
   S.guard = null;
@@ -5120,61 +5168,6 @@ function builtinRaw() {
 
 /* ---- core/custom-controller.js ---- */
 /* ---------- custom controller: user code in a Web Worker, run in lockstep ---------- */
-const DEFAULT_CODE = `// Your controller. Called every 50 ms while the robot drives a leg.
-// Return { v, w } in m/s and rad/s, or { v, steer } (rad) for the car-like model.
-// Add mark: [x, y] to draw a point on the map.
-//
-// obs.pose   {x, y, th}      estimated pose (not ground truth)
-// obs.odom   {v, w}          measured velocity from wheel odometry
-// obs.path   [[x, y], ...]   current global path, resampled every 0.1 m
-// obs.goal   {x, y}          current goal
-// obs.scan   [[x, y], ...]   lidar hits in the world frame (from the estimate)
-// obs.agents [{id, x, y, vx, vy, r}]  tracked moving agents (Perceive → Moving agents)
-// obs.limits {vmax, wmax, accel, amax, alpha}
-// obs.dir                    +1 on a forward leg, -1 on a reverse leg (car paths have cusps)
-// obs.vehicle {model, wheelbase, steerMax, steer}   model is 'diff' or 'car'
-// obs.pathId                 changes whenever the planner replans or a new leg starts
-// obs.t, obs.dt              sim time and step [s]
-// mem                        object that persists between calls
-
-function control(obs, mem) {
-  const { pose, path, goal, limits } = obs;
-  if (mem.pathId !== obs.pathId) { mem.pathId = obs.pathId; mem.i = 0; }
-
-  // 1. closest path index, searching forward from last time
-  let best = Infinity;
-  const i0 = mem.i;
-  for (let i = i0; i < Math.min(path.length, i0 + 60); i++) {
-    const d = Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y);
-    if (d < best) { best = d; mem.i = i; }
-  }
-
-  // 2. carrot: first path point at least L ahead
-  const L = 0.8;
-  let c = path[path.length - 1];
-  for (let i = mem.i; i < path.length; i++) {
-    if (Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y) >= L) { c = path[i]; break; }
-  }
-
-  // 3. heading error measured against the direction of travel
-  const dir = obs.dir;
-  const th = dir > 0 ? pose.th : pose.th + Math.PI;
-  const a = Math.atan2(c[1] - pose.y, c[0] - pose.x) - th;
-  const err = Math.atan2(Math.sin(a), Math.cos(a));
-
-  // 4. slow down when misaligned or near the end of this leg
-  const end = path[path.length - 1];
-  const dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y);
-  if (obs.vehicle.model === 'car') {
-    const speed = Math.min(0.6, 0.8 * dEnd) * Math.max(0.3, Math.cos(err));
-    const Lc = Math.max(0.1, Math.hypot(c[0] - pose.x, c[1] - pose.y));
-    const steer = Math.atan(obs.vehicle.wheelbase * 2 * Math.sin(err) / Lc);
-    return { v: dir * speed, steer: dir * steer, mark: c };
-  }
-  const v = Math.min(0.7, 0.8 * dEnd) * Math.max(0, Math.cos(err));
-  return { v, w: 2.0 * err, mark: c };
-}
-`;
 async function customCmd() {
   if (S.fsm.state === 'LOST') {
     S.ctlViz = null;
@@ -5216,108 +5209,18 @@ async function customCmd() {
   return {v: isFinite(r.v) ? r.v : 0, w: isFinite(r.w) ? r.w : 0, steer: r.steer};
 }
 
+/* ---- core/examples-data.js ---- */
+/* ---------- the slot examples, inlined by the build from src/examples/<slot>/*.js (tools/code.mjs) ---------- */
+const SLOT_LIBRARY = {"ctl":[{"id":"pp","name":"Pure pursuit","code":"// Your controller. Called every 50 ms while the robot drives a leg.\n// Return { v, w } in m/s and rad/s, or { v, steer } (rad) for the car-like model.\n// Add mark: [x, y] to draw a point on the map.\n//\n// obs.pose   {x, y, th}      estimated pose (not ground truth)\n// obs.odom   {v, w}          measured velocity from wheel odometry\n// obs.path   [[x, y], ...]   current global path, resampled every 0.1 m\n// obs.goal   {x, y}          current goal\n// obs.scan   [[x, y], ...]   lidar hits in the world frame (from the estimate)\n// obs.agents [{id, x, y, vx, vy, r}]  tracked moving agents (Perceive → Moving agents)\n// obs.limits {vmax, wmax, accel, amax, alpha}\n// obs.dir                    +1 on a forward leg, -1 on a reverse leg (car paths have cusps)\n// obs.vehicle {model, wheelbase, steerMax, steer}   model is 'diff' or 'car'\n// obs.pathId                 changes whenever the planner replans or a new leg starts\n// obs.t, obs.dt              sim time and step [s]\n// mem                        object that persists between calls\n\nfunction control(obs, mem) {\n  const { pose, path, goal, limits } = obs;\n  if (mem.pathId !== obs.pathId) { mem.pathId = obs.pathId; mem.i = 0; }\n\n  // 1. closest path index, searching forward from last time\n  let best = Infinity;\n  const i0 = mem.i;\n  for (let i = i0; i < Math.min(path.length, i0 + 60); i++) {\n    const d = Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y);\n    if (d < best) { best = d; mem.i = i; }\n  }\n\n  // 2. carrot: first path point at least L ahead\n  const L = 0.8;\n  let c = path[path.length - 1];\n  for (let i = mem.i; i < path.length; i++) {\n    if (Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y) >= L) { c = path[i]; break; }\n  }\n\n  // 3. heading error measured against the direction of travel\n  const dir = obs.dir;\n  const th = dir > 0 ? pose.th : pose.th + Math.PI;\n  const a = Math.atan2(c[1] - pose.y, c[0] - pose.x) - th;\n  const err = Math.atan2(Math.sin(a), Math.cos(a));\n\n  // 4. slow down when misaligned or near the end of this leg\n  const end = path[path.length - 1];\n  const dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y);\n  if (obs.vehicle.model === 'car') {\n    // the car: slower on a reverse leg (manoeuvring), a ramp into the end of the leg, slow when pointing far off\n    const speed = Math.min(dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd) * (Math.abs(err) > Math.PI / 2 ? 0.25 : Math.max(0.3, Math.cos(err)));\n    const Lc = Math.max(0.1, Math.hypot(c[0] - pose.x, c[1] - pose.y));\n    const steer = Math.atan(obs.vehicle.wheelbase * 2 * Math.sin(err) / Lc);\n    return { v: dir * speed, steer: dir * steer, mark: c };\n  }\n  const v = Math.min(0.7, 0.8 * dEnd) * Math.max(0, Math.cos(err));\n  return { v, w: 2.0 * err, mark: c };\n}\n"},{"id":"stanley","name":"Stanley","code":"// Your controller: Stanley (Hoffmann et al. 2007), the page's ctlStanley written plainly (Learn → Control). The error\n// is measured at the front axle: the heading error to the path plus the arctangent of the cross-track error, scaled\n// by k and divided by the speed, so the correction softens as the car goes faster. Written for the car; on the\n// unicycle the \"front axle\" is 0.3 m ahead of the pose and the steering angle becomes a turn rate.\n//\n// obs.pose, obs.odom, obs.path [[x, y], …] (0.1 m apart), obs.dir (+1 forward, -1 reverse), obs.vehicle, obs.limits\n\nfunction control(obs, mem) {\n  const { pose, path, odom, limits } = obs, car = obs.vehicle.model === 'car', L = car ? obs.vehicle.wheelbase : 0.3, K = 2.0;\n  const dir = obs.dir, th = dir > 0 ? pose.th : pose.th + Math.PI, wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\n  const fx = pose.x + L * Math.cos(th), fy = pose.y + L * Math.sin(th);              // the front axle\n  // 1. the nearest path segment to the front axle, and the path heading there\n  let best = Infinity, bx = fx, by = fy, bth = th;\n  for (let i = 0; i < path.length - 1; i++) {\n    const a = path[i], b = path[i + 1], vx = b[0] - a[0], vy = b[1] - a[1], l2 = vx * vx + vy * vy; if (l2 < 1e-12) continue;\n    const t = Math.max(0, Math.min(1, ((fx - a[0]) * vx + (fy - a[1]) * vy) / l2)), qx = a[0] + vx * t, qy = a[1] + vy * t;\n    const d = (fx - qx) ** 2 + (fy - qy) ** 2;\n    if (d < best) { best = d; bx = qx; by = qy; bth = Math.atan2(vy, vx); }\n  }\n  // 2. the Stanley law: heading error plus the cross-track term, softened by speed\n  const eLeft = Math.cos(bth) * (fy - by) - Math.sin(bth) * (fx - bx);               // cross-track error, left positive\n  const delta = wrap(bth - th) - Math.atan2(K * eLeft, 0.5 + Math.abs(odom.v));\n  const steerMax = car ? obs.vehicle.steerMax : 1.0, d = Math.max(-steerMax, Math.min(steerMax, delta));\n  // 3. speed: cruise, slower in a tight turn, braking into the end of the leg\n  const end = path[path.length - 1], dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y), kap = Math.abs(Math.tan(d)) / L;\n  let v = Math.min(0.8, limits.vmax); if (kap > 1e-6) v = Math.min(v, Math.sqrt(0.6 / kap));\n  v = Math.min(v, Math.sqrt(2 * 0.8 * Math.max(0, dEnd - 0.08)) + 0.02);\n  if (car) return { v: dir * Math.min(v, dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd), steer: dir * d, mark: [bx, by] };   // reverse legs slowly, a ramp into the leg end\n  return { v, w: Math.max(-limits.wmax, Math.min(limits.wmax, v * Math.tan(d) / L)), mark: [bx, by] };\n}\n"},{"id":"pid","name":"PID on the heading error","code":"// Your controller: a PID on the heading error toward a look-ahead point, the page's ctlPID written plainly (Learn →\n// Control, lesson 8 on integral action). Kp 2.0, Ki 0 and Kd 0.15 are the Control tab's defaults; set Ki to 0.3 and\n// watch the integral wind up and unwind. The speed drops with the heading error and into the end of the leg.\n//\n// obs.pose, obs.odom, obs.path [[x, y], …] (0.1 m apart), obs.pathId (changes with every new leg), obs.dt, obs.limits\n\nfunction control(obs, mem) {\n  const { pose, path, odom, limits } = obs, dt = obs.dt, car = obs.vehicle.model === 'car';\n  const Kp = 2.0, Ki = 0.0, Kd = 0.15, dir = obs.dir, th = dir > 0 ? pose.th : pose.th + Math.PI;\n  if (mem.pathId !== obs.pathId) { mem.pathId = obs.pathId; mem.I = 0; mem.prev = null; }   // a new leg: reset the memory\n  // 1. the look-ahead point: the first path point at least Ld ahead of the nearest one\n  const Ld = Math.max(0.1, 0.5 + 0.5 * Math.abs(odom.v));\n  let ni = 0, nd = Infinity;\n  for (let i = 0; i < path.length; i++) { const d = Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y); if (d < nd) { nd = d; ni = i; } }\n  let c = path[path.length - 1];\n  for (let i = ni; i < path.length; i++) if (Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y) >= Ld) { c = path[i]; break; }\n  // 2. the three terms on the heading error\n  const wrap = a => Math.atan2(Math.sin(a), Math.cos(a)), err = wrap(Math.atan2(c[1] - pose.y, c[0] - pose.x) - th);\n  mem.I = Math.max(-1, Math.min(1, mem.I + err * dt));                         // integral, clamped (anti-windup)\n  const D = mem.prev == null ? 0 : wrap(err - mem.prev) / dt; mem.prev = err;  // derivative of the error\n  const u = Kp * err + Ki * mem.I + Kd * D;\n  // 3. speed: cruise, less when pointing the wrong way, braking into the end of the leg\n  const end = path[path.length - 1], dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y);\n  let v = Math.min(0.8, limits.vmax) * Math.max(0, Math.cos(err)) ** 2;\n  v = Math.min(v, Math.sqrt(2 * 0.8 * Math.max(0, dEnd - 0.08)) + 0.02);\n  if (car) { const sm = obs.vehicle.steerMax; return { v: dir * Math.min(v, dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd), steer: dir * Math.max(-sm, Math.min(sm, u)), mark: c }; }   // reverse legs slowly, a ramp into the leg end\n  return { v, w: Math.max(-limits.wmax, Math.min(limits.wmax, u)), mark: c };\n}\n"},{"id":"rwf","name":"Rear-wheel feedback","code":"// Your controller: rear-wheel feedback (Samson; Paden et al. 2016 §V-A), the page's ctlRWF written plainly and the\n// controller the Analyze view's loop model is built on. Curvature feedforward from the path plus heading and lateral\n// feedback: κ_c = κ cos θ_e / (1 − κ e) − k_θ θ_e − k_e sinc(θ_e) e. k_e 6.0 and k_θ 3.0 are the Control tab's defaults;\n// the design row under the pole plot (Learn → Control, lesson 18) gives you other pairs to try here. The path's\n// heading and curvature come from finite differences over the 0.1 m points.\n//\n// obs.pose, obs.odom, obs.path [[x, y], …], obs.dir, obs.vehicle {model, wheelbase, steerMax}, obs.limits\n\nfunction control(obs, mem) {\n  const { pose, path, limits } = obs, car = obs.vehicle.model === 'car', ke = 6.0, kth = 3.0;\n  const dir = obs.dir, th = dir > 0 ? pose.th : pose.th + Math.PI, wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\n  // 1. the nearest path point; the path heading and curvature there (curvature read 0.2 m ahead, covering the lag)\n  let ni = 0, nd = Infinity;\n  for (let i = 0; i < path.length; i++) { const d = Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y); if (d < nd) { nd = d; ni = i; } }\n  const at = i => path[Math.max(0, Math.min(path.length - 1, i))];\n  const hd = i => { const a = at(i - 1), b = at(i + 1); return Math.atan2(b[1] - a[1], b[0] - a[0]); };\n  const curv = i => wrap(hd(i + 1) - hd(i - 1)) / Math.max(1e-3, Math.hypot(at(i + 1)[0] - at(i - 1)[0], at(i + 1)[1] - at(i - 1)[1]));\n  const q = at(ni), thp = hd(ni), kmax = car ? Math.tan(obs.vehicle.steerMax) / obs.vehicle.wheelbase : 3;\n  const k = Math.max(-kmax, Math.min(kmax, path.length > 4 ? curv(ni + 2) : 0));\n  // 2. the two errors and the law\n  const el = Math.cos(thp) * (pose.y - q[1]) - Math.sin(thp) * (pose.x - q[0]), the = wrap(th - thp);   // lateral (left > 0), heading\n  const sinc = Math.abs(the) < 1e-4 ? 1 : Math.sin(the) / the;\n  const kc = (k * Math.cos(the)) / Math.max(0.3, 1 - k * el) - kth * the - ke * sinc * el;\n  // 3. speed: cruise, slower where the path is curved, braking into the end of the leg\n  const end = path[path.length - 1], dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y);\n  let v = Math.min(0.8, limits.vmax); if (Math.abs(k) > 1e-6) v = Math.min(v, Math.sqrt(0.6 / Math.abs(k)));\n  v = Math.min(v, Math.sqrt(2 * 0.8 * Math.max(0, dEnd - 0.08)) + 0.02);\n  if (car) {   // reverse legs slowly, a ramp into the leg end, slow when pointing far off the path\n    const sm = obs.vehicle.steerMax, vc = Math.min(v, dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd) * (Math.abs(the) > Math.PI / 2 ? 0.25 : 1);\n    return { v: dir * vc, steer: dir * Math.max(-sm, Math.min(sm, Math.atan(obs.vehicle.wheelbase * kc))), mark: q };\n  }\n  if (Math.abs(the) > Math.PI / 2) return { v: 0, w: -Math.sign(the) * limits.wmax * 0.7 };   // facing away: turn in place first\n  return { v, w: Math.max(-limits.wmax, Math.min(limits.wmax, v * kc)), mark: q };\n}\n"}],"loc":[{"id":"dr","name":"Dead reckoning","code":"// Your localizer. Called every 50 ms tick, before the planner and controller use the estimate.\n// Return { x, y, th } and optionally cov: a 3×3 covariance as 9 numbers, row-major (drawn as an ellipse).\n//\n// obs.init    {x, y, th} on the first call only (the start pose), else null\n// obs.dt      0.05 s\n// obs.odom    {v, w}   measured speed and yaw rate (noisy, slightly biased)\n// obs.beacons [{id, r, b}] or null: range and bearing (body frame) to beacons seen this tick; id is -1 when unlabeled\n// obs.map     [{id, x, y}] beacon positions\n// obs.scan    Float32Array(120) of lidar ranges or null; beam k points at -π + k·2π/120 in the body frame, 8 m max\n// mem persists between calls. Budget: 200 ms per call.\n\nfunction localize(obs, mem) {\n  if (obs.init) { mem.x = obs.init.x; mem.y = obs.init.y; mem.th = obs.init.th; }\n  // dead reckoning with the exact arc\n  const v = obs.odom.v, w = obs.odom.w, dt = obs.dt;\n  if (Math.abs(w) < 1e-6) { mem.x += v * dt * Math.cos(mem.th); mem.y += v * dt * Math.sin(mem.th); }\n  else { const r = v / w, t2 = mem.th + w * dt; mem.x += r * (Math.sin(t2) - Math.sin(mem.th)); mem.y -= r * (Math.cos(t2) - Math.cos(mem.th)); mem.th = t2; }\n  // pull toward each labeled beacon reading: a fixed-gain correction, not a Kalman filter\n  if (obs.beacons) for (const z of obs.beacons) {\n    const b = obs.map.find(m => m.id === z.id); if (!b) continue;\n    const dx = b.x - mem.x, dy = b.y - mem.y, rHat = Math.hypot(dx, dy), bHat = Math.atan2(dy, dx) - mem.th;\n    const er = z.r - rHat, eb = Math.atan2(Math.sin(z.b - bHat), Math.cos(z.b - bHat));\n    const ux = dx / rHat, uy = dy / rHat;\n    mem.x -= 0.2 * er * ux; mem.y -= 0.2 * er * uy; mem.th -= 0.2 * eb;   // a larger measured bearing means the heading estimate is too large\n  }\n  mem.th = Math.atan2(Math.sin(mem.th), Math.cos(mem.th));\n  return { x: mem.x, y: mem.y, th: mem.th };\n}\n"},{"id":"ekf","name":"EKF with beacons","code":"// Your localizer: an extended Kalman filter on (x, y, θ), the page's locPredict and ekfUpdate written plainly (Learn →\n// Localization, lessons 1 and 2). Odometry predicts along the exact arc and grows the covariance; each beacon reading\n// (range r and bearing b to a beacon of known position) corrects it. The noise it assumes is the lab's default; the\n// Localize sliders do not reach in here: speed σ = 0.1|v| + 0.02, turn σ = 0.2|ω| + 0.1|v| + 0.02, range σ = 0.08 m,\n// bearing σ = 0.03 rad. Return { x, y, th, cov }: cov is the 3×3 covariance, row-major, drawn as the ellipse.\n//\n// obs.init {x, y, th} on the first call, obs.dt, obs.odom {v, w}, obs.beacons [{id, r, b}] or null, obs.map [{id, x, y}]\n\nconst wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\nfunction localize(obs, mem) {\n  if (obs.init) { mem.x = obs.init.x; mem.y = obs.init.y; mem.th = obs.init.th; mem.P = [0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01]; }\n  const { v, w } = obs.odom, dt = obs.dt;\n  // 1. predict: the exact arc, the Jacobian G of the motion, the input noise mapped into the state (V M Vᵀ)\n  const th = mem.th, c = Math.cos(th), s = Math.sin(th);\n  if (Math.abs(w) < 1e-6) { mem.x += v * dt * c; mem.y += v * dt * s; }\n  else { const R = v / w; mem.x += R * (Math.sin(th + w * dt) - s); mem.y += R * (c - Math.cos(th + w * dt)); mem.th = wrap(th + w * dt); }\n  const G = [1, 0, -v * dt * s, 0, 1, v * dt * c, 0, 0, 1];\n  const sv = 0.1 * Math.abs(v) + 0.02, sw = 0.2 * Math.abs(w) + 0.1 * Math.abs(v) + 0.02;\n  const a = dt * dt * sv * sv, b = dt * dt * sw * sw;\n  const Q = [a * c * c, a * c * s, 0, a * c * s, a * s * s, 0, 0, 0, b];\n  let P = add(mul(mul(G, mem.P), T(G)), Q);\n  // 2. update, one beacon at a time: innovation ν = z − h(x), S = H P Hᵀ + R, gain K = P Hᵀ S⁻¹\n  const sr = 0.08, sb = 0.03;\n  for (const m of obs.beacons || []) {\n    const lm = obs.map.find(l => l.id === m.id); if (!lm) continue;      // unlabeled readings (id -1) are skipped here\n    const dx = lm.x - mem.x, dy = lm.y - mem.y, q = dx * dx + dy * dy, r = Math.sqrt(q); if (r < 1e-6) continue;\n    const H = [-dx / r, -dy / r, 0, dy / q, -dx / q, -1];                 // 2×3: how r and b change with x, y, θ\n    const PHt = mulHt(P, H);                                              // P Hᵀ, 3×2\n    const S = [H[0] * PHt[0] + H[1] * PHt[2] + H[2] * PHt[4] + sr * sr, H[0] * PHt[1] + H[1] * PHt[3] + H[2] * PHt[5],\n               H[3] * PHt[0] + H[4] * PHt[2] + H[5] * PHt[4], H[3] * PHt[1] + H[4] * PHt[3] + H[5] * PHt[5] + sb * sb];\n    const det = S[0] * S[3] - S[1] * S[2]; if (Math.abs(det) < 1e-12) continue;\n    const Si = [S[3] / det, -S[1] / det, -S[2] / det, S[0] / det];\n    const nu = [m.r - r, wrap(m.b - (Math.atan2(dy, dx) - mem.th))];\n    const K = [PHt[0] * Si[0] + PHt[1] * Si[2], PHt[0] * Si[1] + PHt[1] * Si[3], PHt[2] * Si[0] + PHt[3] * Si[2],\n               PHt[2] * Si[1] + PHt[3] * Si[3], PHt[4] * Si[0] + PHt[5] * Si[2], PHt[4] * Si[1] + PHt[5] * Si[3]];\n    mem.x += K[0] * nu[0] + K[1] * nu[1]; mem.y += K[2] * nu[0] + K[3] * nu[1]; mem.th = wrap(mem.th + K[4] * nu[0] + K[5] * nu[1]);\n    // P ← (I − K H) P: the textbook line (the page uses the Joseph form, which keeps P symmetric under rounding)\n    const KH = [K[0] * H[0] + K[1] * H[3], K[0] * H[1] + K[1] * H[4], K[0] * H[2] + K[1] * H[5],\n                K[2] * H[0] + K[3] * H[3], K[2] * H[1] + K[3] * H[4], K[2] * H[2] + K[3] * H[5],\n                K[4] * H[0] + K[5] * H[3], K[4] * H[1] + K[5] * H[4], K[4] * H[2] + K[5] * H[5]];\n    P = mul([1 - KH[0], -KH[1], -KH[2], -KH[3], 1 - KH[4], -KH[5], -KH[6], -KH[7], 1 - KH[8]], P);\n  }\n  mem.P = P;\n  return { x: mem.x, y: mem.y, th: mem.th, cov: P };\n}\n// 3×3 helpers, row-major\nfunction mul(A, B) { const C = new Array(9).fill(0); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) C[i * 3 + j] += A[i * 3 + k] * B[k * 3 + j]; return C; }\nfunction T(A) { return [A[0], A[3], A[6], A[1], A[4], A[7], A[2], A[5], A[8]]; }\nfunction add(A, B) { return A.map((x, i) => x + B[i]); }\nfunction mulHt(P, H) { return [P[0] * H[0] + P[1] * H[1] + P[2] * H[2], P[0] * H[3] + P[1] * H[4] + P[2] * H[5], P[3] * H[0] + P[4] * H[1] + P[5] * H[2], P[3] * H[3] + P[4] * H[4] + P[5] * H[5], P[6] * H[0] + P[7] * H[1] + P[8] * H[2], P[6] * H[3] + P[7] * H[4] + P[8] * H[5]]; }\n"},{"id":"pf","name":"Particle filter with beacons","code":"// Your localizer: a particle filter (Monte Carlo localization), the page's pfUpdate and pfResample written plainly\n// (Learn → Localization, lesson 4). N particles move along the odometry with noise; after 5 cm of motion each is\n// weighted by how well the beacon readings fit its pose; when the effective number of particles drops below N/2 they\n// are resampled (low-variance). The estimate is the weighted mean. No injection, so a kidnapped robot stays lost: the\n// lesson shows what injection adds. Return { x, y, th, cov }.\n\nconst N = 300, wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\nlet seed = 7;\nconst rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };   // repeatable\nconst gauss = () => Math.sqrt(-2 * Math.log(Math.max(rnd(), 1e-12))) * Math.cos(2 * Math.PI * rnd());\nfunction localize(obs, mem) {\n  if (obs.init) {\n    mem.x = new Float64Array(N).fill(obs.init.x); mem.y = new Float64Array(N).fill(obs.init.y);\n    mem.th = new Float64Array(N).fill(obs.init.th); mem.lw = new Float64Array(N); mem.moved = 0;\n  }\n  // 1. move every particle along the odometry, each with its own noise draw\n  const { v, w } = obs.odom, dt = obs.dt;\n  const sv = Math.max(0.1 * Math.abs(v) + 0.02, 0.02), sw = Math.max(0.2 * Math.abs(w) + 0.1 * Math.abs(v) + 0.02, 0.02);\n  for (let i = 0; i < N; i++) {\n    const vi = v + sv * gauss(), wi = w + sw * gauss(), th = mem.th[i];\n    if (Math.abs(wi) < 1e-6) { mem.x[i] += vi * dt * Math.cos(th); mem.y[i] += vi * dt * Math.sin(th); }\n    else { const R = vi / wi; mem.x[i] += R * (Math.sin(th + wi * dt) - Math.sin(th)); mem.y[i] += R * (Math.cos(th) - Math.cos(th + wi * dt)); mem.th[i] = wrap(th + wi * dt); }\n  }\n  mem.moved += Math.abs(v) * dt + 0.5 * Math.abs(w) * dt;\n  // 2. weight by the beacon readings, once the robot has moved: readings in between are not independent evidence\n  const z = obs.beacons || [];\n  if (z.length && mem.moved >= 0.05) {\n    mem.moved = 0;\n    for (let i = 0; i < N; i++) {\n      let ll = 0;\n      for (const m of z) {\n        const lm = obs.map.find(l => l.id === m.id); if (!lm) continue;\n        const dx = lm.x - mem.x[i], dy = lm.y - mem.y[i];\n        const er = (m.r - Math.hypot(dx, dy)) / 0.08, eb = wrap(m.b - (Math.atan2(dy, dx) - mem.th[i])) / 0.03;\n        ll += Math.log(Math.exp(-0.5 * (er * er + eb * eb)) + 1e-3);   // the floor keeps one bad reading from killing a particle\n      }\n      mem.lw[i] += ll;\n    }\n    // 3. normalise, N_eff, and resample when the weights have collapsed onto a few particles\n    let mx = -Infinity; for (let i = 0; i < N; i++) mx = Math.max(mx, mem.lw[i]);\n    const wt = new Float64Array(N); let sum = 0, s2 = 0;\n    for (let i = 0; i < N; i++) { wt[i] = Math.exp(mem.lw[i] - mx); sum += wt[i]; }\n    for (let i = 0; i < N; i++) { wt[i] /= sum; s2 += wt[i] * wt[i]; }\n    if (1 / s2 < N / 2) {\n      const nx = new Float64Array(N), ny = new Float64Array(N), nt = new Float64Array(N);\n      let u = rnd() / N, c = wt[0], j = 0;                        // low-variance resampling: one random offset, N even steps\n      for (let m = 0; m < N; m++) {\n        const U = u + m / N;\n        while (U > c && j < N - 1) { j++; c += wt[j]; }\n        nx[m] = mem.x[j]; ny[m] = mem.y[j]; nt[m] = mem.th[j];\n      }\n      mem.x = nx; mem.y = ny; mem.th = nt; mem.lw = new Float64Array(N);\n    }\n  }\n  // 4. the estimate: the weighted mean (the heading as a mean direction) and the spread as the covariance\n  let mx = -Infinity; for (let i = 0; i < N; i++) mx = Math.max(mx, mem.lw[i]);\n  let sw2 = 0, sx = 0, sy = 0, sc = 0, ss = 0; const wt = new Float64Array(N);\n  for (let i = 0; i < N; i++) { wt[i] = Math.exp(mem.lw[i] - mx); sw2 += wt[i]; }\n  for (let i = 0; i < N; i++) { wt[i] /= sw2; sx += wt[i] * mem.x[i]; sy += wt[i] * mem.y[i]; sc += wt[i] * Math.cos(mem.th[i]); ss += wt[i] * Math.sin(mem.th[i]); }\n  const th = Math.atan2(ss, sc), C = [0, 0, 0, 0, 0, 0, 0, 0, 0];\n  for (let i = 0; i < N; i++) { const d = [mem.x[i] - sx, mem.y[i] - sy, wrap(mem.th[i] - th)]; for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) C[a * 3 + b] += wt[i] * d[a] * d[b]; }\n  return { x: sx, y: sy, th, cov: C };\n}\n"}],"plan":[{"id":"astar","name":"A* on the costmap","code":"// Your global planner. Called whenever the mission needs a path (initial plan, replans).\n// Return { path: [[x, y], ...] } from the start to the goal, or { error: 'reason' } when there is none.\n// A car may return { segs: [{ pts: [[x, y, th], ...], dir: +1 | -1 }, ...] } with reverse legs.\n//\n// obs.start  {x, y, th}      estimated pose\n// obs.goal   {x, y, th|null} the goal, heading only for posed goals\n// obs.grid   {w, h, res}     the costmap grid: w × h cells of res metres\n// obs.lethal Uint8Array      1 where the robot centre may not go (w*h, row-major, cell (i, j) = j*w + i)\n// obs.dist   Float32Array    distance to the nearest obstacle per cell [m]\n// obs.vehicle {model, wheelbase, steerMax, minTurnR, revOK}\n// Budget: 3 s per call. mem persists between calls.\n\nfunction plan(obs, mem) {\n  const { w, h, res } = obs.grid, L = obs.lethal;\n  const cell = (x, y) => [Math.floor(x / res), Math.floor(y / res)];\n  const [si, sj] = cell(obs.start.x, obs.start.y), [gi, gj] = cell(obs.goal.x, obs.goal.y);\n  // 8-connected A* with the octile heuristic\n  const g = new Float32Array(w * h).fill(Infinity), par = new Int32Array(w * h).fill(-1), closed = new Uint8Array(w * h);\n  const heur = (i, j) => { const dx = Math.abs(i - gi), dy = Math.abs(j - gj); return Math.max(dx, dy) + 0.414 * Math.min(dx, dy); };\n  const open = [[heur(si, sj), sj * w + si]]; g[sj * w + si] = 0;\n  const NB = [[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];\n  let found = false, expansions = 0;\n  while (open.length) {\n    let b = 0; for (let k = 1; k < open.length; k++) if (open[k][0] < open[b][0]) b = k;   // a heap would be faster\n    const [, u] = open.splice(b, 1)[0]; if (closed[u]) continue; closed[u] = 1; expansions++;\n    if (u === gj * w + gi) { found = true; break; }\n    const ui = u % w, uj = (u / w) | 0;\n    for (const [di, dj, c] of NB) { const vi = ui + di, vj = uj + dj; if (vi < 0 || vj < 0 || vi >= w || vj >= h) continue;\n      const v = vj * w + vi; if (L[v] || closed[v]) continue;\n      if (di && dj && (L[uj * w + vi] || L[vj * w + ui])) continue;           // no corner cutting\n      const ng = g[u] + c * (1 + 3 * Math.max(0, 0.6 - obs.dist[v]));         // stay away from walls when it is cheap to\n      if (ng < g[v]) { g[v] = ng; par[v] = u; open.push([ng + heur(vi, vj), v]); } }\n  }\n  if (!found) return { error: 'no path on the grid' };\n  const path = []; for (let u = gj * w + gi; u >= 0; u = par[u]) path.push([(u % w + 0.5) * res, (((u / w) | 0) + 0.5) * res]);\n  path.reverse(); path[0] = [obs.start.x, obs.start.y]; path[path.length - 1] = [obs.goal.x, obs.goal.y];\n  return { path, expansions };\n}\n"},{"id":"dijkstra","name":"Dijkstra (A* without the heuristic)","code":"// Your global planner: Dijkstra, which is A* with the heuristic set to zero. Same code as the A* example but for one line;\n// compare the expansions it reports in the event log with A*'s on the same plan.\n// Return { path: [[x, y], ...] } from the start to the goal, or { error: 'reason' } when there is none.\n// A car may return { segs: [{ pts: [[x, y, th], ...], dir: +1 | -1 }, ...] } with reverse legs.\n//\n// obs.start  {x, y, th}      estimated pose\n// obs.goal   {x, y, th|null} the goal, heading only for posed goals\n// obs.grid   {w, h, res}     the costmap grid: w × h cells of res metres\n// obs.lethal Uint8Array      1 where the robot centre may not go (w*h, row-major, cell (i, j) = j*w + i)\n// obs.dist   Float32Array    distance to the nearest obstacle per cell [m]\n// obs.vehicle {model, wheelbase, steerMax, minTurnR, revOK}\n// Budget: 3 s per call. mem persists between calls.\n\nfunction plan(obs, mem) {\n  const { w, h, res } = obs.grid, L = obs.lethal;\n  const cell = (x, y) => [Math.floor(x / res), Math.floor(y / res)];\n  const [si, sj] = cell(obs.start.x, obs.start.y), [gi, gj] = cell(obs.goal.x, obs.goal.y);\n  // 8-connected A* with the octile heuristic\n  const g = new Float32Array(w * h).fill(Infinity), par = new Int32Array(w * h).fill(-1), closed = new Uint8Array(w * h);\n  const heur = () => 0;   // Dijkstra: no heuristic, so the search grows as a disc from the start instead of leaning toward the goal\n  const open = [[heur(si, sj), sj * w + si]]; g[sj * w + si] = 0;\n  const NB = [[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];\n  let found = false, expansions = 0;\n  while (open.length) {\n    let b = 0; for (let k = 1; k < open.length; k++) if (open[k][0] < open[b][0]) b = k;   // a heap would be faster\n    const [, u] = open.splice(b, 1)[0]; if (closed[u]) continue; closed[u] = 1; expansions++;\n    if (u === gj * w + gi) { found = true; break; }\n    const ui = u % w, uj = (u / w) | 0;\n    for (const [di, dj, c] of NB) { const vi = ui + di, vj = uj + dj; if (vi < 0 || vj < 0 || vi >= w || vj >= h) continue;\n      const v = vj * w + vi; if (L[v] || closed[v]) continue;\n      if (di && dj && (L[uj * w + vi] || L[vj * w + ui])) continue;           // no corner cutting\n      const ng = g[u] + c * (1 + 3 * Math.max(0, 0.6 - obs.dist[v]));         // stay away from walls when it is cheap to\n      if (ng < g[v]) { g[v] = ng; par[v] = u; open.push([ng + heur(vi, vj), v]); } }\n  }\n  if (!found) return { error: 'no path on the grid' };\n  const path = []; for (let u = gj * w + gi; u >= 0; u = par[u]) path.push([(u % w + 0.5) * res, (((u / w) | 0) + 0.5) * res]);\n  path.reverse(); path[0] = [obs.start.x, obs.start.y]; path[path.length - 1] = [obs.goal.x, obs.goal.y];\n  return { path, expansions };\n}\n"},{"id":"rrtstar","name":"RRT*","code":"// Your global planner: RRT* (Karaman & Frazzoli 2011), the page's rrtstar written plainly. Each iteration samples a\n// point (the goal one time in ten), steers from the nearest tree node toward it by one step, picks the cheapest\n// collision-free parent among the near nodes, and rewires the near nodes through the new one when that is cheaper.\n// The random numbers come from a fixed seed, so a rerun grows the same tree; the path is shortcut-smoothed at the end.\n// Return { path } or { error }.\n//\n// obs.start {x, y, th}, obs.goal {x, y}, obs.grid {w, h, res}, obs.lethal Uint8Array (1 where the centre may not go)\n\nfunction plan(obs, mem) {\n  const { w, h, res } = obs.grid, L = obs.lethal, W = w * res, H = h * res, STEP = 0.6, IT = 1500;\n  const free = (x, y) => { const i = Math.floor(x / res), j = Math.floor(y / res); return i >= 0 && j >= 0 && i < w && j < h && !L[j * w + i]; };\n  const clear = (ax, ay, bx, by) => {            // the segment sampled every half cell\n    const n = Math.ceil(Math.hypot(bx - ax, by - ay) / (res / 2)) + 1;\n    for (let k = 0; k <= n; k++) { const t = k / n; if (!free(ax + (bx - ax) * t, ay + (by - ay) * t)) return false; }\n    return true;\n  };\n  let seed = 7; const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };\n  const sx = obs.start.x, sy = obs.start.y, gx = obs.goal.x, gy = obs.goal.y;\n  if (!free(gx, gy)) return { error: 'goal is inside an inflated obstacle' };\n  const X = [sx], Y = [sy], Pa = [-1], Co = [0];   // the tree: positions, parent index, cost from the start\n  for (let it = 0; it < IT; it++) {\n    let qx, qy;\n    if (rnd() < 0.1) { qx = gx; qy = gy; } else { qx = rnd() * W; qy = rnd() * H; }   // 1. sample\n    let ni = 0, nd = Infinity;                                                        // 2. nearest node\n    for (let i = 0; i < X.length; i++) { const d2 = (X[i] - qx) ** 2 + (Y[i] - qy) ** 2; if (d2 < nd) { nd = d2; ni = i; } }\n    const d = Math.sqrt(nd); if (d < 1e-6) continue;\n    const sc = Math.min(STEP, d) / d, nx = X[ni] + (qx - X[ni]) * sc, ny = Y[ni] + (qy - Y[ni]) * sc;   // 3. steer one step\n    if (!free(nx, ny)) continue;\n    const n = X.length, rad = Math.min(8 * Math.sqrt(Math.log(n + 1) / (n + 1)), 1.5), near = [];        // 4. the near nodes\n    for (let i = 0; i < n; i++) if ((X[i] - nx) ** 2 + (Y[i] - ny) ** 2 <= rad * rad) near.push(i);\n    let bp = -1, bc = Infinity;                                                                            // 5. the cheapest parent\n    for (const i of near.length ? near : [ni]) { const c = Co[i] + Math.hypot(nx - X[i], ny - Y[i]); if (c < bc && clear(X[i], Y[i], nx, ny)) { bc = c; bp = i; } }\n    if (bp < 0) continue;\n    X.push(nx); Y.push(ny); Pa.push(bp); Co.push(bc);\n    for (const i of near) {                                                                                // 6. rewire through the new node\n      const c = bc + Math.hypot(nx - X[i], ny - Y[i]);\n      if (c < Co[i] && clear(nx, ny, X[i], Y[i])) { Pa[i] = n; Co[i] = c; }\n    }\n  }\n  let best = -1, bc = Infinity;                   // the node that reaches the goal most cheaply (within 1 m, in the clear)\n  for (let i = 0; i < X.length; i++) {\n    const dg = Math.hypot(X[i] - gx, Y[i] - gy);\n    if (dg > 1 || !clear(X[i], Y[i], gx, gy)) continue;\n    if (Co[i] + dg < bc) { bc = Co[i] + dg; best = i; }\n  }\n  if (best < 0) return { error: 'no connection to the goal after ' + IT + ' samples' };\n  let path = [[gx, gy]];\n  for (let k = best; k >= 0; k = Pa[k]) path.push([X[k], Y[k]]);\n  path.reverse();\n  // shortcut smoothing, as the built-in does: skip every point the next one can be reached from in a straight line\n  const out = [path[0]];\n  for (let i = 0; i < path.length - 1; ) {\n    let j = path.length - 1;\n    while (j > i + 1 && !clear(path[i][0], path[i][1], path[j][0], path[j][1])) j--;\n    out.push(path[j]); i = j;\n  }\n  return { path: out, nodes: X.length };\n}\n"}],"pred":[{"id":"cv","name":"Constant velocity","code":"// Your agent predictor. Called at 10 Hz with the current tracks.\n// Return { trajectories: { [id]: [[x, y, r], ...] } }: one sample per step of obs.dt from t = 0 to obs.horizon, per track.\n// The speed planner, DWA and MPC read these samples instead of the built-in constant-velocity model.\n//\n// obs.tracks  [{id, x, y, vx, vy, r, age}]  position, velocity estimate, radius, seconds since confirmed\n// obs.horizon seconds to predict (the Prediction horizon slider)\n// obs.dt      sample step (0.1 s)\n// obs.lethal, obs.grid  the static map, as for the planner (people do not walk through walls)\n// mem persists between calls. Budget: 200 ms per call.\n\nfunction predict(obs, mem) {\n  const out = {}, n = Math.round(obs.horizon / obs.dt);\n  for (const t of obs.tracks) {\n    const samples = [];\n    let vx = t.vx, vy = t.vy;\n    for (let k = 0; k <= n; k++) {\n      const tt = k * obs.dt;\n      // constant velocity, with the velocity decaying toward a walking pace after 2 s: people rarely keep running\n      const sp = Math.hypot(vx, vy), cap = tt > 2 ? 1.2 : Infinity;\n      if (sp > cap) { vx *= cap / sp; vy *= cap / sp; }\n      samples.push([t.x + vx * tt, t.y + vy * tt, t.r + 0.1 * tt]);\n    }\n    out[t.id] = samples;\n  }\n  return { trajectories: out };\n}\n"},{"id":"static","name":"Standing still","code":"// Your agent predictor: everyone stays where they are. The speed planner, DWA and MPC then plan around each person's\n// current position only, which is what a stack that tracks positions but not velocities would do; compare the yields\n// and contacts on L5 with the constant-velocity example. The radius grows a little with time, as a hedge.\n//\n// obs.tracks [{id, x, y, vx, vy, r, age}], obs.horizon (s), obs.dt (s)\n\nfunction predict(obs, mem) {\n  const out = {}, n = Math.round(obs.horizon / obs.dt);\n  for (const t of obs.tracks) {\n    const samples = [];\n    for (let k = 0; k <= n; k++) samples.push([t.x, t.y, t.r + 0.05 * k * obs.dt]);\n    out[t.id] = samples;\n  }\n  return { trajectories: out };\n}\n"}]};
+
 /* ---- core/slots.js ---- */
 /* ============================================================
    Code slots: user JavaScript for the controller, the global planner, the localizer and the agent predictor.
    Each slot runs in its own Web Worker, called in lockstep with the simulation, with a timeout.
    ============================================================ */
-const SLOT_EXAMPLES = {
-  plan: `// Your global planner. Called whenever the mission needs a path (initial plan, replans).
-// Return { path: [[x, y], ...] } from the start to the goal, or { error: 'reason' } when there is none.
-// A car may return { segs: [{ pts: [[x, y, th], ...], dir: +1 | -1 }, ...] } with reverse legs.
-//
-// obs.start  {x, y, th}      estimated pose
-// obs.goal   {x, y, th|null} the goal, heading only for posed goals
-// obs.grid   {w, h, res}     the costmap grid: w × h cells of res metres
-// obs.lethal Uint8Array      1 where the robot centre may not go (w*h, row-major, cell (i, j) = j*w + i)
-// obs.dist   Float32Array    distance to the nearest obstacle per cell [m]
-// obs.vehicle {model, wheelbase, steerMax, minTurnR, revOK}
-// Budget: 3 s per call. mem persists between calls.
-
-function plan(obs, mem) {
-  const { w, h, res } = obs.grid, L = obs.lethal;
-  const cell = (x, y) => [Math.floor(x / res), Math.floor(y / res)];
-  const [si, sj] = cell(obs.start.x, obs.start.y), [gi, gj] = cell(obs.goal.x, obs.goal.y);
-  // 8-connected A* with the octile heuristic
-  const g = new Float32Array(w * h).fill(Infinity), par = new Int32Array(w * h).fill(-1), closed = new Uint8Array(w * h);
-  const heur = (i, j) => { const dx = Math.abs(i - gi), dy = Math.abs(j - gj); return Math.max(dx, dy) + 0.414 * Math.min(dx, dy); };
-  const open = [[heur(si, sj), sj * w + si]]; g[sj * w + si] = 0;
-  const NB = [[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];
-  let found = false, expansions = 0;
-  while (open.length) {
-    let b = 0; for (let k = 1; k < open.length; k++) if (open[k][0] < open[b][0]) b = k;   // a heap would be faster
-    const [, u] = open.splice(b, 1)[0]; if (closed[u]) continue; closed[u] = 1; expansions++;
-    if (u === gj * w + gi) { found = true; break; }
-    const ui = u % w, uj = (u / w) | 0;
-    for (const [di, dj, c] of NB) { const vi = ui + di, vj = uj + dj; if (vi < 0 || vj < 0 || vi >= w || vj >= h) continue;
-      const v = vj * w + vi; if (L[v] || closed[v]) continue;
-      if (di && dj && (L[uj * w + vi] || L[vj * w + ui])) continue;           // no corner cutting
-      const ng = g[u] + c * (1 + 3 * Math.max(0, 0.6 - obs.dist[v]));         // stay away from walls when it is cheap to
-      if (ng < g[v]) { g[v] = ng; par[v] = u; open.push([ng + heur(vi, vj), v]); } }
-  }
-  if (!found) return { error: 'no path on the grid' };
-  const path = []; for (let u = gj * w + gi; u >= 0; u = par[u]) path.push([(u % w + 0.5) * res, (((u / w) | 0) + 0.5) * res]);
-  path.reverse(); path[0] = [obs.start.x, obs.start.y]; path[path.length - 1] = [obs.goal.x, obs.goal.y];
-  return { path, expansions };
-}
-`,
-  loc: `// Your localizer. Called every 50 ms tick, before the planner and controller use the estimate.
-// Return { x, y, th } and optionally cov: a 3×3 covariance as 9 numbers, row-major (drawn as an ellipse).
-//
-// obs.init    {x, y, th} on the first call only (the start pose), else null
-// obs.dt      0.05 s
-// obs.odom    {v, w}   measured speed and yaw rate (noisy, slightly biased)
-// obs.beacons [{id, r, b}] or null: range and bearing (body frame) to beacons seen this tick; id is -1 when unlabeled
-// obs.map     [{id, x, y}] beacon positions
-// obs.scan    Float32Array(120) of lidar ranges or null; beam k points at -π + k·2π/120 in the body frame, 8 m max
-// mem persists between calls. Budget: 200 ms per call.
-
-function localize(obs, mem) {
-  if (obs.init) { mem.x = obs.init.x; mem.y = obs.init.y; mem.th = obs.init.th; }
-  // dead reckoning with the exact arc
-  const v = obs.odom.v, w = obs.odom.w, dt = obs.dt;
-  if (Math.abs(w) < 1e-6) { mem.x += v * dt * Math.cos(mem.th); mem.y += v * dt * Math.sin(mem.th); }
-  else { const r = v / w, t2 = mem.th + w * dt; mem.x += r * (Math.sin(t2) - Math.sin(mem.th)); mem.y -= r * (Math.cos(t2) - Math.cos(mem.th)); mem.th = t2; }
-  // pull toward each labeled beacon reading: a fixed-gain correction, not a Kalman filter
-  if (obs.beacons) for (const z of obs.beacons) {
-    const b = obs.map.find(m => m.id === z.id); if (!b) continue;
-    const dx = b.x - mem.x, dy = b.y - mem.y, rHat = Math.hypot(dx, dy), bHat = Math.atan2(dy, dx) - mem.th;
-    const er = z.r - rHat, eb = Math.atan2(Math.sin(z.b - bHat), Math.cos(z.b - bHat));
-    const ux = dx / rHat, uy = dy / rHat;
-    mem.x -= 0.2 * er * ux; mem.y -= 0.2 * er * uy; mem.th -= 0.2 * eb;   // a larger measured bearing means the heading estimate is too large
-  }
-  mem.th = Math.atan2(Math.sin(mem.th), Math.cos(mem.th));
-  return { x: mem.x, y: mem.y, th: mem.th };
-}
-`,
-  pred: `// Your agent predictor. Called at 10 Hz with the current tracks.
-// Return { trajectories: { [id]: [[x, y, r], ...] } }: one sample per step of obs.dt from t = 0 to obs.horizon, per track.
-// The speed planner, DWA and MPC read these samples instead of the built-in constant-velocity model.
-//
-// obs.tracks  [{id, x, y, vx, vy, r, age}]  position, velocity estimate, radius, seconds since confirmed
-// obs.horizon seconds to predict (the Prediction horizon slider)
-// obs.dt      sample step (0.1 s)
-// obs.lethal, obs.grid  the static map, as for the planner (people do not walk through walls)
-// mem persists between calls. Budget: 200 ms per call.
-
-function predict(obs, mem) {
-  const out = {}, n = Math.round(obs.horizon / obs.dt);
-  for (const t of obs.tracks) {
-    const samples = [];
-    let vx = t.vx, vy = t.vy;
-    for (let k = 0; k <= n; k++) {
-      const tt = k * obs.dt;
-      // constant velocity, with the velocity decaying toward a walking pace after 2 s: people rarely keep running
-      const sp = Math.hypot(vx, vy), cap = tt > 2 ? 1.2 : Infinity;
-      if (sp > cap) { vx *= cap / sp; vy *= cap / sp; }
-      samples.push([t.x + vx * tt, t.y + vy * tt, t.r + 0.1 * tt]);
-    }
-    out[t.id] = samples;
-  }
-  return { trajectories: out };
-}
-`
-};
+// The slot examples come from src/examples/<slot>/*.js (tools/code.mjs inlines them as SLOT_LIBRARY); the editor starts
+// on the first one of each slot.
+const slotExample = (k, id) => (SLOT_LIBRARY[k] || []).find(e => !id || e.id === id) || {id: '', name: '', code: ''};
 const SLOT_DEFS = {
   ctl: {
     name: 'Controller',
@@ -5350,7 +5253,7 @@ const SLOT_DEFS = {
 };
 const SLOTS = {};
 for (const k of Object.keys(SLOT_DEFS))
-  SLOTS[k] = {code: k === 'ctl' ? DEFAULT_CODE : SLOT_EXAMPLES[k], worker: null, status: {msg: 'Not loaded.', cls: ''}, lastErr: ''};
+  SLOTS[k] = {code: slotExample(k).code, worker: null, status: {msg: 'Not loaded.', cls: ''}, lastErr: ''};
 function slotWorker(k, code) {
   const D = SLOT_DEFS[k];
   const src = `"use strict";\n${code}\n;const __mem={};const __wrap=${D.wrap.toString()};self.onmessage=(e)=>{if(e.data&&e.data.reset){for(const k in __mem)delete __mem[k];return;}try{if(typeof ${D.fn}!=='function')throw new Error('Define a function named ${D.fn}(obs, mem)');const r=${D.fn}(e.data,__mem)||{};self.postMessage(__wrap(r));}catch(err){self.postMessage({ok:false,error:String(err&&err.message||err)});}};`;
@@ -5400,6 +5303,14 @@ function slotWorker(k, code) {
     if (!W_.dead) wk.postMessage({reset: true});
   };
   W_.kill = () => {
+    // a call still pending resolves as failed now, or its timer would fire later as a spurious timeout
+    W_.dead = true;
+    const p = W_.pending;
+    W_.pending = null;
+    if (p) {
+      clearTimeout(p.to);
+      p.res({ok: false, error: 'replaced by a new load'});
+    }
     try {
       wk.terminate();
     } catch (_) {}
@@ -5424,7 +5335,11 @@ function slotLoad(k, code) {
   sl.worker = w;
   sl.lastErr = '';
   slotStatus(k, `Loaded. ${SLOT_DEFS[k].name} set to Your code.`, 'ok');
-  if (S) setParam(SLOT_DEFS[k].param, 'custom', false);
+  if (S) {
+    const already = P[SLOT_DEFS[k].param] === 'custom';
+    setParam(SLOT_DEFS[k].param, 'custom', false);
+    if (already && k === 'plan' && S.fsm.state !== 'IDLE' && S.fsm.state !== 'DONE') requestReplan('planner loaded'); // the old worker's plan died with it
+  }
   return true;
 }
 function slotErr(k, err) {
@@ -5682,6 +5597,7 @@ function agDetect() {
 }
 // Tracking: one constant-velocity Kalman filter per agent, gated greedy nearest-neighbour association
 const AG_SZ = 0.1; // measurement noise σ [m]
+// @code ag-track | agTrack: clusters to tracks, with the constant-velocity Kalman filter
 function agTrack() {
   const A = S.agents;
   if (P.agents === 'truth') {
@@ -5765,6 +5681,7 @@ function agTrack() {
   });
   A.tracks = A.tracks.filter(t => S.t - t.lastUpd < (t.conf ? 1.0 : 0.25)); // confirmed tracks coast through 1 s of occlusion
 }
+// @end
 // Prediction: constant velocity (or frozen), radius inflated with time
 function agPred(t, tt) {
   if (P.agPred === 'custom') {
@@ -6174,6 +6091,7 @@ function sensEnqueue(kind, data) {
   if (!S.sensQ) S.sensQ = [];
   S.sensQ.push({due: S.tick + n, kind, data});
 }
+// @code sens-deliver | sensDeliver: readings delivered late, by latency
 function sensDeliver() {
   S.deliv = {scan: null, z: null};
   if (!S.sensQ || !S.sensQ.length) return;
@@ -6193,6 +6111,7 @@ function sensDeliver() {
   }
   S.sensQ = keep;
 }
+// @end
 function lidarApply(ranges) {
   S.scan = ranges;
   const e = S.est,
@@ -6221,6 +6140,7 @@ const SF = {tau: 0.5, A: 2.0, B: 0.35, Ar: 3.0, Br: 0.5, Aw: 2.5, Bw: 0.25};
 function pedGoal(p) {
   return p.dir > 0 ? p.b : p.a;
 }
+// @code social-force | updatePedsReactive: people as social forces
 function updatePedsReactive(dt) {
   const r = S.robot,
     ps = S.peds.filter(p => !p.car);
@@ -6303,6 +6223,7 @@ function updatePedsReactive(dt) {
     p.s = 1 - hyp(pedGoal(p)[0] - p.x, pedGoal(p)[1] - p.y) / Math.max(1e-6, hyp(p.b[0] - p.a[0], p.b[1] - p.a[1]));
   }
 }
+// @end
 // ---- other vehicles: a car-like body on a closed loop, yielding to the ego when it is close ahead ----
 function carsInit() {
   if (!LV.cars) return;
@@ -6397,6 +6318,7 @@ function carCircles(p) {
    Agents block a cell at a time when the predicted disc (plus the robot radius and a margin) covers it;
    beyond the prediction horizon only the static map counts. The ST speed planner then enforces the timing. */
 // Space-time A* for the diff-drive robot: a search over (x, y, t) with waits, against the agents' predicted positions.
+// @code stastar | stAstar: A* over (cell, time) with the predicted people as moving obstacles
 function stAstar(sx, sy, gx, gy) {
   const CW = 2,
     cw = RES * CW,
@@ -6531,6 +6453,7 @@ function stAstar(sx, sy, gx, gy) {
   const waits = cells.length - 1 - (pts.length - 2);
   return {ok: true, pts, exp, extra: waits > 0 ? `${(waits * dtc).toFixed(1)} s of waiting planned` : ''};
 }
+// @end
 
 /* ---- core/step.js ---- */
 // One tick, in three parts so that user code in workers can be awaited between them:

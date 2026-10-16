@@ -23,7 +23,9 @@ The page has three modes:
 - **Analyze** linearizes the steering loop and shows you Bode and Nyquist plots, step responses and poles you can
   drag, then checks the linear model against the real simulation.
 - **Learn** has 35 lessons and eight chapters. Each lesson has buttons that set the lab up and run the experiment
-  for you. The numbers in the lessons come from the simulator, not from a textbook.
+  for you, and shows the code behind what it teaches: the page's own function, with the lesson's lines marked, and an
+  "Edit and run" button that puts a plain version of it in the Code tab for you to change. The numbers in the lessons
+  come from the simulator, not from a textbook.
 
 It is meant for students and engineers who want to see localization, perception, planning and control interact,
 change one thing, and watch what happens. Design notes, known limits and what comes next are in

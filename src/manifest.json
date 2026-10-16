@@ -18,7 +18,7 @@
  "core/mpc.js",
  "core/dispatch.js",
  "core/custom-controller.js",
- "core/slots.js",
+ "core/examples-data.js", "core/slots.js",
  "core/agents.js",
  "core/fidelity.js",
  "core/step.js",

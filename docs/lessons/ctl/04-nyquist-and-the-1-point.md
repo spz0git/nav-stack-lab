@@ -39,6 +39,12 @@ Predict: Doubling the latency to two ticks: what changes in the count and the po
 - N stays 2; the unstable pair moves further right
 Answer: 2
 
+## Code: anFreq, the encirclements
+snippet: an-freq
+focus: Ncw = Math.round(-dTot / (2 * Math.PI)),
+focus: if (Ncw + Pol !== 0 && gmN != null) { … w180 = w180N;
+Note: The clockwise encirclements of −1 are counted from the total phase change of 1 + L along the Nyquist path; Z = N + P decides stability, and when the loop is unstable the gain margin reported is the gain reduction that would fix it.
+
 ## Think about
 Q: The curve encircles −1 twice and the chips say Z = 2. What would a count of one mean?
 A: A single real pole crossing into the right half plane: a loop that diverges without oscillating, which happens with a sign error or a gain so large that a real pole goes unstable. Oscillatory instability, the common case with delay, always comes as a complex pair and counts two.

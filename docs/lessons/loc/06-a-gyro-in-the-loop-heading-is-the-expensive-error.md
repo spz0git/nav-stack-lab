@@ -72,6 +72,11 @@ Setup: The EKF with its beacons, the gyro on with the 0.5°/s bias and no zero-v
 See: The pose error stays small, 0.02 to 0.3 m, and all five goals are reached: the beacons keep catching the heading. But NEES sits between 200 and 550 for the whole run and the error is inside the 2σ band only a fifth of the time. The filter claims centimetres while its heading is 4 to 5° off between fixes.
 Shows: The same signature as the wheel bias in lesson 2, two orders of magnitude stronger, because the filter was told the turn rate is now ten times more precise. A real stack either estimates the gyro bias as a fourth state, so that the beacons can correct it, or calibrates it at every stop. Inflating the assumed noise would hide the symptom; neither of the two fixes needs the beacons to be frequent.
 
+## Code: odometry, wheels or gyro
+snippet: odometry
+focus: if (P.gyro) { … } else wo = w
+Note: The turn rate comes from one of two lines: the gyro's (its own noise and bias, the bias learnt at rest) or the wheels' (the speed-proportional bias and the larger noise). Both feed the same filter. A localizer in the Code tab sees only obs.odom and cannot tell which; that is the point of the lesson.
+
 ## Think about
 Q: The gyro's noise, 0.3°/s per 50 ms reading, is about twenty times smaller than the wheels' at 0.8 m/s. Why is the heading drift after a minute not twenty times smaller, but far more?
 A: Because the wheels' turn-rate error is not only noise: the calibration bias of 0.01 rad/s per m/s of speed is a steady 0.46°/s that never averages, and over a minute it dominates. The gyro removes the bias as well as most of the noise, so the comparison is a random walk of 0.3°/s readings against a drift of 0.46°/s plus a random walk of 5.7°/s readings.

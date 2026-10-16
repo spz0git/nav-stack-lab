@@ -61,6 +61,7 @@ function m3inv(A) {
     (a * e - b * d) / det
   ];
 }
+// @code ekf-predict | locPredict: the prediction step of dead reckoning, the EKF and the particle filter
 function locPredict() {
   const {v, w} = S.odo;
   if (P.loc === 'truth') return;
@@ -105,6 +106,8 @@ function locPredict() {
     pfEstimate();
   }
 }
+// @end
+// @code ekf-update | ekfUpdate: the Kalman update per beacon reading, with the gate
 function ekfUpdate(z) {
   const sr = sigR(),
     sb = sigB();
@@ -173,6 +176,8 @@ function ekfUpdate(z) {
     S.Pc = Pn;
   }
 }
+// @end
+// @code pf-update | pfUpdate: weighting the particles by the beacon readings, with the augmented-MCL averages
 function pfUpdate(z) {
   const f = S.pf,
     N = f.N;
@@ -212,6 +217,7 @@ function pfUpdate(z) {
   f.inj = pinj;
   pfResample(pinj, z);
 }
+// @end
 // Lidar likelihood-field model against the prior map (as in AMCL). 24 of 120 beams, tempered.
 function pfLidarUpdate(ranges) {
   const f = S.pf,
@@ -238,6 +244,7 @@ function pfLidarUpdate(ranges) {
   }
   pfResample(0, null);
 }
+// @code pf-resample | pfResample: N_eff, low-variance resampling and the injected samples
 function pfResample(pinj, z) {
   const f = S.pf,
     N = f.N;
@@ -288,6 +295,7 @@ function pfResample(pinj, z) {
   }
   pfEstimate();
 }
+// @end
 // Sensor-resetting sample: a pose consistent with one current beacon reading (Lenser & Veloso)
 function srlSample(z, g) {
   const real = z.filter(m => P.assoc === 'unknown' || !m.fake);

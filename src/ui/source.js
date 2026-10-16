@@ -62,3 +62,17 @@ function fillSource(file) {
   $('#src-pre').textContent = t;
   $('#src-info').textContent = `${t.split('\n').length} lines · read-only; the Code tab runs your own version`;
 }
+// A "// @code <id>" snippet of the page's own source, dedented, with its header (CODE_DATA is the build's index)
+function codeSnippet(id) {
+  const c = CODE_DATA[id];
+  if (!c) return null;
+  const mod = sourceIndex()[c.file] || '',
+    lines = mod.split('\n');
+  const i = lines.findIndex(l => new RegExp(`^\\s*// @code ${id.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*\\|`).test(l));
+  if (i < 0) return null;
+  let j = i + 1;
+  while (j < lines.length && !/^\s*\/\/ @end\b/.test(lines[j])) j++;
+  const body = lines.slice(i + 1, j),
+    ind = Math.min(...body.filter(l => l.trim()).map(l => /^\s*/.exec(l)[0].length));
+  return {...c, text: body.map(l => l.slice(ind)).join('\n')};
+}

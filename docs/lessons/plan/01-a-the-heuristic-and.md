@@ -43,6 +43,12 @@ Predict: Replace the planner by a straight line to the goal. What happens on the
 - The speed planner stops it before the shelf and it waits
 Answer: 0
 
+## Code: gridSearch, the heuristic
+snippet: astar
+focus: return (Math.max(dx, dy) + (SQ2 - 1) * Math.min(dx, dy)) * RES * eps;
+example: plan/astar
+Note: The octile distance, scaled by ε: with ε = 1 it never overestimates and A* is optimal; with ε > 1 the search leans toward the goal and expands fewer cells. Edit and run: the A* example has the same heuristic; multiply it by 2 (or set it to 0 with the Dijkstra example) and compare the expansions in the event log.
+
 ## Think about
 Q: The octile heuristic ignores the inflation penalty. Is it still admissible?
 A: Yes. The penalty only adds to the true cost of a move, so the free-space distance is a lower bound on the costmap cost as well. Ignoring it makes the heuristic looser, which costs expansions, not optimality. A heuristic that tried to include the penalty would have to know the path to compute it.

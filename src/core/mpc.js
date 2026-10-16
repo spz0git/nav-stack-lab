@@ -1,3 +1,4 @@
+// @code mpc-model | mpcModel: the prediction model MPC assumes, with the actuator lag
 function mpcModel() {
   const car = isCar(),
     L = P.wheelbase,
@@ -28,6 +29,7 @@ function mpcModel() {
   };
   return {n: iy + (dyn ? 2 : 0), f, car, lag, dyn, iy};
 }
+// @end
 // The prediction with tyre slip (P.mpcDyn on the car with tyre slip): the simulator's dynamic bicycle model (dynF in
 // vehicle.js: linear tyres clipped at μF_z, the same low-speed blend to the kinematic car), stepped MPC_DSUB times per
 // prediction step with one linearly implicit Euler stage (L-stable, so grippy tyres reduce to the kinematic car), and
@@ -40,6 +42,7 @@ function mpcDynGeom() {
   G.fr = (P.mu * G.m * GRAV * G.lf) / G.L;
   return G;
 }
+// @code mpc-dyn-pose | mpcDynPose: the tyre model inside the MPC prediction
 function mpcDynPose(x, vx, de, dt, G, iy) {
   G.td = Math.tan(de);
   const h = dt / MPC_DSUB,
@@ -89,6 +92,7 @@ function mpcDynPose(x, vx, de, dt, G, iy) {
   o[iy + 1] = yr;
   return o;
 }
+// @end
 // Central-difference Jacobians A = ∂f/∂x, B = ∂f/∂u. Not forward differences: the steering state saturates at ±s_max, and a
 // forward step from +s_max is clipped, which reads as zero sensitivity to steering at full left lock (the solver then cannot unwind it)
 function mpcJac(M, x, u, dt) {

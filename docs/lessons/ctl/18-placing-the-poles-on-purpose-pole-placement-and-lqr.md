@@ -60,6 +60,12 @@ Setup: The weights 1, 0.5 and r = 0.005: steering is twenty times cheaper than i
 See: Textbook gains K_e 14.1, K_θ 11.1 and an overdamped pair (ζ 1.65, ω_n 3.4 rad/s, two real poles near −5.5); with the delays in the loop holding that pair takes K_e 68.6, K_θ 14.8, far beyond the sliders. The what-if plot shows the pair where asked; Apply cannot follow.
 Shows: Cheap control raises the loop's speed only like (q_e/r)^¼, so a twentyfold cheaper command bought a pair about twice as fast, and the delays, which LQR knows nothing about, make even that expensive. The 60° phase margin LQR guarantees is for the delay-free plant; the margins in the chips are the ones to believe.
 
+## Code: placeGains and lqrGains
+snippet: lqr
+focus: Ke = Math.sqrt(qe / r), … zeta = (g * Kth) / (2 * wn);
+example: ctl/rwf
+Note: Pole placement is two lines of algebra; LQR for this plant is four, the Riccati equation solved in closed form. Edit and run: the rear-wheel-feedback example with ke and kth set to the design's gains; the loop then needs the larger pair the caption reports, because of the delays the design ignores.
+
 ## Think about
 Q: Pole placement and LQR give the same kind of answer, two gains. What does LQR add that placement does not?
 A: A reason for the pair, stated in units you can argue about: how much offset is worth how much steering. Placement will put the pair anywhere you ask, including places that cost absurd gains; LQR's poles come from a trade-off, and its weights are the thing a team can discuss.

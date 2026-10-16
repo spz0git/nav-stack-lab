@@ -4,13 +4,27 @@ import path from 'node:path';
 import {execSync} from 'node:child_process';
 import {buildNotes} from './tools/notes.mjs';
 import {buildLessons} from './tools/lessons.mjs';
+import {buildCode, buildExamples} from './tools/code.mjs';
 const src = p => fs.readFileSync(path.join('src', p), 'utf8');
 const manifest = JSON.parse(src('manifest.json'));
 const notes = buildNotes(); // docs/notes/*.md → the Learn column's companion chapters
 const lessons = buildLessons(); // docs/lessons/<group>/*.md → the lessons
-const js = manifest
-  .map(f => `/* ---- ${f} ---- */\n` + src(f))
-  .join('\n')
+const code = buildCode(), // the "// @code" snippets the lessons show
+  examples = buildExamples(); // src/examples → the Code tab's slot examples
+for (const g of Object.keys(lessons))
+  for (const L of lessons[g]) {
+    if (!L.code) continue;
+    if (!code[L.code.snip]) throw new Error(`lesson "${L.t}": no code snippet "${L.code.snip}" (// @code marker)`);
+    if (L.code.ex) {
+      const [slot, id] = L.code.ex.split('/');
+      if (!(examples[slot] || []).some(e => e.id === id)) throw new Error(`lesson "${L.t}": no example "${L.code.ex}" in src/examples`);
+    }
+  }
+const inlineData = s =>
+  s
+    .replace(/\/\*__EXAMPLES__\*\/\s*\{\s*\}/, () => JSON.stringify(examples).replace(/<\/script/g, '<\\/script'))
+    .replace(/\/\*__CODE__\*\/\s*\{\s*\}/, () => JSON.stringify(code).replace(/<\/script/g, '<\\/script'));
+const js = inlineData(manifest.map(f => `/* ---- ${f} ---- */\n` + src(f)).join('\n'))
   // the placeholders are a comment plus an empty literal, matched loosely so that a formatter cannot break them
   .replace(/\/\*__CHAPTERS__\*\/\s*\[\s*\]/, () => JSON.stringify(notes).replace(/<\/script/g, '<\\/script'))
   .replace(/\/\*__LESSONS__\*\/\s*\{[^}]*\}/, () => JSON.stringify(lessons).replace(/<\/script/g, '<\\/script'));
@@ -31,10 +45,12 @@ const page = src('index.html')
   .replace('/*__CSS__*/', () => src('styles.css').trimEnd())
   .replace('/*__JS__*/', () => "(()=>{\n'use strict';\n" + js + '\n})();');
 const core =
-  manifest
-    .filter(f => f.startsWith('core/'))
-    .map(f => `/* ---- ${f} ---- */\n` + src(f))
-    .join('\n') +
+  inlineData(
+    manifest
+      .filter(f => f.startsWith('core/'))
+      .map(f => `/* ---- ${f} ---- */\n` + src(f))
+      .join('\n')
+  ) +
   '\n' +
   src('worker/main.js');
 const worker = "(()=>{\n'use strict';\n" + core + '\n})();';
@@ -47,8 +63,8 @@ try {
   process.exit(1);
 }
 const page2 = page.replace('/*__WORKER__*/', () => worker.replace(/<\/script/g, '<\\/script'));
-if (!/"id":"ch1"/.test(page2) || !/"t":"Dead reckoning drifts/.test(page2)) {
-  console.error('BUILD FAILED: the chapters or the lessons did not get inlined (placeholder mismatch)');
+if (!/"id":"ch1"/.test(page2) || !/"t":"Dead reckoning drifts/.test(page2) || /__EXAMPLES__|__CODE__/.test(page2)) {
+  console.error('BUILD FAILED: the chapters, the lessons, the examples or the code snippets did not get inlined (placeholder mismatch)');
   process.exit(1);
 }
 fs.writeFileSync('dist/nav-stack-lab.html', page2);

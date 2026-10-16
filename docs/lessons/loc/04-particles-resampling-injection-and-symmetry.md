@@ -49,6 +49,12 @@ Predict: Scatter with unlabeled beacons and the lidar term removed from the weig
 - Same as with lidar: mirror pose, then the truth after a minute
 Answer: 1
 
+## Code: pfResample
+snippet: pf-resample
+focus: f.neff = 1 / s2; … if (pinj > 0 && g.u() < pinj) {
+example: loc/pf
+Note: N_eff decides whether to resample at all; the loop after it is low-variance resampling, one random offset and N even steps through the cumulative weights; the branch inside it draws an injected sample instead of copying a particle. Edit and run: the particle-filter example resamples the same way but never injects; change N or the N/2 threshold and watch N_eff in Signals.
+
 ## Think about
 Q: Why 400 particles, and not 40 or 40 000?
 A: Global localization has to cover a three-dimensional pose space finely enough that some particle lands near the truth; with injection proposing poses from the readings, 400 is plenty here. Tracking a converged filter would need far fewer. The cost is linear in <i>N</i> per update, and 40 000 particles would spend their time resampling copies of the same few poses.

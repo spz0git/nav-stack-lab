@@ -23,6 +23,7 @@ function kapAt(sArc) {
   return T.kv[i] + (T.kv[i + 1] - T.kv[i]) * t;
 }
 // Rear-wheel feedback (Samson; Paden et al. 2016 §V-A): curvature feedforward + heading and lateral feedback
+// @code rwf | ctlRWF: rear-wheel feedback with the curvature feedforward
 function ctlRWF() {
   const {e, T, pr, dir, thv} = trackPre(),
     q = pointAt(pr.s),
@@ -48,6 +49,7 @@ function ctlRWF() {
   if (Math.abs(the) > Math.PI / 2) return {v: 0, w: -Math.sign(the) * P.wmax * 0.7};
   return {v, w: clamp(v * kc, -P.wmax, P.wmax)};
 }
+// @end
 const vCap = dir => (dir > 0 ? P.vmax : Math.min(0.35, 0.5 * P.vmax)); // reverse legs: manoeuvring speed
 function trackPre() {
   const e = S.est,
@@ -57,6 +59,7 @@ function trackPre() {
   const dir = T.dir || 1;
   return {e, T, pr, dir, thv: dir > 0 ? e.th : wrap(e.th + Math.PI)};
 }
+// @code pp | ctlPP: pure pursuit, the carrot and the curvature
 function ctlPP() {
   const {e, pr, dir, thv} = trackPre();
   const Ld = Math.max(0.1, P.ppL0 + P.ppK * Math.abs(S.odo.v));
@@ -89,6 +92,8 @@ function ctlPP() {
   }
   return {v, w};
 }
+// @end
+// @code pid | ctlPID: PID on the heading error to the carrot
 function ctlPID() {
   const {e, pr, dir, thv} = trackPre();
   const Ld = Math.max(0.1, P.ppL0 + P.ppK * Math.abs(S.odo.v));
@@ -110,7 +115,9 @@ function ctlPID() {
   v = Math.min(v, decelCap(goalDist(pr)));
   return {v, w};
 }
+// @end
 // Stanley (Hoffmann et al. 2007): front-axle cross-track + heading error. Forward legs only.
+// @code stanley | ctlStanley: front-axle cross-track and heading error
 function ctlStanley() {
   if (!isCar() || (S.track.dir || 1) < 0) return ctlPP();
   const {e, T, pr} = trackPre(),
@@ -150,6 +157,8 @@ function ctlStanley() {
   if (k > 1e-6) v = Math.min(v, Math.sqrt(P.alat / k));
   return {v: Math.min(v, decelCap(goalDist(pr))), steer: d};
 }
+// @end
+// @code dwa | ctlDWA: the dynamic window, rolled out and scored
 function ctlDWA() {
   const {e, pr, dir} = trackPre(),
     car = isCar();
@@ -234,6 +243,7 @@ function ctlDWA() {
   }
   return car ? {v: best.v, steer: best.u} : {v: best.v, w: best.u};
 }
+// @end
 /* ============================================================
    Model predictive control
    Gauss–Newton SQP on the condensed (single-shooting) problem.

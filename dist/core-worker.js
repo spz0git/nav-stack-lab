@@ -448,6 +448,10 @@ const LEVELS = [
     tries: [
       {t: '<b>Mission:</b> follow the replans in the event log as rooms are discovered.', b: [['Run', {tab: 'mis'}]]},
       {
+        t: '<b>Mission:</b> let the robot pick its own goals. Frontier exploration maps the whole building with no goals given, one frontier at a time.',
+        b: [['Explore', {set: {mis: 'explore'}, tab: 'mis', plot: 'pos'}]]
+      },
+      {
         t: '<b>Perceive:</b> set unknown space to lethal. Goals in unexplored rooms become unreachable, which is the gap frontier-based exploration fills.',
         b: [['Unknown = lethal', {set: {unknownAs: 'lethal'}, tab: 'per'}]]
       },
@@ -847,6 +851,7 @@ const DEFAULTS = {
   unknownAs: 'free',
   infl: 0.6,
   mis: 'sequential',
+  exploreMin: 6, // frontier exploration: a frontier counts from this many cells
   replan: 0,
   lostGuard: false,
   rwKth: 3.0,
@@ -948,7 +953,7 @@ const PARAM_OPTS = {
   unknownAs: ['free', 'lethal'],
   agents: ['off', 'truth', 'lidar'],
   agPred: ['cv', 'static', 'custom'],
-  mis: ['sequential', 'greedy', 'optimal'],
+  mis: ['sequential', 'greedy', 'optimal', 'explore'],
   plan: ['straight', 'astar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'custom'],
   hybH: ['both', '2d'],
   ctl: ['pp', 'rwf', 'stanley', 'pid', 'dwa', 'mpc', 'custom'],
@@ -988,7 +993,8 @@ const LAYERS = {
   dwa: true,
   agents: true,
   ghostrun: true,
-  sweep: true
+  sweep: true,
+  frontier: true
 };
 
 /* ---- core/record.js ---- */
@@ -1031,6 +1037,7 @@ function recFrame() {
     collPed: S.collPed,
     // scalar diagnostics for the plot dock's signals (UI only; nothing in the simulation reads them)
     sig: {
+      explored: P.per === 'mapping' ? exploredFrac() : null,
       mpcMs: S.mpcStats ? S.mpcStats.ms : null,
       mpcIt: S.mpcStats ? S.mpcStats.it : null,
       mpcJ: S.mpcStats ? S.mpcStats.J : null,
@@ -2649,7 +2656,7 @@ function goalBlocked(gx, gy) {
       for (let i = i0 - n; i <= i0 + n; i++) {
         if (i < 0 || j < 0 || i >= GW || j >= GH) continue;
         if (Math.abs(S.lo[j * GW + i]) < 0.05)
-          return 'goal is in unexplored space, and unknown space is lethal (Perceive): nothing explores, so the robot stays where it can see';
+          return 'goal is in unexplored space, and unknown space is lethal (Perceive): the robot stays where it can see; Mission → Explore picks goals it can reach';
       }
   }
   return null;
@@ -3646,9 +3653,200 @@ function computeOrder(idx) {
   }
   return {order: order.map(v => idx[v - 1]), cost};
 }
+// Frontier exploration (Yamauchi 1997): a frontier cell is known free with an unknown 4-neighbour; frontiers are
+// 8-connected clusters of at least P.exploreMin cells, each summarized by the member cell nearest its centroid. The
+// goal the planner gets is the nearest known-free cell with some margin beyond the inflated obstacles (a frontier
+// cell sits next to unknown space, which the cautious policy inflates); a frontier with no such cell nearby is skipped.
+const exploring = () => P.mis === 'explore' && P.per === 'mapping';
+function frontiers() {
+  const lo = S.lo,
+    isF = new Uint8Array(NC),
+    unk = i => Math.abs(lo[i]) < 0.05,
+    n = Math.ceil(LETHAL / RES);
+  // a seen obstacle within the lethal radius (not the unknown: that would rule out every frontier under the cautious policy)
+  const nearWall = (i, j) => {
+    for (let dj = -n; dj <= n; dj++)
+      for (let di = -n; di <= n; di++) {
+        const ii = i + di,
+          jj = j + dj;
+        if (ii < 0 || jj < 0 || ii >= GW || jj >= GH || di * di + dj * dj > n * n) continue;
+        if (lo[jj * GW + ii] > 0.5) return true;
+      }
+    return false;
+  };
+  for (let j = 1; j < GH - 1; j++)
+    for (let i = 1; i < GW - 1; i++) {
+      const k = j * GW + i;
+      if (lo[k] < -0.05 && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW)) && !nearWall(i, j)) isF[k] = 1;
+    }
+  const seen = new Uint8Array(NC),
+    out = [];
+  for (let s = 0; s < NC; s++) {
+    if (!isF[s] || seen[s]) continue;
+    const cells = [s],
+      q = [s];
+    seen[s] = 1;
+    while (q.length) {
+      const k = q.pop(),
+        i = k % GW,
+        j = (k - i) / GW;
+      for (let dj = -1; dj <= 1; dj++)
+        for (let di = -1; di <= 1; di++) {
+          const ii = i + di,
+            jj = j + dj,
+            kk = jj * GW + ii;
+          if (ii < 0 || jj < 0 || ii >= GW || jj >= GH || !isF[kk] || seen[kk]) continue;
+          seen[kk] = 1;
+          cells.push(kk);
+          q.push(kk);
+        }
+    }
+    if (cells.length < P.exploreMin) continue;
+    let cx = 0,
+      cy = 0;
+    for (const k of cells) {
+      cx += k % GW;
+      cy += (k - (k % GW)) / GW;
+    }
+    cx /= cells.length;
+    cy /= cells.length;
+    let best = cells[0],
+      bd = Infinity;
+    for (const k of cells) {
+      const d = ((k % GW) - cx) ** 2 + ((k - (k % GW)) / GW - cy) ** 2;
+      if (d < bd) {
+        bd = d;
+        best = k;
+      }
+    }
+    const g = nearestKnownFree(best);
+    if (g < 0) continue;
+    out.push({cells, size: cells.length, x: ((g % GW) + 0.5) * RES, y: ((g - (g % GW)) / GW + 0.5) * RES, key: best});
+  }
+  return out;
+}
+// the nearest known-free cell 0.2 m or more beyond the inflated obstacles, within about 2 m of cell s; in a corridor
+// too narrow for that margin the nearest known-free cell that is merely not lethal; for a sliver seen through a door,
+// where every known cell is lethal, the nearest cell that is not lethal at all (unknown, when unknown counts as free:
+// the planner then heads into the unknown, which is the point) (−1: none)
+function nearestKnownFree(s) {
+  const seen = new Uint8Array(NC),
+    q = [s],
+    lim = Math.round(2 / RES);
+  seen[s] = 1;
+  const si = s % GW,
+    sj = (s - si) / GW;
+  let fallback = -1,
+    last = -1;
+  for (let h = 0; h < q.length; h++) {
+    const u = q[h];
+    if (!S.cm.lethal[u]) {
+      if (S.lo[u] < -0.05) {
+        if (S.cm.dist[u] >= LETHAL + 0.2) return u;
+        if (fallback < 0) fallback = u;
+      } else if (last < 0) last = u;
+    }
+    const ui = u % GW,
+      uj = (u - ui) / GW;
+    for (const [di, dj] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ]) {
+      const vi = ui + di,
+        vj = uj + dj;
+      if (vi < 0 || vj < 0 || vi >= GW || vj >= GH || Math.abs(vi - si) > lim || Math.abs(vj - sj) > lim) continue;
+      const v = vj * GW + vi;
+      if (seen[v]) continue;
+      seen[v] = 1;
+      q.push(v);
+    }
+  }
+  return fallback >= 0 ? fallback : last;
+}
+// The next frontier to visit: the largest nearby one (size per metre of distance), skipping the ones that failed;
+// the goal list becomes that one goal. Returns false when nothing is left to see.
+function exploreNext(reason, quiet) {
+  const fr = frontiers(),
+    e = S.est,
+    failed = S.exploreFailed || (S.exploreFailed = new Set());
+  S.frontiers = fr;
+  let best = null,
+    bs = -Infinity;
+  for (const f of fr) {
+    if (failed.has(f.key)) continue;
+    const d = hyp(f.x - e.x, f.y - e.y),
+      s = f.size / (1 + d);
+    if (s > bs) {
+      bs = s;
+      best = f;
+    }
+  }
+  if (!best && failed.size && !S.exploreRetried) {
+    // nothing left but the frontiers that failed: one more try at each, from wherever the robot is now
+    S.exploreRetried = true;
+    failed.clear();
+    logE('Explore: only the frontiers that failed are left, trying them once more');
+    return exploreNext(reason, quiet);
+  }
+  if (!best) {
+    if (quiet) return false;
+    const pct = exploredFrac();
+    logE(
+      `Explored: ${fr.length ? `${fr.length} frontier${fr.length === 1 ? '' : 's'} left, none reachable` : 'no frontier left'} · ${(100 * pct).toFixed(0)} % of the floor seen`,
+      'ok'
+    );
+    return false;
+  }
+  WPS = [{x: best.x, y: best.y, th: null, done: false, explore: true, key: best.key, cells: best.cells}];
+  S.fsm.queue = [0];
+  logE(
+    `Explore${reason ? ` (${reason})` : ''}: frontier of ${best.size} cells at (${best.x.toFixed(1)}, ${best.y.toFixed(1)}), ${fr.length} frontier${fr.length === 1 ? '' : 's'}, ${(100 * exploredFrac()).toFixed(0)} % seen`
+  );
+  return true;
+}
+// how much of the floor the robot could stand on has been seen (known cells among the true free cells)
+function exploredFrac() {
+  const lo = S.lo,
+    tr = LV.truthOcc;
+  if (!tr || P.per !== 'mapping') return null;
+  let n = 0,
+    k = 0;
+  for (let i = 0; i < NC; i++) {
+    if (tr[i]) continue;
+    n++;
+    if (Math.abs(lo[i]) >= 0.05) k++;
+  }
+  return n ? k / n : 0;
+}
+// a frontier goal is pointless once none of its cells borders unknown space any more (seen on the way there)
+function frontierGone(wp) {
+  const lo = S.lo,
+    unk = i => Math.abs(lo[i]) < 0.05;
+  for (const k of wp.cells) if (lo[k] < -0.05 && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW))) return false;
+  return true;
+}
+// when a frontier goal is done or given up: the next frontier, or the end of the exploration
+function exploreMore(failedKey) {
+  if (!exploring()) return false;
+  if (failedKey != null) (S.exploreFailed || (S.exploreFailed = new Set())).add(failedKey);
+  return exploreNext(failedKey != null ? 'that one failed' : 'next');
+}
 function startMission() {
-  const F = S.fsm,
-    rem = remaining();
+  const F = S.fsm;
+  if (exploring()) {
+    S.exploreFailed = new Set();
+    S.exploreRetried = false;
+    F.stuckN = 0;
+    F.queue = [];
+    F.scanT = S.t; // PLAN waits for the first scan when nothing is known yet (missionTick), up to 3 s
+    F.state = 'PLAN';
+    F.pendingReason = 'initial';
+    return;
+  }
+  if (WPS.length && WPS[0].explore) WPS = LV.wps.map(w => ({x: w[0], y: w[1], th: w.length > 2 ? w[2] : null, done: false})); // back from exploring
+  const rem = remaining();
   if (!rem.length) {
     F.state = WPS.length ? 'DONE' : 'IDLE';
     F.queue = [];
@@ -3745,11 +3943,12 @@ function applyPlanResult(res, name, reason, t0, agL) {
     logE(`${name}: no path to goal ${wpLabel(F.queue[0])} (${res.reason})`, 'bad');
     if (F.fails >= 3) {
       logE(`Skipping goal ${wpLabel(F.queue[0])} after 3 attempts`, 'bad');
+      const fk = WPS[F.queue[0]].explore ? WPS[F.queue[0]].key : null;
       WPS[F.queue[0]].done = true;
       WPS[F.queue[0]].skipped = true;
       F.queue.shift();
       F.fails = 0;
-      F.state = F.queue.length ? 'PLAN' : 'DONE';
+      F.state = F.queue.length || exploreMore(fk) ? 'PLAN' : 'DONE';
     }
   }
 }
@@ -3763,6 +3962,19 @@ function missionTick() {
   const F = S.fsm;
   if (F.state === 'PLAN') {
     if (F.planPending) return;
+    if (exploring() && !F.queue.length) {
+      // the first frontier once the first scan is in; an empty map after 3 s, or no frontier left, ends the exploration
+      const waiting = S.t - (F.scanT || 0) < 3;
+      if (!exploreNext(F.scanT != null ? 'start' : 'next', waiting)) {
+        if (!waiting) {
+          F.state = 'DONE';
+          S.track = null;
+          S.plan = null;
+        }
+        return;
+      }
+      F.scanT = null;
+    }
     doPlan(F.pendingReason || 'initial');
     F.pendingReason = null;
     return;
@@ -3790,6 +4002,26 @@ function missionTick() {
   }
   const wp = WPS[F.queue[0]],
     e = S.est;
+  if (wp.explore && S.t - (F.frontierT || 0) >= 1) {
+    F.frontierT = S.t;
+    if (frontierGone(wp)) {
+      logE(`Frontier at (${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}) seen on the way: next`);
+      wp.done = true;
+      F.queue.shift();
+      F.stuckN = 0;
+      S.ctlState = {I: 0, prev: null};
+      if (exploreMore()) {
+        F.state = 'PLAN';
+        F.pendingReason = 'initial';
+      } else {
+        F.state = 'DONE';
+        S.track = null;
+        S.plan = null;
+        logE(`Exploration complete in ${S.t.toFixed(1)} s`, 'ok');
+      }
+      return;
+    }
+  }
   let lastSeg = !S.plan || S.segIdx >= S.plan.segs.length - 1;
   if (!lastSeg) {
     const pr = project(e.x, e.y, true),
@@ -3838,14 +4070,14 @@ function missionTick() {
     F.queue.shift();
     F.stuckN = 0;
     S.ctlState = {I: 0, prev: null};
-    if (F.queue.length) {
+    if (F.queue.length || exploreMore()) {
       F.state = 'PLAN';
       F.pendingReason = 'initial';
     } else {
       F.state = 'DONE';
       S.track = null;
       S.plan = null;
-      logE(`Mission complete in ${S.t.toFixed(1)} s`, 'ok');
+      logE(exploring() ? `Exploration complete in ${S.t.toFixed(1)} s` : `Mission complete in ${S.t.toFixed(1)} s`, 'ok');
     }
     return;
   }
@@ -3902,11 +4134,12 @@ function missionTick() {
       F.stuckN = (F.stuckN || 0) + 1;
       if (F.stuckN >= 3) {
         logE(`Skipping goal ${wpLabel(F.queue[0])}: stuck 3 times`, 'bad');
+        const fk = WPS[F.queue[0]].explore ? WPS[F.queue[0]].key : null;
         WPS[F.queue[0]].done = true;
         WPS[F.queue[0]].skipped = true;
         F.queue.shift();
         F.stuckN = 0;
-        F.state = F.queue.length ? 'PLAN' : 'DONE';
+        F.state = F.queue.length || exploreMore(fk) ? 'PLAN' : 'DONE';
         F.pendingReason = 'initial';
         if (!F.queue.length) {
           S.track = null;

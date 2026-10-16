@@ -12,6 +12,7 @@ const DEFAULTS = {
   unknownAs: 'free',
   infl: 0.6,
   mis: 'sequential',
+  exploreMin: 6, // frontier exploration: a frontier counts from this many cells
   replan: 0,
   lostGuard: false,
   rwKth: 3.0,
@@ -113,7 +114,7 @@ const PARAM_OPTS = {
   unknownAs: ['free', 'lethal'],
   agents: ['off', 'truth', 'lidar'],
   agPred: ['cv', 'static', 'custom'],
-  mis: ['sequential', 'greedy', 'optimal'],
+  mis: ['sequential', 'greedy', 'optimal', 'explore'],
   plan: ['straight', 'astar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'custom'],
   hybH: ['both', '2d'],
   ctl: ['pp', 'rwf', 'stanley', 'pid', 'dwa', 'mpc', 'custom'],
@@ -153,5 +154,6 @@ const LAYERS = {
   dwa: true,
   agents: true,
   ghostrun: true,
-  sweep: true
+  sweep: true,
+  frontier: true
 };

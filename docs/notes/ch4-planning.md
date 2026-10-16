@@ -130,6 +130,35 @@ A diagonal move is also checked at the intermediate step, so the robot cannot cu
 
 [try: Space-time A* | {"sim":true,"level":4,"set":{"plan":"stastar"},"tab":"plan","layers":{"search":true},"searchStep":true}] [try: A* with the agent layer | {"sim":true,"level":4,"set":{"plan":"astar"},"tab":"plan","layers":{"search":true},"searchStep":true}]
 
-## 7. What to carry into the next chapters
+## 7. Frontier exploration: the robot picks its own goals
+
+**The frontier.** With lidar mapping the grid holds three kinds of cell: known free ($l < -0.05$), known occupied ($l > 0.5$) and unknown ($|l| < 0.05$, nothing has been seen there). A *frontier cell* is a known-free cell with an unknown 4-neighbour: from there the lidar would see into the unknown. The lab also drops frontier cells within the lethal radius of a seen wall, so a cell the robot could not stand on is not a candidate (the test is against seen walls only, not against the unknown, or the cautious policy below would rule out every frontier). The frontier cells form 8-connected clusters, the *frontiers*; clusters below $N_{\min}$ cells (the Mission tab's "smallest frontier worth a visit", 6 by default) are ignored, since a sliver seen through a doorway is almost always seen on the way to something else.
+
+**The goal cell.** A frontier is summarized by its member cell nearest its centroid. The goal handed to the planner is the nearest known-free cell to that one with a margin of 0.2 m beyond the inflated obstacles; in a corridor too narrow for the margin, the nearest known-free cell that is merely not lethal; and for a sliver where every known cell is lethal, the nearest cell that is not lethal at all, which under the optimistic policy is unknown space just past the door, exactly where the robot should head. A frontier with no such cell within 2 m is unreachable and left out.
+
+**The choice.** Each frontier is scored by its size over its distance from the estimate,
+$$
+u_i = \frac{|F_i|}{1 + d_i},
+$$
+and the highest score is the next goal. Size per metre is the crudest estimate of what exploration wants, new floor per metre driven; the research versions (expected information gain against path cost) estimate the same ratio properly. A goal is dropped the moment none of its cluster's cells borders unknown space any more, checked once a second while driving: the way there usually reveals what was behind it, and 13 of the 15 goals of the run below end this way. A goal the planner cannot reach three times, or the robot is stuck on three times, is put on a failed list and skipped; when nothing but failed frontiers is left, each is tried once more from wherever the robot now stands, and the exploration ends when no frontier is left, or none that has not failed twice.
+
+**The floor seen.** The lab reports the share of the true free floor (the level's map, which the robot does not have) whose cells are known, as a signal and in the status strip. It is the quantity exploration maximizes and the one a real robot cannot compute, having no true map.
+
+**Measured** on L4 at seed 7, with the default planner and tracker unless stated:
+
+| Run | Floor seen | Time | Distance | Frontier goals | Dropped on the way |
+| --- | --- | --- | --- | --- | --- |
+| Explore | 100 % | 123 s | 94 m | 15 | 13 |
+| The level's four goals | 96 % | 67 s | 50 m | – | – |
+| $N_{\min}$ = 20 | 99 % | 102 s | 78 m | 14 | 12 |
+| $N_{\min}$ = 2 | 100 % | 141 s | 107 m | 16 | 14 |
+| Unknown as lethal | 100 % | 158 s | 112 m | 17 | 14 |
+| DWA tracker | 100 % | 188 s | 86 m | 19 | 11, four given up, one retried |
+
+Over six seeds the default run takes 111 to 147 s and 80 to 108 m, always to 100 %, with at most one brush against a shelf. The cautious policy (§5 explains why a hand-placed goal in an unseen room stalls under it) does not block exploration, because a frontier goal is on seen floor by construction; it only forbids the plans to cut through rooms not yet looked into, which costs about a third more time.
+
+[try: Explore the building | {"sim":true,"level":3,"set":{"mis":"explore"},"tab":"mis"}] [try: Explore with unknown as lethal | {"sim":true,"level":3,"set":{"mis":"explore","unknownAs":"lethal"},"tab":"per"}]
+
+## 8. What to carry into the next chapters
 
 Every planner here produces a path, and every path is a promise the tracker has to keep. Chapter 5 is about the trackers, and the margin Hybrid A* leaves on the steering lock is the first place the two chapters meet: a path planned at the vehicle's limit cannot be tracked, because tracking needs authority in reserve. The second meeting point is time: the space-time plan and the speed planner both assume the predictions of chapter 3, and the delay margin of chapter 6 is the same idea one layer down, how much lateness a loop can absorb before it fails.

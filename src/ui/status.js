@@ -20,7 +20,14 @@ function renderStatus() {
   $('#status').innerHTML =
     `<span class="pill ${cls}">${st}</span>${F.state === 'IDLE' && WPS.length === 0 ? `<span class="st-note">tap the map to add goals</span>` : ''}` +
     cell('t', `${V.t.toFixed(1)} s`, f ? 'replay' : '', f ? 'Replaying a recorded moment; Live or Run returns to the live state' : '') +
-    cell('goals', `${done}/${f ? f.done.length : WPS.length}`) +
+    (exploring()
+      ? cell(
+          'floor seen',
+          `${(100 * (exploredFrac() || 0)).toFixed(0)} %`,
+          '',
+          `${S.frontiers ? S.frontiers.length : 0} frontiers left; Mission → Explore picks the goals`
+        )
+      : cell('goals', `${done}/${f ? f.done.length : WPS.length}`)) +
     (P.loc === 'truth'
       ? cell('pose', 'known', '', 'Ground truth: the estimate is the true pose; pick an estimator in Localize to see an error')
       : cell('pose error', `${ep.toFixed(2)} m`, ep > 0.5 ? 'bad' : '', 'Distance between the true pose and the estimate')) +
@@ -37,6 +44,15 @@ function renderMetrics() {
   const ps = S.planStats;
   const items = [
     ['Distance', `${S.dist.toFixed(1)} m`],
+    ...(P.per === 'mapping'
+      ? [
+          [
+            'Floor seen',
+            `${(100 * (exploredFrac() || 0)).toFixed(0)} %${exploring() ? ` · ${S.frontiers ? S.frontiers.length : 0} frontiers` : ''}`,
+            'per'
+          ]
+        ]
+      : []),
     ['Collisions', `${S.coll} static, ${S.collPed} people${S.collPedStill ? ` (${S.collPedStill} into the stopped robot)` : ''}`],
     ...(P.loc === 'truth'
       ? [['Localization', 'ground truth: the pose is known, no estimate error', 'loc']]

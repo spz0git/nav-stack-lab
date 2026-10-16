@@ -52,9 +52,9 @@ if (!('look' in LAYERS)) LAYERS.look = true;
 if (!('slip' in LAYERS)) LAYERS.slip = true; // the sideslip arrow of the car with tyre slip, also UI-only
 const TAB_LAYERS = {
   loc: ['belief', 'beam', 'trail', 'ghost', 'ghostrun', 'slip'],
-  per: ['lidar', 'cost', 'ghost', 'ghostrun', 'slip'],
-  mis: ['ghostrun', 'slip'],
-  plan: ['search', 'ghostrun', 'slip'],
+  per: ['lidar', 'cost', 'ghost', 'ghostrun', 'slip', 'frontier'],
+  mis: ['ghostrun', 'slip', 'frontier', 'lidar'],
+  plan: ['search', 'ghostrun', 'slip', 'frontier'],
   ctl: ['dwa', 'look', 'trail', 'ghostrun', 'slip']
 };
 let layersEdited = false,
@@ -74,6 +74,7 @@ function applyTabLayers(force) {
 }
 function layersPane() {
   const L = [
+    ['frontier', 'Frontiers: known free cells next to unknown space, while exploring'],
     ['sweep', 'Experiment runs: the paths of the last experiment, coloured by the varied value'],
     ['ghost', 'True-map outline over the built map'],
     ['cost', 'Costmap inflation'],

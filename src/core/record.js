@@ -37,6 +37,7 @@ function recFrame() {
     collPed: S.collPed,
     // scalar diagnostics for the plot dock's signals (UI only; nothing in the simulation reads them)
     sig: {
+      explored: P.per === 'mapping' ? exploredFrac() : null,
       mpcMs: S.mpcStats ? S.mpcStats.ms : null,
       mpcIt: S.mpcStats ? S.mpcStats.it : null,
       mpcJ: S.mpcStats ? S.mpcStats.J : null,

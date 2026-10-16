@@ -255,7 +255,8 @@ const LAYER_DEFS = [
   ['look', 'Lookahead', "The path tracker's carrot", 'ctl'],
   ['slip', 'Sideslip', 'Velocity at the centre of mass against the heading', 'ctl'],
   ['ghostrun', 'Previous run', 'Ghost trail and ghost plot series', ''],
-  ['sweep', 'Experiment runs', "The paths of the last experiment's runs, coloured by the varied value", '']
+  ['sweep', 'Experiment runs', "The paths of the last experiment's runs, coloured by the varied value", ''],
+  ['frontier', 'Frontiers', 'Known free cells next to unknown space, the chosen frontier brighter (Mission → Explore)', 'plan']
 ];
 // [has something to draw now?, status text]
 function layerStatus(k) {
@@ -299,6 +300,13 @@ function layerStatus(k) {
         : [0, 'only the car with tyre slip (Vehicle)'];
     case 'ghostrun':
       return GHOST && GHOST.level === LV.id ? [1, GHOST.label] : [0, 'no previous run on this level'];
+    case 'frontier':
+      return exploring()
+        ? [
+            S.frontiers && S.frontiers.length ? 1 : 0,
+            S.frontiers ? `${S.frontiers.length} frontier${S.frontiers.length === 1 ? '' : 's'}` : 'none yet'
+          ]
+        : [0, 'only while exploring (Mission → Goal order → Explore)'];
     case 'sweep':
       return EXP.results.length && EXP.level === LV.id
         ? [1, `${EXP.results.length} runs of the last experiment`]

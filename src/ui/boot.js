@@ -93,6 +93,7 @@ window.__nav = {
   LEVELS,
   loadLevel,
   advance,
+  exploredFrac,
   setParam,
   get WPS() {
     return WPS;

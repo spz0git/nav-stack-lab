@@ -253,6 +253,10 @@ const LEVELS = [
     tries: [
       {t: '<b>Mission:</b> follow the replans in the event log as rooms are discovered.', b: [['Run', {tab: 'mis'}]]},
       {
+        t: '<b>Mission:</b> let the robot pick its own goals. Frontier exploration maps the whole building with no goals given, one frontier at a time.',
+        b: [['Explore', {set: {mis: 'explore'}, tab: 'mis', plot: 'pos'}]]
+      },
+      {
         t: '<b>Perceive:</b> set unknown space to lethal. Goals in unexplored rooms become unreachable, which is the gap frontier-based exploration fills.',
         b: [['Unknown = lethal', {set: {unknownAs: 'lethal'}, tab: 'per'}]]
       },

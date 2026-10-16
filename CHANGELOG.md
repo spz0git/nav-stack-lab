@@ -23,6 +23,9 @@ Phase 3, code health (from the assessment of 2026-10-15):
 - `setParam` validates: a choice parameter must be one of its values (`PARAM_OPTS` in `core/params.js`) and a numeric
   one a finite number; anything else is ignored with a log line instead of falling into a default branch (a mistyped
   setup link `plan=foo` used to run RRT*). Its if-chain of side effects is an ordered table, `PARAM_EFFECTS`.
+- Unit tests for the closed-form numerics (`tests/node/numerics.test.mjs`, in `npm test`): the 3 × 3 inverse, the
+  Cholesky solve, the box QP, the distance transform, Reeds–Shepp lengths and samples, A* on a free line and round
+  obstacles, and the textbook properties of one EKF update. The worker exposes them to Node as `self.__core`.
 
 ## v35 · 2026-10-16
 

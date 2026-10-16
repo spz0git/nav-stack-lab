@@ -33,7 +33,8 @@ Every pull request:
 
 1. Builds: `./build.sh` (Node 18+). Commit the rebuilt `dist/` with the source change; CI checks that the committed
    page equals a fresh build.
-2. Passes the Node golden test: `npm test` (10 s). If your change intends to move the L1–L5 numbers, regenerate the
+2. Passes the Node tests: `npm test` (10 s): the golden L1–L5 summary and the unit tests of the numerics
+   (`tests/node/numerics.test.mjs`; add a case there when you touch a formula). If your change intends to move the L1–L5 numbers, regenerate the
    baseline with `npm run golden` in the same PR and say why.
 3. Passes the browser gate: `python3 tests/run_all.py` (about three minutes with Playwright's Chromium;
    `pip install playwright && playwright install chromium` once). `test.py`'s summary must not change,

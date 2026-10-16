@@ -6452,6 +6452,32 @@ function runSummary() {
     path: S.trailT.filter((_, i) => i % 2 === 0).map(p => (p ? [+p[0].toFixed(2), +p[1].toFixed(2)] : null))
   }; // the true path every 0.4 s (the trail is kept every 0.2 s; null: a kidnap)
 }
+// The core's numerics, reachable from the Node tests (tests/node/numerics.test.mjs); unused by the page's worker
+self.__core = {
+  m3inv,
+  m3mul,
+  cholSolve,
+  boxQP,
+  distanceTransform,
+  RS,
+  astar,
+  ekfUpdate,
+  initLoc,
+  loadLevel,
+  setParam,
+  wrap,
+  clamp,
+  get S() {
+    return S;
+  },
+  get P() {
+    return P;
+  },
+  RES,
+  GW,
+  GH,
+  NC
+};
 self.onmessage = async e => {
   const m = e.data;
   if (m.cmd !== 'run') return;

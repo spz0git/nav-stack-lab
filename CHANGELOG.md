@@ -1,7 +1,12 @@
 # Changelog
 
-The version label in the page header (`v32 · 2026-10-16`) is the number used here; `src/version.json` holds it.
+The version label in the page header (`v33 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
+
+## v33 · 2026-10-16
+
+README rewritten in plain language; the module map and the lesson/chapter format move to `src/README.md`; the
+learning tracks (classical, modular learning, end-to-end) join Phase 4 of the assessment and the roadmap (PR #54).
 
 ## v32 · 2026-10-16
 

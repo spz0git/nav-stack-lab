@@ -1,6 +1,6 @@
 {
   "name": "nav-stack-lab",
-  "version": "32.0.0",
+  "version": "33.0.0",
   "description": "A browser simulator for robot navigation: localization, perception, planning and control, with loop analysis and guided lessons, in one HTML file.",
   "private": true,
   "license": "MIT",

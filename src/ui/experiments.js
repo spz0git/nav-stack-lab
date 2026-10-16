@@ -129,7 +129,7 @@ function applyConfig(c){
   loadLevel(i);
   for(const[k,v]of Object.entries(c.params||{})){if(k in DEFAULTS)setParam(k,v,false);}
   if(c.goals){WPS=c.goals.map(g=>({x:g[0],y:g[1],th:g[2]==null?null:g[2],done:false}));S.fsm.state='IDLE';startMission();doPlan('initial');}
-  running=false;draw();refreshAll();
+  running=false;renderAllPanes();draw();refreshAll();   // the tabs show the link's settings at once
 }
 function configURL(){
   const c=currentConfig(),q=[`l=${c.level}`,`seed=${c.seed}`];

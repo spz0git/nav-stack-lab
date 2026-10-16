@@ -33,7 +33,7 @@ const GLOSS={
  zhat:['<i>ẑ</i>','Predicted measurement, computed from the current estimate.','m, rad',['ẑ']],
  Sinn:['<i>S</i>','Innovation covariance <i>H</i>Σ<i>H</i>ᵀ + <i>Q</i>: how spread out the innovations should be.','',['S']],
  Hjac:['<i>H</i>','Measurement Jacobian: how the predicted reading changes with the pose.','',['H']],
- Qmeas:['<i>Q</i>','Measurement noise covariance, diag(σ<sub>r</sub>², σ<sub>φ</sub>²).','',['Q']],
+ Qmeas:['<i>Q</i>','Measurement noise covariance, diag(σ<sub>r</sub>², σ<sub>b</sub>²).','',['Q']],
  K:['<i>K</i>','Kalman gain Σ<i>H</i>ᵀ<i>S</i>⁻¹.','',['K']],
  Iid:['<i>I</i>','Identity matrix.','',['I']],
  nees:['NEES','Normalized estimation error squared, <i>e</i>ᵀΣ⁻¹<i>e</i>: the true error in units of the filter\'s own covariance. About 3 on average for a consistent 3-state filter; above 3 means overconfident.','',['NEES']],

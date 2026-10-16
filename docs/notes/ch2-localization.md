@@ -189,7 +189,7 @@ $$
 
 Everything from sections 2 to 4 still applies with larger matrices, and three things are new.
 
-**Prediction touches only the pose block.** Landmarks do not move, so the motion Jacobian is $G$ on the pose and the identity on the map. $P \leftarrow G P G^{\mathsf T} + Q$ then changes the 3 × 3 pose block, scales the 3 × 2n cross-covariances by $G$, and leaves the map block alone. The lab exploits that sparsity; a dense multiply would be $O(n^3)$ per tick.
+**Prediction touches only the pose block.** Landmarks do not move, so the motion Jacobian is $G$ on the pose and the identity on the map. $P \leftarrow G P G^{\mathsf T} + V M V^{\mathsf T}$ (the motion noise of §2) then changes the 3 × 3 pose block, scales the 3 × 2n cross-covariances by $G$, and leaves the map block alone. The lab exploits that sparsity; a dense multiply would be $O(n^3)$ per tick.
 
 **A new landmark inherits the pose uncertainty.** The first reading $(r, b)$ of a beacon places it by the inverse measurement model $m = p + r\,[\cos(\theta + b), \sin(\theta + b)]$. Its covariance comes from the same linearization argument as section 2, now with two Jacobians, one on the pose and one on the reading:
 

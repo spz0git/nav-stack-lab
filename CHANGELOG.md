@@ -5,6 +5,13 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 ## Unreleased
 
+- D* Lite (Plan → D* Lite, `core/planning-dstar.js`): the grid search kept between plans, run from the goal, with g and
+  rhs per cell, the two-part key packed into one number, k_m for the robot's motion, a costmap diff (lethal flips and
+  penalty moves over 0.1) that repairs only the touched vertices; the same cost model as A*, so the same paths; the
+  search is dropped when the goal, the planner or ε changes. Each plan logs its vertex updates and the cells changed;
+  the mission keeps plan totals (count, expansions, ms). Planning lesson 7, *D* Lite: repairing the plan instead of
+  starting over*, five measured experiments with the honest reading (six-fold fewer expansions on a static map with a
+  periodic replan, more work than A* when lidar mapping or agent stamps change thousands of cells), chapter 4 §8.
 - Pose-graph SLAM (Localize → Pose-graph SLAM, lidar only): keyframes every 0.5 m with their scans, each first aligned
   to the hit map of the earlier keyframes and fused with the odometry (the edge carries the matched motion), loop
   closures by scan-to-scan ICP against keyframes at least ten back within a reach that grows with the uncertainty,

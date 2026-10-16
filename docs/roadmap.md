@@ -123,7 +123,10 @@ A third vehicle option, so that the control lessons can show understeer, the cha
   Cholesky Gauss–Newton with the first pose anchored, batched to one optimization per second (0.1 s at 200
   keyframes); the maps rebuilt from every kept scan hung off its keyframe. Measured: closures alone cannot rescue wheel
   odometry (the chain's guess leaves ICP's reach before the return), scan-to-map does most of the work, with the gyro
-  the lidar-only map beats the beacon EKF's. Still open: D* Lite, velocity obstacles.
+  the lidar-only map beats the beacon EKF's. D* Lite (plan lesson 7, ch4 §8): kept per goal in `S.dstar`, the same cost model as
+  `gridSearch`; the honest result is that it only wins where changes are sparse (a static map with periodic replans),
+  and loses under lidar mapping, whose inflation band changes thousands of cells per scan (a 0.1 tolerance on penalty
+  changes keeps its breathing out). Still open: velocity obstacles.
 - The code behind every lesson (owner's direction: show the code and let the learner change it; "Your code" was a
   button with no explanation). A function marked `// @code <id> | <title>` … `// @end` in the source is a snippet; the
   build indexes the markers (`tools/code.mjs`) and the page cuts the text from its own script tag at runtime

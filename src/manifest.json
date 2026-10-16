@@ -10,7 +10,7 @@
  "core/localization.js",
  "core/slam.js", "core/pgslam.js",
  "core/perception.js",
- "core/planning.js",
+ "core/planning.js", "core/planning-dstar.js",
  "core/planning-car.js",
  "core/path.js",
  "core/mission.js",

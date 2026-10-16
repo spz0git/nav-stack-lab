@@ -159,6 +159,34 @@ Over six seeds the default run takes 111 to 147 s and 80 to 108 m, always to 100
 
 [try: Explore the building | {"sim":true,"level":3,"set":{"mis":"explore"},"tab":"mis"}] [try: Explore with unknown as lethal | {"sim":true,"level":3,"set":{"mis":"explore","unknownAs":"lethal"},"tab":"per"}]
 
-## 8. What to carry into the next chapters
+## 8. D* Lite: the search kept alive
+
+**Two values per cell.** Lifelong Planning A* and its moving-start form D* Lite (Koenig & Likhachev 2002) keep, for every cell $u$, the current cost-to-goal $g(u)$ and a one-step lookahead
+$$
+rhs(u) = \min_{v \in succ(u)} \big(c(u, v) + g(v)\big), \qquad rhs(goal) = 0 .
+$$
+A cell is *consistent* when $g = rhs$, *overconsistent* when $g > rhs$ (a cheaper way appeared) and *underconsistent* when $g < rhs$ (a way got dearer). Inconsistent cells sit in a priority queue keyed by
+$$
+k(u) = \big[\min(g, rhs) + h(s, u) + k_m,\ \min(g, rhs)\big],
+$$
+compared lexicographically; $h$ is the octile heuristic to the robot's cell $s$, the search running from the goal toward the robot, and $k_m$ an offset explained below. The lab packs the two components into one number, $k_1 + 10^{-6}k_2$, for its binary heap.
+
+**The repair loop.** `computeShortestPath` pops the smallest key while it is below $k(s)$ or $s$ is inconsistent. An overconsistent cell is settled, $g \leftarrow rhs$, and its predecessors' $rhs$ recomputed; an underconsistent one is reset, $g \leftarrow \infty$, and recomputed with its predecessors. Each recomputation looks at all eight neighbours, so one vertex update costs about eight A* relaxations, which is the price of the bookkeeping. On a fresh search this is A* in reverse at roughly twice the expansions and seven times the milliseconds; the gain comes afterwards.
+
+**Changes.** When an edge cost changes, the cells whose $rhs$ used it are recomputed and queued if inconsistent: a cell's own $rhs$ and those of its eight neighbours cover every edge touching it. When the robot moves from $s_{old}$ to $s_{new}$, every key's heuristic term is stale by at most $h(s_{old}, s_{new})$; adding that to $k_m$ once keeps old keys comparable to new ones without touching the queue. The lab compares the costmap with the one of the previous plan, counts a cell as changed when its lethal flag flips or its penalty moves by more than 0.1 (the inflation band breathes with every scan), and drops the search when the goal, the planner or ε changes. The path is read from the robot's cell by always stepping to the successor with the smallest $c + g$; the cost model, the corner-cutting rule and the heuristic are those of §2, so A* and D* Lite return the same paths.
+
+**Measured** at seed 7, the whole run, plans counted with their expansions (A*) or vertex updates (D* Lite) and the planner's milliseconds:
+
+| Level and trigger | A* | D* Lite | Paths |
+| --- | --- | --- | --- |
+| L2, prior map, replan every 1 s (76–78 plans) | 152 500 expansions, 72 ms | 24 100 updates, 59 ms | identical |
+| L4, lidar mapping, 3 "path blocked" replans (7–8 plans) | 13 900, 9 ms | 49 700, 85 ms (3 600–4 600 cells changed per replan) | identical |
+| L5, people, 2 "agent blocking" replans (61–63 plans) | 77 700, 42 ms | 29 100, 78 ms (1 250–1 700 cells stamped) | identical |
+
+The reading: D* Lite earns its keep where the map is static and only the robot moves, by a factor six in expansions here, and loses where the costmap changes broadly between plans, which a cost field inflated from a growing lidar map does with every scan. Fewer expansions and more milliseconds can go together, because an update costs eight relaxations; the break-even is an eight-fold saving in expansions. Real deployments feed D* Lite binary occupancy with sparse updates and large grids.
+
+[try: D* Lite with a periodic replan | {"sim":true,"level":1,"set":{"replan":1,"plan":"dstar"},"tab":"plan"}] [try: Lidar mapping, D* Lite | {"sim":true,"level":3,"set":{"plan":"dstar"},"tab":"plan"}]
+
+## 9. What to carry into the next chapters
 
 Every planner here produces a path, and every path is a promise the tracker has to keep. Chapter 5 is about the trackers, and the margin Hybrid A* leaves on the steering lock is the first place the two chapters meet: a path planned at the vehicle's limit cannot be tracked, because tracking needs authority in reserve. The second meeting point is time: the space-time plan and the speed planner both assume the predictions of chapter 3, and the delay margin of chapter 6 is the same idea one layer down, how much lateness a loop can absorb before it fails.

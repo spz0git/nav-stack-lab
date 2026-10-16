@@ -296,6 +296,7 @@ const POSE_PLANNERS = ['hybrid', 'rs', 'custom'],
 const PLAN_NAMES = {
   straight: 'Straight',
   astar: 'A*',
+  dstar: 'D* Lite',
   rrtstar: 'RRT*',
   rs: 'Reeds–Shepp',
   hybrid: 'Hybrid A*',
@@ -331,6 +332,7 @@ function doPlan(reason) {
       exp: 0
     };
   else if (P.plan === 'astar') res = astar(e.x, e.y, wp.x, wp.y);
+  else if (P.plan === 'dstar') res = dstarPlan(e.x, e.y, wp.x, wp.y);
   else if (P.plan === 'rs') res = rsPlan(e, wp);
   else if (P.plan === 'hybrid') res = hybridAstar(e, wp);
   else if (P.plan === 'stastar') res = stAstar(e.x, e.y, wp.x, wp.y);
@@ -339,6 +341,10 @@ function doPlan(reason) {
   applyPlanResult(res, PLAN_NAMES[P.plan], reason, t0, agL);
 }
 function applyPlanResult(res, name, reason, t0, agL) {
+  S.planTot = S.planTot || {n: 0, exp: 0, ms: 0};
+  S.planTot.n++;
+  S.planTot.exp += res.exp || 0;
+  S.planTot.ms += performance.now() - t0;
   const F = S.fsm,
     e = S.est,
     ms = performance.now() - t0;
@@ -360,7 +366,7 @@ function applyPlanResult(res, name, reason, t0, agL) {
     };
     if (reason !== 'periodic')
       logE(
-        `${reason === 'initial' ? 'Plan' : 'Replan (' + reason + ')'} · ${name} ${S.planStats.len.toFixed(1)} m${P.plan === 'astar' || P.plan === 'hybrid' || P.plan === 'stastar' || (P.plan === 'custom' && res.exp) ? ` · ${res.exp} expansions` : P.plan === 'rrtstar' ? ` · ${res.exp} nodes` : ''}${res.extra ? ' · ' + res.extra : ''} · ${ms.toFixed(0)} ms`,
+        `${reason === 'initial' ? 'Plan' : 'Replan (' + reason + ')'} · ${name} ${S.planStats.len.toFixed(1)} m${P.plan === 'astar' || P.plan === 'dstar' || P.plan === 'hybrid' || P.plan === 'stastar' || (P.plan === 'custom' && res.exp) ? ` · ${res.exp} expansions` : P.plan === 'rrtstar' ? ` · ${res.exp} nodes` : ''}${res.extra ? ' · ' + res.extra : ''} · ${ms.toFixed(0)} ms`,
         reason === 'initial' ? '' : 'warn'
       );
   } else {

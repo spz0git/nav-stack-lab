@@ -20,6 +20,9 @@ Phase 3, code health (from the assessment of 2026-10-15):
   that says what it does.
 - Fix: switching to DWA (or your code) while the step test was playing threw in the response plot's playback; the
   playback now stops when the tracker has no linear model.
+- `setParam` validates: a choice parameter must be one of its values (`PARAM_OPTS` in `core/params.js`) and a numeric
+  one a finite number; anything else is ignored with a log line instead of falling into a default branch (a mistyped
+  setup link `plan=foo` used to run RRT*). Its if-chain of side effects is an ordered table, `PARAM_EFFECTS`.
 
 ## v35 · 2026-10-16
 

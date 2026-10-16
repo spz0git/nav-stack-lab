@@ -101,6 +101,26 @@ const DEFAULTS = {
   guard: false
 };
 const P = {...DEFAULTS};
+// The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
+// The UI's option lists (ui/schema.js) are views on these, narrowed by the vehicle where it matters.
+const PARAM_OPTS = {
+  loc: ['truth', 'dr', 'ekf', 'pf', 'slam', 'custom'],
+  assoc: ['known', 'unknown'],
+  per: ['oracle', 'mapping'],
+  unknownAs: ['free', 'lethal'],
+  agents: ['off', 'truth', 'lidar'],
+  agPred: ['cv', 'static', 'custom'],
+  mis: ['sequential', 'greedy', 'optimal'],
+  plan: ['straight', 'astar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'custom'],
+  hybH: ['both', '2d'],
+  ctl: ['pp', 'rwf', 'stanley', 'pid', 'dwa', 'mpc', 'custom'],
+  spd: ['none', 'stop', 'st'],
+  mpcMode: ['nmpc', 'ltv'],
+  model: ['diff', 'car'],
+  carPhys: ['kin', 'dyn'],
+  people: ['scripted', 'reactive']
+};
+
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
 const vehOf = (m, c) => (m !== 'car' ? 'diff' : c === 'dyn' ? 'dyn' : 'car');
 Object.defineProperty(P, 'veh', {

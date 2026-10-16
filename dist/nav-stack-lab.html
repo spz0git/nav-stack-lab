@@ -5417,6 +5417,26 @@ const DEFAULTS = {
   guard: false
 };
 const P = {...DEFAULTS};
+// The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
+// The UI's option lists (ui/schema.js) are views on these, narrowed by the vehicle where it matters.
+const PARAM_OPTS = {
+  loc: ['truth', 'dr', 'ekf', 'pf', 'slam', 'custom'],
+  assoc: ['known', 'unknown'],
+  per: ['oracle', 'mapping'],
+  unknownAs: ['free', 'lethal'],
+  agents: ['off', 'truth', 'lidar'],
+  agPred: ['cv', 'static', 'custom'],
+  mis: ['sequential', 'greedy', 'optimal'],
+  plan: ['straight', 'astar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'custom'],
+  hybH: ['both', '2d'],
+  ctl: ['pp', 'rwf', 'stanley', 'pid', 'dwa', 'mpc', 'custom'],
+  spd: ['none', 'stop', 'st'],
+  mpcMode: ['nmpc', 'ltv'],
+  model: ['diff', 'car'],
+  carPhys: ['kin', 'dyn'],
+  people: ['scripted', 'reactive']
+};
+
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
 const vehOf = (m, c) => (m !== 'car' ? 'diff' : c === 'dyn' ? 'dyn' : 'car');
 Object.defineProperty(P, 'veh', {
@@ -5862,7 +5882,157 @@ function loadLevel(i) {
   UI.levelChanged();
   UI.invalidate();
 }
-// Set one parameter and apply what changing it implies (a new estimator, a replan, a model switch); the if-chain of effects.
+// What changing a parameter implies, as an ordered table: [the keys, the effect(k, v, old, live)]. Several keys may
+// share one effect; a key may appear in more than one entry (each runs, in this order). `live` is true while a slider
+// is still being dragged, so the costly effects (a costmap rebuild, a replan) wait for the release.
+const PARAM_EFFECTS = [
+  [
+    ['loc', 'npart'],
+    () => {
+      S.locInit = false;
+      if (SLOTS.loc.worker) SLOTS.loc.worker.reset();
+      initLoc(false);
+      logE(
+        `Localization → ${{truth: 'ground truth', dr: 'dead reckoning', ekf: 'EKF', pf: 'particle filter', slam: 'EKF-SLAM', custom: 'your code'}[P.loc]}`
+      );
+    }
+  ],
+  [
+    ['assoc', 'inject', 'filtK'],
+    () => {
+      S.nees = [];
+    }
+  ],
+  [
+    ['agents'],
+    (k, v) => {
+      S.agents = agInit();
+      logE(`Agent tracking → ${{off: 'off', truth: 'ground truth', lidar: 'lidar'}[v]}`);
+    }
+  ],
+  [['spd'], (k, v) => logE(`Response to agents → ${{none: 'ignore', stop: 'reactive stop', st: 'speed planning'}[v]}`)],
+  [
+    ['per'],
+    (k, v) => {
+      if (v === 'mapping') S.lo.fill(0);
+      buildCostmap();
+      dirty.occ = true;
+      logE(`Map source → ${v === 'oracle' ? 'prior map' : 'lidar mapping (empty grid)'}`);
+      requestReplan('map source changed');
+    }
+  ],
+  [
+    ['unknownAs', 'infl'],
+    (k, v, old, live) => {
+      if (live) return;
+      buildCostmap();
+      requestReplan('costmap changed');
+    }
+  ],
+  [
+    ['mis'],
+    (k, v) => {
+      if (S.fsm.state !== 'IDLE' && S.fsm.state !== 'DONE') {
+        startMission();
+        doPlan('initial');
+      } else logE(`Goal order → ${v}`);
+    }
+  ],
+  [['plan', 'smooth'], () => requestReplan('planner changed')],
+  [
+    ['eps', 'rrtIt'],
+    (k, v, old, live) => {
+      if (!live) requestReplan('planner changed');
+    }
+  ],
+  [
+    ['ctl'],
+    (k, v) => {
+      S.ctlState = {I: 0, prev: null};
+      S.ctlViz = null;
+      SLOTS.ctl.lastErr = '';
+      if (SLOTS.ctl.worker) SLOTS.ctl.worker.reset();
+      logE(
+        `Controller → ${{pp: 'pure pursuit', rwf: 'rear-wheel feedback', pid: 'PID', dwa: 'DWA', stanley: 'Stanley', mpc: 'MPC', custom: 'your code'}[v]}`
+      );
+    }
+  ],
+  [
+    ['agPred'],
+    () => {
+      if (SLOTS.pred.worker) SLOTS.pred.worker.reset();
+    }
+  ],
+  [
+    ['vehicles', 'people'],
+    (k, v) => {
+      if (k === 'vehicles') {
+        S.peds = S.peds.filter(p => !p.car);
+        if (v) carsInit();
+      }
+      logE(k === 'people' ? `People → ${v}` : `Other vehicles → ${v ? 'on' : 'off'}`);
+    }
+  ],
+  [
+    ['bOff'],
+    () => {
+      const n = beaconsOff().size,
+        u = beaconUse();
+      logE(
+        n
+          ? `Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length - n} of ${S.beacons.length} on)${u ? `; note: ${u}` : ''}`
+          : 'All beacons on',
+        n && u && P.loc !== 'custom' ? 'warn' : ''
+      );
+    }
+  ],
+  [
+    ['bOut'],
+    (k, v, old, live) => {
+      if (!live) logE(v > 0 ? `Random beacon outages: each beacon down ${v} % of the time` : 'Random beacon outages off');
+    }
+  ],
+  [
+    ['seed'],
+    (k, v, old, live) => {
+      if (!live) logE(`Seed ${v} takes effect on Reset`);
+    }
+  ],
+  [
+    ['carPhys'],
+    (k, v) => {
+      S.robot.vy = 0;
+      S.robot.r = 0;
+      logE(v === 'dyn' ? 'Car → dynamic (tyre slip)' : 'Car → kinematic (no slip)');
+    }
+  ],
+  [
+    ['model'],
+    (k, v) => {
+      S.robot.d = 0;
+      S.robot.w = 0;
+      S.robot.vy = 0;
+      S.robot.r = 0;
+      S.cmd = {v: 0, w: 0, steer: 0};
+      if (v === 'diff') {
+        if (P.plan === 'rs' || P.plan === 'hybrid') P.plan = 'astar';
+        if (P.ctl === 'stanley') P.ctl = 'pp';
+      } else if (P.plan !== 'rs') P.plan = 'hybrid';
+      logE(v === 'car' ? 'Vehicle → car-like (bicycle) · planner → Hybrid A*' : 'Vehicle → unicycle (diff-drive)');
+      requestReplan('vehicle model changed');
+    }
+  ],
+  [
+    ['wheelbase', 'steerMaxDeg', 'revOK', 'revPen', 'gearPen', 'hybH', 'planPct'],
+    (k, v, old, live) => {
+      if (!live && (P.plan === 'hybrid' || P.plan === 'rs')) requestReplan('vehicle or planner changed');
+    }
+  ]
+];
+// the keys whose effect runs even when the value did not change (a slider released on its old value still rebuilds)
+const PARAM_ALWAYS = ['infl', 'eps', 'rrtIt', 'wheelbase', 'steerMaxDeg', 'revPen', 'gearPen', 'planPct'];
+// Set one parameter: `veh` fans out to model and carPhys; a choice parameter must be one of its values and a numeric one
+// a finite number (a mistyped setup link or Try cfg is ignored with a log line); then the effects table runs.
 function setParam(k, v, live) {
   if (k === 'veh') {
     const m = v === 'diff' ? 'diff' : 'car';
@@ -5870,103 +6040,19 @@ function setParam(k, v, live) {
     if (m === 'car') setParam('carPhys', v === 'dyn' ? 'dyn' : 'kin', live);
     return;
   }
+  if (PARAM_OPTS[k] && !PARAM_OPTS[k].includes(v)) {
+    logE(`Ignored: ${k} has no value "${v}" (one of ${PARAM_OPTS[k].join(', ')})`, 'warn');
+    return;
+  }
+  if (typeof DEFAULTS[k] === 'number' && !(typeof v === 'number' && isFinite(v))) {
+    logE(`Ignored: ${k} needs a number, not "${v}"`, 'warn');
+    return;
+  }
   const old = P[k];
   P[k] = v;
   if (k.startsWith('mpc') && S) S.mpc = null;
-  if (old === v && !['infl', 'eps', 'rrtIt', 'wheelbase', 'steerMaxDeg', 'revPen', 'gearPen', 'planPct'].includes(k)) return;
-  if (k === 'loc' || k === 'npart') {
-    S.locInit = false;
-    if (SLOTS.loc.worker) SLOTS.loc.worker.reset();
-    initLoc(false);
-    logE(
-      `Localization → ${{truth: 'ground truth', dr: 'dead reckoning', ekf: 'EKF', pf: 'particle filter', slam: 'EKF-SLAM', custom: 'your code'}[P.loc]}`
-    );
-  }
-  if (k === 'assoc' || k === 'inject' || k === 'filtK') {
-    S.nees = [];
-  }
-  if (k === 'agents') {
-    S.agents = agInit();
-    logE(`Agent tracking → ${{off: 'off', truth: 'ground truth', lidar: 'lidar'}[v]}`);
-  }
-  if (k === 'spd') logE(`Response to agents → ${{none: 'ignore', stop: 'reactive stop', st: 'speed planning'}[v]}`);
-  if (k === 'per') {
-    if (v === 'mapping') {
-      S.lo.fill(0);
-    }
-    buildCostmap();
-    dirty.occ = true;
-    logE(`Map source → ${v === 'oracle' ? 'prior map' : 'lidar mapping (empty grid)'}`);
-    requestReplan('map source changed');
-  }
-  if (k === 'unknownAs' || k === 'infl') {
-    if (!live) {
-      buildCostmap();
-      requestReplan('costmap changed');
-    }
-  }
-  if (k === 'mis') {
-    if (S.fsm.state !== 'IDLE' && S.fsm.state !== 'DONE') {
-      startMission();
-      doPlan('initial');
-    } else logE(`Goal order → ${v}`);
-  }
-  if (k === 'plan' || k === 'smooth' || ((k === 'eps' || k === 'rrtIt') && !live)) {
-    requestReplan('planner changed');
-  }
-  if (k === 'ctl') {
-    S.ctlState = {I: 0, prev: null};
-    S.ctlViz = null;
-    SLOTS.ctl.lastErr = '';
-    if (SLOTS.ctl.worker) SLOTS.ctl.worker.reset();
-    logE(
-      `Controller → ${{pp: 'pure pursuit', rwf: 'rear-wheel feedback', pid: 'PID', dwa: 'DWA', stanley: 'Stanley', mpc: 'MPC', custom: 'your code'}[v]}`
-    );
-  }
-  if (k === 'agPred' && SLOTS.pred.worker) SLOTS.pred.worker.reset();
-  if (k === 'vehicles' || k === 'people') {
-    if (k === 'vehicles') {
-      S.peds = S.peds.filter(p => !p.car);
-      if (v) carsInit();
-    }
-    logE(k === 'people' ? `People → ${v}` : `Other vehicles → ${v ? 'on' : 'off'}`);
-  }
-  if (k === 'bOff') {
-    const n = beaconsOff().size,
-      u = beaconUse();
-    logE(
-      n
-        ? `Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length - n} of ${S.beacons.length} on)${u ? `; note: ${u}` : ''}`
-        : 'All beacons on',
-      n && u && P.loc !== 'custom' ? 'warn' : ''
-    );
-  }
-  if (k === 'bOut' && !live) logE(v > 0 ? `Random beacon outages: each beacon down ${v} % of the time` : 'Random beacon outages off');
-  if (k === 'seed' && !live) logE(`Seed ${v} takes effect on Reset`);
-  if (k === 'carPhys') {
-    S.robot.vy = 0;
-    S.robot.r = 0;
-    logE(v === 'dyn' ? 'Car → dynamic (tyre slip)' : 'Car → kinematic (no slip)');
-  }
-  if (k === 'model') {
-    S.robot.d = 0;
-    S.robot.w = 0;
-    S.robot.vy = 0;
-    S.robot.r = 0;
-    S.cmd = {v: 0, w: 0, steer: 0};
-    if (v === 'diff') {
-      if (P.plan === 'rs' || P.plan === 'hybrid') P.plan = 'astar';
-      if (P.ctl === 'stanley') P.ctl = 'pp';
-    } else if (P.plan !== 'rs') P.plan = 'hybrid';
-    logE(v === 'car' ? 'Vehicle → car-like (bicycle) · planner → Hybrid A*' : 'Vehicle → unicycle (diff-drive)');
-    requestReplan('vehicle model changed');
-  }
-  if (
-    ['wheelbase', 'steerMaxDeg', 'revOK', 'revPen', 'gearPen', 'hybH', 'planPct'].includes(k) &&
-    !live &&
-    (P.plan === 'hybrid' || P.plan === 'rs')
-  )
-    requestReplan('vehicle or planner changed');
+  if (old === v && !PARAM_ALWAYS.includes(k)) return;
+  for (const [keys, fx] of PARAM_EFFECTS) if (keys.includes(k)) fx(k, v, old, live);
   UI.invalidate();
   if (UI.mode() === 'sim') {
     UI.draw();
@@ -11817,6 +11903,26 @@ const DEFAULTS = {
   guard: false
 };
 const P = {...DEFAULTS};
+// The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
+// The UI's option lists (ui/schema.js) are views on these, narrowed by the vehicle where it matters.
+const PARAM_OPTS = {
+  loc: ['truth', 'dr', 'ekf', 'pf', 'slam', 'custom'],
+  assoc: ['known', 'unknown'],
+  per: ['oracle', 'mapping'],
+  unknownAs: ['free', 'lethal'],
+  agents: ['off', 'truth', 'lidar'],
+  agPred: ['cv', 'static', 'custom'],
+  mis: ['sequential', 'greedy', 'optimal'],
+  plan: ['straight', 'astar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'custom'],
+  hybH: ['both', '2d'],
+  ctl: ['pp', 'rwf', 'stanley', 'pid', 'dwa', 'mpc', 'custom'],
+  spd: ['none', 'stop', 'st'],
+  mpcMode: ['nmpc', 'ltv'],
+  model: ['diff', 'car'],
+  carPhys: ['kin', 'dyn'],
+  people: ['scripted', 'reactive']
+};
+
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
 const vehOf = (m, c) => (m !== 'car' ? 'diff' : c === 'dyn' ? 'dyn' : 'car');
 Object.defineProperty(P, 'veh', {
@@ -12262,7 +12368,157 @@ function loadLevel(i) {
   UI.levelChanged();
   UI.invalidate();
 }
-// Set one parameter and apply what changing it implies (a new estimator, a replan, a model switch); the if-chain of effects.
+// What changing a parameter implies, as an ordered table: [the keys, the effect(k, v, old, live)]. Several keys may
+// share one effect; a key may appear in more than one entry (each runs, in this order). `live` is true while a slider
+// is still being dragged, so the costly effects (a costmap rebuild, a replan) wait for the release.
+const PARAM_EFFECTS = [
+  [
+    ['loc', 'npart'],
+    () => {
+      S.locInit = false;
+      if (SLOTS.loc.worker) SLOTS.loc.worker.reset();
+      initLoc(false);
+      logE(
+        `Localization → ${{truth: 'ground truth', dr: 'dead reckoning', ekf: 'EKF', pf: 'particle filter', slam: 'EKF-SLAM', custom: 'your code'}[P.loc]}`
+      );
+    }
+  ],
+  [
+    ['assoc', 'inject', 'filtK'],
+    () => {
+      S.nees = [];
+    }
+  ],
+  [
+    ['agents'],
+    (k, v) => {
+      S.agents = agInit();
+      logE(`Agent tracking → ${{off: 'off', truth: 'ground truth', lidar: 'lidar'}[v]}`);
+    }
+  ],
+  [['spd'], (k, v) => logE(`Response to agents → ${{none: 'ignore', stop: 'reactive stop', st: 'speed planning'}[v]}`)],
+  [
+    ['per'],
+    (k, v) => {
+      if (v === 'mapping') S.lo.fill(0);
+      buildCostmap();
+      dirty.occ = true;
+      logE(`Map source → ${v === 'oracle' ? 'prior map' : 'lidar mapping (empty grid)'}`);
+      requestReplan('map source changed');
+    }
+  ],
+  [
+    ['unknownAs', 'infl'],
+    (k, v, old, live) => {
+      if (live) return;
+      buildCostmap();
+      requestReplan('costmap changed');
+    }
+  ],
+  [
+    ['mis'],
+    (k, v) => {
+      if (S.fsm.state !== 'IDLE' && S.fsm.state !== 'DONE') {
+        startMission();
+        doPlan('initial');
+      } else logE(`Goal order → ${v}`);
+    }
+  ],
+  [['plan', 'smooth'], () => requestReplan('planner changed')],
+  [
+    ['eps', 'rrtIt'],
+    (k, v, old, live) => {
+      if (!live) requestReplan('planner changed');
+    }
+  ],
+  [
+    ['ctl'],
+    (k, v) => {
+      S.ctlState = {I: 0, prev: null};
+      S.ctlViz = null;
+      SLOTS.ctl.lastErr = '';
+      if (SLOTS.ctl.worker) SLOTS.ctl.worker.reset();
+      logE(
+        `Controller → ${{pp: 'pure pursuit', rwf: 'rear-wheel feedback', pid: 'PID', dwa: 'DWA', stanley: 'Stanley', mpc: 'MPC', custom: 'your code'}[v]}`
+      );
+    }
+  ],
+  [
+    ['agPred'],
+    () => {
+      if (SLOTS.pred.worker) SLOTS.pred.worker.reset();
+    }
+  ],
+  [
+    ['vehicles', 'people'],
+    (k, v) => {
+      if (k === 'vehicles') {
+        S.peds = S.peds.filter(p => !p.car);
+        if (v) carsInit();
+      }
+      logE(k === 'people' ? `People → ${v}` : `Other vehicles → ${v ? 'on' : 'off'}`);
+    }
+  ],
+  [
+    ['bOff'],
+    () => {
+      const n = beaconsOff().size,
+        u = beaconUse();
+      logE(
+        n
+          ? `Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length - n} of ${S.beacons.length} on)${u ? `; note: ${u}` : ''}`
+          : 'All beacons on',
+        n && u && P.loc !== 'custom' ? 'warn' : ''
+      );
+    }
+  ],
+  [
+    ['bOut'],
+    (k, v, old, live) => {
+      if (!live) logE(v > 0 ? `Random beacon outages: each beacon down ${v} % of the time` : 'Random beacon outages off');
+    }
+  ],
+  [
+    ['seed'],
+    (k, v, old, live) => {
+      if (!live) logE(`Seed ${v} takes effect on Reset`);
+    }
+  ],
+  [
+    ['carPhys'],
+    (k, v) => {
+      S.robot.vy = 0;
+      S.robot.r = 0;
+      logE(v === 'dyn' ? 'Car → dynamic (tyre slip)' : 'Car → kinematic (no slip)');
+    }
+  ],
+  [
+    ['model'],
+    (k, v) => {
+      S.robot.d = 0;
+      S.robot.w = 0;
+      S.robot.vy = 0;
+      S.robot.r = 0;
+      S.cmd = {v: 0, w: 0, steer: 0};
+      if (v === 'diff') {
+        if (P.plan === 'rs' || P.plan === 'hybrid') P.plan = 'astar';
+        if (P.ctl === 'stanley') P.ctl = 'pp';
+      } else if (P.plan !== 'rs') P.plan = 'hybrid';
+      logE(v === 'car' ? 'Vehicle → car-like (bicycle) · planner → Hybrid A*' : 'Vehicle → unicycle (diff-drive)');
+      requestReplan('vehicle model changed');
+    }
+  ],
+  [
+    ['wheelbase', 'steerMaxDeg', 'revOK', 'revPen', 'gearPen', 'hybH', 'planPct'],
+    (k, v, old, live) => {
+      if (!live && (P.plan === 'hybrid' || P.plan === 'rs')) requestReplan('vehicle or planner changed');
+    }
+  ]
+];
+// the keys whose effect runs even when the value did not change (a slider released on its old value still rebuilds)
+const PARAM_ALWAYS = ['infl', 'eps', 'rrtIt', 'wheelbase', 'steerMaxDeg', 'revPen', 'gearPen', 'planPct'];
+// Set one parameter: `veh` fans out to model and carPhys; a choice parameter must be one of its values and a numeric one
+// a finite number (a mistyped setup link or Try cfg is ignored with a log line); then the effects table runs.
 function setParam(k, v, live) {
   if (k === 'veh') {
     const m = v === 'diff' ? 'diff' : 'car';
@@ -12270,103 +12526,19 @@ function setParam(k, v, live) {
     if (m === 'car') setParam('carPhys', v === 'dyn' ? 'dyn' : 'kin', live);
     return;
   }
+  if (PARAM_OPTS[k] && !PARAM_OPTS[k].includes(v)) {
+    logE(`Ignored: ${k} has no value "${v}" (one of ${PARAM_OPTS[k].join(', ')})`, 'warn');
+    return;
+  }
+  if (typeof DEFAULTS[k] === 'number' && !(typeof v === 'number' && isFinite(v))) {
+    logE(`Ignored: ${k} needs a number, not "${v}"`, 'warn');
+    return;
+  }
   const old = P[k];
   P[k] = v;
   if (k.startsWith('mpc') && S) S.mpc = null;
-  if (old === v && !['infl', 'eps', 'rrtIt', 'wheelbase', 'steerMaxDeg', 'revPen', 'gearPen', 'planPct'].includes(k)) return;
-  if (k === 'loc' || k === 'npart') {
-    S.locInit = false;
-    if (SLOTS.loc.worker) SLOTS.loc.worker.reset();
-    initLoc(false);
-    logE(
-      `Localization → ${{truth: 'ground truth', dr: 'dead reckoning', ekf: 'EKF', pf: 'particle filter', slam: 'EKF-SLAM', custom: 'your code'}[P.loc]}`
-    );
-  }
-  if (k === 'assoc' || k === 'inject' || k === 'filtK') {
-    S.nees = [];
-  }
-  if (k === 'agents') {
-    S.agents = agInit();
-    logE(`Agent tracking → ${{off: 'off', truth: 'ground truth', lidar: 'lidar'}[v]}`);
-  }
-  if (k === 'spd') logE(`Response to agents → ${{none: 'ignore', stop: 'reactive stop', st: 'speed planning'}[v]}`);
-  if (k === 'per') {
-    if (v === 'mapping') {
-      S.lo.fill(0);
-    }
-    buildCostmap();
-    dirty.occ = true;
-    logE(`Map source → ${v === 'oracle' ? 'prior map' : 'lidar mapping (empty grid)'}`);
-    requestReplan('map source changed');
-  }
-  if (k === 'unknownAs' || k === 'infl') {
-    if (!live) {
-      buildCostmap();
-      requestReplan('costmap changed');
-    }
-  }
-  if (k === 'mis') {
-    if (S.fsm.state !== 'IDLE' && S.fsm.state !== 'DONE') {
-      startMission();
-      doPlan('initial');
-    } else logE(`Goal order → ${v}`);
-  }
-  if (k === 'plan' || k === 'smooth' || ((k === 'eps' || k === 'rrtIt') && !live)) {
-    requestReplan('planner changed');
-  }
-  if (k === 'ctl') {
-    S.ctlState = {I: 0, prev: null};
-    S.ctlViz = null;
-    SLOTS.ctl.lastErr = '';
-    if (SLOTS.ctl.worker) SLOTS.ctl.worker.reset();
-    logE(
-      `Controller → ${{pp: 'pure pursuit', rwf: 'rear-wheel feedback', pid: 'PID', dwa: 'DWA', stanley: 'Stanley', mpc: 'MPC', custom: 'your code'}[v]}`
-    );
-  }
-  if (k === 'agPred' && SLOTS.pred.worker) SLOTS.pred.worker.reset();
-  if (k === 'vehicles' || k === 'people') {
-    if (k === 'vehicles') {
-      S.peds = S.peds.filter(p => !p.car);
-      if (v) carsInit();
-    }
-    logE(k === 'people' ? `People → ${v}` : `Other vehicles → ${v ? 'on' : 'off'}`);
-  }
-  if (k === 'bOff') {
-    const n = beaconsOff().size,
-      u = beaconUse();
-    logE(
-      n
-        ? `Beacons switched off: ${[...beaconsOff()].join(', ')} (${S.beacons.length - n} of ${S.beacons.length} on)${u ? `; note: ${u}` : ''}`
-        : 'All beacons on',
-      n && u && P.loc !== 'custom' ? 'warn' : ''
-    );
-  }
-  if (k === 'bOut' && !live) logE(v > 0 ? `Random beacon outages: each beacon down ${v} % of the time` : 'Random beacon outages off');
-  if (k === 'seed' && !live) logE(`Seed ${v} takes effect on Reset`);
-  if (k === 'carPhys') {
-    S.robot.vy = 0;
-    S.robot.r = 0;
-    logE(v === 'dyn' ? 'Car → dynamic (tyre slip)' : 'Car → kinematic (no slip)');
-  }
-  if (k === 'model') {
-    S.robot.d = 0;
-    S.robot.w = 0;
-    S.robot.vy = 0;
-    S.robot.r = 0;
-    S.cmd = {v: 0, w: 0, steer: 0};
-    if (v === 'diff') {
-      if (P.plan === 'rs' || P.plan === 'hybrid') P.plan = 'astar';
-      if (P.ctl === 'stanley') P.ctl = 'pp';
-    } else if (P.plan !== 'rs') P.plan = 'hybrid';
-    logE(v === 'car' ? 'Vehicle → car-like (bicycle) · planner → Hybrid A*' : 'Vehicle → unicycle (diff-drive)');
-    requestReplan('vehicle model changed');
-  }
-  if (
-    ['wheelbase', 'steerMaxDeg', 'revOK', 'revPen', 'gearPen', 'hybH', 'planPct'].includes(k) &&
-    !live &&
-    (P.plan === 'hybrid' || P.plan === 'rs')
-  )
-    requestReplan('vehicle or planner changed');
+  if (old === v && !PARAM_ALWAYS.includes(k)) return;
+  for (const [keys, fx] of PARAM_EFFECTS) if (keys.includes(k)) fx(k, v, old, live);
   UI.invalidate();
   if (UI.mode() === 'sim') {
     UI.draw();

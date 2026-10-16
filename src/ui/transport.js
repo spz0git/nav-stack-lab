@@ -69,7 +69,9 @@ function addPosed(x,y,th){
   WPS.push({x,y,th,done:false});if(th!=null&&!isCar())logE(`Goal ${WPS.length} faces ${deg(th).toFixed(0)}°: the robot turns in place there once it arrives`);
   startMission();doPlan('initial');draw();refreshAll();
 }
-cv.addEventListener('wheel',e=>{e.preventDefault();const[sx,sy]=toCanvas(e);zoomAt(e.deltaY<0?1.2:1/1.2,sx,sy);},{passive:false});
+// Wheel zooms the map. In the stacked layouts (narrow or short windows) the map sits in a page that scrolls, so there a
+// plain wheel scrolls past it and Ctrl or ⌘ + wheel (a trackpad pinch arrives as Ctrl + wheel) zooms.
+cv.addEventListener('wheel',e=>{if(!wideUI()&&!e.ctrlKey&&!e.metaKey)return;e.preventDefault();const[sx,sy]=toCanvas(e);zoomAt(e.deltaY<0?1.2:1/1.2,sx,sy);},{passive:false});
 let panDrag=null;
 cv.addEventListener('pointermove',e=>{
   if(panDrag){const[sx,sy]=toCanvas(e);const d=hyp(sx-panDrag.sx,sy-panDrag.sy);if(d>6*(window.devicePixelRatio||1))panDrag.moved=true;

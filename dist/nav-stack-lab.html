@@ -8168,7 +8168,7 @@ function expCSV(){
 }
 // Saving a file: the claude.ai viewer mediates downloads; outside it (a local copy of the page) use a plain link
 let DL=null,DLready=false;
-(async()=>{try{if(window.claude&&claude.use)DL=await claude.use('downloads');}catch(_){DL=null;}DLready=true;})();
+(async()=>{try{if(window.claude&&window.claude.use)DL=await window.claude.use('downloads');}catch(_){DL=null;}DLready=true;})();
 async function download(name,text,type){
   if(DL){try{await DL.save({filename:name,data:text});return true;}catch(e){if(e&&e.code!=='declined')logE('Could not save '+name+': '+(e.message||e.code),'warn');return false;}}
   if(window.claude&&window.claude.use){const el=$('#cfg-msg')||$('#exp-prog');if(el)el.textContent='Saving files is not available in this view; use Copy instead.';return false;}

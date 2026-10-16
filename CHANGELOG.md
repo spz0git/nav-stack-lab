@@ -3,6 +3,14 @@
 The version label in the page header (`v35 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+Phase 3, code health (from the assessment of 2026-10-15):
+
+- `npm run lint`: ESLint with the shared scope's names generated from the manifest, so a misspelled cross-module
+  reference fails statically instead of at runtime on that path; CI runs it. ESLint is a dev dependency only
+  (`npm install`); the build and the page still need nothing.
+
 ## v35 · 2026-10-16
 
 Phase 2, workspace polish (from the assessment of 2026-10-15):

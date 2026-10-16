@@ -63,5 +63,8 @@ the header of `tools/notes.mjs` documents both). A new lesson's terms go in `LES
 
 - One change per PR, on a branch, with the tests above run and their result in the description.
 - Keep the style of the file you are in; there is no formatter yet (a Prettier pass is planned).
+- `npm run lint` (after `npm install`) checks every cross-module name: the modules share one scope, so a misspelled
+  function from another file is a `ReferenceError` only when that path runs; the lint config collects every
+  top-level name of every module and `no-undef` catches it statically. CI runs it on every PR.
 - The maintainer merges, bumps the version label, and republishes the demo; see `docs/maintaining.md`.
 - By contributing you agree that your contribution is licensed under the project's licence (see `LICENSE`).

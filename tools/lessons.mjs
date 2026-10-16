@@ -9,52 +9,108 @@
 //   ## Check yourself        Q: … / Answer: <number> / Tolerance: <number> / Unit: … / How: …
 // The output has the same shape as the objects the JS files used to hold: {t, b, tries:[[label, cfg, {setup, see,
 // shows, predict:{q, opts, a}}]], q:[[question, answer]], check:{q, a, tol, unit, how}}.
-import fs from 'node:fs';import path from 'node:path';
-const GROUPS=['loc','per','plan','ctl'];
-export function parseLesson(md,file){
-  const lines=md.split('\n');let i=0;const meta={};
-  while(i<lines.length&&/^\w+:\s/.test(lines[i])){const m=/^(\w+):\s*(.*)$/.exec(lines[i]);meta[m[1]]=m[2];i++;}
-  if(!meta.title||!meta.group)throw new Error(`${file}: front matter needs group and title`);
-  while(i<lines.length&&!lines[i].trim())i++;
-  const body=[];while(i<lines.length&&!/^## /.test(lines[i]))body.push(lines[i++]);
-  const L={t:meta.title,b:body.join('\n').replace(/\n+$/,''),tries:[]};
-  const kv=l=>{const m=/^([A-Za-z]+):\s?(.*)$/.exec(l);return m?[m[1],m[2]]:null;};
-  while(i<lines.length){
-    const h=/^## (.*)$/.exec(lines[i]);if(!h){i++;continue;}
-    const sec=h[1].trim();i++;
-    const buf=[];while(i<lines.length&&!/^## /.test(lines[i]))buf.push(lines[i++]);
-    const items=buf.filter(l=>l.trim());
-    if(/^Try:/.test(sec)){
-      const label=sec.replace(/^Try:\s*/,''),x={};let cfg=null,predict=null;
-      for(const l of items){
-        if(/^- /.test(l)){if(predict)predict.opts.push(l.slice(2));continue;}
-        const p=kv(l);if(!p)throw new Error(`${file}: Try "${label}": cannot read "${l.slice(0,60)}"`);
-        const[k,v]=p;
-        if(k==='cfg')cfg=JSON.parse(v);else if(k==='Setup')x.setup=v;else if(k==='See')x.see=v;else if(k==='Shows')x.shows=v;
-        else if(k==='Predict')predict={q:v,opts:[],a:0};else if(k==='Answer'){if(!predict)throw new Error(`${file}: Answer without Predict`);predict.a=+v;}
-        else throw new Error(`${file}: Try "${label}": unknown key ${k}`);
-      }
-      if(!cfg)throw new Error(`${file}: Try "${label}" has no cfg`);
-      if(predict)x.predict=predict;
-      L.tries.push(Object.keys(x).length?[label,cfg,x]:[label,cfg]);
-    }else if(sec==='Think about'){
-      L.q=[];let q=null;
-      for(const l of items){const p=kv(l);if(!p)throw new Error(`${file}: Think about: cannot read "${l.slice(0,60)}"`);
-        if(p[0]==='Q')q=p[1];else if(p[0]==='A'){L.q.push([q,p[1]]);q=null;}}
-    }else if(sec==='Check yourself'){
-      const c={};for(const l of items){const p=kv(l);if(!p)continue;const[k,v]=p;
-        if(k==='Q')c.q=v;else if(k==='Answer')c.a=+v;else if(k==='Tolerance')c.tol=+v;else if(k==='Unit')c.unit=v;else if(k==='How')c.how=v;}
-      L.check={q:c.q,a:c.a,tol:c.tol,unit:c.unit||'',how:c.how};
-    }else throw new Error(`${file}: unknown section "${sec}"`);
+import fs from 'node:fs';
+import path from 'node:path';
+const GROUPS = ['loc', 'per', 'plan', 'ctl'];
+export function parseLesson(md, file) {
+  const lines = md.split('\n');
+  let i = 0;
+  const meta = {};
+  while (i < lines.length && /^\w+:\s/.test(lines[i])) {
+    const m = /^(\w+):\s*(.*)$/.exec(lines[i]);
+    meta[m[1]] = m[2];
+    i++;
   }
-  return{group:meta.group,extra:meta.extra==='true',L};
+  if (!meta.title || !meta.group) throw new Error(`${file}: front matter needs group and title`);
+  while (i < lines.length && !lines[i].trim()) i++;
+  const body = [];
+  while (i < lines.length && !/^## /.test(lines[i])) body.push(lines[i++]);
+  const L = {t: meta.title, b: body.join('\n').replace(/\n+$/, ''), tries: []};
+  const kv = l => {
+    const m = /^([A-Za-z]+):\s?(.*)$/.exec(l);
+    return m ? [m[1], m[2]] : null;
+  };
+  while (i < lines.length) {
+    const h = /^## (.*)$/.exec(lines[i]);
+    if (!h) {
+      i++;
+      continue;
+    }
+    const sec = h[1].trim();
+    i++;
+    const buf = [];
+    while (i < lines.length && !/^## /.test(lines[i])) buf.push(lines[i++]);
+    const items = buf.filter(l => l.trim());
+    if (/^Try:/.test(sec)) {
+      const label = sec.replace(/^Try:\s*/, ''),
+        x = {};
+      let cfg = null,
+        predict = null;
+      for (const l of items) {
+        if (/^- /.test(l)) {
+          if (predict) predict.opts.push(l.slice(2));
+          continue;
+        }
+        const p = kv(l);
+        if (!p) throw new Error(`${file}: Try "${label}": cannot read "${l.slice(0, 60)}"`);
+        const [k, v] = p;
+        if (k === 'cfg') cfg = JSON.parse(v);
+        else if (k === 'Setup') x.setup = v;
+        else if (k === 'See') x.see = v;
+        else if (k === 'Shows') x.shows = v;
+        else if (k === 'Predict') predict = {q: v, opts: [], a: 0};
+        else if (k === 'Answer') {
+          if (!predict) throw new Error(`${file}: Answer without Predict`);
+          predict.a = +v;
+        } else throw new Error(`${file}: Try "${label}": unknown key ${k}`);
+      }
+      if (!cfg) throw new Error(`${file}: Try "${label}" has no cfg`);
+      if (predict) x.predict = predict;
+      L.tries.push(Object.keys(x).length ? [label, cfg, x] : [label, cfg]);
+    } else if (sec === 'Think about') {
+      L.q = [];
+      let q = null;
+      for (const l of items) {
+        const p = kv(l);
+        if (!p) throw new Error(`${file}: Think about: cannot read "${l.slice(0, 60)}"`);
+        if (p[0] === 'Q') q = p[1];
+        else if (p[0] === 'A') {
+          L.q.push([q, p[1]]);
+          q = null;
+        }
+      }
+    } else if (sec === 'Check yourself') {
+      const c = {};
+      for (const l of items) {
+        const p = kv(l);
+        if (!p) continue;
+        const [k, v] = p;
+        if (k === 'Q') c.q = v;
+        else if (k === 'Answer') c.a = +v;
+        else if (k === 'Tolerance') c.tol = +v;
+        else if (k === 'Unit') c.unit = v;
+        else if (k === 'How') c.how = v;
+      }
+      L.check = {q: c.q, a: c.a, tol: c.tol, unit: c.unit || '', how: c.how};
+    } else throw new Error(`${file}: unknown section "${sec}"`);
+  }
+  return {group: meta.group, extra: meta.extra === 'true', L};
 }
-export function buildLessons(dir='docs/lessons'){
-  const out={};for(const g of GROUPS)out[g]=[];out.ctlExtra=[];
-  for(const g of GROUPS){const d=path.join(dir,g);if(!fs.existsSync(d))continue;
-    for(const f of fs.readdirSync(d).filter(f=>f.endsWith('.md')).sort()){
-      const r=parseLesson(fs.readFileSync(path.join(d,f),'utf8'),path.join(d,f));
-      if(r.group!==g)throw new Error(`${f}: group ${r.group} in folder ${g}`);
-      (g==='ctl'&&r.extra?out.ctlExtra:out[g]).push(r.L);}}
+export function buildLessons(dir = 'docs/lessons') {
+  const out = {};
+  for (const g of GROUPS) out[g] = [];
+  out.ctlExtra = [];
+  for (const g of GROUPS) {
+    const d = path.join(dir, g);
+    if (!fs.existsSync(d)) continue;
+    for (const f of fs
+      .readdirSync(d)
+      .filter(f => f.endsWith('.md'))
+      .sort()) {
+      const r = parseLesson(fs.readFileSync(path.join(d, f), 'utf8'), path.join(d, f));
+      if (r.group !== g) throw new Error(`${f}: group ${r.group} in folder ${g}`);
+      (g === 'ctl' && r.extra ? out.ctlExtra : out[g]).push(r.L);
+    }
+  }
   return out;
 }

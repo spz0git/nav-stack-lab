@@ -1,0 +1,10 @@
+dist/
+node_modules/
+tools/vendor/
+.venv/
+docs/
+src/fonts/
+src/index.html
+*.md
+*.json
+*.yml

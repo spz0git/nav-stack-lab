@@ -15,6 +15,8 @@
   "scripts": {
     "build": "node build.mjs",
     "lint": "eslint .",
+    "fmt": "prettier --write \"src/**/*.js\" \"src/**/*.css\" build.mjs \"tools/*.mjs\" \"tests/node/*.mjs\" eslint.config.mjs",
+    "fmt:check": "prettier --check \"src/**/*.js\" \"src/**/*.css\" build.mjs \"tools/*.mjs\" \"tests/node/*.mjs\" eslint.config.mjs",
     "test": "node --test \"tests/node/*.test.mjs\"",
     "test:browser": "python3 tests/run_all.py",
     "test:all": "npm test && npm run test:browser",
@@ -22,6 +24,7 @@
   },
   "devDependencies": {
     "eslint": "^9.39.5",
-    "globals": "^17.13.0"
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10"
   }
 }

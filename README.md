@@ -55,8 +55,14 @@ The tests drive the built page headless with Playwright (Python) and need a Chro
 python3 -m venv .venv && source .venv/bin/activate
 pip install playwright && playwright install chromium
 ./build.sh
-python3 tests/run_all.py         # or: npm test
+npm test                         # the Node golden test: the L1–L5 summary against tests/node/golden.json, about 10 s
+python3 tests/run_all.py         # the browser gate (npm run test:browser); npm run test:all runs both
 ```
+
+`npm test` needs only Node: `tests/node/core.mjs` loads `dist/core-worker.js`, the page's simulation core, and runs
+the fourteen L1–L5 cases of `test.py`; `golden.test.mjs` compares goals, contacts, mission time, pose and cross-track
+RMS and NEES with the committed `tests/node/golden.json` (`npm run golden` rewrites it when a change means to move
+the numbers).
 
 `run_all.py` runs the five gate tests and prints a pass/fail table; each can also run on its own from any directory:
 
@@ -68,9 +74,9 @@ tests/chtest.py      every chapter: live values fill, Try buttons run, derivatio
 tests/dyntest.py     the car with tyre slip against chapter 1's theory; Analyze against the simulator
 ```
 
-The whole suite takes about three minutes. `NAV_LAB_CHROMIUM=/path/to/chrome` makes the tests use that browser
-instead of Playwright's own; `NAV_LAB_PAGE=…` tests another build than `dist/nav-stack-lab.html`. The headless core also runs in Node without a browser:
-`node -e "..."` against `dist/core-worker.js` reproduces the page's runs (see `src/worker/main.js`).
+The browser suite takes about three minutes. `NAV_LAB_CHROMIUM=/path/to/chrome` makes the tests use that browser
+instead of Playwright's own; `NAV_LAB_PAGE=…` tests another build than `dist/nav-stack-lab.html`
+(`NAV_LAB_CORE=…` does the same for the Node tests).
 
 ## Contribute
 

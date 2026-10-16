@@ -15,7 +15,7 @@ What a maintainer does that a contributor does not: cut a release, keep the demo
 ## Releasing (every change that lands on `main`)
 
 1. On the branch: `./build.sh`, then from `tests/` run `test.py`, `p5test.py`, `tles.py`, `chtest.py` and
-   `dyntest.py`, or `python3 run_all.py` for all five (`npm test` runs the build check and the Node golden tests). The L1–L5 summary of
+   `dyntest.py`, or `python3 tests/run_all.py` for all five; `npm test` runs the Node golden test (10 s) and `npm run test:all` both. The L1–L5 summary of
    `test.py` must not change unless the change intends it; `p5test`, `chtest` and `dyntest` must report no errors.
 2. Commit the rebuilt `dist/` with the source change so page and commit match. Open a PR; CI builds, checks that the
    committed `dist/` equals a fresh build, and runs the Node golden tests.
@@ -36,7 +36,7 @@ What a maintainer does that a contributor does not: cut a release, keep the demo
 `tests/test.py` prints the L1–L5 summary (goals reached, skipped, contacts, mission time, pose error, NEES) for the
 documented configurations. It has been byte-identical, plan-time milliseconds excluded, since v16; every PR that
 touches `core/` compares before and after. The Node golden test (`tests/node/golden.test.mjs`) asserts the same numbers against a committed JSON with tolerances, so CI catches a drift without a
-human reading the printout. When a change intends a new baseline, regenerate the JSON in the same PR and say why.
+human reading the printout. When a change intends a new baseline, regenerate the JSON in the same PR (`npm run golden`) and say why.
 
 Lesson numbers ("What you will see") are single seed-7 runs measured with the `tests/measure_*.py` scripts; a change
 in the core that moves them is a content change too, and the lesson text is updated in the same PR.

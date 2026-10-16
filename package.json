@@ -1,15 +1,22 @@
 {
   "name": "nav-stack-lab",
-  "version": "30.0.0",
+  "version": "31.0.0",
   "description": "A browser simulator for robot navigation: localization, perception, planning and control, with loop analysis and guided lessons, in one HTML file.",
   "private": true,
   "license": "MIT",
-  "repository": {"type": "git", "url": "https://github.com/spz0git/nav-stack-lab.git"},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spz0git/nav-stack-lab.git"
+  },
   "homepage": "https://spz0git.github.io/nav-stack-lab/",
-  "engines": {"node": ">=18"},
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "node build.mjs",
-    "test": "python3 tests/run_all.py",
-    "test:quick": "python3 tests/run_all.py --quick"
+    "test": "node --test \"tests/node/*.test.mjs\"",
+    "test:browser": "python3 tests/run_all.py",
+    "test:all": "npm test && npm run test:browser",
+    "golden": "node tests/node/core.mjs --write-golden"
   }
 }

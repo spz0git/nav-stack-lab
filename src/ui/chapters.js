@@ -76,7 +76,7 @@ function openChapter(id,sec){
   if(h)h.scrollIntoView({block:'start'});else if(v.getBoundingClientRect().top<0)v.scrollIntoView({block:'start'});return true;
 }
 function chapterBack(){const from=chapterFrom;chapterOpen=null;chapterFrom=null;chapterSec=null;
-  if(from&&openLesson(from)){try{history.replaceState(null,'',lessonLink(from).replace(/^[^#]*/,''));}catch(_){}return;}
+  if(from&&openLesson(from,{restore:true})){try{history.replaceState(null,'',lessonLink(from).replace(/^[^#]*/,''));}catch(_){}return;}
   renderLearn();if(activeTab==='view')renderAllPanes();}
 function chapterLink(id,sec){return location.href.split('#')[0]+`#notes=${id}${sec?'/'+sec:''}`;}
 // the list shown in the Learn column when nothing is open

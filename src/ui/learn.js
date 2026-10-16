@@ -26,11 +26,22 @@ const LESSON_LAYERS={
 function lessonLayers(id){const[g,i]=id.split(':');const L=(LESSON_LAYERS[g]||[])[+i]||['trail','dwa','look'];
   return Object.fromEntries(Object.keys(LAYERS).map(k=>[k,L.includes(k)]));}
 const lessonItem=id=>{const[g,i]=id.split(':'),G=LESSON_GROUPS().find(x=>x.id===g);return G&&G.items[+i]?{G,i:+i,L:G.items[+i]}:null;};
-function openLesson(id){
-  if(!lessonItem(id))return false;
+// Opening a lesson also sets the stage up as its first experiment would, without running it: the simulator on
+// the lesson's level with its settings, tab and plot (sim lessons), or the Analyze view (control lessons), so the
+// left side shows what the text talks about before any button is pressed. Not when a lesson is restored (Back from
+// a chapter) or when a Try button opens it, since the Try sets the stage itself.
+function openLesson(id,opts){
+  const it=lessonItem(id);if(!it)return false;
+  const fresh=lessonOpen!==id&&!(opts&&opts.restore);
   if(!userLayers)userLayers={...LAYERS};
-  lessonOpen=id;Object.assign(LAYERS,lessonLayers(id));renderLearn();draw();
+  lessonOpen=id;Object.assign(LAYERS,lessonLayers(id));renderLearn();
+  if(fresh)lessonStage(id);else draw();
   const v=$('#learnview');if(v.getBoundingClientRect().top<0)v.scrollIntoView({block:'start'});return true;
+}
+function lessonStage(id){
+  const it=lessonItem(id),t=it&&it.L.tries[0],cfg=t&&t[1];if(!cfg)return draw();
+  if(cfg.sim)tryGo({...cfg,layers:{...lessonLayers(id),...(cfg.layers||{})},hold:true});
+  else lessonGo({...cfg,test:undefined});
 }
 function lessonBack(){
   lessonOpen=null;if(userLayers){Object.assign(LAYERS,userLayers);userLayers=null;}
@@ -63,7 +74,7 @@ function renderLearn(){
     if(!m)return;try{history.replaceState(null,'',a.getAttribute('href'));}catch(_){}openChapter(m[1],m[2]);});
   v.querySelectorAll('a.lsref').forEach(a=>a.onclick=e=>{e.preventDefault();const m=/^#lesson=(\w+):(\d+)$/.exec(a.getAttribute('href'));if(m)openLesson(`${m[1]}:${+m[2]-1}`);});   // links to another lesson
   v.querySelectorAll('details.lesson>summary').forEach(s=>s.onclick=e=>{e.preventDefault();const id=s.parentNode.dataset.l;if(lessonOpen===id)lessonBack();else openLesson(id);});
-  v.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':'),id=g+':'+i;if(lessonOpen!==id)openLesson(id);
+  v.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':'),id=g+':'+i;if(lessonOpen!==id)openLesson(id,{restore:true});
     const cfg=lessonItem(id).L.tries[+j][1];
     if(cfg.sim)return tryGo({...cfg,layers:{...lessonLayers(id),...(cfg.layers||{})}});lessonGo(cfg);});   // loading the level must not undo the lesson's layers
   const bk=$('#learn-back');if(bk)bk.onclick=lessonBack;

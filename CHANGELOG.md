@@ -9,6 +9,9 @@ Phase 1, the learning path (from the assessment of 2026-10-15):
 
 - Learn opens with a "Start here" card: who the lessons are for, what they assume, how lessons, chapters, levels and
   the Symbols tab relate, and a first pass of eight lessons with a reading time each (`src/ui/path.js`).
+- Opening a lesson sets the stage up as its first experiment would, without running it: the simulator on the
+  lesson's level with its settings, tab and plot, or the Analyze view for a control lesson (`hold` in `tryGo`).
+  Back from a chapter and the Try buttons leave the stage as it is.
 
 ## v33 · 2026-10-16
 

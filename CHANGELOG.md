@@ -20,6 +20,10 @@ Phase 1, the learning path (from the assessment of 2026-10-15):
   "Continue with lesson n" on the Start here card; Next follows the first pass while the open lesson is on it.
 - The level panel's Try list is now "Quick experiments", with a line that names the lessons whose experiments run
   on this floor (a click opens the lesson), so the two experiment systems stop competing.
+- Chapter 8, Notation and references: the conventions (frames, truth and estimate, the three noise covariances M,
+  Q and R, bearing b), the letters that mean two things, one symbol table by area, and the sixteen references the
+  material draws on. Control lesson 1 names its chips in one line each before the later lessons use them; the
+  longest sentences of chapters 1 and 6 are split.
 
 ## v33 · 2026-10-16
 

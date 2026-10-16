@@ -41,7 +41,7 @@ src/
   ui/               everything that touches the DOM or a canvas
   analysis/         linear loop analysis (num, model, plots, lessons, glossary)
   worker/main.js    headless runner: core/* + this file = dist/core-worker.js, embedded in the page
-docs/notes/         the seven companion chapters (markdown + TeX), converted by tools/notes.mjs at build time
+docs/notes/         the eight companion chapters (markdown + TeX), converted by tools/notes.mjs at build time
 tests/              Playwright tests, the Node golden test, and the measurement scripts the lessons' numbers come from
 ```
 

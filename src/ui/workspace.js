@@ -2,9 +2,11 @@
    Workspace (7.1): the map fills the stage; a telemetry dock under it and the panel on the right can be resized
    (drag the splitters, or focus one and use the arrow keys) and hidden. Sizes are remembered in this browser only.
    ============================================================ */
-const WS={insp:null,dock:220,inspOff:false,dockOff:false,preset:'tune'};
+// dockAuto: the dock takes the height that leaves the map at the world's 3:2 aspect (no letterbox margins), within
+// limits, until the user drags the splitter; a stored layout with an untouched dock keeps that behaviour
+const WS={insp:null,dock:220,inspOff:false,dockOff:false,preset:'tune',dockAuto:true};
 const WS_KEY='nav-stack-lab.layout';
-try{const s=JSON.parse(localStorage.getItem(WS_KEY)||'null');if(s&&typeof s==='object'){for(const k of Object.keys(WS))if(k in s)WS[k]=s[k];if(typeof s.brief==='boolean')briefOpen=s.brief;}}catch(_){}
+try{const s=JSON.parse(localStorage.getItem(WS_KEY)||'null');if(s&&typeof s==='object'){for(const k of Object.keys(WS))if(k in s)WS[k]=s[k];if(!('dockAuto'in s))WS.dockAuto=s.dock==null||s.dock===220;if(typeof s.brief==='boolean')briefOpen=s.brief;}}catch(_){}
 function wsSave(){try{localStorage.setItem(WS_KEY,JSON.stringify({...WS,brief:briefOpen}));}catch(_){}}
 const wideUI=()=>matchMedia('(min-width:961px) and (min-height:600px)').matches;
 function wsApply(){
@@ -20,6 +22,14 @@ function wsApply(){
 // a taller dock when plots are added (desktop), up to what leaves the map about 300 px
 function wsEnsureDock(h){if(!wideUI())return;if(WS.dockOff)WS.dockOff=false;if(WS.dock<h){const st=$('#simview').getBoundingClientRect().height;WS.dock=Math.round(Math.max(WS.dock,Math.min(h,st-420)));}wsApply();wsSave();}
 function wsInspector(on){WS.inspOff=!on;wsApply();wsSave();}
+// The automatic dock height: whatever leaves the map canvas at 3:2, between 150 and 320 px (wide layout only)
+let dockAutoQ=0;
+function wsDockAuto(){
+  if(!WS.dockAuto||!wideUI()||WS.dockOff||AN.mode!=='sim')return;
+  const m=$('.mapwrap').getBoundingClientRect();if(!m.width)return;
+  const want=Math.round(clamp(WS.dock+(m.height-m.width/1.5),150,320));
+  if(Math.abs(want-WS.dock)>=2){WS.dock=want;wsApply();}
+}
 function wsDock(on){WS.dockOff=!on;wsApply();wsSave();}
 vmMark();
 $('#tg-insp').onclick=()=>wsInspector(WS.inspOff);
@@ -42,12 +52,12 @@ wsSplitter($('#insp-split'),{
   toggle:()=>wsInspector(false)});
 wsSplitter($('#dock-split'),{
   size:()=>WS.dockOff?44:$('#dock').getBoundingClientRect().height,
-  set:h=>{const st=$('#simview').getBoundingClientRect().height;WS.dockOff=false;WS.dock=Math.round(clamp(h,120,Math.max(120,st-300)));wsApply();},
+  set:h=>{const st=$('#simview').getBoundingClientRect().height;WS.dockOff=false;WS.dockAuto=false;WS.dock=Math.round(clamp(h,120,Math.max(120,st-300)));wsApply();},
   toggle:()=>wsDock(WS.dockOff)});
 // Learn lives in the panel, so opening Learn shows it
 $('#modesel').addEventListener('click',e=>{const b=e.target.closest('button');if(b&&b.dataset.v==='learn'&&WS.inspOff)wsInspector(true);});
 // Canvases follow their panels (splitters and folding change sizes without a window resize)
-{let q=0;const redraw=()=>{q=0;if(AN.mode==='an'){if(!$('#anview').hidden)renderAnalysis();}else if(S){draw();drawPlot();}};
+{let q=0;const redraw=()=>{q=0;wsDockAuto();if(AN.mode==='an'){if(!$('#anview').hidden)renderAnalysis();}else if(S){draw();drawPlot();}};
  const ro=new ResizeObserver(()=>{if(!q)q=requestAnimationFrame(redraw);});
  ro.observe($('.mapwrap'));ro.observe($('#plotcol'));ro.observe($('.stage'));}
 wsApply();

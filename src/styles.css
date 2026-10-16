@@ -251,6 +251,14 @@ details.how summary{cursor:pointer;font-family:var(--f-display);font-weight:600;
 .bs-ok{color:var(--ok)}.bs-warn{color:var(--warn)}.bs-muted{color:var(--muted)}
 .eq{font-family:var(--f-mono);font-size:.78rem;background:var(--raise);border:1px solid var(--line);border-radius:4px;padding:8px 10px;overflow-x:auto;white-space:pre;line-height:1.55}
 textarea{width:100%;min-height:340px;font-family:var(--f-mono);font-size:.78rem;line-height:1.5;background:var(--raise);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:10px;resize:vertical;tab-size:2}
+/* the Code tab's editor (Phase 2.9): a highlighted copy of the text sits behind a transparent textarea, scroll-synced */
+.codewrap{position:relative;border:1px solid var(--line);border-radius:5px;background:var(--raise);overflow:hidden}
+.codewrap textarea,.codewrap .codehl{margin:0;border:0;border-radius:0;font-family:var(--f-mono);font-size:.78rem;line-height:1.5;tab-size:2;padding:10px;white-space:pre;word-wrap:normal;overflow:auto;min-height:340px;height:340px;width:100%;box-sizing:border-box}
+.codewrap textarea{position:relative;z-index:1;background:transparent;color:transparent;caret-color:var(--ink);resize:vertical}
+.codewrap .codehl{position:absolute;inset:0;z-index:0;color:var(--ink);pointer-events:none;overflow:hidden}
+.codehl .k{color:var(--accent);font-weight:600}.codehl .s{color:var(--ok)}.codehl .c{color:var(--muted);font-style:italic}.codehl .n{color:var(--rose)}.codehl .p{color:var(--amber)}
+.codehl .errl{background:color-mix(in srgb,var(--bad) 18%,transparent);display:inline-block;width:100%}
+.codebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.codebar .lbl{margin-left:auto}
 .codestat{font-family:var(--f-mono);font-size:.78rem}
 .modebar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
 .appbar .modebar{flex:1 1 0;min-width:0;flex-wrap:nowrap}

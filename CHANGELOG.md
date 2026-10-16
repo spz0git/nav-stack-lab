@@ -26,6 +26,8 @@ Phase 3, code health (from the assessment of 2026-10-15):
 - Unit tests for the closed-form numerics (`tests/node/numerics.test.mjs`, in `npm test`): the 3 × 3 inverse, the
   Cholesky solve, the box QP, the distance transform, Reeds–Shepp lengths and samples, A* on a free line and round
   obstacles, and the textbook properties of one EKF update. The worker exposes them to Node as `self.__core`.
+- `ui/st-plot.js` moves after the core in the manifest, so the core/ui split in the concatenation order is exact.
+  Running the live simulation in the worker was assessed and deferred (a week of its own; `docs/roadmap.md`).
 
 ## v35 · 2026-10-16
 

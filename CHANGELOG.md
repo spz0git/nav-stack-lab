@@ -1,9 +1,9 @@
 # Changelog
 
-The version label in the page header (`v37 · 2026-10-16`) is the number used here; `src/version.json` holds it.
+The version label in the page header (`v38 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v38 · 2026-10-16
 
 - Scan matching (Localize → Lidar scan matching, with the EKF and a prior map): every fourth tick the scan is aligned
   to the map's distance field by Gauss–Newton from the current estimate and fused as a pose measurement with the

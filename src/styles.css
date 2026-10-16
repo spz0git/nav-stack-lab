@@ -470,6 +470,13 @@ details.see>p{margin:0 0 5px}
 .logbar .lbl{font-family:var(--f-mono);font-size:.72rem}
 .log li.hit{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .tl-m.hit{background:var(--accent);top:1px;height:26px;width:2px;opacity:.7}
+/* replay playback and the loop region (Phase 2.5) */
+#scrub-play{padding:2px 8px;font-size:.8rem;line-height:1.4}#scrub-play[aria-pressed="true"]{color:var(--ink);border-color:var(--muted)}
+.tl-loop{position:absolute;top:3px;bottom:3px;z-index:1;background:color-mix(in srgb,var(--accent) 16%,transparent);border-left:2px solid var(--accent);border-right:2px solid var(--accent);border-radius:3px;pointer-events:none}
+.tl-loop[hidden]{display:none}
+.tl-h{position:absolute;top:-2px;bottom:-2px;width:12px;cursor:ew-resize;pointer-events:auto;touch-action:none}.tl-h.a{left:-7px}.tl-h.b{right:-7px}
+.tl-x{position:absolute;right:-9px;top:-11px;width:16px;height:16px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:.7rem;line-height:1;padding:0;pointer-events:auto;cursor:pointer}
+.tl-x:hover{color:var(--bad)}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
 
 .srcdlg{width:min(96vw,980px);max-height:90vh;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:0;display:flex;flex-direction:column}

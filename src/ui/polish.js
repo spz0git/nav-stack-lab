@@ -33,7 +33,7 @@ function vmMark(){document.querySelectorAll('#viewmenu [data-preset]').forEach(x
 
 /* ---------- keyboard shortcuts (?) ---------- */
 const KEYS=[['Run','Space','Run or pause'],['Run','N','Step 0.5 s'],['Run','R','Reset'],['Run','[  ]','Slower, faster'],
-  ['Timeline',',  .','Back or forward 0.1 s in the recording'],['Timeline','End','Back to live'],
+  ['Timeline',',  .','Back or forward 0.1 s in the recording'],['Timeline','End','Back to live'],['Timeline','P','Play or pause the recording at the speed setting'],['Timeline','I  O','Loop in and out points at the shown moment; drag the handles; × clears'],
   ['Map','V G H K B','Select · Goal · Goal with heading · Kidnap · Beacon'],['Map','L','Layers'],['Map','F','Follow the robot'],['Map','0','Fit the whole world'],['Map','Esc','Close a popover, clear the selection, back to Goal'],
   ['Map','Wheel · drag','Zoom · pan (drag also pans with any tool but Goal with heading; Shift-drag always)'],
   ['Plots','Wheel · drag','Zoom · pan the time window'],['Plots','Double-click','Follow the last 30 s again'],['Plots','Click','Show that moment'],

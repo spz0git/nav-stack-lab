@@ -6,6 +6,7 @@ function loop(ts){
   const dt=Math.min(0.1,(ts-lastTs)/1000||0);lastTs=ts;
   if(running&&!busy){acc+=dt*speed;const n=Math.min(40,Math.floor(acc/DT));if(n>0){acc-=n*DT;advance(n);}}
   else if(!running)acc=0;
+  replayTick(dt);
   if(AN.mode==='sim'){drawMaybeReplay();if(frame++%3===0){drawPlot();refreshAll();syncScrub();}}
   requestAnimationFrame(loop);
 }

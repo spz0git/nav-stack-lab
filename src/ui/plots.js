@@ -13,7 +13,8 @@ function timeWindow(dMin,dMax){
   t1=Math.min(dMax,t1);const t0=Math.max(dMin,t1-span);return[t0,Math.max(t1,t0+1e-3)];
 }
 const twLabel=(t0,t1)=>TW.all?`whole run, ${t0.toFixed(0)}–${t1.toFixed(0)} s`:TW.end!=null?`${t0.toFixed(0)}–${t1.toFixed(0)} s`:`last ${Math.round(t1-t0)} s`;
-function twRange(){const A=S&&S.plot.length?S.plot:REC.frames;return A.length>1?[A[0].t,A[A.length-1].t]:null;}
+function twRange(){const A=S&&S.plot.length?S.plot:REC.frames;if(A.length<2)return null;const R=[A[0].t,A[A.length-1].t];
+  return REPLAY.loop?[Math.max(R[0],REPLAY.loop[0]),Math.min(R[1],REPLAY.loop[1])]:R;}   // a loop region trims the window
 function twSet(span,end){const R=twRange();if(!R)return;TW.all=false;TW.span=clamp(span,2,Math.max(2,R[1]-R[0]));TW.end=end==null||end>=R[1]-0.05?null:Math.max(R[0]+TW.span,end);syncTW();drawPlot();}
 function twReset(){TW.all=false;TW.span=30;TW.end=null;syncTW();drawPlot();}
 function syncTW(){const b=$('#pl-all');if(b)b.setAttribute('aria-pressed',String(TW.all));}
@@ -121,7 +122,7 @@ wirePlotCanvas(pv);
 function runCSV(){
   const F=REC.frames;if(F.length<2)return null;const ids=SIGNALS.map(s=>s[0]);
   const head=['t',...ids.map(id=>{const u=sigUnit(SIG[id]);return id+(u?` [${u}]`:'');})];
-  const rows=[head.join(',')];for(const f of F){rows.push([f.t.toFixed(2),...ids.map(id=>{const v=sigAt(id,f.t);return v==null?'':+v.toFixed(5);})].join(','));}
+  const rows=[head.join(',')];for(const f of F){if(REPLAY.loop&&(f.t<REPLAY.loop[0]-1e-6||f.t>REPLAY.loop[1]+1e-6))continue;rows.push([f.t.toFixed(2),...ids.map(id=>{const v=sigAt(id,f.t);return v==null?'':+v.toFixed(5);})].join(','));}
   return rows.join('\n');
 }
 // the preset plot and the added panes stacked into one image, on the page background

@@ -14,6 +14,8 @@ function lessonGo(cfg) {
   syncAnControls();
   renderAllPanes();
   setMode('an');
+  if (cfg.place) anDesign('place', cfg.place.zeta, cfg.place.wn); // a lesson's design what-if (pole placement or LQR, ui.js)
+  if (cfg.lqr) anDesign('lqr', cfg.lqr.qe, cfg.lqr.qth, cfg.lqr.r);
   if (cfg.test === 'step') {
     runStepTest();
     renderAnalysis();

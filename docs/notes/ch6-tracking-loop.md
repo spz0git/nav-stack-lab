@@ -306,3 +306,42 @@ The linear loop is exact for small errors on a straight path with a known pose. 
 For the MPC the five gains are read by the same central differences as for pure pursuit, applied to a converged solve (25 iterations instead of the 3 the simulator uses per tick), so the view analyses the MPC's local behaviour at the operating point rather than its receding-horizon logic. Chapter 7 derives the MPC itself.
 
 **Outside the model.** The DWA samples velocities and scores rollouts; it is not a function of $e$ and $\theta_e$ that a finite difference could linearize, and the Analyze view says so. Code in the controller slot is treated the same way unless it is a static law, in which case the numerical gains work for it as well.
+
+## 8. Placing the poles on purpose: pole placement and LQR
+
+Dragging a pole in the Analyze view and reading off the gains is pole placement done by hand. The textbook versions do the same from numbers, and for the two-integrator loop both solve in closed form. Take the delay-free loop of §1 with the two gains of rear-wheel feedback's form, $u = -K_e e - K_\theta \theta_e$: the characteristic polynomial is
+
+$$
+s^2 + g K_\theta\, s + g v_0 K_e = 0 .
+$$
+
+**Pole placement.** Ask for a pair with damping $\zeta$ and natural frequency $\omega_n$, that is $s^2 + 2\zeta\omega_n s + \omega_n^2$, and match coefficients:
+
+$$
+K_e = \frac{\omega_n^2}{g v_0}, \qquad K_\theta = \frac{2\zeta\omega_n}{g} .
+$$
+
+Two gains, two coefficients, one exact answer; this is why rear-wheel feedback can put its pair anywhere while a one-knob tracker can only move along its curve (§2). The answer is exact for the delay-free loop only. The hold, the latency and the actuator lag add phase, so the pair the full loop actually has sits to the right of the one asked for and lower in damping; the faster the pair, the larger the move, which is §4's delay margin seen from the pole plot. The design row under the pole plot does this computation and then shows where the pair really lands.
+
+**LQR.** The linear-quadratic regulator does not choose poles; it chooses a cost and lets the poles follow. For the plant $\dot x = Ax + Bu$ with $x = (e, \theta_e)$,
+
+$$
+A = \begin{pmatrix} 0 & v_0 \\ 0 & 0 \end{pmatrix}, \quad B = \begin{pmatrix} 0 \\ g \end{pmatrix}, \quad J = \int_0^\infty q_e e^2 + q_\theta \theta_e^2 + r u^2\, \mathrm dt,
+$$
+
+the optimal feedback is $u = -R^{-1}B^{\mathsf T}P\,x$ with $P$ the symmetric solution of the algebraic Riccati equation $A^{\mathsf T}P + PA - PBR^{-1}B^{\mathsf T}P + Q = 0$. Write $P = \begin{pmatrix} p_1 & p_2 \\ p_2 & p_3 \end{pmatrix}$ and the three scalar equations are
+
+$$
+-\frac{g^2}{r} p_2^2 + q_e = 0, \qquad v_0 p_1 - \frac{g^2}{r} p_2 p_3 = 0, \qquad 2 v_0 p_2 - \frac{g^2}{r} p_3^2 + q_\theta = 0 ,
+$$
+
+so $p_2 = \sqrt{q_e r}/g$, then $p_3 = \sqrt{r(2 v_0 p_2 + q_\theta)}/g$, and the gains $K = (g/r)(p_2, p_3)$ are
+
+$$
+K_e = \sqrt{\frac{q_e}{r}}, \qquad K_\theta = \sqrt{\frac{q_\theta}{r} + \frac{2 v_0}{g}\sqrt{\frac{q_e}{r}}} .
+$$
+
+Three things to read off. Only the ratios $q_e/r$ and $q_\theta/r$ matter: scaling the whole cost changes nothing. With $q_\theta = 0$ the damping is fixed at $\zeta = 1/\sqrt 2$ whatever the weights (substitute the gains into the polynomial), the same number pure pursuit is stuck with, which is no coincidence: a double integrator with the cheapest possible control is always critically-damped-ish. And a smaller $r$ (cheaper control) raises $\omega_n$ like $(q_e/r)^{1/4}$, a slow lever, so halving the settling time costs sixteen times the control weight. LQR guarantees a phase margin of at least 60° and an infinite gain margin for the delay-free plant; the delays take some of that back exactly as they do for a placed pair, and the margins §4 computes are the ones to believe.
+
+What LQR adds over placement is a reason for the pair: a trade between tracking error and steering effort, stated in units you can argue about. What it does not add is any knowledge of the delays, the saturation or the curvature; those are still §4, §5 and §7's business.
+

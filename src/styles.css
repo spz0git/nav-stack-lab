@@ -1880,6 +1880,37 @@ textarea {
 .an-main .an-fig canvas {
   height: 280px;
 }
+.an-design {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.8rem;
+  margin: 4px 0 2px;
+}
+.an-design label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.an-design input {
+  width: 4.6em;
+  font: inherit;
+  font-family: var(--f-mono);
+  font-size: 0.78rem;
+  padding: 2px 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--raise);
+  color: var(--ink);
+}
+.an-design .lbl {
+  margin-left: 4px;
+}
+.an-design[hidden] {
+  display: none;
+}
 .an-cap {
   margin: 2px 0 0;
   font-size: 0.8rem;

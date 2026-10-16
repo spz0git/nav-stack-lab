@@ -782,9 +782,22 @@ Object.assign(GLOSS, {
     'Standing still, the gyro should read zero, so its average then is its bias; subtracting that estimate from later readings removes the drift it would cause. Every stop re-calibrates.',
     '',
     ['zero-velocity update', 'ZUPT', 'zero-velocity updates']
+  ],
+  lqr: [
+    'LQR',
+    'Linear-quadratic regulator: the state feedback that minimizes ∫ xᵀQx + uᵀRu dt for a linear plant; the gains come from the Riccati equation, and the closed-loop poles follow from the weights rather than being chosen directly.',
+    '',
+    ['LQR', 'linear-quadratic regulator']
+  ],
+  poleplace: [
+    'pole placement',
+    'Choosing the closed-loop poles first and solving for the feedback gains that put them there; for the two-integrator loop two gains place one pair exactly, before the delays move it.',
+    '',
+    ['pole placement']
   ]
 });
 const LESSON_TERMS = {
+  'Placing the poles on purpose: pole placement and LQR': 'poleplace lqr pole zeta wn Ke kth rwf DM pm overshoot ts plantgain hold',
   'A gyro in the loop: heading is the expensive error':
     'gyro bias zupt deadreck odometry thetaerr sigx Modo poserr consistent nees band2s ekf beacon',
   'Dead reckoning drifts, and knows it':

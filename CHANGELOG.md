@@ -12,6 +12,10 @@ Phase 4, content (from the assessment of 2026-10-15 and the owner's direction):
   still for 2 s at the start of a run, averages the gyro into a bias estimate and subtracts it. The filters' assumed
   turn-rate noise follows. Lesson 6 of the localization group, *A gyro in the loop: heading is the expensive error*,
   with six measured experiments, and chapter 2 §9 with the random walk, the bias integrals and the update.
+- Analyze: a design row under the pole plot. Pole placement by damping and natural frequency, and LQR from three
+  weights with the closed-form gains, both shown as a what-if where the pair really lands with the delays in the
+  loop; a lesson Try can ask for either (`place`, `lqr`). Control lesson 18, *Placing the poles on purpose: pole
+  placement and LQR*, and chapter 6 §8 with the Riccati equation solved in closed form.
 
 ## v36 · 2026-10-16
 

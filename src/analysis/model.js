@@ -872,6 +872,24 @@ function nearestPole(ps, tg) {
   return b;
 }
 // two free gains: start from the delay-free formulas and correct the target until the real pole lands on it
+// Pole placement for the delay-free two-integrator loop: s² + gK_θ s + g v K_e = 0, so a pair at damping ζ and natural
+// frequency ω_n needs K_e = ω_n²/(g v) and K_θ = 2ζω_n/g; the target is the pair itself.
+function placeGains(M, zeta, wn) {
+  const g = M.g,
+    v = M.v0;
+  return {Ke: (wn * wn) / (g * v), Kth: (2 * zeta * wn) / g, tg: [-zeta * wn, wn * Math.sqrt(Math.max(0, 1 - zeta * zeta))]};
+}
+// LQR for the same plant with cost ∫ q_e e² + q_θ θ² + r u² dt: the Riccati equation solves in closed form (chapter 6 §8),
+// K_e = √(q_e/r), K_θ = √(q_θ/r + 2 v √(q_e/r) / g); the closed-loop pair follows from the gains.
+function lqrGains(M, qe, qth, r) {
+  const g = M.g,
+    v = M.v0,
+    Ke = Math.sqrt(qe / r),
+    Kth = Math.sqrt(qth / r + (2 * v * Math.sqrt(qe / r)) / g),
+    wn = Math.sqrt(g * v * Ke),
+    zeta = (g * Kth) / (2 * wn);
+  return {Ke, Kth, wn, zeta, tg: [-zeta * wn, wn * Math.sqrt(Math.max(0, 1 - Math.min(1, zeta * zeta)))]};
+}
 function placeTwo(M, tg) {
   let t = tg.slice(),
     best = null;

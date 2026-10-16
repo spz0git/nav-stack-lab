@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Try the live page first
+    url: https://spz0git.github.io/nav-stack-lab/
+    about: The demo always runs the head of main; check whether the problem is still there.

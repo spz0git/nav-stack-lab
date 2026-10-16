@@ -32,6 +32,8 @@ Phase 2, workspace polish (from the assessment of 2026-10-15):
   live with its seed.
 - The telemetry dock takes the height that leaves the map at the world's 3:2 aspect (between 150 and 320 px) until
   the splitter is dragged, so the map no longer sits letterboxed between empty margins on the wide layout.
+- The Code tab's editor highlights comments, strings, numbers, keywords and the slot API's names, tints the line an
+  error names, shows the line count, and says what the sandbox allows.
 
 ## v34 · 2026-10-16
 

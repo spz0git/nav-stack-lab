@@ -6375,20 +6375,37 @@ function codePane(){
     loc:'A localizer: called every tick with odometry and the sensor readings of that tick, and returns the pose estimate the rest of the stack uses.',
     pred:'An agent predictor: called at 10 Hz with the confirmed tracks and returns each one\'s predicted trajectory, which the speed planner, DWA and MPC then avoid.'}[codeSlot];
   return`<div class="field"><span class="lbl">Slot</span><div class="seg" id="codeslot">${Object.keys(SLOT_DEFS).map(k=>`<button data-v="${k}" aria-pressed="${k===codeSlot}">${SLOT_DEFS[k].name}${SLOTS[k].worker?' ●':''}</button>`).join('')}</div></div>
-  <p class="note">${blurb} It runs in a sandboxed Web Worker in lockstep with the simulation, with a ${D.timeout} ms budget per call.</p>
-  <textarea id="code" spellcheck="false" aria-label="${D.name} code">${esc(sl.code)}</textarea>
-  <div class="controls"><button class="btn primary" id="loadcode">Load and use</button><button class="btn" id="resetcode">Restore example</button><button class="btn" id="viewsrc" data-src="${codeSlot}">Built-in source</button></div>
+  <p class="note">${blurb} It runs in a sandboxed Web Worker in lockstep with the simulation, with a ${D.timeout} ms budget per call: no access to the page or its state beyond what it is given, and no network except what the page's own origin would allow a worker.</p>
+  <div class="codewrap"><pre class="codehl" id="codehl" aria-hidden="true"></pre><textarea id="code" spellcheck="false" aria-label="${D.name} code">${esc(sl.code)}</textarea></div>
+  <div class="controls codebar"><button class="btn primary" id="loadcode">Load and use</button><button class="btn" id="resetcode">Restore example</button><button class="btn" id="viewsrc" data-src="${codeSlot}">Built-in source</button><span class="lbl" id="codeinfo"></span></div>
   <p class="codestat ${sl.status.cls}" id="codestat">${esc(sl.status.msg)}</p>`;
 }
+// A small highlighter for the editor: comments, strings, numbers, keywords, and the obs/out property names the
+// slot API uses; the line an error names (status "Line n: …") is tinted.
+const CODE_KW=/\b(const|let|var|function|return|if|else|for|while|do|of|in|new|true|false|null|undefined|this|class|break|continue|switch|case|default|typeof|throw|try|catch|finally|Math)\b/g;
+function codeHighlight(src,errLine){
+  const esc2=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const re=/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`)|(\b\d+(?:\.\d+)?(?:e[+-]?\d+)?\b)/g;
+  let out='',i=0,m;
+  const plainTok=t=>esc2(t).replace(CODE_KW,'<span class="k">$1</span>').replace(/\b(obs|out|vehicle|path|scan|agents|limits|pose|odom|goal|grid|tracks)\b(?=\s*[.:])/g,'<span class="p">$1</span>');
+  while((m=re.exec(src))){out+=plainTok(src.slice(i,m.index));out+=m[1]?`<span class="c">${esc2(m[1])}</span>`:m[2]?`<span class="s">${esc2(m[2])}</span>`:`<span class="n">${esc2(m[3])}</span>`;i=m.index+m[0].length;}
+  out+=plainTok(src.slice(i));
+  if(errLine>0){const L=out.split('\n');if(L[errLine-1]!=null){L[errLine-1]=`<span class="errl">${L[errLine-1]||' '}</span>`;out=L.join('\n');}}
+  return out+'\n';
+}
+function codeSync(){const ta=$('#code'),hl=$('#codehl');if(!ta||!hl)return;const st=SLOTS[codeSlot].status,m=st.cls==='err'&&/^Line (\d+)/.exec(st.msg||'');hl.innerHTML=codeHighlight(ta.value,m?+m[1]:0);hl.scrollTop=ta.scrollTop;hl.scrollLeft=ta.scrollLeft;hl.style.height=ta.offsetHeight+'px';
+  const info=$('#codeinfo');if(info)info.textContent=`${ta.value.split('\n').length} lines`;}
 function setCodeStatus(msg,cls){slotStatus(codeSlot,msg,cls);}
-UI.slotStatus=(k,msg,cls)=>{if(k!==codeSlot)return;const el=$('#codestat');if(el){el.textContent=msg;el.className='codestat '+cls;}};
+UI.slotStatus=(k,msg,cls)=>{if(k!==codeSlot)return;const el=$('#codestat');if(el){el.textContent=msg;el.className='codestat '+cls;}codeSync();};
 function wireCode(){
   const ta=$('#code');if(!ta)return;
-  ta.oninput=()=>{SLOTS[codeSlot].code=ta.value;};
-  ta.onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const s=ta.selectionStart;ta.setRangeText('  ',s,ta.selectionEnd,'end');SLOTS[codeSlot].code=ta.value;}};
+  ta.oninput=()=>{SLOTS[codeSlot].code=ta.value;codeSync();};
+  ta.onscroll=()=>{const hl=$('#codehl');if(hl){hl.scrollTop=ta.scrollTop;hl.scrollLeft=ta.scrollLeft;}};
+  ta.onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const s=ta.selectionStart;ta.setRangeText('  ',s,ta.selectionEnd,'end');SLOTS[codeSlot].code=ta.value;codeSync();}};
+  codeSync();if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{const hl=$('#codehl');if(hl)hl.style.height=ta.offsetHeight+'px';}).observe(ta);
   $('#codeslot').querySelectorAll('button').forEach(b=>b.onclick=()=>{codeSlot=b.dataset.v;renderAllPanes();});
   $('#loadcode').onclick=()=>{if(slotLoad(codeSlot,ta.value)){logE(`Loaded your ${SLOT_DEFS[codeSlot].name.toLowerCase()} code`);renderAllPanes();refreshAll();}};
-  $('#resetcode').onclick=()=>{const ex=codeSlot==='ctl'?DEFAULT_CODE:SLOT_EXAMPLES[codeSlot];SLOTS[codeSlot].code=ex;ta.value=ex;};
+  $('#resetcode').onclick=()=>{const ex=codeSlot==='ctl'?DEFAULT_CODE:SLOT_EXAMPLES[codeSlot];SLOTS[codeSlot].code=ex;ta.value=ex;codeSync();};
   $('#viewsrc').onclick=()=>showSource({ctl:'core/controllers.js',plan:'core/planning.js',loc:'core/localization.js',pred:'core/agents.js'}[codeSlot]);
 }
 

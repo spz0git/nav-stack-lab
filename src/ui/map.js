@@ -88,6 +88,7 @@ function draw(){
   // ghost of the previous run
   if(LAYERS.ghostrun&&GHOST&&GHOST.level===LV.id){ctx.lineWidth=px(2);ctx.setLineDash([px(2),px(4)]);ctx.strokeStyle=rgba(TOK.rose,0.55);polyline(GHOST.trailT);ctx.stroke();ctx.setLineDash([]);}
   drawCompare(px);   // a run picked in Runs → Compare (runs.js)
+  if(LAYERS.sweep)drawSweep(px);   // the paths of an experiment's runs (experiments.js)
   // trails
   if(LAYERS.trail){
     ctx.lineWidth=px(1.3);ctx.strokeStyle=rgba(TOK.ink,0.45);polyline(S.trailT);ctx.stroke();

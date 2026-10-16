@@ -26,6 +26,10 @@ Phase 2, workspace polish (from the assessment of 2026-10-15):
   subsystem's recent events (a click seeks the timeline) and the button to its tab.
 - Settings applied from a link re-render the tabs at once (the Localize tab could still show the level's default
   estimator while the link's one ran).
+- Experiments land in the workspace: the runs' paths are drawn on the map (a layer, coloured by configuration);
+  when one numeric parameter is varied the chart is the metric against its value, a dot per run with the mean as a
+  line; hovering a dot (or a bar) makes that run's path bold on the map and names it, and a click runs that setup
+  live with its seed.
 
 ## v34 · 2026-10-16
 

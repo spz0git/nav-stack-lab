@@ -92,7 +92,7 @@ function drawSelection(px){
 const LAYER_DEFS=[['belief','Belief','Particles or the 95 % covariance ellipse','loc'],['beam','Beacon readings','Rays from the estimate','loc'],['trail','Trails','Solid = truth, dashed = estimate','loc'],
   ['lidar','Lidar hits','As perceived','per'],['cost','Costmap','Inflation','per'],['ghost','True-map outline','Over the built map','per'],['agents','Agents','Tracks, predictions, ego positions at the same times','per'],
   ['search','Planner search','A* closed set, Hybrid A* nodes or the RRT* tree','plan'],['dwa','Local plan','DWA rollouts, MPC prediction and reference','ctl'],['look','Lookahead','The path tracker\'s carrot','ctl'],['slip','Sideslip','Velocity at the centre of mass against the heading','ctl'],
-  ['ghostrun','Previous run','Ghost trail and ghost plot series','']];
+  ['ghostrun','Previous run','Ghost trail and ghost plot series',''],['sweep','Experiment runs','The paths of the last experiment\'s runs, coloured by the varied value','']];
 // [has something to draw now?, status text]
 function layerStatus(k){
   const tr=P.loc==='truth',ctlTr=['pp','rwf','stanley','pid'].includes(P.ctl);
@@ -109,6 +109,7 @@ function layerStatus(k){
     case'look':return ctlTr?[S.ctlViz&&S.ctlViz.carrot?1:0,'carrot of the path tracker']:[0,'only the path trackers'];
     case'slip':return isDyn()?[Math.abs(S.robot.v)>0.05?1:0,`β ${deg(dynSlip(S.robot).beta).toFixed(1)}°`]:[0,'only the car with tyre slip (Vehicle)'];
     case'ghostrun':return GHOST&&GHOST.level===LV.id?[1,GHOST.label]:[0,'no previous run on this level'];
+    case'sweep':return EXP.results.length&&EXP.level===LV.id?[1,`${EXP.results.length} runs of the last experiment`]:[0,'no experiment run on this level yet (Tools → Experiments)'];
   }
   return[0,''];
 }

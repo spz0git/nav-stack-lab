@@ -70,7 +70,10 @@ const PARAM_EFFECTS = [
       logE(`Agent tracking → ${{off: 'off', truth: 'ground truth', lidar: 'lidar'}[v]}`);
     }
   ],
-  [['spd'], (k, v) => logE(`Response to agents → ${{none: 'ignore', stop: 'reactive stop', st: 'speed planning'}[v]}`)],
+  [
+    ['spd'],
+    (k, v) => logE(`Response to agents → ${{none: 'ignore', stop: 'reactive stop', st: 'speed planning', vo: 'velocity obstacles'}[v]}`)
+  ],
   [
     ['gyro', 'zupt'],
     (k, v) => {

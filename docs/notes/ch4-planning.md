@@ -187,6 +187,37 @@ The reading: D* Lite earns its keep where the map is static and only the robot m
 
 [try: D* Lite with a periodic replan | {"sim":true,"level":1,"set":{"replan":1,"plan":"dstar"},"tab":"plan"}] [try: Lidar mapping, D* Lite | {"sim":true,"level":3,"set":{"plan":"dstar"},"tab":"plan"}]
 
-## 9. What to carry into the next chapters
+## 9. Velocity obstacles: avoiding people in velocity space
+
+**One person, one cone.** Let the person be at relative position $d$, walking at $v_a$, and let $R$ be the robot's and the person's radii added (plus a clearance). If the robot moves at $u$, the relative velocity is $w = u - v_a$ and the robot meets the person at the first $t > 0$ with $|d - t\,w| = R$:
+$$
+|w|^2 t^2 - 2 (d\cdot w)\, t + |d|^2 - R^2 = 0, \qquad t = \frac{d\cdot w - \sqrt{(d\cdot w)^2 - |w|^2(|d|^2 - R^2)}}{|w|^2}.
+$$
+No real root, or a negative one, means no collision; a root within the horizon $\tau$ means the velocity $u$ is in the person's *velocity obstacle* $VO_a$. Over all $u$ this set is a cone with its apex at $v_a$ (the velocity that keeps the distance fixed) tangent to the disc of radius $R$ at $d$, truncated near the apex by the disc of radius $R/\tau$ at $d/\tau$, because a slow relative velocity meets the person only after the horizon. Already overlapping ($|d| \le R$) the robot is blocked unless $w$ points away.
+
+**The choice.** The tracker's command, speed times heading, is a velocity. If it lies in any cone the lab samples 76 candidates, speeds of 1, 0.75, 0.5 and 0.25 times the command at headings up to 90° either side in 10° steps, and a slow straight reverse, keeps those outside every cone, and takes the one with the smallest $|u - u_{cmd}|^2 + 0.03\,|\Delta\theta| + 0.02\,|\Delta\theta - \Delta\theta_{last}|$; the last term keeps it from dithering between two equal detours. With no free candidate it stops. The chosen speed replaces the command's and the heading change becomes a turn rate over half a second added to the tracker's own; on the car it becomes a steering increment. The drawing in the world scales velocities by $\tau$: the apex sits where the robot would be in $\tau$ moving with the person, the disc at the person's predicted position.
+
+**What it assumes.** That every person keeps their velocity for $\tau$, that the robot is the only one avoiding, and that nothing else is in the way. Each assumption has a measured consequence below: scripted people who walk through the robot leave contacts no velocity can avoid in a one-metre aisle; reacting people make the method work better than it should (reciprocal velocity obstacles, which split the avoidance, are the honest version); and a detour chosen without the map walks into a shelf, which is why DWA scores the costmap and the people together and ORCA adds walls as constraints.
+
+**Measured** on L5 at seed 7, pure pursuit, 150 s, lidar tracking unless stated:
+
+| People | Response | Contacts | Closest | Notes |
+| --- | --- | --- | --- | --- |
+| scripted | ignore | 4 | – | 83 m, five goals in 123 s |
+| scripted | reactive stop | 4 | – | |
+| scripted | speed planning (ST) | 2 | – | four yields |
+| scripted | velocity obstacles, τ 3 s | 3 | – | 145 interventions, 31 stops |
+| scripted | velocity obstacles, τ 2 s | 2 | – | 116 interventions, 17 stops |
+| scripted, truth tracking | velocity obstacles, τ 2 / 3 / 5 s | 2 / 3 / 3 | – | the shelves hide people the tracker never sees |
+| reacting | ignore | 2 | −0.18 m | |
+| reacting | reactive stop | 0 | 0.06 m | |
+| reacting | speed planning (ST) | 0 | 0.18 m | three agent-blocking replans |
+| reacting | velocity obstacles, τ 3 s | 0 | 0.30 m | two stops |
+| reacting | velocity obstacles, τ 2 s | 0 | 0.32 m | two collisions with shelves |
+| reacting | the same with the lidar safety stop | 0 | 0.33 m | no collision, three of five goals given up as stuck |
+
+[try: Velocity obstacles, 3 s horizon | {"sim":true,"level":4,"set":{"spd":"vo"},"tab":"ctl","layers":{"vo":true,"agents":true}}] [try: People who react | {"sim":true,"level":4,"set":{"spd":"vo","people":"reactive"},"tab":"ctl","layers":{"vo":true,"agents":true}}]
+
+## 10. What to carry into the next chapters
 
 Every planner here produces a path, and every path is a promise the tracker has to keep. Chapter 5 is about the trackers, and the margin Hybrid A* leaves on the steering lock is the first place the two chapters meet: a path planned at the vehicle's limit cannot be tracked, because tracking needs authority in reserve. The second meeting point is time: the space-time plan and the speed planner both assume the predictions of chapter 3, and the delay margin of chapter 6 is the same idea one layer down, how much lateness a loop can absorb before it fails.

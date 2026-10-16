@@ -940,6 +940,8 @@ const DEFAULTS = {
   agGrow: 0.1,
   agSigA: 0.8,
   spd: 'none',
+  voT: 3,
+  voMargin: 0.2,
   stMarg: 0.3,
   agPlan: true,
   people: 'scripted',
@@ -961,7 +963,7 @@ const PARAM_OPTS = {
   plan: ['straight', 'astar', 'dstar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'custom'],
   hybH: ['both', '2d'],
   ctl: ['pp', 'rwf', 'stanley', 'pid', 'dwa', 'mpc', 'custom'],
-  spd: ['none', 'stop', 'st'],
+  spd: ['none', 'stop', 'st', 'vo'],
   mpcMode: ['nmpc', 'ltv'],
   model: ['diff', 'car'],
   carPhys: ['kin', 'dyn'],
@@ -999,7 +1001,8 @@ const LAYERS = {
   ghostrun: true,
   sweep: true,
   frontier: true,
-  graph: true
+  graph: true,
+  vo: true
 };
 
 /* ---- core/record.js ---- */
@@ -1449,7 +1452,10 @@ const PARAM_EFFECTS = [
       logE(`Agent tracking → ${{off: 'off', truth: 'ground truth', lidar: 'lidar'}[v]}`);
     }
   ],
-  [['spd'], (k, v) => logE(`Response to agents → ${{none: 'ignore', stop: 'reactive stop', st: 'speed planning'}[v]}`)],
+  [
+    ['spd'],
+    (k, v) => logE(`Response to agents → ${{none: 'ignore', stop: 'reactive stop', st: 'speed planning', vo: 'velocity obstacles'}[v]}`)
+  ],
   [
     ['gyro', 'zupt'],
     (k, v) => {
@@ -5938,7 +5944,7 @@ function builtinCmd() {
     const de = Math.abs(c.steer - S.robot.d);
     if (de > 0.1) c.v *= clamp(1 - (de - 0.1) / 0.25, 0, 1);
   }
-  return lidarGuard(agSpeedCap(c));
+  return lidarGuard(agVO(agSpeedCap(c)));
 }
 // Lidar safety stop for the path trackers (P.guard), like a robot's collision monitor: they follow the path and never read
 // the lidar, so a wall the map has wrong (drift, a late scan) or a corner cut on the swing round it is hit side-on.
@@ -6857,6 +6863,96 @@ function agSpeedCap(c) {
   if (!isCar() && o.w != null) o.w = c.w * f;
   return o;
 }
+// @code vo | agVO: velocity obstacles, the tracker's command checked against every person's cone and moved out of it
+// Velocity obstacles (Fiorini & Shiller 1998): for each tracked person, the set of robot velocities that collide with
+// the person within τ, assuming the person keeps their velocity, is a cone in velocity space. The tracker's command is
+// a velocity; if it lies in any cone, the nearest velocity outside all of them is taken from a sampled set of speeds
+// and headings, and realized as a speed and a turn toward that heading. The people's own reaction is not modelled
+// (that is reciprocal VO), so two reacting parties can dance.
+function voHits(ux, uy, ax, ay, vx, vy, R, tau) {
+  // the first time t in (0, τ] at which the robot moving at (ux, uy) from the origin meets the disc of radius R
+  // centred at (ax, ay) moving at (vx, vy): the smaller root of |d − t w|² = R², w the relative velocity
+  const wx = ux - vx,
+    wy = uy - vy,
+    dd = ax * ax + ay * ay;
+  if (dd <= R * R) return wx * ax + wy * ay > 0 ? 0 : Infinity; // already overlapping: blocked unless moving apart
+  const ww = wx * wx + wy * wy,
+    dw = ax * wx + ay * wy;
+  if (ww < 1e-9 || dw <= 0) return Infinity; // not moving relative to it, or moving away
+  const disc = dw * dw - ww * (dd - R * R);
+  if (disc < 0) return Infinity; // the ray misses the disc
+  const t = (dw - Math.sqrt(disc)) / ww;
+  return t <= tau ? t : Infinity;
+}
+function agVO(c) {
+  S.vo = null;
+  if (P.spd !== 'vo' || !agOn() || !AG_PATH_CTL.includes(P.ctl) || S.fsm.state !== 'DRIVE' || !S.track) return c;
+  const ags = agList(8);
+  if (!ags.length) return c;
+  const e = S.est,
+    tau = P.voT,
+    th = e.th,
+    v0 = c.v || 0,
+    sp = Math.abs(v0),
+    dir = v0 < 0 ? -1 : 1,
+    cones = ags.map(t => ({ax: t.x - e.x, ay: t.y - e.y, vx: t.vx, vy: t.vy, R: RR + t.r + P.voMargin, id: t.id}));
+  const free = (ux, uy) => {
+    let tmin = Infinity;
+    for (const k of cones) tmin = Math.min(tmin, voHits(ux, uy, k.ax, k.ay, k.vx, k.vy, k.R, tau));
+    return tmin;
+  };
+  const hx = Math.cos(th) * dir,
+    hy = Math.sin(th) * dir,
+    ux0 = sp * hx,
+    uy0 = sp * hy,
+    t0 = free(ux0, uy0);
+  S.vo = {cones, tau, pref: [ux0, uy0], pick: null, tHit: t0, dir};
+  if (!isFinite(t0) || sp < 1e-3) return c; // the command is outside every cone: nothing to do
+  // the sampled candidates: speeds down from the command, headings up to 90° either side; the nearest free one wins,
+  // with a small preference for the heading chosen last tick (no dithering between two equal detours)
+  let best = null,
+    bc = Infinity;
+  const last = S.voLast || 0;
+  // the last candidate speed is a slow reverse: in an aisle, against someone walking at you, the only free velocity
+  for (const f of [1, 0.75, 0.5, 0.25, -0.4]) {
+    const s2 = sp * f;
+    for (let k = -9; k <= 9; k++) {
+      if (f < 0 && k !== 0) continue; // reverse: straight back only
+      const dth = k * (Math.PI / 18),
+        a = th + dir * dth,
+        ux = s2 * Math.cos(a) * dir,
+        uy = s2 * Math.sin(a) * dir;
+      if (!isFinite(free(ux, uy))) {
+        // free: no cone is entered within τ
+        const cost = (ux - ux0) ** 2 + (uy - uy0) ** 2 + 0.03 * Math.abs(dth) + 0.02 * Math.abs(dth - last);
+        if (cost < bc) {
+          bc = cost;
+          best = {s: s2, dth, ux, uy};
+        }
+      }
+    }
+  }
+  S.voN = (S.voN || 0) + 1;
+  if (!best) {
+    // every sampled velocity collides within τ: stop, keep steering (the person is expected to pass)
+    S.voLast = 0;
+    S.vo.pick = [0, 0];
+    S.voStops = (S.voStops || 0) + 1;
+    return isCar() ? {...c, v: 0} : {...c, v: 0, w: 0};
+  }
+  S.voLast = best.dth;
+  S.vo.pick = [best.ux, best.uy];
+  // the heading change becomes a turn over about half a second, added to the tracker's own turn
+  const wAdd = clamp(best.dth / 0.5, -P.wmax, P.wmax),
+    v = dir * best.s;
+  if (isCar()) {
+    const sm = steerMax(),
+      st = clamp((c.steer || 0) + Math.atan((P.wheelbase * wAdd) / Math.max(0.2, best.s)), -sm, sm);
+    return {...c, v, steer: st};
+  }
+  return {...c, v, w: clamp((c.w || 0) + wAdd, -P.wmax, P.wmax)};
+}
+// @end
 // The controller's own prediction of the ego, for the map and the ST graph
 function agPost() {
   const A = S.agents;

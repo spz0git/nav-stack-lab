@@ -251,6 +251,8 @@ function renderBeaconSensor() {
   el.innerHTML = beaconSensorHTML();
 }
 const TIPS = {
+  voT: "How far ahead a collision counts: a robot velocity that meets a person within this time is inside that person's velocity obstacle. Short: late, sharp detours; long: wide berths and more false alarms from people who will have turned.",
+  voMargin: "Added to the sum of the robot's and the person's radii when the cones are built: the gap the detour keeps.",
   pgKf: 'A new keyframe (a pose with its scan, joined to the previous one by an odometry edge) every time the robot has moved this far or turned 20°. Closer keyframes give more loop closures and a bigger graph to optimize.',
   pgMatch:
     'Each new keyframe is first aligned to the map the keyframes have built so far (Gauss–Newton on its distance field) and fused with the odometry; the edge to the previous keyframe then carries that matched motion. Off: the edges are the raw odometry, and only loop closures correct the drift.',
@@ -288,7 +290,7 @@ const TIPS = {
   agPlan: 'When the speed planner cannot avoid an agent, replan around its predicted positions.',
   ctl: 'Path tracker that turns the plan into speed and steering.',
   vcruise: 'Speed the reference profile aims for on straights.',
-  spd: "How path trackers and MPC react to tracked agents. Ignore: not at all. Reactive stop: brake for hits in the corridor ahead (path trackers). Speed planning: ST-graph speed profile against the predictions; it caps a path tracker's speed and is MPC's reference.",
+  spd: "How path trackers and MPC react to tracked agents. Ignore: not at all. Reactive stop: brake for hits in the corridor ahead (path trackers). Velocity obstacles: steer and slow to the nearest velocity outside every person\'s collision cone (path trackers). Speed planning: ST-graph speed profile against the predictions; it caps a path tracker's speed and is MPC's reference.",
   stMarg: 'Clearance the speed planner keeps from predicted agents.',
   ppL0: 'Lookahead distance at zero speed.',
   ppK: 'Extra lookahead per m/s of speed.',

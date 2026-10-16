@@ -257,7 +257,13 @@ const LAYER_DEFS = [
   ['ghostrun', 'Previous run', 'Ghost trail and ghost plot series', ''],
   ['sweep', 'Experiment runs', "The paths of the last experiment's runs, coloured by the varied value", ''],
   ['frontier', 'Frontiers', 'Known free cells next to unknown space, the chosen frontier brighter (Mission → Explore)', 'plan'],
-  ['graph', 'Pose graph', 'Keyframes and their edges; loop closures in the accent colour (Localize → Pose-graph SLAM)', 'loc']
+  ['graph', 'Pose graph', 'Keyframes and their edges; loop closures in the accent colour (Localize → Pose-graph SLAM)', 'loc'],
+  [
+    'vo',
+    'Velocity obstacles',
+    "Each person's cone of colliding velocities, the command and the chosen velocity (Control → Response to agents → Velocity obstacles)",
+    'ctl'
+  ]
 ];
 // [has something to draw now?, status text]
 function layerStatus(k) {
@@ -301,6 +307,10 @@ function layerStatus(k) {
         : [0, 'only the car with tyre slip (Vehicle)'];
     case 'ghostrun':
       return GHOST && GHOST.level === LV.id ? [1, GHOST.label] : [0, 'no previous run on this level'];
+    case 'vo':
+      return P.spd === 'vo'
+        ? [S.vo ? 1 : 0, S.vo ? `${S.vo.cones.length} cone${S.vo.cones.length === 1 ? '' : 's'}` : 'no tracked person near']
+        : [0, 'only with Response to agents → Velocity obstacles'];
     case 'graph':
       return S.pg ? [1, `${S.pg.nodes.length} keyframes, ${S.pg.loops} loop closures`] : [0, 'only with pose-graph SLAM (Localize)'];
     case 'frontier':

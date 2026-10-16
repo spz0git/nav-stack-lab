@@ -5,6 +5,14 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 ## Unreleased
 
+- Velocity obstacles (Control → Response to agents → Velocity obstacles, for the path trackers): one cone per tracked
+  person (the ray-disc quadratic within a horizon τ), the tracker's command tested against them and, when inside,
+  replaced by the nearest of 76 sampled velocities outside all cones (speeds down to a quarter, headings to 90°, a
+  slow reverse), realized as a speed and a turn; stop when none is free. A Velocity obstacles map layer (the cones in
+  world coordinates scaled by τ, the command and the chosen velocity), horizon and clearance sliders, a Control info
+  line with the interventions and stops. Perception lesson 6, *Velocity obstacles: steering around people in velocity
+  space*, five measured experiments on the busy floor (scripted people who walk through the robot, reacting people,
+  the shelf the cones do not know), chapter 4 §9.
 - D* Lite (Plan → D* Lite, `core/planning-dstar.js`): the grid search kept between plans, run from the goal, with g and
   rhs per cell, the two-part key packed into one number, k_m for the robot's motion, a costmap diff (lethal flips and
   penalty moves over 0.1) that repairs only the touched vertices; the same cost model as A*, so the same paths; the

@@ -101,6 +101,8 @@ const DEFAULTS = {
   agGrow: 0.1,
   agSigA: 0.8,
   spd: 'none',
+  voT: 3,
+  voMargin: 0.2,
   stMarg: 0.3,
   agPlan: true,
   people: 'scripted',
@@ -122,7 +124,7 @@ const PARAM_OPTS = {
   plan: ['straight', 'astar', 'dstar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'custom'],
   hybH: ['both', '2d'],
   ctl: ['pp', 'rwf', 'stanley', 'pid', 'dwa', 'mpc', 'custom'],
-  spd: ['none', 'stop', 'st'],
+  spd: ['none', 'stop', 'st', 'vo'],
   mpcMode: ['nmpc', 'ltv'],
   model: ['diff', 'car'],
   carPhys: ['kin', 'dyn'],
@@ -160,5 +162,6 @@ const LAYERS = {
   ghostrun: true,
   sweep: true,
   frontier: true,
-  graph: true
+  graph: true,
+  vo: true
 };

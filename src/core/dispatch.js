@@ -5,7 +5,7 @@ function builtinCmd() {
     const de = Math.abs(c.steer - S.robot.d);
     if (de > 0.1) c.v *= clamp(1 - (de - 0.1) / 0.25, 0, 1);
   }
-  return lidarGuard(agSpeedCap(c));
+  return lidarGuard(agVO(agSpeedCap(c)));
 }
 // Lidar safety stop for the path trackers (P.guard), like a robot's collision monitor: they follow the path and never read
 // the lidar, so a wall the map has wrong (drift, a late scan) or a corner cut on the swing round it is hit side-on.

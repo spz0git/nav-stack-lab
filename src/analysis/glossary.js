@@ -748,7 +748,24 @@ const GLOSS = {
     '',
     ['rhs', 'lookahead']
   ],
-  km: ['k_m', "D* Lite's key offset: the heuristic change from the robot's motion, added once instead of re-keying the queue.", '', ['k_m']]
+  km: [
+    'k_m',
+    "D* Lite's key offset: the heuristic change from the robot's motion, added once instead of re-keying the queue.",
+    '',
+    ['k_m']
+  ],
+  vo: [
+    'velocity obstacle',
+    'The set of robot velocities that collide with a moving person within the horizon, assuming the person keeps their velocity: a cone in velocity space.',
+    '',
+    ['velocity obstacles', 'velocity obstacle']
+  ],
+  rvo: [
+    'reciprocal velocity obstacles',
+    'Velocity obstacles for two parties that both avoid: each takes half the detour, which stops the dance of two VO agents.',
+    '',
+    ['Reciprocal velocity obstacles', 'reciprocal velocity obstacles', 'RVO']
+  ]
 };
 // Terms each lesson uses, in reading order (keyed by lesson title)
 // the car with tyre slip (lessons on the dynamic bicycle model)
@@ -868,6 +885,8 @@ const LESSON_TERMS = {
   'Tracking people: from lidar hits to tracks':
     'cluster lidar cvkf track mahal confirm coast xag pxy vxy Fcv Qproc siga d2 pt pag vag t rt rag ggrow groundtruth',
   'Sensor latency: stale readings, moving prediction': 'latency tick lidar beacon nu Ts v nees ekf pf inject timestamp lagged biased',
+  'Velocity obstacles: steering around people in velocity space':
+    'vo rvo track cvkf agent speedplanner socialforce contacts closest lidar costmap tracker',
   'People who react': 'socialforce Fsf v0p edir vp tausf sumO Asf rij dpp Bsf ndir contacts closest',
   'A*: the heuristic and ε': 'astar node fcost gcost hcost heur admissible eightconn octile eps weighted expansions',
   'RRT*: sampling, rewiring, and luck': 'rrtstar samples parent rewire neigh asym rrad ntree seed',

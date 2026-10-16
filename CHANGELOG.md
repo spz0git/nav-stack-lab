@@ -5,7 +5,17 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 ## Unreleased
 
-Phase 4, Track B (modular learning), first block:
+Phase 4, the learning tracks, first blocks:
+
+- An end-to-end policy (Plan → Learned policy): a multilayer perceptron (139 → 256 → 256 → 16, 105 744 parameters,
+  665 KB inlined) from the scan with sector minima, the odometry and the goal in the robot frame to eight waypoints
+  along the route, run as a planner the tracker follows, replanned every 0.5 s, with a safety layer that moves a
+  waypoint out of an inflated obstacle; a subgoal mode points it 3 m along the A* route. Trained by behaviour cloning
+  (`tools/collect-policy.mjs`: random goals, actuation noise on the expert's commands, A* labels; DAgger rounds with
+  the policy driving; `training/policy/train.py`). Measured and told plainly in planning lesson 8 and chapter 4 §10:
+  all goals on the open floor, four of five on the busy floor it never saw, a collision at the first shelf corner of
+  the aisles and the building's doors beyond it, through noise injection, DAgger and the subgoal. `actNoise` on the
+  vehicle for the collectors, `setGoals` for goal lists, a Node test of the perceptron.
 
 - A learned people detector (Perceive → Agent tracking → Learned detector + Kalman): a 1D convolutional network over the
   120 beams (circular padding, 8 017 parameters, 66 KB inlined) that labels each beam "person" or "static" from six

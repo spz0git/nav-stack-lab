@@ -62,12 +62,7 @@ async function tryGo(cfg) {
   if (cfg.level != null) LV = LEVELS[cfg.level];
   if (!cfg.keep) loadLevel(LEVELS.indexOf(LV));
   for (const [k, v] of Object.entries(cfg.set || {})) setParam(k, v, false);
-  if (cfg.goals) {
-    // a Try with its own goals (a loop to close): the mission restarts on them
-    WPS = cfg.goals.map(g => ({x: g[0], y: g[1], th: g.length > 2 && g[2] != null ? g[2] : null, done: false}));
-    startMission();
-    doPlan('initial');
-  }
+  if (cfg.goals) setGoals(cfg.goals); // a Try with its own goals (a loop to close): the mission restarts on them
   if (cfg.tab) {
     activeTab = cfg.tab;
     consoleOpen = true;
@@ -251,6 +246,8 @@ function renderBeaconSensor() {
   el.innerHTML = beaconSensorHTML();
 }
 const TIPS = {
+  policyGoal:
+    'The end-to-end policy sees only the scan and a goal direction. Pointed at the mission goal it has to find its way through a building from the scan alone, which a reactive policy cannot; pointed at a point 3 m along a classical global route it only has to drive and avoid, which it can. The second is the hybrid most learned navigation stacks use.',
   agICP:
     "Each track keeps the hit points of its last detection; the next detection's points are aligned to them by ICP, and the displacement over the 0.1 s between scans is a velocity measurement the Kalman filter fuses directly, instead of inferring velocity from positions over a second.",
   voT: "How far ahead a collision counts: a robot velocity that meets a person within this time is inside that person's velocity obstacle. Short: late, sharp detours; long: wide berths and more false alarms from people who will have turned.",

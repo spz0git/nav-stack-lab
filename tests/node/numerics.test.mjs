@@ -183,3 +183,15 @@ test('nnForward: a circular 1D convolution matches the hand-computed values', ()
   near(y[1], sig(1 * 1 + 2 * 0 + 3 * 0 + 0.5), 1e-6, 'y1');
   near(y[3], sig(7.5), 1e-6, 'y3');
 });
+
+test('mlpForward: two dense layers match the hand-computed values', () => {
+  const model = {
+    layers: [
+      {nin: 2, nout: 2, w: [1, -1, 0.5, 0.5], b: [0, -1], act: 'relu'},
+      {nin: 2, nout: 1, w: [2, 3], b: [0.25], act: 'none'}
+    ]
+  };
+  // x = (2, 1): layer 1 gives relu(2·1 + 1·(−1) + 0) = 1 and relu(2·0.5 + 1·0.5 − 1) = 0.5; layer 2: 2·1 + 3·0.5 + 0.25 = 3.75
+  const y = C.mlpForward(model, new Float32Array([2, 1]));
+  near(y[0], 3.75, 1e-6, 'y');
+});

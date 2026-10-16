@@ -28,3 +28,20 @@ function nnForward(model, x, n) {
   return cur;
 }
 // @end
+// @code mlp-forward | mlpForward: a multilayer perceptron, dense layers with ReLU
+function mlpForward(model, x) {
+  let cur = x;
+  for (const L of model.layers) {
+    const {nin, nout, w, b} = L,
+      out = new Float32Array(nout);
+    for (let o = 0; o < nout; o++) {
+      let s = b[o];
+      const base = o * nin;
+      for (let i = 0; i < nin; i++) s += w[base + i] * cur[i];
+      out[o] = L.act === 'relu' ? (s > 0 ? s : 0) : L.act === 'tanh' ? Math.tanh(s) : s;
+    }
+    cur = out;
+  }
+  return cur;
+}
+// @end

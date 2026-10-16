@@ -136,7 +136,16 @@ A third vehicle option, so that the control lessons can show understeer, the cha
   class weight is the square root of the ratio (the full ratio buys recall with false beams); a 0.6 threshold and a
   two-beam minimum per detection; both levels with people are in the training set, so the only shift the lab can
   show is a new seed, which the lesson says. Per-target scan matching is a Kalman velocity measurement from ICP of
-  a track's hits (ICP got a minimum-pairs parameter for that). Next: C1, the end-to-end lidar-to-trajectory policy.
+  a track's hits (ICP got a minimum-pairs parameter for that).
+- Track C, first block (C1): the end-to-end policy, `training/policy/`, `src/models/policy.json`, `policyPlan`. What
+  was tried, in order, each measured (chapter 4 §10): driven trajectories as labels (compounding error, 2 of 4 on
+  L1); noise injection with expert-route labels (L1 solved, the busy floor mostly); sector-minimum features, a wider
+  net, two DAgger rounds and a safety layer that snaps waypoints out of the inflation (L3 and L5 better, the aisles
+  not: a 10 cm corner cut at the first shelf end pins the robot, and no demonstration shows backing out); a
+  classical subgoal (no help: the failure is local). The forward pass was checked against PyTorch to the third
+  decimal, so the result is the policy's. Honest next steps if the track is pursued: a convolutional encoder over
+  the beams, data concentrated at corners and doors, a recovery behaviour in the safety layer, RL fine-tuning (C3).
+  The page is 3.7 MB with both models; a third would want a lighter export (float16 or quantized weights).
 - The code behind every lesson (owner's direction: show the code and let the learner change it; "Your code" was a
   button with no explanation). A function marked `// @code <id> | <title>` … `// @end` in the source is a snippet; the
   build indexes the markers (`tools/code.mjs`) and the page cuts the text from its own script tag at runtime

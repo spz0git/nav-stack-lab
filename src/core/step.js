@@ -93,6 +93,17 @@ function normCmd(c) {
 }
 // Control latency: commands wait latency/DT ticks before reaching the actuators
 function applyCmd(c) {
+  if (P.actNoise > 0 && S.fsm.state === 'DRIVE') {
+    // noise on what is executed, not on what the controller meant: the behaviour-cloning collector records the expert's
+    // intended path while the robot wanders off it, so the data covers the states the learned policy will drift into
+    const g = S.rngA;
+    c = {
+      ...c,
+      v: c.v * (1 + 0.25 * P.actNoise * g.n()),
+      w: c.w != null ? c.w + P.actNoise * g.n() : c.w,
+      steer: c.steer != null ? c.steer + 0.3 * P.actNoise * g.n() : c.steer
+    };
+  }
   // the zero-velocity update needs the robot still: with it on, the first 2 s of a run are a calibration hold
   if (P.gyro && P.zupt && S.t < 2) c = {v: 0, w: 0, steer: 0};
   S.cmdIssued = c;

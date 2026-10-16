@@ -51,9 +51,13 @@ Every pull request:
   (`core/config.js`), never by writing `P.x` from the UI.
 - A number the user sees comes from the simulation or the analysis, not from a constant in the UI.
 
-Lessons are in `src/analysis/lessons.js` and `lessons2.js` (`['Label', cfg, {setup, see, shows}]` Trys; `q:` for
-questions); chapters in `docs/notes/*.md` (markdown + TeX, `{{live:key}}` values from `src/ui/chapters.js`,
-`[try: Label | {cfg}]` buttons; the header of `tools/notes.mjs` documents both).
+Lessons are markdown files in `docs/lessons/<group>/*.md`: front matter (group, title), the body, then one
+`## Try: Label` section per experiment (`cfg:` as JSON, `Setup:`, `See:`, `Shows:`, a `Predict:` question with its
+`- options` and the `Answer:` index), `## Think about` (Q:/A: pairs) and `## Check yourself` (Q:, Answer:, Tolerance:,
+Unit:, How:); the header of `tools/lessons.mjs` documents the format and the build inlines them. Chapters are
+`docs/notes/*.md` (markdown + TeX, `{{live:key}}` values from `src/ui/chapters.js`, `[try: Label | {cfg}]` buttons;
+the header of `tools/notes.mjs` documents both). A new lesson's terms go in `LESSON_TERMS` in
+`src/analysis/glossary.js`, keyed by its title.
 
 ## Pull requests
 

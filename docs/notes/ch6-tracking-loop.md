@@ -64,7 +64,7 @@ Linearized about the path, pure pursuit commands $\omega = -K_e\,e - K_\theta\,\
 
 [try: Pure pursuit, L1 defaults | {"level":0,"set":{"ctl":"pp"}}] [try: Lookahead 0.4 m | {"level":0,"set":{"ctl":"pp","ppL0":0.1,"ppK":0.375}}] [try: Lookahead 2 m | {"level":0,"set":{"ctl":"pp","ppL0":1.6}}]
 
-The controller as the app runs it (`ctlPP` in `core/controllers.js`): take the path point a lookahead distance $L_d$ beyond the foot of the perpendicular, the carrot; measure the angle $\alpha$ from the heading to the carrot and the straight-line distance $\ell$ to it; drive along the circular arc through the robot that is tangent to the heading and passes through the carrot. The chord $\ell$ subtends $2\alpha$ at that circle's centre, so its curvature is
+The controller as the app runs it (`ctlPP` in `core/controllers.js`) has three steps. Take the path point a lookahead distance $L_d$ beyond the foot of the perpendicular: the carrot. Measure the angle $\alpha$ from the heading to the carrot and the straight-line distance $\ell$ to it. Drive along the circular arc through the robot that is tangent to the heading and passes through the carrot. The chord $\ell$ subtends $2\alpha$ at that circle's centre, so its curvature is
 
 $$
 \kappa = \frac{2\sin\alpha}{\ell},\qquad \omega = v\,\kappa\ \text{(unicycle)},\qquad \delta = \arctan(L\,\kappa)\ \text{(bicycle)}

@@ -39,6 +39,7 @@
  "analysis/model.js",
  "analysis/speed.js",
  "analysis/ui.js",
+ "analysis/lessons-data.js",
  "analysis/lessons2.js",
  "analysis/lessons.js",
  "analysis/glossary.js",

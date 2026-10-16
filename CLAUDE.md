@@ -26,8 +26,9 @@
   (`tools/vendor/temml`, build-time only; the page keeps zero runtime dependencies). Live values are defined in
   `src/ui/chapters.js` (LIVE). `tests/chtest.py` opens every chapter, checks every live value fills, presses every Try button, and
   follows every derivation link in the lessons (`a.chref`, `#notes=<ch>/<section-slug>`) there and back.
-- Lessons (`src/analysis/lessons.js`, `lessons2.js`): a Try is `['Label', cfg]` or, explained, `['Label', cfg, {setup, see, shows}]`;
-  a lesson may carry `q: [[question, answer], …]`. Numbers in a lesson's "What you will see" are measured headless first
+- Lessons are markdown in `docs/lessons/<group>/*.md` (format in the header of `tools/lessons.mjs`; the build inlines them as
+  `LESSON_DATA`): a `## Try: Label` section per experiment with `cfg:`, `Setup:`, `See:`, `Shows:`, `Predict:` + options + `Answer:`;
+  `## Think about` Q:/A: pairs; `## Check yourself`. Their terms stay in `LESSON_TERMS` (`src/analysis/glossary.js`), keyed by title. Numbers in a lesson's "What you will see" are measured headless first
   (`tests/measure_loc.py` for localization, `tests/measure_per.py` for perception, `tests/measure_plan.py` for planning, which can press a Try button's cfg exactly; `tests/measure_dyn.py` for the car with tyre slip, which presses every Try of a control lesson by title; `tests/tles.py` prints the analysis numbers for the control lessons); derivations go in the chapter, the lesson keeps a short "where it comes from" and the link.
 - Before committing: `./build.sh`, then from `tests/`: `python3 test.py` (L1–L5 regression summary must not change unless
   intended), `python3 p5test.py` (all Try buttons, ERRORS must be []), `python3 tles.py` (lessons), `python3 chtest.py` (companion notes),

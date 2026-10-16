@@ -18,10 +18,10 @@ function drawMaybeReplay(){
 function seekTime(t){
   const i=frameAt(t);if(i<0)return;
   running=false;REPLAY.active=true;REPLAY.i=i;logDirty=true;
-  syncScrub();drawMaybeReplay();drawPlot();refreshAll();
+  syncScrub();drawMaybeReplay();drawPlot();refreshAll();hashSoon();
 }
 function seekFrame(i){const n=REC.frames.length;if(!n)return;seekTime(REC.frames[clamp(i,0,n-1)].t);}
-function exitReplay(){if(REPLAY.active){REPLAY.active=false;logDirty=true;syncScrub();draw();drawPlot();refreshAll();}}
+function exitReplay(){if(REPLAY.active){REPLAY.active=false;logDirty=true;syncScrub();draw();drawPlot();refreshAll();hashSoon();}}
 // Event marks: what a log line means for the timeline
 const TL_KINDS=[[/^(Plan|Replan)\b/,'plan','plan'],[/^Reached goal|^Mission complete/,'goal','goal'],[/Collision|walked into|contact/i,'contact','contact'],
   [/kidnapped|Scattered|Relocali[sz]ed|Position σ/,'loc','localization'],[/no path|Skipping goal|Speed planner|stuck/i,'warn','warning']];

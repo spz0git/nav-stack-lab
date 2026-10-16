@@ -8,7 +8,7 @@ const MODE_HINT={sim:'Run the stack on the map; tune it in the tabs on the right
 function setUIMode(m){
   if(m==='learn'){if(uiMode==='learn'&&lessonOpen)lessonBack();if(uiMode==='learn'&&chapterOpen)chapterBack();uiMode='learn';}
   else{uiMode=m;setMode(m);}
-  syncModeUI();
+  syncModeUI();hashSoon();
 }
 function syncModeUI(){
   $('#modesel').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===uiMode)));
@@ -35,7 +35,7 @@ function openLesson(id,opts){
   const fresh=lessonOpen!==id&&!(opts&&opts.restore);
   if(!userLayers)userLayers={...LAYERS};
   lessonOpen=id;Object.assign(LAYERS,lessonLayers(id));if(!LEARN.seen[id]){LEARN.seen[id]=1;learnSave();}renderLearn();
-  if(fresh)lessonStage(id);else draw();
+  if(fresh)lessonStage(id);else draw();hashSoon();
   const v=$('#learnview');if(v.getBoundingClientRect().top<0)v.scrollIntoView({block:'start'});return true;
 }
 function lessonStage(id){
@@ -45,7 +45,7 @@ function lessonStage(id){
 }
 function lessonBack(){
   lessonOpen=null;if(userLayers){Object.assign(LAYERS,userLayers);userLayers=null;}
-  renderLearn();draw();if(activeTab==='view')renderAllPanes();
+  renderLearn();draw();if(activeTab==='view')renderAllPanes();hashSoon();
 }
 function lessonLink(id){const[g,i]=id.split(':');return location.href.split('#')[0]+`#lesson=${g}:${+i+1}`;}
 // A lesson body: the text, its experiments, questions, then its terms. A try is [label, cfg] or, explained,

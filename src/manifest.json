@@ -59,5 +59,6 @@
  "ui/polish.js",
  "ui/loop.js",
  "ui/workspace.js",
+ "ui/urlstate.js",
  "ui/boot.js"
 ]

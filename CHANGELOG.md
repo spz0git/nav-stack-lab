@@ -10,6 +10,13 @@ Phase 2, workspace polish (from the assessment of 2026-10-15):
 - The preset plot follows the level until you pick one: cross-track where the pose is known (L1, L2, L6, L7),
   position error where there is an estimate to judge. With ground truth the status strip says "pose known" and the
   metrics show one line instead of a zero pose error, a zero RMS and an empty NEES.
+- Phone: the level selector is a row again (the app bar's 380 px flex basis had become its height), the world is
+  fitted left of the view buttons so the east wall's beacons can be tapped, and in the stacked layouts a plain wheel
+  scrolls the page past the map while Ctrl or ⌘ + wheel (a pinch) zooms it.
+- The address bar always says what the page shows: the setup link in Simulate (`#l=L3&seed=7&loc=ekf…`), with
+  `mode=an` in Analyze and `t=12.3` while a recorded moment is replayed; `#learn`, `#lesson=…` or `#notes=…` in
+  Learn. A pasted link applies while the page is open, and a link with `t=` runs the setup to that moment and shows
+  it paused (`ui/urlstate.js`).
 
 ## v34 · 2026-10-16
 

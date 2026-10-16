@@ -6022,7 +6022,7 @@ function buildTabs(){
     activeTab=id;consoleOpen=true;buildTabs();renderAllPanes();});
   $('.console').classList.toggle('collapsed',!consoleOpen);
 }
-function renderAllPanes(){
+function renderAllPanes(){hashSoon();
   applyTabLayers();
   const t=activeTab;let html='';btnActs=[];infoFns=[];   // data-act / data-info index these, per render
   if(t==='code')html=codePane();
@@ -7252,7 +7252,7 @@ let anTimer=null;
 function anInvalidate(keepMeas){AN.dirty=true;AN.wi=null;AN.resSpd=null;if(!keepMeas){AN.meas={step:null,freq:null,spd:null};AN.msg='';}chapterLiveSoon();
   if(AN.mode==='an'){clearTimeout(anTimer);anTimer=setTimeout(renderAnalysis,90);}}
 function setMode(m){AN.mode=m;$('#simview').hidden=m!=='sim';$('#anview').hidden=m!=='an';
-  if(uiMode!=='learn')uiMode=m;syncModeUI();
+  if(uiMode!=='learn')uiMode=m;syncModeUI();hashSoon();
   if(m==='an'){running=false;AN.dirty=true;renderAnalysis();}else{draw();drawPlot();refreshAll();}}
 
 /* ---- analysis/lessons-data.js ---- */
@@ -7677,7 +7677,7 @@ const MODE_HINT={sim:'Run the stack on the map; tune it in the tabs on the right
 function setUIMode(m){
   if(m==='learn'){if(uiMode==='learn'&&lessonOpen)lessonBack();if(uiMode==='learn'&&chapterOpen)chapterBack();uiMode='learn';}
   else{uiMode=m;setMode(m);}
-  syncModeUI();
+  syncModeUI();hashSoon();
 }
 function syncModeUI(){
   $('#modesel').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===uiMode)));
@@ -7704,7 +7704,7 @@ function openLesson(id,opts){
   const fresh=lessonOpen!==id&&!(opts&&opts.restore);
   if(!userLayers)userLayers={...LAYERS};
   lessonOpen=id;Object.assign(LAYERS,lessonLayers(id));if(!LEARN.seen[id]){LEARN.seen[id]=1;learnSave();}renderLearn();
-  if(fresh)lessonStage(id);else draw();
+  if(fresh)lessonStage(id);else draw();hashSoon();
   const v=$('#learnview');if(v.getBoundingClientRect().top<0)v.scrollIntoView({block:'start'});return true;
 }
 function lessonStage(id){
@@ -7714,7 +7714,7 @@ function lessonStage(id){
 }
 function lessonBack(){
   lessonOpen=null;if(userLayers){Object.assign(LAYERS,userLayers);userLayers=null;}
-  renderLearn();draw();if(activeTab==='view')renderAllPanes();
+  renderLearn();draw();if(activeTab==='view')renderAllPanes();hashSoon();
 }
 function lessonLink(id){const[g,i]=id.split(':');return location.href.split('#')[0]+`#lesson=${g}:${+i+1}`;}
 // A lesson body: the text, its experiments, questions, then its terms. A try is [label, cfg] or, explained,
@@ -7951,7 +7951,7 @@ const chapterById=id=>CHAPTERS.find(c=>c.id===id);
 function openChapter(id,sec){
   const c=chapterById(id);if(!c)return false;
   chapterFrom=lessonOpen;if(lessonOpen)lessonBack();
-  chapterOpen=id;chapterSec=sec||null;renderLearn();
+  chapterOpen=id;chapterSec=sec||null;renderLearn();hashSoon();
   const v=$('#learnview'),h=sec&&v.querySelector('#n-'+sec);
   if(h)h.scrollIntoView({block:'start'});else if(v.getBoundingClientRect().top<0)v.scrollIntoView({block:'start'});return true;
 }
@@ -8130,6 +8130,7 @@ function configFromHash(){
   const h=location.hash.slice(1);if(!h||!/^l=L\d/.test(h))return null;const c={params:{}};
   for(const part of h.split('&')){const[k,v]=part.split('=');const val=decodeURIComponent(v||'');
     if(k==='l')c.level=val;else if(k==='seed')c.seed=+val;else if(k==='goals')c.goals=val.split(';').map(g=>g.split(',').map(x=>x===''?null:+x));
+    else if(k==='mode')c.mode=val;else if(k==='t')c.t=+val;
     else if(k in DEFAULTS){const d=DEFAULTS[k];c.params[k]=typeof d==='boolean'?val==='1'||val==='true':typeof d==='number'?+val:val;}}
   return c;
 }
@@ -8155,10 +8156,10 @@ function drawMaybeReplay(){
 function seekTime(t){
   const i=frameAt(t);if(i<0)return;
   running=false;REPLAY.active=true;REPLAY.i=i;logDirty=true;
-  syncScrub();drawMaybeReplay();drawPlot();refreshAll();
+  syncScrub();drawMaybeReplay();drawPlot();refreshAll();hashSoon();
 }
 function seekFrame(i){const n=REC.frames.length;if(!n)return;seekTime(REC.frames[clamp(i,0,n-1)].t);}
-function exitReplay(){if(REPLAY.active){REPLAY.active=false;logDirty=true;syncScrub();draw();drawPlot();refreshAll();}}
+function exitReplay(){if(REPLAY.active){REPLAY.active=false;logDirty=true;syncScrub();draw();drawPlot();refreshAll();hashSoon();}}
 // Event marks: what a log line means for the timeline
 const TL_KINDS=[[/^(Plan|Replan)\b/,'plan','plan'],[/^Reached goal|^Mission complete/,'goal','goal'],[/Collision|walked into|contact/i,'contact','contact'],
   [/kidnapped|Scattered|Relocali[sz]ed|Position σ/,'loc','localization'],[/no path|Skipping goal|Speed planner|stuck/i,'warn','warning']];
@@ -9233,11 +9234,48 @@ $('#modesel').addEventListener('click',e=>{const b=e.target.closest('button');if
  ro.observe($('.mapwrap'));ro.observe($('#plotcol'));ro.observe($('.stage'));}
 wsApply();
 
+/* ---- ui/urlstate.js ---- */
+/* ============================================================
+   URL state (Phase 2.3): the hash always says what the page shows. In Simulate and Analyze it is the setup link
+   (#l=L3&seed=7&loc=ekf…, as Copy link writes it) plus mode=an in Analyze and t=<s> while a recorded moment is
+   replayed; in Learn it is #learn, #lesson=… or #notes=… (learn.js, chapters.js). Written with replaceState, so the
+   back button is untouched and a pasted link reproduces the setup; a link with t= runs the setup headless to that
+   moment and shows it paused. Writes are debounced and skipped when nothing changed.
+   ============================================================ */
+let hashLast=null,hashTimer=null;
+function hashNow(){
+  let h;
+  if(uiMode==='learn')h=lessonOpen?lessonLink(lessonOpen).split('#')[1]:chapterOpen?chapterLink(chapterOpen,chapterSec).split('#')[1]:'learn';
+  else{h=configURL().split('#')[1];if(AN.mode==='an')h+='&mode=an';else if(REPLAY.active)h+=`&t=${shownT().toFixed(1)}`;}
+  return h;
+}
+function hashSync(){
+  if(!S||!LV)return;let h;try{h=hashNow();}catch(_){return;}
+  if(h===hashLast)return;hashLast=h;
+  if(location.hash.slice(1)===h)return;
+  try{history.replaceState(null,'','#'+h);}catch(_){}
+}
+function hashSoon(){clearTimeout(hashTimer);hashTimer=setTimeout(hashSync,250);}
+// A pasted or edited setup link while the page is open: apply it (our own writes do not fire hashchange)
+window.addEventListener('hashchange',()=>{
+  const h=location.hash.slice(1);if(h===hashLast)return;
+  if(h==='learn'){setUIMode('learn');hashLast=h;return;}
+  const c=configFromHash();if(!c)return;
+  try{applyConfig(c);hashLast=h;if(c.mode==='an')setMode('an');else if(c.t>0)runToMoment(c.t);}catch(e){logE('Could not apply the link: '+e.message,'warn');}
+});
+// t=<s>: run the setup headless to that moment, then show it paused as a replay
+async function runToMoment(t){
+  const n=Math.round(clamp(t,0,300)/DT);if(!n)return;
+  if((S.fsm.state==='IDLE'||S.fsm.state==='DONE')&&remaining().length)startMission();
+  running=false;await advance(n);seekTime(t);logE(`Ran the setup to ${t.toFixed(1)} s from the link`,'ok');
+}
+
 /* ---- ui/boot.js ---- */
 
 /* ---------- boot ---------- */
-UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{SEL=null;buildLevels();applyTabLayers(true);plotDefault();renderAllPanes();};UI.mode=()=>AN.mode;
-buildTabs();loadLevel(0);{const c=configFromHash();if(c){try{applyConfig(c);logE('Setup restored from the link','ok');}catch(e){logE('Could not restore the setup from the link: '+e.message,'warn');}}}syncModeUI();renderLearn();lessonFromHash()||chapterFromHash();readTokens();draw();drawPlot();
+UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{SEL=null;if(REPLAY.active){REPLAY.active=false;logDirty=true;}buildLevels();applyTabLayers(true);plotDefault();renderAllPanes();hashSoon();};UI.mode=()=>AN.mode;
+buildTabs();loadLevel(0);let linkCfg=null;{const c=configFromHash();if(c){try{applyConfig(c);linkCfg=c;logE('Setup restored from the link','ok');}catch(e){logE('Could not restore the setup from the link: '+e.message,'warn');}}}syncModeUI();renderLearn();lessonFromHash()||chapterFromHash()||(location.hash==='#learn'&&setUIMode('learn'));readTokens();draw();drawPlot();
+if(linkCfg){hashLast=location.hash.slice(1);if(linkCfg.mode==='an')setMode('an');else if(linkCfg.t>0)runToMoment(linkCfg.t);}
 requestAnimationFrame(loop);
 window.__an={AN,anCompute,GLOSS,LESSON_TERMS,glossMark,lessonTerms,LESSONS_EXTRA,LESSON_GROUPS,spdCompute,runStepTest,runInjection,setMode,setUIMode,openLesson,lessonBack,openChapter,chapterBack,get lessonOpen(){return lessonOpen;},lessonGo,LESSONS,stepMetrics,Ljw,anBuild};window.__runs={RUNS,runSnapshot,runImport,runExportJSON:r=>{const{_S,id,...run}=r;return JSON.stringify({format:'nav-stack-lab-run',version:1,run});}};window.__plots={TW,runCSV,plotsImage,PANES,addPane,SIGNALS,sigAt,timeWindow};window.__nav={scatter:()=>scatterParticles(),kidnapTo,get S(){return S;},P,LEVELS,loadLevel,advance,setParam,get WPS(){return WPS;},toScreen:(x,y)=>toScreen(x,y),get VIEW(){return VIEW;},get GHOST(){return GHOST;},LAYERS,EXP,expCSV,configURL,get LV(){return LV;},SLOTS,slotLoad,slamLandmarks,tryGo,actuate,dynInfo,dynSlip,health:()=>healthNow(null)};
 

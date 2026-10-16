@@ -37,14 +37,18 @@ let lastSearch=null;
 const SP={on:false,tr:null,n:0,play:false,last:0,dur:6,key:'',gen:0,paintKey:''};   // search playback (maptools.js)
 function sizeCanvas(c){const r=c.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);const w=Math.max(1,Math.round(r.width*dpr)),h=Math.max(1,Math.round(r.height*dpr));if(c.width!==w||c.height!==h){c.width=w;c.height=h;}return dpr;}
 const VIEW={z:1,cx:W/2,cy:H/2,follow:false};
-// The canvas takes whatever shape its panel has; zoom 1 fits the whole world in it (letterboxed), centred.
-const viewK0=()=>Math.min(cv.width/W,cv.height/H);
-function viewClamp(){const kz=viewK0()*VIEW.z,hw=cv.width/(2*kz),hh=cv.height/(2*kz);VIEW.cx=hw>=W/2?W/2:clamp(VIEW.cx,hw,W-hw);VIEW.cy=hh>=H/2?H/2:clamp(VIEW.cy,hh,H-hh);}
-function viewXform(){const kz=viewK0()*VIEW.z;return{kz,tx:cv.width/2-VIEW.cx*kz,ty:cv.height/2+VIEW.cy*kz};}
+// The canvas takes whatever shape its panel has; zoom 1 fits the whole world in it (letterboxed), centred. On a phone
+// the view buttons overlay the right edge, so the world is fitted and centred in the width left of them (viewW) and
+// the east wall's beacons stay reachable.
+const phoneUI=()=>matchMedia('(max-width:760px)').matches;
+const viewW=()=>cv.width-(phoneUI()?Math.round(44*Math.min(window.devicePixelRatio||1,2)):0);
+const viewK0=()=>Math.min(viewW()/W,cv.height/H);
+function viewClamp(){const kz=viewK0()*VIEW.z,hw=viewW()/(2*kz),hh=cv.height/(2*kz);VIEW.cx=hw>=W/2?W/2:clamp(VIEW.cx,hw,W-hw);VIEW.cy=hh>=H/2?H/2:clamp(VIEW.cy,hh,H-hh);}
+function viewXform(){const kz=viewK0()*VIEW.z;return{kz,tx:viewW()/2-VIEW.cx*kz,ty:cv.height/2+VIEW.cy*kz};}
 function zoomAt(f,sx,sy){   // sx, sy in canvas pixels
   const{kz,tx,ty}=viewXform(),wx=(sx-tx)/kz,wy=(ty-sy)/kz,z2=clamp(VIEW.z*f,1,8);
   if(z2===VIEW.z)return;VIEW.z=z2;if(z2===1){VIEW.cx=W/2;VIEW.cy=H/2;VIEW.follow=false;}
-  else{const kn=viewK0()*z2;VIEW.cx=wx-(sx-cv.width/2)/kn;VIEW.cy=wy+(sy-cv.height/2)/kn;}
+  else{const kn=viewK0()*z2;VIEW.cx=wx-(sx-viewW()/2)/kn;VIEW.cy=wy+(sy-cv.height/2)/kn;}
   viewClamp();syncViewUI();draw();
 }
 function syncViewUI(){const f=$('#mv-follow');if(f)f.setAttribute('aria-pressed',String(VIEW.follow));const t=$('#mv-fit');if(t)t.disabled=VIEW.z===1;}

@@ -639,6 +639,7 @@ body:has(.layout[data-mode="learn"]) .sheetbtn{display:none!important}
   #firstrun{order:8}
   .tele{order:9}
   .levels{order:10}
+  .appbar .levels.seg{flex:0 0 auto;width:100%;min-width:0}   /* the app bar's 380 px flex basis would become a height here */
   .brief{order:11}
   .console,.learncol{order:12}
   .layout[data-mode="learn"] .learncol{order:6}   /* a lesson reads right under the transport bar */
@@ -736,7 +737,7 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
       </div>
       <div class="health" id="health" role="status" aria-label="Subsystem health"></div>
       <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across six levels. <b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
-      <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll to zoom; drag to pan."></canvas>
+      <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll or pinch to zoom; drag to pan."></canvas>
         <div class="legend" id="legend" hidden>
           <span><i class="disc" style="background:var(--ink)"></i>true pose</span>
           <span><i class="ring" style="border-color:var(--accent)"></i>estimate</span>
@@ -5352,14 +5353,18 @@ let lastSearch=null;
 const SP={on:false,tr:null,n:0,play:false,last:0,dur:6,key:'',gen:0,paintKey:''};   // search playback (maptools.js)
 function sizeCanvas(c){const r=c.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);const w=Math.max(1,Math.round(r.width*dpr)),h=Math.max(1,Math.round(r.height*dpr));if(c.width!==w||c.height!==h){c.width=w;c.height=h;}return dpr;}
 const VIEW={z:1,cx:W/2,cy:H/2,follow:false};
-// The canvas takes whatever shape its panel has; zoom 1 fits the whole world in it (letterboxed), centred.
-const viewK0=()=>Math.min(cv.width/W,cv.height/H);
-function viewClamp(){const kz=viewK0()*VIEW.z,hw=cv.width/(2*kz),hh=cv.height/(2*kz);VIEW.cx=hw>=W/2?W/2:clamp(VIEW.cx,hw,W-hw);VIEW.cy=hh>=H/2?H/2:clamp(VIEW.cy,hh,H-hh);}
-function viewXform(){const kz=viewK0()*VIEW.z;return{kz,tx:cv.width/2-VIEW.cx*kz,ty:cv.height/2+VIEW.cy*kz};}
+// The canvas takes whatever shape its panel has; zoom 1 fits the whole world in it (letterboxed), centred. On a phone
+// the view buttons overlay the right edge, so the world is fitted and centred in the width left of them (viewW) and
+// the east wall's beacons stay reachable.
+const phoneUI=()=>matchMedia('(max-width:760px)').matches;
+const viewW=()=>cv.width-(phoneUI()?Math.round(44*Math.min(window.devicePixelRatio||1,2)):0);
+const viewK0=()=>Math.min(viewW()/W,cv.height/H);
+function viewClamp(){const kz=viewK0()*VIEW.z,hw=viewW()/(2*kz),hh=cv.height/(2*kz);VIEW.cx=hw>=W/2?W/2:clamp(VIEW.cx,hw,W-hw);VIEW.cy=hh>=H/2?H/2:clamp(VIEW.cy,hh,H-hh);}
+function viewXform(){const kz=viewK0()*VIEW.z;return{kz,tx:viewW()/2-VIEW.cx*kz,ty:cv.height/2+VIEW.cy*kz};}
 function zoomAt(f,sx,sy){   // sx, sy in canvas pixels
   const{kz,tx,ty}=viewXform(),wx=(sx-tx)/kz,wy=(ty-sy)/kz,z2=clamp(VIEW.z*f,1,8);
   if(z2===VIEW.z)return;VIEW.z=z2;if(z2===1){VIEW.cx=W/2;VIEW.cy=H/2;VIEW.follow=false;}
-  else{const kn=viewK0()*z2;VIEW.cx=wx-(sx-cv.width/2)/kn;VIEW.cy=wy+(sy-cv.height/2)/kn;}
+  else{const kn=viewK0()*z2;VIEW.cx=wx-(sx-viewW()/2)/kn;VIEW.cy=wy+(sy-cv.height/2)/kn;}
   viewClamp();syncViewUI();draw();
 }
 function syncViewUI(){const f=$('#mv-follow');if(f)f.setAttribute('aria-pressed',String(VIEW.follow));const t=$('#mv-fit');if(t)t.disabled=VIEW.z===1;}
@@ -8292,7 +8297,9 @@ function addPosed(x,y,th){
   WPS.push({x,y,th,done:false});if(th!=null&&!isCar())logE(`Goal ${WPS.length} faces ${deg(th).toFixed(0)}°: the robot turns in place there once it arrives`);
   startMission();doPlan('initial');draw();refreshAll();
 }
-cv.addEventListener('wheel',e=>{e.preventDefault();const[sx,sy]=toCanvas(e);zoomAt(e.deltaY<0?1.2:1/1.2,sx,sy);},{passive:false});
+// Wheel zooms the map. In the stacked layouts (narrow or short windows) the map sits in a page that scrolls, so there a
+// plain wheel scrolls past it and Ctrl or ⌘ + wheel (a trackpad pinch arrives as Ctrl + wheel) zooms.
+cv.addEventListener('wheel',e=>{if(!wideUI()&&!e.ctrlKey&&!e.metaKey)return;e.preventDefault();const[sx,sy]=toCanvas(e);zoomAt(e.deltaY<0?1.2:1/1.2,sx,sy);},{passive:false});
 let panDrag=null;
 cv.addEventListener('pointermove',e=>{
   if(panDrag){const[sx,sy]=toCanvas(e);const d=hyp(sx-panDrag.sx,sy-panDrag.sy);if(d>6*(window.devicePixelRatio||1))panDrag.moved=true;

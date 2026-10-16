@@ -619,6 +619,7 @@ body:has(.layout[data-mode="learn"]) .sheetbtn{display:none!important}
   #firstrun{order:8}
   .tele{order:9}
   .levels{order:10}
+  .appbar .levels.seg{flex:0 0 auto;width:100%;min-width:0}   /* the app bar's 380 px flex basis would become a height here */
   .brief{order:11}
   .console,.learncol{order:12}
   .layout[data-mode="learn"] .learncol{order:6}   /* a lesson reads right under the transport bar */

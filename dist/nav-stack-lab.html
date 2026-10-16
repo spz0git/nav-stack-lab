@@ -89,6 +89,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .brief .adds-d .adds{margin-top:4px}
 .brief summary h3{display:inline}
 .brief li{margin:2px 0}
+.brief .try>.note{margin:4px 0 2px;font-size:.84rem}
+.brief .lvlessons .linkbtn{display:inline;font-size:.84rem}
 .brief li b{color:var(--ink);font-weight:600}
 
 
@@ -363,6 +365,18 @@ details.see>p{margin:0 0 5px}
 .lesson{border-top:1px solid var(--line);padding:8px 0 4px}
 .lesson .lmin{margin-left:auto;font-family:var(--f-mono);font-size:.7rem;font-weight:400;color:var(--muted);white-space:nowrap;padding-left:8px}
 .learncol.reading .lesson .lmin{display:none}
+.lesson .ldot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--muted);margin-right:7px;align-self:center;background:transparent}
+.lesson .ldot[data-st="part"]{background:linear-gradient(90deg,var(--sys,var(--muted)) 50%,transparent 50%)}
+.lesson .ldot[data-st="done"]{background:var(--sys,var(--ok));border-color:var(--sys,var(--ok))}
+.learncol.reading .lesson .ldot{display:none}
+.starthere ol.path li.done a{color:var(--muted);font-weight:500}.starthere .ldone{color:var(--ok);font-weight:600}
+/* progress (Phase 1.4) */
+.progress{display:flex;flex-direction:column;gap:4px}
+.pbars{display:flex;gap:6px}
+.pbar{position:relative;flex:1 1 0;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.pbar i{position:absolute;left:0;top:0;height:100%;background:var(--sys,var(--accent));border-radius:3px}
+.pbar i.part{opacity:.35;z-index:-1}
+.pbar{isolation:isolate}
 /* Start here: the card at the top of the lesson list */
 .starthere{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;background:var(--raise);padding:8px 12px}
 .starthere summary{cursor:pointer;list-style:none;display:flex;align-items:center}
@@ -5946,11 +5960,15 @@ v ← v + v̇ Δt, |v| ≤ 1.3 v₀;  p ← p + v Δt   e: unit vector to the go
 /* ---- ui/panes.js ---- */
 
 let tryOpen=false;   // the Try list starts collapsed so the map and telemetry fit on screen
+// the lessons whose experiments run on the current level (by the level their first Try names)
+function lessonsOnLevel(){const i=LEVELS.indexOf(LV),out=[];
+  for(const G of LESSON_GROUPS())G.items.forEach((L,j)=>{if(L.tries.some(t=>t[1]&&t[1].level===i))out.push([`${G.id}:${j}`,L.t]);});return out;}
 let briefOpen=true;   // the level's description; folding it is remembered (workspace.js)
 function buildLevels(){
   $('#levels').innerHTML=LEVELS.map((L,i)=>`<button class="lvl" data-i="${i}" aria-pressed="${L===LV}" title="${L.id} ${L.name}">${L.id}</button>`).join('');
   $('#levels').querySelectorAll('.lvl').forEach(b=>b.onclick=()=>loadLevel(+b.dataset.i));
-  $('#brief').innerHTML=`<details class="adds-d" ${briefOpen?'open':''}><summary><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3></summary><p class="adds">${LV.adds}</p></details><details class="try" ${tryOpen?'open':''}><summary><h3>Try (${LV.tries.length}) · each button sets the lab up and runs</h3></summary><ul>${LV.tries.map((t,i)=>`<li>${t.t}<div class="tries">${t.b.map((x,j)=>`<button class="btn small" data-lt="${i}:${j}">${x[0]}</button>`).join('')}</div></li>`).join('')}</ul></details>`;
+  $('#brief').innerHTML=`<details class="adds-d" ${briefOpen?'open':''}><summary><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3></summary><p class="adds">${LV.adds}</p></details><details class="try" ${tryOpen?'open':''}><summary><h3>Quick experiments (${LV.tries.length}) · one click sets the lab up and runs</h3></summary><p class="note">Short setups to poke at this floor. The guided lessons in Learn explain the same things step by step${lessonsOnLevel().length?`: <span class="lvlessons">${lessonsOnLevel().slice(0,5).map(([id,t])=>`<button type="button" class="linkbtn" data-lesson="${id}">${t}</button>`).join(', ')}${lessonsOnLevel().length>5?` and ${lessonsOnLevel().length-5} more in Learn`:''}</span>`:''}.</p><ul>${LV.tries.map((t,i)=>`<li>${t.t}<div class="tries">${t.b.map((x,j)=>`<button class="btn small" data-lt="${i}:${j}">${x[0]}</button>`).join('')}</div></li>`).join('')}</ul></details>`;
+  $('#brief').querySelectorAll('[data-lesson]').forEach(b=>b.onclick=()=>{setUIMode('learn');openLesson(b.dataset.lesson);});
   $('#brief .try').ontoggle=e=>{tryOpen=e.target.open;};
   $('#brief .adds-d').ontoggle=e=>{briefOpen=e.target.open;wsSave();};
   $('#brief').querySelectorAll('[data-lt]').forEach(b=>b.onclick=()=>{const[i,j]=b.dataset.lt.split(':').map(Number);tryGo(LV.tries[i].b[j][1]);});
@@ -8562,7 +8580,7 @@ function openLesson(id,opts){
   const it=lessonItem(id);if(!it)return false;
   const fresh=lessonOpen!==id&&!(opts&&opts.restore);
   if(!userLayers)userLayers={...LAYERS};
-  lessonOpen=id;Object.assign(LAYERS,lessonLayers(id));renderLearn();
+  lessonOpen=id;Object.assign(LAYERS,lessonLayers(id));if(!LEARN.seen[id]){LEARN.seen[id]=1;learnSave();}renderLearn();
   if(fresh)lessonStage(id);else draw();
   const v=$('#learnview');if(v.getBoundingClientRect().top<0)v.scrollIntoView({block:'start'});return true;
 }
@@ -8616,12 +8634,12 @@ function selfCheck(div){
 function renderLearn(){
   const v=$('#learnview');v.classList.remove('chapter');if(chapterOpen)return renderChapter();
   const cur=lessonOpen&&lessonItem(lessonOpen);
-  const all=LESSON_GROUPS().flatMap(G=>G.items.map((_,i)=>`${G.id}:${i}`)),k=cur?all.indexOf(lessonOpen):-1;
+  const all=allLessonIds(),k=cur?all.indexOf(lessonOpen):-1,nextId=cur?learnNextId(lessonOpen):null;
   v.classList.toggle('reading',!!cur);
-  v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${k<all.length-1?`<button class="linkbtn" id="learn-next" type="button">Next lesson →</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
-     :`<h2>Lessons</h2>`}</div>`+(cur?'':startHereHTML())+
+  v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${nextId?`<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen)&&onPath(nextId)?'The next lesson of the first pass':'The next lesson in the list'}">${onPath(lessonOpen)&&onPath(nextId)?'Next in the first pass →':'Next lesson →'}</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
+     :`<h2>Lessons</h2>`}</div>`+(cur?'':startHereHTML()+progressHTML())+
    LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}" data-sys="${G.id}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
-    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}<span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonBodyHTML(L,id)}</div></details>`;}).join('')+`</section>`).join('')+(cur?'':chaptersListHTML());
+    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span><i class="ldot" data-st="${lessonState(id).st}" aria-hidden="true"></i>${L.t}<span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonBodyHTML(L,id)}</div></details>`;}).join('')+`</section>`).join('')+(cur?'':chaptersListHTML());
   wireStartHere(v);
   v.querySelectorAll('.pred-opt').forEach(b=>b.onclick=()=>predPick(b.closest('.predict'),+b.dataset.k));
   v.querySelectorAll('.selfcheck').forEach(d=>{d.querySelector('.sc-go').onclick=()=>selfCheck(d);d.querySelector('input').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();selfCheck(d);}};});
@@ -8631,10 +8649,10 @@ function renderLearn(){
   v.querySelectorAll('a.lsref').forEach(a=>a.onclick=e=>{e.preventDefault();const m=/^#lesson=(\w+):(\d+)$/.exec(a.getAttribute('href'));if(m)openLesson(`${m[1]}:${+m[2]-1}`);});   // links to another lesson
   v.querySelectorAll('details.lesson>summary').forEach(s=>s.onclick=e=>{e.preventDefault();const id=s.parentNode.dataset.l;if(lessonOpen===id)lessonBack();else openLesson(id);});
   v.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':'),id=g+':'+i;if(lessonOpen!==id)openLesson(id,{restore:true});
-    const cfg=lessonItem(id).L.tries[+j][1];
+    const cfg=lessonItem(id).L.tries[+j][1];learnTried(id,+j);
     if(cfg.sim)return tryGo({...cfg,layers:{...lessonLayers(id),...(cfg.layers||{})}});lessonGo(cfg);});   // loading the level must not undo the lesson's layers
   const bk=$('#learn-back');if(bk)bk.onclick=lessonBack;
-  const nx=$('#learn-next');if(nx)nx.onclick=()=>openLesson(all[k+1]);
+  const nx=$('#learn-next');if(nx)nx.onclick=()=>openLesson(nextId);
   const lk=$('#learn-link');if(lk)lk.onclick=()=>{const u=lessonLink(lessonOpen),msg=$('#learn-msg');
     try{history.replaceState(null,'','#'+u.split('#')[1]);}catch(_){}
     if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>{msg.textContent='Link copied.';},()=>{msg.textContent=u;});else msg.textContent=u;};
@@ -8674,9 +8692,35 @@ function hideTerm(){if(termAt)termAt.removeAttribute('aria-describedby');termAt=
    What the reader has opened is remembered in this browser (localStorage, guarded).
    ============================================================ */
 const LEARN_KEY='nav-stack-lab.learn';
-const LEARN={start:true,pred:{},check:{}};   // start: the Start here card is unfolded; pred: predictions picked; check: self-checks passed
+// start: the Start here card is unfolded; pred: predictions picked; check: self-checks passed; seen: lessons opened;
+// tried: the experiments pressed per lesson
+const LEARN={start:true,pred:{},check:{},seen:{},tried:{}};
 try{const s=JSON.parse(localStorage.getItem(LEARN_KEY)||'null');if(s&&typeof s==='object')Object.assign(LEARN,s);}catch(_){}
-for(const k of['pred','check'])if(!LEARN[k]||typeof LEARN[k]!=='object')LEARN[k]={};
+for(const k of['pred','check','seen','tried'])if(!LEARN[k]||typeof LEARN[k]!=='object')LEARN[k]={};
+// Progress: a lesson is started once opened, done once every experiment has been pressed and its self-check passed
+function lessonState(id){
+  const it=lessonItem(id);if(!it)return{st:'none'};
+  const n=it.L.tries.length,tried=(LEARN.tried[id]||[]).filter(j=>j<n).length,chk=!it.L.check||!!LEARN.check[id];
+  const done=n>0&&tried>=n&&chk,started=!!LEARN.seen[id]||tried>0;
+  return{st:done?'done':started?'part':'none',n,tried,chk};
+}
+function learnTried(id,j){const a=LEARN.tried[id]||(LEARN.tried[id]=[]);if(!a.includes(j)){a.push(j);learnSave();}}
+const allLessonIds=()=>LESSON_GROUPS().flatMap(G=>G.items.map((_,i)=>`${G.id}:${i}`));
+// Next: along the first pass while the open lesson is on it, otherwise the next lesson in the list
+function learnNextId(id){
+  const k=LEARN_PATH.findIndex(p=>p[0]===id);if(k>=0&&k<LEARN_PATH.length-1)return LEARN_PATH[k+1][0];
+  const all=allLessonIds(),i=all.indexOf(id);return i>=0&&i<all.length-1?all[i+1]:null;
+}
+const onPath=id=>LEARN_PATH.some(p=>p[0]===id);
+function progressHTML(){
+  const groups=LESSON_GROUPS().map(G=>{const ids=G.items.map((_,i)=>`${G.id}:${i}`),st=ids.map(lessonState);
+    return{G,n:ids.length,done:st.filter(x=>x.st==='done').length,part:st.filter(x=>x.st==='part').length};});
+  const n=groups.reduce((a,g)=>a+g.n,0),done=groups.reduce((a,g)=>a+g.done,0),part=groups.reduce((a,g)=>a+g.part,0);
+  const path=LEARN_PATH.filter(([id])=>lessonState(id).st==='done').length;
+  if(!done&&!part)return'';
+  return`<div class="progress" role="group" aria-label="Your progress"><p class="note">${done} of ${n} lessons done${part?`, ${part} started`:''} · first pass ${path} of ${LEARN_PATH.length}</p><div class="pbars">`+
+    groups.map(g=>`<div class="pbar" data-sys="${g.G.id}" title="${g.G.title}: ${g.done} of ${g.n} done${g.part?`, ${g.part} started`:''}"><i style="width:${100*g.done/g.n}%"></i><i class="part" style="width:${100*(g.done+g.part)/g.n}%"></i></div>`).join('')+`</div></div>`;
+}
 function learnSave(){try{localStorage.setItem(LEARN_KEY,JSON.stringify(LEARN));}catch(_){}}
 // The first pass: concrete and visual first (the simulator), the linear analysis once the loop has been seen running.
 const LEARN_PATH=[
@@ -8692,19 +8736,22 @@ const LEARN_PATH=[
 function lessonMinutes(L){const words=L.b.replace(/<[^>]+>/g,' ').split(/\s+/).filter(Boolean).length;return Math.max(3,Math.round(words/170));}
 function startHereHTML(){
   const steps=LEARN_PATH.map(([id,why],n)=>{const it=lessonItem(id);if(!it)return'';const[g,i]=id.split(':');
-    return`<li><a class="lsref" href="#lesson=${g}:${+i+1}" data-sys="${g}">${it.L.t}</a> <span class="note">${why} · ${lessonMinutes(it.L)} min</span></li>`;}).join('');
+    const st=lessonState(id).st;return`<li class="${st}"><a class="lsref" href="#lesson=${g}:${+i+1}" data-sys="${g}">${it.L.t}</a> <span class="note">${why} · ${lessonMinutes(it.L)} min</span>${st==='done'?' <span class="ldone" title="done">✓</span>':''}</li>`;}).join('');
   const mins=LEARN_PATH.reduce((a,[id])=>{const it=lessonItem(id);return a+(it?lessonMinutes(it.L):0);},0);
   return`<details class="starthere" id="starthere" ${LEARN.start?'open':''}><summary><h3>Start here</h3></summary><div class="sh-body">
 <p><b>Who this is for.</b> Students and engineers who want to see localization, perception, planning and control work together on one robot, change one thing, and watch what happens. The lessons assume vectors and matrices, a little probability (a Gaussian, a variance) and derivatives. The control lessons also use transfer functions and Bode plots; if those are new, chapter 6 builds them in order.</p>
 <p><b>How the pieces fit.</b> A <b>lesson</b> is a short read with experiments: each button sets the lab up and runs it, and the numbers in the text were measured in this simulator. A <b>chapter</b> (the companion notes at the end of this list) derives the formulas a lesson uses; the <i>Derivation</i> links go there and Back returns. The <b>levels</b> L1 to L7 are the floors the robot drives on; each has quick one-click experiments in its own panel under Simulate. The <b>Symbols</b> tab under Reference lists every symbol with its meaning; dotted terms in a lesson show their definition on hover or tap.</p>
 <p><b>A first pass, about ${mins} minutes of reading plus the experiments.</b> Eight lessons that visit every part of the stack once; then go deeper in whichever group interests you.</p>
 <ol class="path">${steps}</ol>
-<button class="btn small primary" type="button" id="path-start">Start with lesson 1</button></div></details>`;
+<button class="btn small primary" type="button" id="path-start">${pathNextLabel()}</button></div></details>`;
 }
+// the first lesson of the pass not yet done
+const pathNext=()=>{const p=LEARN_PATH.find(([id])=>lessonState(id).st!=='done');return p?p[0]:null;};
+function pathNextLabel(){const id=pathNext();if(!id)return'Start again from lesson 1';const k=LEARN_PATH.findIndex(p=>p[0]===id);return k===0?'Start with lesson 1':`Continue with lesson ${k+1}`;}
 function wireStartHere(v){
   const d=v.querySelector('#starthere');if(!d)return;
   d.ontoggle=()=>{LEARN.start=d.open;learnSave();};
-  const b=v.querySelector('#path-start');if(b)b.onclick=()=>openLesson(LEARN_PATH[0][0]);
+  const b=v.querySelector('#path-start');if(b)b.onclick=()=>openLesson(pathNext()||LEARN_PATH[0][0]);
 }
 
 /* ---- ui/chapters.js ---- */

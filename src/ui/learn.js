@@ -34,7 +34,7 @@ function openLesson(id,opts){
   const it=lessonItem(id);if(!it)return false;
   const fresh=lessonOpen!==id&&!(opts&&opts.restore);
   if(!userLayers)userLayers={...LAYERS};
-  lessonOpen=id;Object.assign(LAYERS,lessonLayers(id));renderLearn();
+  lessonOpen=id;Object.assign(LAYERS,lessonLayers(id));if(!LEARN.seen[id]){LEARN.seen[id]=1;learnSave();}renderLearn();
   if(fresh)lessonStage(id);else draw();
   const v=$('#learnview');if(v.getBoundingClientRect().top<0)v.scrollIntoView({block:'start'});return true;
 }
@@ -88,12 +88,12 @@ function selfCheck(div){
 function renderLearn(){
   const v=$('#learnview');v.classList.remove('chapter');if(chapterOpen)return renderChapter();
   const cur=lessonOpen&&lessonItem(lessonOpen);
-  const all=LESSON_GROUPS().flatMap(G=>G.items.map((_,i)=>`${G.id}:${i}`)),k=cur?all.indexOf(lessonOpen):-1;
+  const all=allLessonIds(),k=cur?all.indexOf(lessonOpen):-1,nextId=cur?learnNextId(lessonOpen):null;
   v.classList.toggle('reading',!!cur);
-  v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${k<all.length-1?`<button class="linkbtn" id="learn-next" type="button">Next lesson →</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
-     :`<h2>Lessons</h2>`}</div>`+(cur?'':startHereHTML())+
+  v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${nextId?`<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen)&&onPath(nextId)?'The next lesson of the first pass':'The next lesson in the list'}">${onPath(lessonOpen)&&onPath(nextId)?'Next in the first pass →':'Next lesson →'}</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
+     :`<h2>Lessons</h2>`}</div>`+(cur?'':startHereHTML()+progressHTML())+
    LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}" data-sys="${G.id}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
-    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}<span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonBodyHTML(L,id)}</div></details>`;}).join('')+`</section>`).join('')+(cur?'':chaptersListHTML());
+    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span><i class="ldot" data-st="${lessonState(id).st}" aria-hidden="true"></i>${L.t}<span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonBodyHTML(L,id)}</div></details>`;}).join('')+`</section>`).join('')+(cur?'':chaptersListHTML());
   wireStartHere(v);
   v.querySelectorAll('.pred-opt').forEach(b=>b.onclick=()=>predPick(b.closest('.predict'),+b.dataset.k));
   v.querySelectorAll('.selfcheck').forEach(d=>{d.querySelector('.sc-go').onclick=()=>selfCheck(d);d.querySelector('input').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();selfCheck(d);}};});
@@ -103,10 +103,10 @@ function renderLearn(){
   v.querySelectorAll('a.lsref').forEach(a=>a.onclick=e=>{e.preventDefault();const m=/^#lesson=(\w+):(\d+)$/.exec(a.getAttribute('href'));if(m)openLesson(`${m[1]}:${+m[2]-1}`);});   // links to another lesson
   v.querySelectorAll('details.lesson>summary').forEach(s=>s.onclick=e=>{e.preventDefault();const id=s.parentNode.dataset.l;if(lessonOpen===id)lessonBack();else openLesson(id);});
   v.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{const[g,i,j]=b.dataset.try.split(':'),id=g+':'+i;if(lessonOpen!==id)openLesson(id,{restore:true});
-    const cfg=lessonItem(id).L.tries[+j][1];
+    const cfg=lessonItem(id).L.tries[+j][1];learnTried(id,+j);
     if(cfg.sim)return tryGo({...cfg,layers:{...lessonLayers(id),...(cfg.layers||{})}});lessonGo(cfg);});   // loading the level must not undo the lesson's layers
   const bk=$('#learn-back');if(bk)bk.onclick=lessonBack;
-  const nx=$('#learn-next');if(nx)nx.onclick=()=>openLesson(all[k+1]);
+  const nx=$('#learn-next');if(nx)nx.onclick=()=>openLesson(nextId);
   const lk=$('#learn-link');if(lk)lk.onclick=()=>{const u=lessonLink(lessonOpen),msg=$('#learn-msg');
     try{history.replaceState(null,'','#'+u.split('#')[1]);}catch(_){}
     if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>{msg.textContent='Link copied.';},()=>{msg.textContent=u;});else msg.textContent=u;};

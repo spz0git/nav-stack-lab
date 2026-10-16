@@ -1,10 +1,14 @@
 
 let tryOpen=false;   // the Try list starts collapsed so the map and telemetry fit on screen
+// the lessons whose experiments run on the current level (by the level their first Try names)
+function lessonsOnLevel(){const i=LEVELS.indexOf(LV),out=[];
+  for(const G of LESSON_GROUPS())G.items.forEach((L,j)=>{if(L.tries.some(t=>t[1]&&t[1].level===i))out.push([`${G.id}:${j}`,L.t]);});return out;}
 let briefOpen=true;   // the level's description; folding it is remembered (workspace.js)
 function buildLevels(){
   $('#levels').innerHTML=LEVELS.map((L,i)=>`<button class="lvl" data-i="${i}" aria-pressed="${L===LV}" title="${L.id} ${L.name}">${L.id}</button>`).join('');
   $('#levels').querySelectorAll('.lvl').forEach(b=>b.onclick=()=>loadLevel(+b.dataset.i));
-  $('#brief').innerHTML=`<details class="adds-d" ${briefOpen?'open':''}><summary><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3></summary><p class="adds">${LV.adds}</p></details><details class="try" ${tryOpen?'open':''}><summary><h3>Try (${LV.tries.length}) · each button sets the lab up and runs</h3></summary><ul>${LV.tries.map((t,i)=>`<li>${t.t}<div class="tries">${t.b.map((x,j)=>`<button class="btn small" data-lt="${i}:${j}">${x[0]}</button>`).join('')}</div></li>`).join('')}</ul></details>`;
+  $('#brief').innerHTML=`<details class="adds-d" ${briefOpen?'open':''}><summary><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3></summary><p class="adds">${LV.adds}</p></details><details class="try" ${tryOpen?'open':''}><summary><h3>Quick experiments (${LV.tries.length}) · one click sets the lab up and runs</h3></summary><p class="note">Short setups to poke at this floor. The guided lessons in Learn explain the same things step by step${lessonsOnLevel().length?`: <span class="lvlessons">${lessonsOnLevel().slice(0,5).map(([id,t])=>`<button type="button" class="linkbtn" data-lesson="${id}">${t}</button>`).join(', ')}${lessonsOnLevel().length>5?` and ${lessonsOnLevel().length-5} more in Learn`:''}</span>`:''}.</p><ul>${LV.tries.map((t,i)=>`<li>${t.t}<div class="tries">${t.b.map((x,j)=>`<button class="btn small" data-lt="${i}:${j}">${x[0]}</button>`).join('')}</div></li>`).join('')}</ul></details>`;
+  $('#brief').querySelectorAll('[data-lesson]').forEach(b=>b.onclick=()=>{setUIMode('learn');openLesson(b.dataset.lesson);});
   $('#brief .try').ontoggle=e=>{tryOpen=e.target.open;};
   $('#brief .adds-d').ontoggle=e=>{briefOpen=e.target.open;wsSave();};
   $('#brief').querySelectorAll('[data-lt]').forEach(b=>b.onclick=()=>{const[i,j]=b.dataset.lt.split(':').map(Number);tryGo(LV.tries[i].b[j][1]);});

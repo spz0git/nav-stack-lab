@@ -7,8 +7,9 @@ from _browser import launch, page_url
 # goals reached within one of the built-in, collisions at most one more, and (loc) the pose RMS within 1.5× + 5 cm,
 # (ctl, plan) the distance within 30 %. Prints a line per pair; FAILS must be [].
 CASES = [
-  # slot, example id, built-in value, level index, seconds
+  # slot, example id, built-in value, level index, seconds[, settings both runs share]
   ('loc', 'dr', 'dr', 2, 120), ('loc', 'ekf', 'ekf', 2, 120), ('loc', 'pf', 'pf', 2, 120),
+  ('loc', 'sm', 'ekf', 2, 120, {'bOff': 'all', 'scanMatch': True}),   # scan matching without beacons, against the EKF with it
   ('plan', 'astar', 'astar', 1, 120), ('plan', 'dijkstra', 'astar', 1, 120), ('plan', 'rrtstar', 'rrtstar', 1, 120),
   ('ctl', 'pp', 'pp', 0, 90), ('ctl', 'pid', 'pid', 0, 90), ('ctl', 'stanley', 'pp', 0, 90), ('ctl', 'rwf', 'rwf', 0, 90),
   # the controller examples are written for the unicycle; on the car (L6) they drive, with simpler speed logic than the
@@ -16,11 +17,12 @@ CASES = [
   ('pred', 'cv', 'cv', 4, 200), ('pred', 'static', 'static', 4, 200),
 ]
 RUN = r'''
-async ({slot, ex, builtin, lvl, secs}) => {
+async ({slot, ex, builtin, lvl, secs, extra}) => {
   const N = window.__nav, param = {loc: 'loc', plan: 'plan', ctl: 'ctl', pred: 'agPred'}[slot];
   const one = async (useEx) => {
     N.setParam('seed', 7, false); N.loadLevel(lvl);
     if (slot === 'pred') N.setParam('agents', 'lidar', false);
+    for (const [k, v] of Object.entries(extra || {})) N.setParam(k, v, false);   // settings both runs share
     if (useEx) {
       const e = N.SLOT_LIBRARY[slot].find(x => x.id === ex);
       if (!N.slotLoad(slot, e.code)) return {error: 'load failed: ' + N.SLOTS[slot].status.msg};   // sets the parameter to Your code
@@ -45,9 +47,10 @@ async def main():
         errs = []; pg.on('pageerror', lambda e: errs.append('PAGEERR ' + str(e)))
         await pg.goto(page_url()); await pg.wait_for_timeout(800)
         fails = []
-        for slot, ex, builtin, lvl, secs in CASES:
+        for case in CASES:
+            slot, ex, builtin, lvl, secs = case[:5]; extra = case[5] if len(case) > 5 else {}
             if only and only not in (slot, ex): continue
-            r = await pg.evaluate(RUN, {'slot': slot, 'ex': ex, 'builtin': builtin, 'lvl': lvl, 'secs': secs})
+            r = await pg.evaluate(RUN, {'slot': slot, 'ex': ex, 'builtin': builtin, 'lvl': lvl, 'secs': secs, 'extra': extra})
             b, e = r['b'], r['e']
             tag = f'{slot}/{ex} vs {builtin} L{lvl+1}'
             if 'error' in e: fails.append(tag + ': ' + e['error']); print('==', tag, 'ERROR', e['error']); continue

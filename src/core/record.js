@@ -42,6 +42,7 @@ function recFrame() {
       mpcIt: S.mpcStats ? S.mpcStats.it : null,
       mpcJ: S.mpcStats ? S.mpcStats.J : null,
       nees: S.nees.length ? S.nees[S.nees.length - 1] : null,
+      sm: S.sm ? S.sm.rms : null,
       neff: S.pf ? S.pf.neff : null,
       minPed: isFinite(S.minPed) ? S.minPed : null,
       rejected: S.rejected,

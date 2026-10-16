@@ -68,6 +68,17 @@ const SCHEMA = {
         `EKF-SLAM estimates the beacon positions too: ${S && S.slam ? S.slam.n : 0} mapped. The map starts empty; the first reading of each beacon places it.`,
       show: () => P.loc === 'slam'
     },
+    {k: 'scanMatch', type: 'bool', label: 'Lidar scan matching against the prior map', show: () => P.loc === 'ekf'},
+    {
+      type: 'info',
+      text: () =>
+        P.per !== 'oracle'
+          ? 'Scan matching needs the prior map (Perceive → Map source → prior map): with lidar mapping the map is what the lidar built, and matching the scan to it would only confirm the estimate.'
+          : S.sm
+            ? `Every 0.2 s the scan is aligned to the map by Gauss–Newton on its distance field and fused as a pose fix. Last match: ${S.sm.n} points, residual ${(100 * S.sm.rms).toFixed(1)} cm, ${S.sm.it} iterations, moved the estimate ${(100 * S.sm.dx).toFixed(1)} cm, σ ${(100 * Math.sqrt(S.sm.cov[0])).toFixed(1)} × ${(100 * Math.sqrt(S.sm.cov[4])).toFixed(1)} cm${S.sm.ok ? '' : S.sm.poor ? ` — a poor fit (${S.sm.n} of ${S.sm.hits} hits near a wall), not fused` : S.sm.still ? ', not fused (the robot has not moved since the last fix)' : S.sm.d2 != null ? `, rejected by the gate (d² ${S.sm.d2.toFixed(0)})` : ''}.`
+            : 'Every 0.2 s the scan is aligned to the prior map by Gauss–Newton on its distance field and fused as a pose fix with the covariance of the fit, gated like a beacon reading.',
+      show: () => P.loc === 'ekf' && P.scanMatch
+    },
     {
       type: 'info',
       text: () =>

@@ -245,6 +245,8 @@ function renderBeaconSensor() {
   el.innerHTML = beaconSensorHTML();
 }
 const TIPS = {
+  scanMatch:
+    'Every fourth tick the lidar scan is aligned to the prior map (Gauss–Newton on the distance field, from the current estimate) and the result is fused into the EKF as a pose measurement with the covariance of the fit. The lidar becomes a position sensor; beacons are optional.',
   loc: 'Which estimator produces the pose the planner and controller use.',
   assoc: 'Whether beacon readings carry their ID. Unlabeled readings are matched by Mahalanobis distance.',
   npart: 'More particles cost CPU and resolve the belief more finely.',

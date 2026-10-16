@@ -710,6 +710,18 @@ const GLOSS = {
     "The share of the true free floor whose cells the robot's map knows (free or occupied). What exploration maximizes.",
     '%',
     ['floor seen', 'floor is seen', 'of the floor']
+  ],
+  scanmatch: [
+    'scan matching',
+    'Aligning a lidar scan to a map (or to an earlier scan) by moving the pose until the hits fall on the walls; the result is a pose fix.',
+    '',
+    ['scan matching', 'scan-matched', 'scan match']
+  ],
+  gaussnewton: [
+    'Gauss–Newton',
+    'Least squares by repeated linearization: each step solves H δ = −b with H = Σ JᵀJ, b = Σ Jᵀ r, and moves the estimate by δ.',
+    '',
+    ['Gauss–Newton', 'Gauss-Newton']
   ]
 };
 // Terms each lesson uses, in reading order (keyed by lesson title)
@@ -810,6 +822,8 @@ Object.assign(GLOSS, {
 });
 const LESSON_TERMS = {
   'Placing the poles on purpose: pole placement and LQR': 'poleplace lqr pole zeta wn Ke kth rwf DM pm overshoot ts plantgain hold',
+  'Scan matching: the lidar as a position sensor':
+    'scanmatch gaussnewton lidar disttrans ekf kgain nees gate d2 kidnap covariance ellipse poserr beacon',
   'A gyro in the loop: heading is the expensive error':
     'gyro bias zupt deadreck odometry thetaerr sigx Modo poserr consistent nees band2s ekf beacon',
   'Dead reckoning drifts, and knows it':

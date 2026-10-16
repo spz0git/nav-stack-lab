@@ -1,9 +1,9 @@
 # Changelog
 
-The version label in the page header (`v31 · 2026-10-16`) is the number used here; `src/version.json` holds it.
+The version label in the page header (`v32 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v32 · 2026-10-16
 
 Release series (open-source readiness, from the assessment of 2026-10-15):
 

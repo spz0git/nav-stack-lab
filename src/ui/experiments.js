@@ -141,6 +141,7 @@ function configFromHash(){
   const h=location.hash.slice(1);if(!h||!/^l=L\d/.test(h))return null;const c={params:{}};
   for(const part of h.split('&')){const[k,v]=part.split('=');const val=decodeURIComponent(v||'');
     if(k==='l')c.level=val;else if(k==='seed')c.seed=+val;else if(k==='goals')c.goals=val.split(';').map(g=>g.split(',').map(x=>x===''?null:+x));
+    else if(k==='mode')c.mode=val;else if(k==='t')c.t=+val;
     else if(k in DEFAULTS){const d=DEFAULTS[k];c.params[k]=typeof d==='boolean'?val==='1'||val==='true':typeof d==='number'?+val:val;}}
   return c;
 }

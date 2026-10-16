@@ -71,7 +71,7 @@ const chapterById=id=>CHAPTERS.find(c=>c.id===id);
 function openChapter(id,sec){
   const c=chapterById(id);if(!c)return false;
   chapterFrom=lessonOpen;if(lessonOpen)lessonBack();
-  chapterOpen=id;chapterSec=sec||null;renderLearn();
+  chapterOpen=id;chapterSec=sec||null;renderLearn();hashSoon();
   const v=$('#learnview'),h=sec&&v.querySelector('#n-'+sec);
   if(h)h.scrollIntoView({block:'start'});else if(v.getBoundingClientRect().top<0)v.scrollIntoView({block:'start'});return true;
 }

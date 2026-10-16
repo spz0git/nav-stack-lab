@@ -56,7 +56,7 @@ function buildTabs(){
     activeTab=id;consoleOpen=true;buildTabs();renderAllPanes();});
   $('.console').classList.toggle('collapsed',!consoleOpen);
 }
-function renderAllPanes(){
+function renderAllPanes(){hashSoon();
   applyTabLayers();
   const t=activeTab;let html='';btnActs=[];infoFns=[];   // data-act / data-info index these, per render
   if(t==='code')html=codePane();

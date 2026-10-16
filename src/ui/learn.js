@@ -54,9 +54,10 @@ function renderLearn(){
   const all=LESSON_GROUPS().flatMap(G=>G.items.map((_,i)=>`${G.id}:${i}`)),k=cur?all.indexOf(lessonOpen):-1;
   v.classList.toggle('reading',!!cur);
   v.innerHTML=`<div class="learn-head">${cur?`<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i+1} of ${cur.G.items.length}</span>${k<all.length-1?`<button class="linkbtn" id="learn-next" type="button">Next lesson →</button>`:''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
-     :`<h2>Lessons</h2><p class="note">Grouped by subsystem. Open one, read it, press its Try buttons. The companion notes at the end derive the mathematics. Opening a lesson shows the map layers it is about; <b>All lessons</b> brings yours back. Dotted terms show a short definition on hover or tap, and each lesson ends with its terms and symbols; the Symbols tab has them all.</p>`}</div>`+
+     :`<h2>Lessons</h2>`}</div>`+(cur?'':startHereHTML())+
    LESSON_GROUPS().map(G=>`<section class="lgroup${cur&&cur.G.id===G.id?' cur':''}" data-sys="${G.id}"><h3>${G.title}</h3>${G.note?`<p class="note">${G.note}</p>`:''}`+
-    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}</summary><div class="how-body">${lessonBodyHTML(L,id)}</div></details>`;}).join('')+`</section>`).join('')+(cur?'':chaptersListHTML());
+    G.items.map((L,i)=>{const id=`${G.id}:${i}`;return`<details class="lesson" data-l="${id}" ${lessonOpen===id?'open':''}><summary><span class="lnum">${i+1}</span>${L.t}<span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonBodyHTML(L,id)}</div></details>`;}).join('')+`</section>`).join('')+(cur?'':chaptersListHTML());
+  wireStartHere(v);
   v.querySelectorAll('.chapter-open').forEach(b=>b.onclick=()=>openChapter(b.dataset.ch));
   v.querySelectorAll('a.chref').forEach(a=>a.onclick=e=>{e.preventDefault();const m=/^#notes=([\w-]+)(?:\/([\w-]+))?$/.exec(a.getAttribute('href'));   // "Derivation: chapter 2 §4" links in lessons
     if(!m)return;try{history.replaceState(null,'',a.getAttribute('href'));}catch(_){}openChapter(m[1],m[2]);});

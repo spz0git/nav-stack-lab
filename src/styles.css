@@ -323,6 +323,22 @@ canvas.an-drag{touch-action:none;cursor:crosshair}canvas.an-drag:focus-visible{o
 .learncol .questions details.q[open] summary::after{content:"−"}
 .questions details.q p{margin:6px 0 2px;color:var(--ink)}
 .lesson{border-top:1px solid var(--line);padding:8px 0 4px}
+.lesson .lmin{margin-left:auto;font-family:var(--f-mono);font-size:.7rem;font-weight:400;color:var(--muted);white-space:nowrap;padding-left:8px}
+.learncol.reading .lesson .lmin{display:none}
+/* Start here: the card at the top of the lesson list */
+.starthere{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;background:var(--raise);padding:8px 12px}
+.starthere summary{cursor:pointer;list-style:none;display:flex;align-items:center}
+.starthere summary::-webkit-details-marker{display:none}
+.starthere summary h3{color:var(--ink);font-size:.85rem}
+.starthere summary::after{content:"›";margin-left:auto;color:var(--muted);font-family:var(--f-mono);transform:rotate(90deg)}
+.starthere:not([open]) summary::after{transform:none}
+.sh-body{display:flex;flex-direction:column;gap:8px;margin-top:8px;font-size:.9rem}
+.sh-body p{max-width:none}
+.starthere ol.path{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:3px}
+.starthere ol.path a{color:var(--sys,var(--accent));font-weight:600;text-decoration:none}
+.starthere ol.path a:hover{text-decoration:underline}
+.starthere ol.path .note{font-size:.82rem}
+.starthere #path-start{align-self:flex-start}
 .lesson summary{cursor:pointer;font-family:var(--f-display);font-weight:600;font-size:1rem;display:flex;gap:8px;align-items:baseline}
 .lesson .lnum{font-family:var(--f-mono);font-size:.74rem;color:var(--muted);font-weight:400;min-width:1.4em}
 .nom{display:flex;flex-direction:column;gap:6px;scroll-margin-top:12px}

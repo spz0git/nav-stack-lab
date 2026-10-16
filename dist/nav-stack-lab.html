@@ -482,6 +482,14 @@ details.see>p{margin:0 0 5px}
 .log li.later,.log li.later span{color:var(--muted)}   /* after the replayed moment: dimmer, still readable (5.9:1) */
 .log li span{color:var(--muted);text-align:right}
 .log li.warn{color:var(--warn)} .log li.bad{color:var(--bad)} .log li.ok{color:var(--ok)}
+/* the log's toolbar (Phase 2.4): search, severity, order */
+.logbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.logbar h3{margin-right:auto}
+.logq{width:9em;font:inherit;font-size:.78rem;padding:2px 6px;border:1px solid var(--line);border-radius:4px;background:var(--raise);color:var(--ink)}
+.logbar .ibtn{padding:1px 7px;font-size:.8rem}.logbar .ibtn[aria-pressed="true"]{color:var(--ink);border-color:var(--muted)}
+.logbar .lbl{font-family:var(--f-mono);font-size:.72rem}
+.log li.hit{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.tl-m.hit{background:var(--accent);top:1px;height:26px;width:2px;opacity:.7}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
 
 .srcdlg{width:min(96vw,980px);max-height:90vh;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:0;display:flex;flex-direction:column}
@@ -758,7 +766,7 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
         <div class="tele-grid">
           <div class="plotcol" id="plotcol" data-n="1"><canvas id="plot" aria-label="Time series plot"></canvas></div>
           <div class="tele-side">
-            <div class="tele-log"><h3>Event log</h3><ol class="log" id="log"></ol></div>
+            <div class="tele-log"><div class="logbar"><h3>Event log</h3><input type="search" id="log-q" class="logq" placeholder="Search" aria-label="Search the event log" autocomplete="off"><span class="seg sm" id="log-sev" aria-label="Severity"></span><button type="button" class="ibtn" id="log-order" aria-pressed="false" title="Oldest first">↓</button><span class="lbl" id="log-n"></span></div><ol class="log" id="log"></ol></div>
             <div class="tele-met"><h3>Metrics</h3><dl class="metrics" id="metrics"></dl></div>
           </div>
         </div>
@@ -5304,13 +5312,25 @@ let logDirty=true;
 
 /* ---- ui/log.js ---- */
 /* ---------- event log rendering ---------- */
-// Each line seeks the timeline to its time; while replaying, lines after the shown moment are dimmed
+// Each line seeks the timeline to its time; while replaying, lines after the shown moment are dimmed and the log
+// scrolls to the moment. A search box and a severity filter narrow the lines (matches are marked on the timeline),
+// and the order can be flipped to oldest first (the log itself is kept newest first).
+const LOGV={q:'',sev:'all',asc:false,hits:null,lastI:-1};
+const LOG_SEV=[['all','All'],['warn','Warnings'],['bad','Errors']];
+const logShow=l=>(LOGV.sev==='all'||(LOGV.sev==='warn'?l.cls==='warn'||l.cls==='bad':l.cls==='bad'))&&(!LOGV.q||l.msg.toLowerCase().includes(LOGV.q));
 function renderLog(){
   if(!logDirty)return;logDirty=false;
-  const tc=REPLAY.active?shownT():Infinity;
-  $('#log').innerHTML=S.log.map(l=>`<li class="${l.cls}${l.t>tc+1e-6?' later':''}" data-t="${l.t}" title="Show this moment (${l.t.toFixed(1)} s)"><span>${l.t.toFixed(1)}s</span>${esc(l.msg)}</li>`).join('');
+  const tc=REPLAY.active?shownT():Infinity,rows=S.log.filter(logShow),shown=LOGV.asc?rows.slice().reverse():rows;
+  $('#log').innerHTML=shown.map(l=>`<li class="${l.cls}${l.t>tc+1e-6?' later':''}${LOGV.q?' hit':''}" data-t="${l.t}" title="Show this moment (${l.t.toFixed(1)} s)"><span>${l.t.toFixed(1)}s</span>${esc(l.msg)}</li>`).join('');
+  $('#log-n').textContent=LOGV.q||LOGV.sev!=='all'?`${rows.length} of ${S.log.length}`:'';
+  LOGV.hits=LOGV.q?rows.map(l=>l.t):null;
+  // follow the replayed moment: the first line at or before it comes into view
+  if(REPLAY.active&&REPLAY.i!==LOGV.lastI){LOGV.lastI=REPLAY.i;const li=[...$('#log').children].find(e=>!e.classList.contains('later'));if(li)li.scrollIntoView({block:'nearest'});}
 }
 $('#log').addEventListener('click',e=>{const li=e.target.closest('li[data-t]');if(li&&REC.frames.length>1)seekTime(+li.dataset.t);});
+{const q=$('#log-q');q.oninput=()=>{LOGV.q=q.value.trim().toLowerCase();logDirty=true;tlKey='';renderLog();syncScrub();};
+ seg($('#log-sev'),LOG_SEV,()=>LOGV.sev,v=>{LOGV.sev=v;logDirty=true;renderLog();});
+ const o=$('#log-order');o.onclick=()=>{LOGV.asc=!LOGV.asc;o.setAttribute('aria-pressed',String(LOGV.asc));o.textContent=LOGV.asc?'↑':'↓';o.title=LOGV.asc?'Newest first':'Oldest first';logDirty=true;renderLog();};}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ---- ui/map.js ---- */
@@ -8174,10 +8194,11 @@ function syncScrub(){
   $('#scrubt').textContent=n<2?'no recording yet':REPLAY.active?`${f.t.toFixed(1)} / ${tEnd.toFixed(1)} s · replay`:`${S.t.toFixed(1)} s · live`;
   $('#scrub-live').hidden=!REPLAY.active;
   // marks: redrawn when the log or the recorded span changes
-  const t0=n?F[0].t:0,span=Math.max(1e-6,tEnd-t0),key=S.log.length+'|'+(S.log[0]&&S.log[0].t)+'|'+t0.toFixed(1)+'|'+tEnd.toFixed(0)+'|'+HEALTH.ev.length;
+  const t0=n?F[0].t:0,span=Math.max(1e-6,tEnd-t0),key=S.log.length+'|'+(S.log[0]&&S.log[0].t)+'|'+t0.toFixed(1)+'|'+tEnd.toFixed(0)+'|'+HEALTH.ev.length+'|'+LOGV.q;
   if(key!==tlKey){tlKey=key;
     $('#tl-marks').innerHTML=n<2?'':S.log.map(l=>{const k=tlKind(l.msg);if(!k||l.t<t0-1e-6||l.t>tEnd+1e-6)return'';return`<i class="tl-m ${k[0]}" style="left:${(100*(l.t-t0)/span).toFixed(2)}%" title="${l.t.toFixed(1)} s · ${esc(l.msg)}"></i>`;}).join('')+
-      HEALTH.ev.filter(h=>h.t>=t0-1e-6&&h.t<=tEnd+1e-6).map(h=>`<i class="tl-m h-${h.lvl}" style="left:${(100*(h.t-t0)/span).toFixed(2)}%" title="${h.t.toFixed(1)} s · ${esc(h.msg)}"></i>`).join('');}   // health lights turning amber or red (health.js)
+      HEALTH.ev.filter(h=>h.t>=t0-1e-6&&h.t<=tEnd+1e-6).map(h=>`<i class="tl-m h-${h.lvl}" style="left:${(100*(h.t-t0)/span).toFixed(2)}%" title="${h.t.toFixed(1)} s · ${esc(h.msg)}"></i>`).join('')+   // health lights turning amber or red (health.js)
+      (LOGV.q?S.log.filter(l=>logShow(l)&&l.t>=t0-1e-6&&l.t<=tEnd+1e-6).map(l=>`<i class="tl-m hit" style="left:${(100*(l.t-t0)/span).toFixed(2)}%" title="${l.t.toFixed(1)} s · ${esc(l.msg)}"></i>`).join(''):'');}   // lines matching the log search
 }
 {const r=$('#scrubr');
  r.oninput=e=>{seekFrame(+e.target.value);};

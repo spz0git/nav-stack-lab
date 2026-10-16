@@ -193,7 +193,7 @@ Object.defineProperty(P,'veh',{get(){return vehOf(P.model,P.carPhys);},set(v){P.
 // Tyre presets for the car with tyre slip (lab car: L 0.6 m, m 10 kg). Grippy: realistic, kinematic-like below 2 m/s.
 // Slippery floor: soft tyres, v_ch ≈ 2.6 m/s and μg ≈ 2.5 m/s², reached on 1–2 m turns at lab speeds.
 const DYN_PRESETS={grippy:{mass:10,Iz:0.9,lf:0.27,Cf:500,Cr:700,mu:0.9},slippery:{mass:10,Iz:0.9,lf:0.27,Cf:40,Cr:90,mu:0.25}};
-const LAYERS={ghost:true,cost:false,search:true,lidar:true,beam:true,belief:true,trail:true,dwa:true,agents:true,ghostrun:true};
+const LAYERS={ghost:true,cost:false,search:true,lidar:true,beam:true,belief:true,trail:true,dwa:true,agents:true,ghostrun:true,sweep:true};
 
 /* ---- core/record.js ---- */
 /* ============================================================
@@ -2218,7 +2218,8 @@ function runSummary(){
     dist:+S.dist.toFixed(2),poseRMS:S.errN?+Math.sqrt(S.errSq/S.errN).toFixed(4):null,poseErrFinal:+hyp(r.x-e.x,r.y-e.y).toFixed(3),
     cteRMS:S.cteN?+Math.sqrt(S.cteSq/S.cteN).toFixed(4):null,nees:nees==null?null:+nees.toFixed(2),
     replans:S.log.filter(l=>/^Replan/.test(l.msg)).length,mpcMs:S.mpcStats?+S.mpcStats.ms.toFixed(2):null,
-    log:S.log.slice(0,12).map(l=>l.t.toFixed(1)+' '+l.msg).reverse()};
+    log:S.log.slice(0,12).map(l=>l.t.toFixed(1)+' '+l.msg).reverse(),
+    path:S.trailT.filter((_,i)=>i%2===0).map(p=>p?[+p[0].toFixed(2),+p[1].toFixed(2)]:null)};   // the true path every 0.4 s (the trail is kept every 0.2 s; null: a kidnap)
 }
 self.onmessage=async e=>{
   const m=e.data;if(m.cmd!=='run')return;REC.on=false;

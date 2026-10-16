@@ -1046,7 +1046,7 @@ Object.defineProperty(P,'veh',{get(){return vehOf(P.model,P.carPhys);},set(v){P.
 // Tyre presets for the car with tyre slip (lab car: L 0.6 m, m 10 kg). Grippy: realistic, kinematic-like below 2 m/s.
 // Slippery floor: soft tyres, v_ch ≈ 2.6 m/s and μg ≈ 2.5 m/s², reached on 1–2 m turns at lab speeds.
 const DYN_PRESETS={grippy:{mass:10,Iz:0.9,lf:0.27,Cf:500,Cr:700,mu:0.9},slippery:{mass:10,Iz:0.9,lf:0.27,Cf:40,Cr:90,mu:0.25}};
-const LAYERS={ghost:true,cost:false,search:true,lidar:true,beam:true,belief:true,trail:true,dwa:true,agents:true,ghostrun:true};
+const LAYERS={ghost:true,cost:false,search:true,lidar:true,beam:true,belief:true,trail:true,dwa:true,agents:true,ghostrun:true,sweep:true};
 
 /* ---- core/record.js ---- */
 /* ============================================================
@@ -3071,7 +3071,8 @@ function runSummary(){
     dist:+S.dist.toFixed(2),poseRMS:S.errN?+Math.sqrt(S.errSq/S.errN).toFixed(4):null,poseErrFinal:+hyp(r.x-e.x,r.y-e.y).toFixed(3),
     cteRMS:S.cteN?+Math.sqrt(S.cteSq/S.cteN).toFixed(4):null,nees:nees==null?null:+nees.toFixed(2),
     replans:S.log.filter(l=>/^Replan/.test(l.msg)).length,mpcMs:S.mpcStats?+S.mpcStats.ms.toFixed(2):null,
-    log:S.log.slice(0,12).map(l=>l.t.toFixed(1)+' '+l.msg).reverse()};
+    log:S.log.slice(0,12).map(l=>l.t.toFixed(1)+' '+l.msg).reverse(),
+    path:S.trailT.filter((_,i)=>i%2===0).map(p=>p?[+p[0].toFixed(2),+p[1].toFixed(2)]:null)};   // the true path every 0.4 s (the trail is kept every 0.2 s; null: a kidnap)
 }
 self.onmessage=async e=>{
   const m=e.data;if(m.cmd!=='run')return;REC.on=false;
@@ -3287,7 +3288,7 @@ Object.defineProperty(P,'veh',{get(){return vehOf(P.model,P.carPhys);},set(v){P.
 // Tyre presets for the car with tyre slip (lab car: L 0.6 m, m 10 kg). Grippy: realistic, kinematic-like below 2 m/s.
 // Slippery floor: soft tyres, v_ch ≈ 2.6 m/s and μg ≈ 2.5 m/s², reached on 1–2 m turns at lab speeds.
 const DYN_PRESETS={grippy:{mass:10,Iz:0.9,lf:0.27,Cf:500,Cr:700,mu:0.9},slippery:{mass:10,Iz:0.9,lf:0.27,Cf:40,Cr:90,mu:0.25}};
-const LAYERS={ghost:true,cost:false,search:true,lidar:true,beam:true,belief:true,trail:true,dwa:true,agents:true,ghostrun:true};
+const LAYERS={ghost:true,cost:false,search:true,lidar:true,beam:true,belief:true,trail:true,dwa:true,agents:true,ghostrun:true,sweep:true};
 
 /* ---- core/record.js ---- */
 /* ============================================================
@@ -5447,6 +5448,7 @@ function draw(){
   // ghost of the previous run
   if(LAYERS.ghostrun&&GHOST&&GHOST.level===LV.id){ctx.lineWidth=px(2);ctx.setLineDash([px(2),px(4)]);ctx.strokeStyle=rgba(TOK.rose,0.55);polyline(GHOST.trailT);ctx.stroke();ctx.setLineDash([]);}
   drawCompare(px);   // a run picked in Runs → Compare (runs.js)
+  if(LAYERS.sweep)drawSweep(px);   // the paths of an experiment's runs (experiments.js)
   // trails
   if(LAYERS.trail){
     ctx.lineWidth=px(1.3);ctx.strokeStyle=rgba(TOK.ink,0.45);polyline(S.trailT);ctx.stroke();
@@ -6349,11 +6351,12 @@ function applyTabLayers(force){
   const set=TAB_LAYERS[activeTab];if(!set||layersEdited||lessonOpen)return;
   const key=activeTab+'|'+LV.id+'|'+agOn();if(key===layersKey&&!force)return;layersKey=key;
   const on=new Set(set);if(agOn())on.add('agents');for(const[k,v]of Object.entries(LV.layers||{}))if(v)on.add(k);   // a level's own layers (L2's costmap) stay
+  on.add('sweep');   // an experiment's runs show whatever tab is open
   for(const k of Object.keys(LAYERS))LAYERS[k]=on.has(k);
   if(S&&AN.mode==='sim')draw();
 }
 function layersPane(){
-  const L=[['ghost','True-map outline over the built map'],['cost','Costmap inflation'],['search','Planner search (A* closed set / RRT* tree)'],['lidar','Lidar hits (as perceived)'],['beam','Beacon measurements (from the estimate)'],['belief','Particles / 95% covariance ellipse'],['trail','Trails (solid = truth, dashed = estimate)'],['dwa','Local planner: DWA rollouts, MPC prediction and reference'],['look','Lookahead point of the path tracker'],['slip','Sideslip of the car with tyre slip: velocity at the centre of mass against the heading'],['agents','Agent tracks, predictions, and the ego\'s predicted positions at the same times'],['ghostrun','Previous run on this level: ghost trail on the map and ghost series in the plot']];
+  const L=[['sweep','Experiment runs: the paths of the last experiment, coloured by the varied value'],['ghost','True-map outline over the built map'],['cost','Costmap inflation'],['search','Planner search (A* closed set / RRT* tree)'],['lidar','Lidar hits (as perceived)'],['beam','Beacon measurements (from the estimate)'],['belief','Particles / 95% covariance ellipse'],['trail','Trails (solid = truth, dashed = estimate)'],['dwa','Local planner: DWA rollouts, MPC prediction and reference'],['look','Lookahead point of the path tracker'],['slip','Sideslip of the car with tyre slip: velocity at the centre of mass against the heading'],['agents','Agent tracks, predictions, and the ego\'s predicted positions at the same times'],['ghostrun','Previous run on this level: ghost trail on the map and ghost series in the plot']];
   return`<p class="note">What to draw on the map. Nothing here changes the simulation. ${layersEdited?`You have edited the layers, so tabs no longer change them. <button class="linkbtn" id="layers-auto" type="button">Let each tab choose again</button>`:'Each pipeline tab (1–5) shows its own set; ticking a box here keeps your choice for this session.'}</p>`+L.map(([k,l])=>`<label class="check"><input type="checkbox" id="layer-${k}" data-layer="${k}" ${LAYERS[k]?'checked':''}><span>${l}</span></label>`).join('')+(GHOST&&GHOST.level===LV.id?`<p class="note">Ghost: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button class="linkbtn" id="ghost-clear" type="button">Forget it</button></p>`:'');
 }
 let codeSlot='ctl';
@@ -8033,7 +8036,8 @@ window.addEventListener('hashchange',chapterFromHash);
 /* ============================================================
    Experiments: batch runs in Web Workers, results table, CSV. Shareable configuration.
    ============================================================ */
-const EXP={vary:[{k:'',vals:''},{k:'',vals:''}],seed0:1,seed1:5,secs:200,stopDone:true,jobs:[],results:[],running:false,done:0,metric:'ped',pool:[],cancel:false,base:null};
+const EXP={vary:[{k:'',vals:''},{k:'',vals:''}],seed0:1,seed1:5,secs:200,stopDone:true,jobs:[],results:[],running:false,done:0,metric:'ped',pool:[],cancel:false,base:null,level:null,hover:null,pts:[]};
+// level: the level the results belong to; hover: the result under the pointer in the chart (its path is bold on the map); pts: the chart's points for hit-testing
 const EXP_METRICS=[['goalsDone','Goals reached',''],['t','Mission time','s'],['coll','Static collisions',''],['ped','People contacts',''],['minPed','Closest approach','m'],['cteRMS','Cross-track RMS','m'],['poseRMS','Pose RMS','m'],['nees','NEES',''],['replans','Replans',''],['dist','Distance','m']];
 function paramList(){const out=[];for(const t of['loc','per','mis','plan','ctl','veh'])for(const f of SCHEMA[t]){if(!f.k||f.k==='seed')continue;out.push(f);}return out;}
 function baseOverrides(){const o={};for(const k of Object.keys(P)){if(k==='seed')continue;const d=k in (LV.cfg||{})?LV.cfg[k]:DEFAULTS[k];if(d!==undefined&&P[k]!==d)o[k]=P[k];}return o;}
@@ -8077,9 +8081,23 @@ function expResultsHTML(){
   <canvas id="cv-exp" class="expchart" aria-label="Metric per configuration"></canvas>`;
   return h;
 }
+// the colour of a configuration: its rank among the configurations along a ramp from the accent to the rose
+function expGroups(){const keys=[];for(const r of EXP.results){const k=JSON.stringify(r.cfg);if(!keys.includes(k))keys.push(k);}return keys;}
+function expColor(r,keys){const n=keys.length,i=keys.indexOf(JSON.stringify(r.cfg)),u=n>1?i/(n-1):0;return mixHex(TOK.accent,TOK.rose,u);}
+function mixHex(a,b,u){const p=x=>[1,3,5].map(i=>parseInt(x.slice(i,i+2),16)),A=p(a),B=p(b);return'#'+A.map((v,i)=>Math.round(v+(B[i]-v)*u).toString(16).padStart(2,'0')).join('');}
+// the paths of the experiment's runs on the map; the hovered one bold
+function drawSweep(px){
+  if(!EXP.results.length||EXP.level!==LV.id)return;const keys=expGroups();
+  EXP.results.forEach((r,i)=>{if(!r.s||!r.s.path||i===EXP.hover)return;ctx.lineWidth=px(1.2);ctx.strokeStyle=rgba(expColor(r,keys),0.45);polyline(r.s.path);ctx.stroke();});
+  const hv=EXP.hover!=null&&EXP.results[EXP.hover];if(hv&&hv.s&&hv.s.path){ctx.lineWidth=px(3);ctx.strokeStyle=TOK.ink;polyline(hv.s.path);ctx.stroke();}
+}
+function expHover(i){if(EXP.hover===i)return;EXP.hover=i;drawExpChart();if(AN.mode==='sim')draw();}
+// the one varied parameter when it is numeric: the chart becomes metric against its value
+function expXParam(){const ks=[...new Set(EXP.results.flatMap(r=>Object.keys(r.cfg)))];if(ks.length!==1)return null;const k=ks[0];return EXP.results.every(r=>typeof r.cfg[k]==='number')?k:null;}
 function drawExpChart(){
   const c=$('#cv-exp');if(!c||!EXP.results.length)return;readTokens();const dpr=sizeCanvas(c),g=c.getContext('2d'),w=c.width,h=c.height;
-  g.setTransform(1,0,0,1,0,0);g.fillStyle=TOK['map-bg'];g.fillRect(0,0,w,h);
+  g.setTransform(1,0,0,1,0,0);g.fillStyle=TOK['map-bg'];g.fillRect(0,0,w,h);EXP.pts=[];
+  const xk=expXParam();if(xk)return drawExpScatter(g,w,h,dpr,xk);
   const groups=new Map();for(const r of EXP.results){const key=JSON.stringify(r.cfg);if(!groups.has(key))groups.set(key,{cfg:r.cfg,v:[]});const x=r.s&&r.s[EXP.metric];if(x!=null&&isFinite(x))groups.get(key).v.push(x);}
   const G=[...groups.values()],k=EXP.metric,M=EXP_METRICS.find(m=>m[0]===k);
   let lo=0,hi=-Infinity;for(const q of G)for(const v of q.v){lo=Math.min(lo,v);hi=Math.max(hi,v);}if(!isFinite(hi))hi=1;if(hi<=lo)hi=lo+1;hi*=1.12;
@@ -8094,6 +8112,28 @@ function drawExpChart(){
     g.fillStyle=TOK.ink;g.textAlign='center';g.textBaseline='bottom';g.fillText(m.toFixed(m<10?2:0),xc,Y(Math.max(m,mx))-3*dpr);
     g.fillStyle=TOK.muted;g.textBaseline='top';const lab=fmtOv(q.cfg).split(', ');g.fillText(lab[0].slice(0,Math.floor((x1-x0)/(6*dpr))),xc,h-padB+4*dpr);if(lab[1])g.fillText(lab[1].slice(0,Math.floor((x1-x0)/(6*dpr))),xc,h-padB+16*dpr);});
   g.fillStyle=TOK.muted;g.textAlign='left';g.textBaseline='top';g.fillText(`${M[1]}${M[2]?' ['+M[2]+']':''} · mean per configuration, whiskers min–max over seeds`,padL,4*dpr);
+  // the bars are hit targets too: hover highlights that configuration's runs on the map
+  G.forEach((q,i)=>{const x0=padL+bw*(i+0.2),x1=padL+bw*(i+0.8);EXP.results.forEach((r,ri)=>{if(JSON.stringify(r.cfg)===JSON.stringify(q.cfg))EXP.pts.push({x:(x0+x1)/2,y:Y(q.v.length?q.v.reduce((a,b)=>a+b,0)/q.v.length:0),i:ri,w:(x1-x0)/2});});});
+}
+// metric against the parameter: one dot per run, the mean per value as a line; the hovered run is ringed and named
+function drawExpScatter(g,w,h,dpr,xk){
+  const k=EXP.metric,M=EXP_METRICS.find(m=>m[0]===k),keys=expGroups(),R=EXP.results.filter(r=>r.s&&r.s[k]!=null&&isFinite(r.s[k]));
+  const xs=[...new Set(R.map(r=>r.cfg[xk]))].sort((a,b)=>a-b);if(!xs.length)return;
+  const padL=44*dpr,padR=12*dpr,padT=22*dpr,padB=34*dpr;let lo=0,hi=-Infinity;for(const r of R){lo=Math.min(lo,r.s[k]);hi=Math.max(hi,r.s[k]);}if(!isFinite(hi))hi=1;if(hi<=lo)hi=lo+1;hi*=1.12;
+  const x0=xs[0],x1=xs[xs.length-1],X=v=>padL+(xs.length>1?(v-x0)/(x1-x0):0.5)*(w-padL-padR),Y=v=>padT+(hi-v)/(hi-lo)*(h-padT-padB);
+  g.font=`${Math.round(10*dpr)}px ${getComputedStyle(document.body).getPropertyValue('--f-mono')||'monospace'}`;
+  g.strokeStyle=TOK.line;g.beginPath();g.moveTo(padL,Y(0));g.lineTo(w-padR,Y(0));g.moveTo(padL,padT);g.lineTo(padL,Y(0));g.stroke();
+  g.fillStyle=TOK.muted;g.textAlign='right';g.textBaseline='middle';g.fillText(hi.toFixed(hi<2?2:0),padL-5*dpr,Y(hi));g.fillText('0',padL-5*dpr,Y(0));
+  g.textAlign='center';g.textBaseline='top';for(const v of xs)g.fillText(String(+v.toFixed(3)),X(v),h-padB+4*dpr);
+  const f=paramList().find(x=>x.k===xk),xl=f?plain(f.label):xk;g.fillText(`${xl}${f&&f.unit?' ['+f.unit+']':''}`,(padL+w-padR)/2,h-padB+16*dpr);
+  // the mean per value
+  g.strokeStyle=TOK.ink;g.lineWidth=1.5*dpr;g.beginPath();xs.forEach((v,i)=>{const ys=R.filter(r=>r.cfg[xk]===v).map(r=>r.s[k]),m=ys.reduce((a,b)=>a+b,0)/ys.length;if(i)g.lineTo(X(v),Y(m));else g.moveTo(X(v),Y(m));});g.stroke();
+  // one dot per run
+  R.forEach(r=>{const i=EXP.results.indexOf(r),x=X(r.cfg[xk]),y=Y(r.s[k]);EXP.pts.push({x,y,i,w:6*dpr});g.fillStyle=rgba(expColor(r,keys),i===EXP.hover?1:0.7);g.beginPath();g.arc(x,y,(i===EXP.hover?4.5:3)*dpr,0,TAU);g.fill();
+    if(i===EXP.hover){g.strokeStyle=TOK.ink;g.lineWidth=1.5*dpr;g.beginPath();g.arc(x,y,7*dpr,0,TAU);g.stroke();}});
+  g.fillStyle=TOK.muted;g.textAlign='left';g.textBaseline='top';
+  const hv=EXP.hover!=null&&EXP.results[EXP.hover];
+  g.fillText(hv&&hv.s?`${fmtOv(hv.cfg)} · seed ${hv.seed} · ${M[1]} ${hv.s[k]} · click to run this setup`:`${M[1]}${M[2]?' ['+M[2]+']':''} against ${xl}: a dot per run, the line is the mean · hover a dot to see its path on the map`,padL,4*dpr);
 }
 function expCSV(){
   const cols=['level','seed',...Object.keys(EXP.results[0].cfg).concat(Object.keys(EXP.results.reduce((a,r)=>Object.assign(a,r.cfg),{}))).filter((k,i,a)=>a.indexOf(k)===i),...EXP_METRICS.map(m=>m[0]),'error'];
@@ -8115,14 +8155,16 @@ async function expRun(){
   let cfgs=[{}];for(const v of EXP.vary){if(!v.k)continue;const f=pl.find(x=>x.k===v.k),vals=parseVals(f,v.vals);if(!vals.length)continue;const nx=[];for(const c of cfgs)for(const x of vals)nx.push({...c,[v.k]:x});cfgs=nx;}
   const jobs=[];let id=0;for(const c of cfgs)for(let s=EXP.seed0;s<=EXP.seed1;s++)jobs.push({id:id++,level:lvl,seed:s,overrides:{...base,...c},cfg:c,secs:EXP.secs,stopWhenDone:EXP.stopDone,codes:{ctl:P.ctl==='custom'?SLOTS.ctl.code:null,plan:P.plan==='custom'?SLOTS.plan.code:null,loc:P.loc==='custom'?SLOTS.loc.code:null,pred:P.agPred==='custom'?SLOTS.pred.code:null}});
   if(!jobs.length)return;
-  EXP.jobs=jobs;EXP.results=[];EXP.done=0;EXP.running=true;EXP.cancel=false;EXP.base=base;renderAllPanes();
+  EXP.jobs=jobs;EXP.results=[];EXP.done=0;EXP.running=true;EXP.cancel=false;EXP.base=base;EXP.level=LV.id;EXP.hover=null;
+  if(EXP.metric==='ped'&&!(LV.peds&&LV.peds.length))EXP.metric='cteRMS';   // no people on this level: chart the tracking error instead
+  renderAllPanes();
   const nW=Math.max(1,Math.min(4,(navigator.hardwareConcurrency||2)-1,jobs.length));const queue=jobs.slice();
   const worker=async()=>{const w=makeCoreWorker();
     try{while(queue.length&&!EXP.cancel){const j=queue.shift();
       const r=await new Promise(res=>{w.onmessage=e=>{const d=e.data;if(d.progress!=null){const el=$('#exp-prog');if(el)el.textContent=`${EXP.done}/${jobs.length} · running`;return;}if(d.done)res(d);};w.onerror=e=>res({error:e.message});w.postMessage({cmd:'run',...j});});
       EXP.results.push({level:LV.id,seed:j.seed,cfg:j.cfg,s:r.summary||null,error:r.error||null,ms:r.ms});EXP.done++;
       const el=$('#exp-prog'),bar=$('#exp-bar');if(el)el.textContent=`${EXP.done}/${jobs.length}`;if(bar)bar.style.width=(100*EXP.done/jobs.length)+'%';
-      const out=$('#exp-out');if(out&&(EXP.done%Math.max(1,nW)===0||EXP.done===jobs.length)){out.innerHTML=expResultsHTML();wireExpOut();drawExpChart();}}}
+      const out=$('#exp-out');if(out&&(EXP.done%Math.max(1,nW)===0||EXP.done===jobs.length)){out.innerHTML=expResultsHTML();wireExpOut();drawExpChart();}if(AN.mode==='sim')draw();}}
     finally{w.terminate();}};
   await Promise.all(Array.from({length:nW},worker));
   EXP.running=false;if(activeTab==='exp')renderAllPanes();
@@ -8130,6 +8172,11 @@ async function expRun(){
 }
 function wireExpOut(){
   const m=$('#exp-metric');if(m)m.onchange=e=>{EXP.metric=e.target.value;drawExpChart();};
+  const cv=$('#cv-exp');if(cv){const near=e=>{const b=cv.getBoundingClientRect(),dpr=cv.width/b.width,x=(e.clientX-b.left)*dpr,y=(e.clientY-b.top)*dpr;let best=null,bd=Infinity;
+      for(const p of EXP.pts){const d=Math.hypot(p.x-x,p.y-y);if(d<bd&&d<Math.max(p.w,10*dpr)*2){bd=d;best=p.i;}}return best;};
+    cv.onpointermove=e=>expHover(near(e));cv.onpointerleave=()=>expHover(null);
+    cv.onclick=e=>{const i=near(e);if(i==null)return;const r=EXP.results[i];tryGo({set:{...(EXP.base||{}),...r.cfg},seed:r.seed});logE(`Running the experiment's setup: ${fmtOv(r.cfg)} · seed ${r.seed}`,'ok');};
+    cv.style.cursor='crosshair';}
   const c=$('#exp-csv');if(c)c.onclick=()=>download(`nav-lab-${LV.id}-${Date.now()}.csv`,expCSV(),'text/csv');
   const cc=$('#exp-copycsv');if(cc)cc.onclick=()=>{if(navigator.clipboard)navigator.clipboard.writeText(expCSV()).then(()=>{const el=$('#exp-prog');if(el)el.textContent='CSV copied.';});};
   const cp=$('#exp-copy');if(cp)cp.onclick=()=>{const t=$('.exptab table');if(t&&navigator.clipboard)navigator.clipboard.writeText([...t.rows].map(r=>[...r.cells].map(c=>c.textContent.trim()).join('\t')).join('\n'));};
@@ -8541,7 +8588,7 @@ function drawSelection(px){
 const LAYER_DEFS=[['belief','Belief','Particles or the 95 % covariance ellipse','loc'],['beam','Beacon readings','Rays from the estimate','loc'],['trail','Trails','Solid = truth, dashed = estimate','loc'],
   ['lidar','Lidar hits','As perceived','per'],['cost','Costmap','Inflation','per'],['ghost','True-map outline','Over the built map','per'],['agents','Agents','Tracks, predictions, ego positions at the same times','per'],
   ['search','Planner search','A* closed set, Hybrid A* nodes or the RRT* tree','plan'],['dwa','Local plan','DWA rollouts, MPC prediction and reference','ctl'],['look','Lookahead','The path tracker\'s carrot','ctl'],['slip','Sideslip','Velocity at the centre of mass against the heading','ctl'],
-  ['ghostrun','Previous run','Ghost trail and ghost plot series','']];
+  ['ghostrun','Previous run','Ghost trail and ghost plot series',''],['sweep','Experiment runs','The paths of the last experiment\'s runs, coloured by the varied value','']];
 // [has something to draw now?, status text]
 function layerStatus(k){
   const tr=P.loc==='truth',ctlTr=['pp','rwf','stanley','pid'].includes(P.ctl);
@@ -8558,6 +8605,7 @@ function layerStatus(k){
     case'look':return ctlTr?[S.ctlViz&&S.ctlViz.carrot?1:0,'carrot of the path tracker']:[0,'only the path trackers'];
     case'slip':return isDyn()?[Math.abs(S.robot.v)>0.05?1:0,`β ${deg(dynSlip(S.robot).beta).toFixed(1)}°`]:[0,'only the car with tyre slip (Vehicle)'];
     case'ghostrun':return GHOST&&GHOST.level===LV.id?[1,GHOST.label]:[0,'no previous run on this level'];
+    case'sweep':return EXP.results.length&&EXP.level===LV.id?[1,`${EXP.results.length} runs of the last experiment`]:[0,'no experiment run on this level yet (Tools → Experiments)'];
   }
   return[0,''];
 }

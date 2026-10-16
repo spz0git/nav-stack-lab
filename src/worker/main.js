@@ -11,7 +11,8 @@ function runSummary(){
     dist:+S.dist.toFixed(2),poseRMS:S.errN?+Math.sqrt(S.errSq/S.errN).toFixed(4):null,poseErrFinal:+hyp(r.x-e.x,r.y-e.y).toFixed(3),
     cteRMS:S.cteN?+Math.sqrt(S.cteSq/S.cteN).toFixed(4):null,nees:nees==null?null:+nees.toFixed(2),
     replans:S.log.filter(l=>/^Replan/.test(l.msg)).length,mpcMs:S.mpcStats?+S.mpcStats.ms.toFixed(2):null,
-    log:S.log.slice(0,12).map(l=>l.t.toFixed(1)+' '+l.msg).reverse()};
+    log:S.log.slice(0,12).map(l=>l.t.toFixed(1)+' '+l.msg).reverse(),
+    path:S.trailT.filter((_,i)=>i%2===0).map(p=>p?[+p[0].toFixed(2),+p[1].toFixed(2)]:null)};   // the true path every 0.4 s (the trail is kept every 0.2 s; null: a kidnap)
 }
 self.onmessage=async e=>{
   const m=e.data;if(m.cmd!=='run')return;REC.on=false;

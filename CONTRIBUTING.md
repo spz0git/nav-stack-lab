@@ -43,7 +43,7 @@ Every pull request:
 
 ## How the code is organised
 
-`src/` is concatenated in `manifest.json` order into one page (see the README's source layout). Three rules:
+`src/` is concatenated in `manifest.json` order into one page (the module map is in `src/README.md`). Three rules:
 
 - `core/` never touches the DOM. It reaches the page only through the `UI` hooks in `core/state.js`, which is why
   the same core runs in Node (`tests/node/core.mjs`) and in the Experiments workers.

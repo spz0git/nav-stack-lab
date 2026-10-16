@@ -279,3 +279,51 @@ Phases are ordered by what unblocks the release; each bullet is one PR.
 
 Frontier exploration, gyro/IMU fusion in the L3 EKF, scan matching, LQR named in Analyze, D* Lite, pose-graph SLAM,
 velocity obstacles; each as a lesson plus a chapter section plus a measured Try.
+
+#### Three tracks: classical, modular learning, end-to-end
+
+Everything in the lab today is model-based. Robotics has moved a long way toward learned components, and the lab
+is well placed to show that shift honestly, because it can generate unlimited labelled data from a simulator whose
+ground truth it already knows. The goal is three parallel tracks a learner can switch between on the same levels
+and compare with the existing Runs tools:
+
+1. **Track A, classical** (what exists): filters, grid maps, search-based planners, hand-designed controllers.
+2. **Track B, modular learning**: the same pipeline, with one block at a time replaced by a learned one.
+   - Perception first: a small convolutional network that turns the lidar scan (and a short history) into an
+     occupancy or semantic grid, trained against the true map; a learned detector for people instead of the
+     unexplained-hit clustering.
+   - Prediction second: a trajectory predictor for the pedestrians trained on the simulator's own walkers
+     (including the reactive ones), replacing constant velocity; multi-modal output where the constant-velocity
+     model fails (people stopping and turning).
+   - Planning third, optionally: a learned cost or value map that feeds A*, or a learned local planner that
+     proposes the velocity profile the ST planner searches for.
+3. **Track C, end-to-end**: one policy from raw inputs (lidar, odometry, goal in the robot frame) to velocity or
+   steering commands. First behaviour cloning from Track A on L1 and L2, then a goal-conditioned policy on L5 with
+   people, then offline reinforcement-learning fine-tuning if the budget allows.
+
+How it can be built without breaking what the lab is:
+
+- The code slots (controller, planner, localizer, predictor) already define the interfaces a learned block needs;
+  a learned module is a slot implementation whose weights ship with the page.
+- Data collection is a Node script over `dist/core-worker.js`: it already runs an hour of simulated driving in
+  seconds and can log scans, true maps, true poses, people trajectories and the classical stack's commands.
+- Training happens offline in Python (PyTorch), with notebooks in a `training/` folder; the weights are exported as
+  JSON or ONNX. This is the one place where Python enters the project, and it is the right one.
+- Inference in the page stays dependency-free for small networks: a forward pass for an MLP or a small CNN is a
+  few hundred lines of plain JavaScript and runs in the existing Web Worker; a 1 MB weight file is acceptable in
+  the single-file build. Larger models would need ONNX Runtime Web (about 10 MB, loaded on demand), which is an
+  explicit exception to the no-dependency rule and should be a separate, optional build.
+- Phones set the ceiling: aim for networks that run at 20 Hz on a mid-range phone's CPU; the simulator's 2D world
+  keeps the inputs small (120 beams, a 240 × 160 grid).
+
+What the lessons would teach: what a network learned and what it did not (show the learned occupancy next to
+log-odds, the predicted paths next to constant velocity); distribution shift (train on the grippy floor, test on
+the slippery one; train on L2, test on L4); why the modular track is debuggable and the end-to-end one is not
+(the health lights have reasons in Track B and only an outcome in Track C); data efficiency (how many simulated
+hours each track needs); and where the classical stack still wins (consistency, guarantees, the NEES test has no
+learned equivalent).
+
+Suggested order, one PR each with a measured lesson: B1 learned occupancy from lidar; B2 learned pedestrian
+prediction; C1 behaviour-cloned controller on L1 compared with pure pursuit in Analyze and in the simulator; B3
+learned cost map for A*; C2 goal-conditioned policy on L5; C3 offline RL fine-tuning. B1 and C1 are small enough
+to be the first proofs that the pipeline (collect, train, export, run in the page) works.

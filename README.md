@@ -1,37 +1,32 @@
 # Nav Stack Lab
 
-A complete robot navigation stack in one HTML file: localization, perception, planning and control on a simulated
-differential-drive robot or car, a linear loop-analysis view checked against the nonlinear simulator, and 31 guided
-lessons with seven companion chapters whose numbers are measured, not asserted.
+A robot navigation simulator that runs in your browser. It is one HTML file: nothing to install, works offline,
+works on a phone.
 
-**Live demo:** https://spz0git.github.io/nav-stack-lab/ · or download
-[`dist/nav-stack-lab.html`](dist/nav-stack-lab.html) and open it: it is a single 1.5 MB page with no runtime
-dependencies and no network requests, so it works offline, on a phone and behind a blocker.
+**Try it:** https://spz0git.github.io/nav-stack-lab/ — or download
+[`dist/nav-stack-lab.html`](dist/nav-stack-lab.html) and open it.
 
-![Level 5, Busy floor: a particle filter localizes the robot while a lidar tracker follows the people and the speed planner yields to them](docs/readme/hero.png)
+![The busy floor level: a particle filter tracks the robot while the speed planner yields to people](docs/readme/hero.png)
 
-## What is inside
+## What it does
 
-- **Simulate.** Seven levels on a 24 × 16 m floor at 20 Hz: open floor, warehouse aisles, noisy odometry, unknown
-  building, busy floor with people and another vehicle, parking lot, and the moose test for the car with tyre slip. Pick an estimator (dead reckoning, EKF,
-  particle filter, EKF-SLAM), a mapping mode (prior map or log-odds occupancy), a planner (A*, RRT*, Hybrid A*
-  with Reeds–Shepp, space-time A*) and a tracker (pure pursuit, Stanley, rear-wheel feedback, PID, DWA, NMPC or
-  LTV-MPC); or drop in your own controller, planner, localizer or predictor as JavaScript that runs in a Web
-  Worker. Three vehicles: unicycle, kinematic bicycle, and a dynamic bicycle with tyre slip and a friction limit.
-  A Foxglove-style workspace around it: one timeline that replays map, plots, metrics and the event log, map tools
-  and layers, a plot dock over 33 signals, a command palette, health lights with reasons, runs kept and compared,
-  parameter sweeps in parallel workers.
-- **Analyze.** The tracking loop linearized about the path with the sampling, latency and actuator lag in the
-  model: Bode, Nyquist, step and bias responses, root locus and draggable poles, with the margins read from the
-  nonlinear simulator for comparison.
-- **Learn.** 31 lessons in four groups (localization, perception, planning and the mission, the control loop), each
-  with Try buttons that set the lab up and run, and seven chapters that derive the formulas (vehicle models,
-  localization, perception, planning, path trackers, the lateral tracking loop, MPC), with live values from the
-  current settings.
+A small robot drives missions on seven floors, from an empty room to a parking lot and a moose test. You choose how
+it localizes (dead reckoning, EKF, particle filter, EKF-SLAM), how it maps (known map or lidar occupancy), how it
+plans (A*, RRT*, Hybrid A*, space-time A*) and how it steers (pure pursuit, Stanley, rear-wheel feedback, PID, DWA,
+MPC). You can also write your own controller, planner, localizer or predictor in JavaScript and drop it in. There
+are people walking around, another vehicle, sensor noise, latency, and a car model with tyre slip.
 
-Known limits, stated up front: runs live in memory until the page closes (export keeps one); the health thresholds
-are heuristics; NEES and the phantom-track rule use ground truth; one y-axis per plot pane; Compare works on runs
-of the same level; the obstacle constraints of the MPC use a lidar snapshot. The design notes and the roadmap are in
+The page has three modes:
+
+- **Simulate** is the lab itself. The map, a timeline you can scrub back through, plots of any signal, an event log,
+  health lights per subsystem, and runs you can keep and compare.
+- **Analyze** linearizes the steering loop and shows you Bode and Nyquist plots, step responses and poles you can
+  drag, then checks the linear model against the real simulation.
+- **Learn** has 31 lessons and seven chapters. Each lesson has buttons that set the lab up and run the experiment
+  for you. The numbers in the lessons come from the simulator, not from a textbook.
+
+It is meant for students and engineers who want to see localization, perception, planning and control interact,
+change one thing, and watch what happens. Design notes, known limits and what comes next are in
 [docs/roadmap.md](docs/roadmap.md).
 
 ## Run it locally
@@ -39,113 +34,32 @@ of the same level; the obstacle constraints of the MPC use a lidar snapshot. The
 ```sh
 git clone https://github.com/spz0git/nav-stack-lab.git
 cd nav-stack-lab
-./build.sh                       # node build.mjs → dist/nav-stack-lab.html, dist/core-worker.js
-open dist/nav-stack-lab.html     # or python3 -m http.server --directory dist
+./build.sh
+open dist/nav-stack-lab.html
 ```
 
-The build needs Node 18 or newer and nothing else (the TeX-to-MathML converter is vendored in `tools/vendor/temml`
-and runs at build time only). `dist/` is committed, so the page at the head of `main` is always the one the demo
-serves.
+You need Node 18 or newer. There are no other dependencies.
 
-## Test it
-
-The tests drive the built page headless with Playwright (Python) and need a Chromium:
+## Tests
 
 ```sh
-python3 -m venv .venv && source .venv/bin/activate
-pip install playwright && playwright install chromium
-./build.sh
-npm test                         # the Node golden test: the L1–L5 summary against tests/node/golden.json, about 10 s
-python3 tests/run_all.py         # the browser gate (npm run test:browser); npm run test:all runs both
+npm test                    # Node only, about 10 s
+python3 tests/run_all.py    # drives the page in a headless browser, about 3 min
 ```
 
-`npm test` needs only Node: `tests/node/core.mjs` loads `dist/core-worker.js`, the page's simulation core, and runs
-the fourteen L1–L5 cases of `test.py`; `golden.test.mjs` compares goals, contacts, mission time, pose and cross-track
-RMS and NEES with the committed `tests/node/golden.json` (`npm run golden` rewrites it when a change means to move
-the numbers).
+The browser tests need Playwright and a Chromium once:
+`python3 -m venv .venv && source .venv/bin/activate && pip install playwright && playwright install chromium`.
+What each test checks is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-`run_all.py` runs the five gate tests and prints a pass/fail table; each can also run on its own from any directory:
+## Contributing
 
-```
-tests/test.py        L1–L5 regression: goals, contacts, mission time, pose error, NEES (the summary must not change)
-tests/p5test.py      every Try button of every lesson and level runs without a console error
-tests/tles.py        every lesson renders; the glossary covers every term
-tests/chtest.py      every chapter: live values fill, Try buttons run, derivation links go there and back
-tests/dyntest.py     the car with tyre slip against chapter 1's theory; Analyze against the simulator
-```
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains what kind of change fits and the
+tests every PR runs; [docs/good-first-issues.md](docs/good-first-issues.md) has a few small ones to start with;
+[src/README.md](src/README.md) is the map of the source.
 
-The browser suite takes about three minutes. `NAV_LAB_CHROMIUM=/path/to/chrome` makes the tests use that browser
-instead of Playwright's own; `NAV_LAB_PAGE=…` tests another build than `dist/nav-stack-lab.html`
-(`NAV_LAB_CORE=…` does the same for the Node tests).
-
-## Contribute
-
-Issues and pull requests are welcome: a new lesson, a chapter section, a planner heuristic, a signal, a bug with a
-run export attached. The project's vision, what is accepted and the test gate every PR has to pass are in
-[CONTRIBUTING.md](CONTRIBUTING.md); the release procedure is in [docs/maintaining.md](docs/maintaining.md).
-
-### Source layout
-
-One page, built from these modules by `node build.mjs`. The modules share one scope (they are concatenated in
-`manifest.json` order inside an IIFE), so a function defined in `core/planning.js` can be called from `ui/map.js`
-without imports. `core/` never touches the DOM; it reaches the page only through the hook object `UI` in
-`core/state.js`, which is why the same core runs in Node and in the Experiments workers.
-
-```
-src/
-  index.html        page markup; /*__FONTS__*/, /*__CSS__*/, /*__JS__*/ and /*__WORKER__*/ are filled by the build
-  styles.css
-  fonts/            the typefaces (woff2 Latin subsets, SIL OFL) embedded by the build; fonts.json lists them
-  manifest.json     the module order (declaration order matters for const/let)
-  version.json      the version label in the header
-  core/             the simulation; no DOM
-    constants.js    world size, grid, helpers, footprint geometry
-    worlds.js       obstacle layouts, beacons, people, the six levels
-    params.js       DEFAULTS, P (live parameters), LAYERS
-    record.js       replay frames, ghost of the previous run
-    state.js        S (simulation state), reset(), people motion
-    config.js       loadLevel, setParam, kidnapTo, requestReplan
-    vehicle.js      actuator chain + unicycle/bicycle integration
-    sensors.js      lidar, beacons
-    localization.js dead reckoning, EKF, particle filter
-    slam.js         EKF-SLAM
-    perception.js   log-odds mapping, costmap
-    planning.js     A*, RRT*, smoothing
-    planning-car.js Reeds–Shepp, Hybrid A*
-    path.js         track projection, curvature
-    mission.js      goal ordering, state machine
-    controllers.js  pure pursuit, rear-wheel feedback, Stanley, PID, DWA
-    mpc.js          NMPC / LTV-MPC
-    dispatch.js     which controller runs
-    custom-controller.js  user code in a Web Worker
-    slots.js        the other code slots (planner, localizer, predictor)
-    agents.js       agent detection, tracking, prediction, ST speed planning
-    fidelity.js     sensor latency, reactive pedestrians, the other vehicle, the tyre model
-    step.js         one simulation tick, advance()
-    log.js          event log (data only)
-  ui/               everything that touches the DOM or a canvas
-  analysis/         linear loop analysis (num, model, plots, lessons, glossary)
-  worker/main.js    headless runner: core/* + this file = dist/core-worker.js, embedded in the page
-docs/notes/         the seven companion chapters (markdown + TeX), converted by tools/notes.mjs at build time
-tests/              Playwright tests and the measurement scripts the lessons' numbers come from
-```
-
-### Companion notes and lessons
-
-`docs/notes/*.md` are the chapters shown in Learn mode. They are markdown with TeX formulas, plus `{{live:key}}` for
-numbers the app computes from the current settings (defined in `src/ui/chapters.js`) and
-`[try: Label | {cfg}]` for buttons that set the simulator or the analysis up; the header of `tools/notes.mjs`
-documents both. A lesson (`src/analysis/lessons.js`, `lessons2.js`) links to the section that derives its formula
-with `<a class="chref" href="#notes=ch2/<section-slug>">`, and Back from the chapter returns to the lesson. A Try is
-`['Label', cfg]` or, explained, `['Label', cfg, {setup, see, shows}]`; a lesson may carry `q: [[question, answer], …]`.
-The numbers in a lesson's "What you will see" are measured headless first with the `tests/measure_*.py` scripts.
-
-## Cite
-
-If this lab is useful in a course or a paper, please cite it; [CITATION.cff](CITATION.cff) has the metadata GitHub
-and Zenodo read.
+If you use the lab in a course or a paper, [CITATION.cff](CITATION.cff) has the citation.
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE). The vendored converter `tools/vendor/temml` and the embedded typefaces in `src/fonts/` keep
-their own licences (MIT and SIL OFL 1.1); [NOTICE](NOTICE) lists them.
+MIT, see [LICENSE](LICENSE). The embedded fonts and the vendored TeX converter keep their own licences, listed in
+[NOTICE](NOTICE).

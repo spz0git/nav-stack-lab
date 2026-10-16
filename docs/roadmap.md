@@ -116,8 +116,14 @@ A third vehicle option, so that the control lessons can show understeer, the cha
   (loc lesson 7, ch2 §10): Gauss–Newton on the prior map's distance field, fused into the EKF as a pose fix (H = I,
   χ²₃ gate, fused only after 5 cm of motion, poor fits dropped, covariance ×4 and floored at 5 cm so that NEES ≈ 5
   rather than 9; the double counting of starting from the estimate is explained, not solved). Lidar-only
-  localization at 4 cm RMS; a kidnap in L3 goes unnoticed (aliasing), which the lesson makes its point. Still open:
-  pose-graph SLAM, D* Lite, velocity obstacles.
+  localization at 4 cm RMS; a kidnap in L3 goes unnoticed (aliasing), which the lesson makes its point. Pose-graph SLAM (loc lesson 8,
+  ch2 §11, `core/pgslam.js`): two levels, scan-to-map matching of each keyframe against a hit map of the earlier
+  keyframes (never log-odds: carving erodes walls seen a few times, and matching the live grid locks the drift in)
+  fused with the odometry, and ICP loop closures with the reach growing with the uncertainty and a wide search; dense
+  Cholesky Gauss–Newton with the first pose anchored, batched to one optimization per second (0.1 s at 200
+  keyframes); the maps rebuilt from every kept scan hung off its keyframe. Measured: closures alone cannot rescue wheel
+  odometry (the chain's guess leaves ICP's reach before the return), scan-to-map does most of the work, with the gyro
+  the lidar-only map beats the beacon EKF's. Still open: D* Lite, velocity obstacles.
 - The code behind every lesson (owner's direction: show the code and let the learner change it; "Your code" was a
   button with no explanation). A function marked `// @code <id> | <title>` … `// @end` in the source is a snippet; the
   build indexes the markers (`tools/code.mjs`) and the page cuts the text from its own script tag at runtime

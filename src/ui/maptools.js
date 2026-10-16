@@ -256,7 +256,8 @@ const LAYER_DEFS = [
   ['slip', 'Sideslip', 'Velocity at the centre of mass against the heading', 'ctl'],
   ['ghostrun', 'Previous run', 'Ghost trail and ghost plot series', ''],
   ['sweep', 'Experiment runs', "The paths of the last experiment's runs, coloured by the varied value", ''],
-  ['frontier', 'Frontiers', 'Known free cells next to unknown space, the chosen frontier brighter (Mission → Explore)', 'plan']
+  ['frontier', 'Frontiers', 'Known free cells next to unknown space, the chosen frontier brighter (Mission → Explore)', 'plan'],
+  ['graph', 'Pose graph', 'Keyframes and their edges; loop closures in the accent colour (Localize → Pose-graph SLAM)', 'loc']
 ];
 // [has something to draw now?, status text]
 function layerStatus(k) {
@@ -300,6 +301,8 @@ function layerStatus(k) {
         : [0, 'only the car with tyre slip (Vehicle)'];
     case 'ghostrun':
       return GHOST && GHOST.level === LV.id ? [1, GHOST.label] : [0, 'no previous run on this level'];
+    case 'graph':
+      return S.pg ? [1, `${S.pg.nodes.length} keyframes, ${S.pg.loops} loop closures`] : [0, 'only with pose-graph SLAM (Localize)'];
     case 'frontier':
       return exploring()
         ? [

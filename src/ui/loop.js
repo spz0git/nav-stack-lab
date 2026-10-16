@@ -12,6 +12,7 @@ function refreshAll() {
   renderRunsBadge();
   renderGhostChip();
   renderBeaconSensor();
+  renderInfoLines();
 }
 let lastTs = 0,
   acc = 0,

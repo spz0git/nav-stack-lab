@@ -240,6 +240,21 @@ function frontierGone(wp) {
   for (const k of wp.cells) if (lo[k] < -0.05 && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW))) return false;
   return true;
 }
+// how much of the built map agrees with the truth: among the known cells, the share whose class (occupied above
+// log-odds 0.5, else free) matches the level's map; what a SLAM is judged by
+function mapAgree() {
+  const lo = S.lo,
+    tr = LV.truthOcc;
+  if (!tr || P.per !== 'mapping') return null;
+  let n = 0,
+    ok = 0;
+  for (let i = 0; i < NC; i++) {
+    if (Math.abs(lo[i]) < 0.05) continue;
+    n++;
+    if ((lo[i] > 0.5 ? 1 : 0) === (tr[i] ? 1 : 0)) ok++;
+  }
+  return n ? ok / n : null;
+}
 // when a frontier goal is done or given up: the next frontier, or the end of the exploration
 function exploreMore(failedKey) {
   if (!exploring()) return false;

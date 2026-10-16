@@ -46,13 +46,13 @@ function loadLevel(i) {
 // is still being dragged, so the costly effects (a costmap rebuild, a replan) wait for the release.
 const PARAM_EFFECTS = [
   [
-    ['loc', 'npart'],
+    ['loc', 'npart', 'pgKf', 'pgLoop', 'pgMatch'],
     () => {
       S.locInit = false;
       if (SLOTS.loc.worker) SLOTS.loc.worker.reset();
       initLoc(false);
       logE(
-        `Localization → ${{truth: 'ground truth', dr: 'dead reckoning', ekf: 'EKF', pf: 'particle filter', slam: 'EKF-SLAM', custom: 'your code'}[P.loc]}`
+        `Localization → ${{truth: 'ground truth', dr: 'dead reckoning', ekf: 'EKF', pf: 'particle filter', slam: 'EKF-SLAM', pgslam: 'pose-graph SLAM', custom: 'your code'}[P.loc]}`
       );
     }
   ],

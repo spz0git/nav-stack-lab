@@ -8,7 +8,7 @@
  "core/vehicle.js",
  "core/sensors.js",
  "core/localization.js",
- "core/slam.js",
+ "core/slam.js", "core/pgslam.js",
  "core/perception.js",
  "core/planning.js",
  "core/planning-car.js",

@@ -101,3 +101,68 @@ test('EKF update: a correct reading moves the estimate toward the truth and shri
   near(S.Pc[2], S.Pc[6], 1e-12, 'symmetric');
   assert.ok(S.Pc[0] > 0 && S.Pc[4] > 0 && S.Pc[8] > 0, 'positive diagonal');
 });
+
+test('pose algebra: b ⊖ a composed back onto a is b', () => {
+  const a = {x: 1, y: 2, th: 0.7},
+    b = {x: -0.5, y: 3, th: -2.0},
+    r = C.pgRel(a, b),
+    c = C.pgComp(a, r);
+  near(c.x, b.x, 1e-12, 'x');
+  near(c.y, b.y, 1e-12, 'y');
+  near(C.wrap(c.th - b.th), 0, 1e-12, 'th');
+});
+
+test('icp2d: a room scan moved by (0.3, −0.2, 6°) is aligned back within the point spacing', () => {
+  // point-to-point ICP slides along a wall by up to the spacing of the sampled points (16 cm at 3 m here) and trades
+  // that sliding against rotation, so the pose comes back within several centimetres and a few degrees
+  // a 6 × 4 m room seen from its middle: 120 beams, as the lidar scans it
+  const walls = [];
+  for (let k = 0; k < 120; k++) {
+    const a = -Math.PI + (k * 2 * Math.PI) / 120,
+      c = Math.cos(a),
+      s = Math.sin(a),
+      r = Math.min(Math.abs(3 / (c || 1e-9)), Math.abs(2 / (s || 1e-9)));
+    walls.push([r * c, r * s]);
+  }
+  const T = {x: 0.3, y: -0.2, th: 0.1},
+    c = Math.cos(T.th),
+    s = Math.sin(T.th);
+  // the same walls seen from a second pose T (in the first pose's frame): body-frame points of the second scan
+  const src = walls.map(([x, y]) => [c * (x - T.x) + s * (y - T.y), -s * (x - T.x) + c * (y - T.y)]);
+  const m = C.icp2d(src, walls, {x: 0, y: 0, th: 0});
+  assert.ok(m, 'converged');
+  near(m.x, T.x, 0.1, 'x');
+  near(m.y, T.y, 0.1, 'y');
+  near(m.th, T.th, 0.05, 'th');
+  assert.ok(m.inl > 0.9, `inliers ${m.inl}`);
+  assert.ok(m.rms < 0.1, `residual ${m.rms}`); // the paired points sit within the far walls' point spacing of each other
+});
+
+test('pgOptimize: a square of odometry edges with a closing edge comes out square', () => {
+  C.loadLevel(0);
+  C.setParam('loc', 'pgslam', false);
+  const G = C.S.pg;
+  // four poses around a 2 m square, the odometry edges each 2 % long and 2° off, the closure exact
+  const O = [100, 0, 0, 0, 100, 0, 0, 0, 1000];
+  G.nodes = [
+    {x: 0, y: 0, th: 0},
+    {x: 2.04, y: 0, th: Math.PI / 2 + 0.035},
+    {x: 2.1, y: 2.04, th: Math.PI + 0.07},
+    {x: 0.1, y: 2.1, th: -Math.PI / 2 + 0.1}
+  ];
+  G.edges = [
+    {i: 0, j: 1, z: {x: 2.04, y: 0, th: Math.PI / 2 + 0.035}, O, loop: false},
+    {i: 1, j: 2, z: {x: 2.04, y: 0, th: Math.PI / 2 + 0.035}, O, loop: false},
+    {i: 2, j: 3, z: {x: 2.04, y: 0, th: Math.PI / 2 + 0.035}, O, loop: false},
+    {i: 3, j: 0, z: {x: 2, y: 0, th: Math.PI / 2}, O: O.map(v => 100 * v), loop: true}
+  ];
+  C.pgOptimize();
+  const n = G.nodes;
+  near(n[0].x, 0, 1e-3, 'anchor x');
+  near(n[0].y, 0, 1e-3, 'anchor y');
+  // the closure pulls the last pose onto the square: within 3 cm of (0, 2), heading −90° within 2°
+  near(n[3].x, 0, 0.03, 'x3');
+  near(n[3].y, 2, 0.03, 'y3');
+  near(C.wrap(n[3].th + Math.PI / 2), 0, 0.035, 'th3');
+  assert.ok(G.opt.chi2 < 50, `chi2 ${G.opt.chi2}`);
+});

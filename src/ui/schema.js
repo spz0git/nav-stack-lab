@@ -44,6 +44,7 @@ const SCHEMA = {
         ['ekf', 'EKF'],
         ['pf', 'Particle filter'],
         ['slam', 'EKF-SLAM'],
+        ['pgslam', 'Pose-graph SLAM'],
         ['custom', 'Your code']
       ]
     },
@@ -79,6 +80,22 @@ const SCHEMA = {
             : 'Every 0.2 s the scan is aligned to the prior map by Gauss–Newton on its distance field and fused as a pose fix with the covariance of the fit, gated like a beacon reading.',
       show: () => P.loc === 'ekf' && P.scanMatch
     },
+    {
+      type: 'info',
+      text: () => {
+        const G = S && S.pg;
+        if (!G) return '';
+        const last = G.last
+          ? ` Last: keyframe ${G.last.j} ↔ ${G.last.i} at ${G.last.t.toFixed(1)} s, correction ${(100 * G.last.corr).toFixed(0)} cm, ${(100 * G.last.inl).toFixed(0)} % of the hits paired.`
+          : '';
+        const opt = G.opt ? ` Optimization: ${G.opt.it} iterations, ${G.opt.ms.toFixed(0)} ms, χ² ${G.opt.chi2.toFixed(1)}.` : '';
+        return `Lidar only, the beacons ignored. ${G.nodes.length} keyframes (${G.matched} placed by matching the scan to the map so far), ${G.loops} loop closure${G.loops === 1 ? '' : 's'}.${last}${opt}${P.per !== 'mapping' ? ' With a prior map the graph still runs, but there is no map to correct: Perceive → lidar mapping shows the point of it.' : ''}`;
+      },
+      show: () => P.loc === 'pgslam'
+    },
+    {k: 'pgKf', label: 'Keyframe spacing', min: 0.2, max: 2, step: 0.1, unit: 'm', show: () => P.loc === 'pgslam'},
+    {k: 'pgMatch', type: 'bool', label: 'Scan-to-map matching at every keyframe', show: () => P.loc === 'pgslam'},
+    {k: 'pgLoop', type: 'bool', label: 'Loop closures (scan-to-scan ICP against earlier keyframes)', show: () => P.loc === 'pgslam'},
     {
       type: 'info',
       text: () =>

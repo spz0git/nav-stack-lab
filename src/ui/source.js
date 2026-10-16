@@ -1,6 +1,6 @@
 /* ---------- source viewer: the page shows its own modules ---------- */
 const SRC_FILES = {
-  loc: ['core/localization.js', 'core/sensors.js'],
+  loc: ['core/localization.js', 'core/slam.js', 'core/pgslam.js', 'core/sensors.js'],
   per: ['core/perception.js', 'core/agents.js', 'core/sensors.js'],
   mis: ['core/mission.js'],
   plan: ['core/planning.js', 'core/planning-car.js', 'core/path.js'],

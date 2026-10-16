@@ -18,6 +18,8 @@ Phase 1, the learning path (from the assessment of 2026-10-15):
   checks are remembered in this browser.
 - Progress: a dot per lesson (started, done), a bar per group and a count above the list, ticks on the first pass,
   "Continue with lesson n" on the Start here card; Next follows the first pass while the open lesson is on it.
+- The level panel's Try list is now "Quick experiments", with a line that names the lessons whose experiments run
+  on this floor (a click opens the lesson), so the two experiment systems stop competing.
 
 ## v33 · 2026-10-16
 

@@ -69,6 +69,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .brief .adds-d .adds{margin-top:4px}
 .brief summary h3{display:inline}
 .brief li{margin:2px 0}
+.brief .try>.note{margin:4px 0 2px;font-size:.84rem}
+.brief .lvlessons .linkbtn{display:inline;font-size:.84rem}
 .brief li b{color:var(--ink);font-weight:600}
 
 

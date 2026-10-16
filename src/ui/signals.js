@@ -26,6 +26,7 @@ const SIGNALS = [
   ['sp', 'σ position (filter)', 'm', 'loc', 'p', d => d.sp],
   ['sth', 'σ heading (filter)', '°', 'loc', 'p', d => (d.sth == null ? null : deg(d.sth))],
   ['nees', 'NEES (3 = consistent)', '', 'loc', 'f', f => f.sig && f.sig.nees],
+  ['smRms', 'Scan match residual', 'cm', 'loc', 'f', f => (f.sig && f.sig.sm != null ? 100 * f.sig.sm : null)],
   ['neff', 'Particles N_eff', '', 'loc', 'f', f => f.sig && f.sig.neff],
   ['explored', 'Floor seen', '%', 'per', 'f', f => (f.sig && f.sig.explored != null ? 100 * f.sig.explored : null)],
   ['zn', 'Beacon readings per scan', '', 'loc', 'f', f => (f.lastZ ? f.lastZ.length : null)],

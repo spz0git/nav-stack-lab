@@ -245,6 +245,44 @@ $$
 
 which settles in the 2 s hold at the start of a run (40 readings; the remaining fraction of the bias is $0.9^{40} \approx 1.5\,\%$) and averages the noise down by $\sqrt{\alpha/(2-\alpha)} \approx 0.23$, so the estimate is good to about $0.07°/\mathrm s$. The estimate is then subtracted from every reading, and refreshed at every later stop. The alternative, used when stops are rare, is to make $b$ a fourth state of the filter: the beacons then observe it through the heading, and §4 corrects it like everything else. Both are standard; the lab keeps the three-state filter and uses the stop.
 
-## 10. What to carry into the next chapters
+## 10. Scan matching: the lidar as a position sensor
+
+**The cost.** With a prior map, its distance field $d(\cdot)$ gives every point in the world its distance to the nearest wall (the same transform the costmap uses, chapter 3 §2). A scan is a set of hits $p_i$ in the body frame; placed in the world at a pose $\xi = (x, y, \theta)$ they land at $T_\xi p_i = R(\theta)\,p_i + (x, y)$. If $\xi$ is right the hits lie on walls and $d(T_\xi p_i) = 0$; if it is wrong they lie beside them. Scan matching minimizes
+$$
+F(\xi) = \sum_i d(T_\xi p_i)^2
+$$
+over the pose. Hits with $d > 0.5$ m are left out: they are people, or beams that hit nothing in the map, and a least-squares fit would be dragged by them.
+
+**Gauss–Newton.** $d$ is read from the grid by bilinear interpolation, which also gives its gradient $\nabla d = (d_x, d_y)$. By the chain rule the residual's derivative with respect to the pose is one row per hit,
+$$
+J_i = \nabla d\,\frac{\partial T_\xi p_i}{\partial \xi} = \begin{bmatrix} d_x & d_y & d_x(-s\,p_x - c\,p_y) + d_y(c\,p_x - s\,p_y)\end{bmatrix}, \quad c = \cos\theta,\ s = \sin\theta,
+$$
+and the linearized problem has the normal equations $H\,\delta = -b$ with $H = \sum_i J_i^\top J_i$ and $b = \sum_i J_i^\top d_i$. The step $\delta$ is added to $\xi$ and the loop repeats until the step is under a millimetre and a milliradian, ten times at most. The second derivatives of $d$ are dropped, which is what makes it Gauss–Newton rather than Newton; near a fit they hardly matter. Sixty hits and ten steps are about a thousand field reads, well under a millisecond.
+
+**The covariance.** For a least-squares fit the estimate's covariance is $s^2 H^{-1}$ with $s^2 = \sum d_i^2 / (n - 3)$ the residual variance. Two corrections before it is believed: neighbouring beams hit the same wall, so the $n$ residuals are not independent and the covariance is inflated by four; and no fit is better than the map's cells, so it is floored at $(5\,\text{cm})^2$ in position and $(1°)^2$ in heading. The structure of $H$ is the interesting part. Its eigenvectors are the directions in which moving the scan changes the cost most and least; in a long featureless corridor the along-corridor eigenvalue is near zero, $H^{-1}$ is long in that direction, and the fix honestly reports that it knows where across the corridor the robot is but not where along it.
+
+**The fusion.** The matched pose is a measurement of the whole state with $H = I$: innovation $\nu = \xi_\text{fix} - \mu$ (heading wrapped), $S = \Sigma + \Sigma_\text{fix}$, gain $K = \Sigma S^{-1}$, the update of §4 with the Joseph form. The gate is $\nu^\top S^{-1}\nu < \chi^2_3(99\,\%) = 11.3$. Two rules keep it honest: a match is fused only once the robot has moved 5 cm or turned 6° since the last fused one, because the same scan from the same place is not new evidence; and a fit with residual over 12 cm, or with fewer than 60 % of its hits near any wall, is a match onto the wrong walls and is dropped.
+
+**The double counting.** The matcher starts from the estimate and its result corrects that same estimate: part of the fix is the prior, and fusing it at full weight counts the prior twice. That is why the NEES of the lidar-only runs below sits near 5 rather than 3 even with the inflation. The honest versions start the match from the odometry-only prediction, or treat matches as constraints between poses in a smoother (chapter 2 §8's EKF-SLAM is the filter form of that, and pose-graph SLAM its sparse one).
+
+**Aliasing.** Gauss–Newton converges to the nearest minimum of $F$. From an estimate within its basin, half a metre and some 20° on this map, that is the right one. After a kidnap it is whichever shelves happen to be near the old estimate, and in a warehouse of identical shelves those fit the new scan as well as the right ones did: the residual is small, the gate is quiet, and the filter is confidently wrong. Nothing in one scan can tell; detection needs a second hypothesis (the particle filter's injected samples, §7), a sensor that sees past the shelves (the beacons), or a check over a sequence of scans.
+
+**Measured** on L3 at seed 7, the EKF, 120 s:
+
+| Run | Pose RMS | NEES | Inside 2σ | Goals |
+| --- | --- | --- | --- | --- |
+| Dead reckoning, no beacons | 1.58 m | – | – | 2 of 5, one collision |
+| Scan matching, no beacons | 0.04 m | 2 to 9 (≈ 5) | 85 % | 5 |
+| Beacons only | 0.04 m | 2.6 to 4.7 | 97 % | 5 |
+| Beacons and scan matching | 0.03 m | ≈ 4 | 91 % | 5 |
+| Beacons down 70 %, scan matching | 0.04 m | 2 to 8 | 87 % | 5 (0.14 m without it) |
+| Kidnapped at 8 s, lidar only | 16 m from then on | 10⁵ | 0 | 0, no match rejected |
+| Kidnapped at 8 s, beacons and lidar | 0.25 m at 24 s, 2 cm from 34 s | back to 3.5 by 54 s | – | 76 matches rejected on the way |
+
+L2's aisles, with odometry noise and bias ×1 and no beacons: 0.04 m RMS, all four goals.
+
+[try: Lidar only: every beacon off | {"sim":true,"level":2,"set":{"loc":"ekf","bOff":"all","scanMatch":true},"tab":"loc","plot":"pos"}] [try: Kidnapped, lidar only | {"sim":true,"level":2,"set":{"loc":"ekf","bOff":"all","scanMatch":true},"tab":"loc","plot":"pos","act":"kidnap"}]
+
+## 11. What to carry into the next chapters
 
 Three ideas from this chapter recur everywhere in the stack. Linearize, then propagate covariance through the Jacobian: the tracker's constant-velocity filter in chapter 3 is the same machinery on a person's position and velocity. Measure surprise in units of the expected spread: the Mahalanobis gate reappears in data association for tracks, and NEES is the test for any filter that claims a covariance. And keep the uncertainty honest rather than small: the costmap margins, the speed planner's growing radii and the lost guard all consume $\Sigma$, and all of them are only as good as it is.

@@ -112,8 +112,12 @@ A third vehicle option, so that the control lessons can show understeer, the cha
 ## Phase 4 — content, and the code behind the lessons (in progress, 2026-10-16)
 
 - Part A, classical: a yaw-rate gyro with a zero-velocity update (loc lesson 6, ch2 §9), pole placement and LQR in
-  Analyze (ctl lesson 18, ch6 §8), frontier exploration (plan lesson 6, ch4 §7): v37, PRs #77–#79. Still open: scan
-  matching, pose-graph SLAM, D* Lite, velocity obstacles.
+  Analyze (ctl lesson 18, ch6 §8), frontier exploration (plan lesson 6, ch4 §7): v37, PRs #77–#79. Scan matching
+  (loc lesson 7, ch2 §10): Gauss–Newton on the prior map's distance field, fused into the EKF as a pose fix (H = I,
+  χ²₃ gate, fused only after 5 cm of motion, poor fits dropped, covariance ×4 and floored at 5 cm so that NEES ≈ 5
+  rather than 9; the double counting of starting from the estimate is explained, not solved). Lidar-only
+  localization at 4 cm RMS; a kidnap in L3 goes unnoticed (aliasing), which the lesson makes its point. Still open:
+  pose-graph SLAM, D* Lite, velocity obstacles.
 - The code behind every lesson (owner's direction: show the code and let the learner change it; "Your code" was a
   button with no explanation). A function marked `// @code <id> | <title>` … `// @end` in the source is a snippet; the
   build indexes the markers (`tools/code.mjs`) and the page cuts the text from its own script tag at runtime

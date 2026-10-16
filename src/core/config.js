@@ -57,9 +57,10 @@ const PARAM_EFFECTS = [
     }
   ],
   [
-    ['assoc', 'inject', 'filtK'],
+    ['assoc', 'inject', 'filtK', 'scanMatch'],
     () => {
       S.nees = [];
+      S.sm = null;
     }
   ],
   [

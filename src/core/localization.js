@@ -373,3 +373,148 @@ function scatterParticles() {
   logE(`Scattered ${f.N} particles uniformly (global localization)`, 'warn');
   UI.draw();
 }
+// Scan matching against the prior map (Hector-style): the scan's hits are aligned to the map's distance field by
+// Gauss–Newton on ξ = (x, y, θ), starting from the estimate. A hit p_i placed at T_ξ p_i in the world costs d(T_ξ p_i)²,
+// d the bilinearly interpolated distance to the nearest wall; its Jacobian is ∇d times the derivative of the transform.
+// Hits farther than 0.5 m from any wall (people, outliers) are left out. Returns the pose, a covariance s² H⁻¹ (s² the
+// residual variance, inflated for the beams' correlation), the residual RMS, the count and the iterations, or null.
+// @code scan-match | scanMatch: Gauss–Newton alignment of a scan to the map's distance field
+function scanMatch(ranges, pose) {
+  const D = LV.truthDist,
+    HIT = 0.5,
+    pts = [];
+  for (let k = 0; k < NBEAM; k += 2) {
+    const r = ranges[k];
+    if (r >= LMAX - 1e-3) continue;
+    const a = -Math.PI + (k * TAU) / NBEAM;
+    pts.push([r * Math.cos(a), r * Math.sin(a)]);
+  }
+  if (pts.length < 12) return null;
+  // d and ∇d at a world point, bilinear between the cell centres (null off the map)
+  const field = (x, y) => {
+    const fx = x / RES - 0.5,
+      fy = y / RES - 0.5,
+      i = Math.floor(fx),
+      j = Math.floor(fy);
+    if (i < 0 || j < 0 || i >= GW - 1 || j >= GH - 1) return null;
+    const tx = fx - i,
+      ty = fy - j,
+      k = j * GW + i,
+      d00 = D[k],
+      d10 = D[k + 1],
+      d01 = D[k + GW],
+      d11 = D[k + GW + 1];
+    return {
+      d: (1 - ty) * ((1 - tx) * d00 + tx * d10) + ty * ((1 - tx) * d01 + tx * d11),
+      gx: ((1 - ty) * (d10 - d00) + ty * (d11 - d01)) / RES,
+      gy: ((1 - tx) * (d01 - d00) + tx * (d11 - d10)) / RES
+    };
+  };
+  let x = pose.x,
+    y = pose.y,
+    th = pose.th,
+    H = null,
+    n = 0,
+    ss = 0,
+    it = 0;
+  for (; it < 10; it++) {
+    const c = Math.cos(th),
+      s = Math.sin(th),
+      b = [0, 0, 0];
+    H = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    n = 0;
+    ss = 0;
+    for (const [px, py] of pts) {
+      const f = field(x + c * px - s * py, y + s * px + c * py);
+      if (!f || f.d > HIT) continue;
+      const J = [f.gx, f.gy, f.gx * (-s * px - c * py) + f.gy * (c * px - s * py)]; // ∂d/∂x, ∂d/∂y, ∂d/∂θ
+      for (let a = 0; a < 3; a++) {
+        b[a] += J[a] * f.d;
+        for (let q = 0; q < 3; q++) H[a * 3 + q] += J[a] * J[q];
+      }
+      n++;
+      ss += f.d * f.d;
+    }
+    if (n < 12) return null;
+    for (let a = 0; a < 3; a++) H[a * 4] += 1e-6;
+    const Hi = m3inv(H);
+    if (!Hi) return null;
+    const dx = -(Hi[0] * b[0] + Hi[1] * b[1] + Hi[2] * b[2]), // the Gauss–Newton step H δ = −b
+      dy = -(Hi[3] * b[0] + Hi[4] * b[1] + Hi[5] * b[2]),
+      dth = -(Hi[6] * b[0] + Hi[7] * b[1] + Hi[8] * b[2]);
+    x += dx;
+    y += dy;
+    th = wrap(th + dth);
+    if (Math.abs(dx) < 1e-3 && Math.abs(dy) < 1e-3 && Math.abs(dth) < 1e-3) break;
+  }
+  const s2 = Math.max(ss / Math.max(1, n - 3), 1e-4), // residual variance, floored at (1 cm)²
+    Hi = m3inv(H);
+  if (!Hi) return null;
+  const cov = Hi.map(v => v * s2 * SM_INFL);
+  cov[0] += SM_FLOOR * SM_FLOOR; // the map's cells are 10 cm: no fit is better than a few centimetres
+  cov[4] += SM_FLOOR * SM_FLOOR;
+  cov[8] += 0.0003; // (1°)²
+  return {x, y, th, cov, rms: Math.sqrt(ss / n), n, hits: pts.length, it};
+}
+// @end
+const SM_INFL = 4, // the hits are not independent (neighbouring beams see the same wall): the fit's covariance, inflated
+  SM_RMS_MAX = 0.12, // a fit worse than this is not a fit: not fused
+  SM_FLOOR = 0.05; // and floored at half the map's resolution (NEES ≈ 3 on L3 with this; 0.03 gives 9)
+// The matched pose as a direct measurement of the EKF state (H = I), gated at χ²(3) 99 %: a match that converged to the
+// wrong minimum, as after a kidnap, is rejected rather than fused. The match starts from the estimate, so the fix is not
+// independent of it (the double counting every scan matcher lives with); the inflated covariance stands in for that.
+// @code ekf-scan | ekfScanUpdate: the scan match fused as a pose fix
+function ekfScanUpdate(ranges) {
+  const e = S.est,
+    m = scanMatch(ranges, e);
+  S.sm = m
+    ? {
+        rms: m.rms,
+        n: m.n,
+        hits: m.hits,
+        it: m.it,
+        cov: m.cov,
+        ok: false,
+        dx: hyp(m.x - e.x, m.y - e.y),
+        d2: null,
+        still: false,
+        poor: false
+      }
+    : null;
+  if (!m) return;
+  // a poor fit (large residual, or most hits far from any wall) is a match onto the wrong walls, as after a kidnap
+  if (m.rms > SM_RMS_MAX || m.n < 0.6 * m.hits) {
+    S.sm.poor = true;
+    S.rejected++;
+    return;
+  }
+  // the same scan from the same place is not new evidence: fuse only once the robot has moved since the last fused match
+  const L = S.smLast;
+  if (L && hyp(e.x - L.x, e.y - L.y) < 0.05 && Math.abs(wrap(e.th - L.th)) < 0.1) {
+    S.sm.still = true;
+    return;
+  }
+  const nu = [m.x - e.x, m.y - e.y, wrap(m.th - e.th)],
+    Si = m3inv(S.Pc.map((v, i) => v + m.cov[i]));
+  if (!Si) return;
+  let d2 = 0;
+  for (let a = 0; a < 3; a++) for (let q = 0; q < 3; q++) d2 += nu[a] * Si[a * 3 + q] * nu[q];
+  S.sm.d2 = d2;
+  if (d2 > 11.34) {
+    S.rejected++;
+    return;
+  }
+  const K = m3mul(S.Pc, Si); // P (P + R)⁻¹
+  S.est = {
+    x: e.x + K[0] * nu[0] + K[1] * nu[1] + K[2] * nu[2],
+    y: e.y + K[3] * nu[0] + K[4] * nu[1] + K[5] * nu[2],
+    th: wrap(e.th + K[6] * nu[0] + K[7] * nu[1] + K[8] * nu[2])
+  };
+  const IK = [1 - K[0], -K[1], -K[2], -K[3], 1 - K[4], -K[5], -K[6], -K[7], 1 - K[8]]; // Joseph form
+  const Pn = m3mul(m3mul(IK, S.Pc), m3T(IK)),
+    KRK = m3mul(m3mul(K, m.cov), m3T(K));
+  S.Pc = Pn.map((v, i) => v + KRK[i]);
+  S.sm.ok = true;
+  S.smLast = {...S.est};
+}
+// @end

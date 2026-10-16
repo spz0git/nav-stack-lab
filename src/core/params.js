@@ -7,6 +7,7 @@ const DEFAULTS = {
   npart: 400,
   inject: true,
   pfLidar: true,
+  scanMatch: false,
   filtK: 1,
   per: 'oracle',
   unknownAs: 'free',

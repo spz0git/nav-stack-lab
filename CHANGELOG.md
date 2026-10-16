@@ -5,6 +5,14 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 ## Unreleased
 
+- Scan matching (Localize → Lidar scan matching, with the EKF and a prior map): every fourth tick the scan is aligned
+  to the map's distance field by Gauss–Newton from the current estimate and fused as a pose measurement with the
+  covariance of the fit (inflated, floored at 5 cm), gated, fused only after the robot has moved, dropped when the fit
+  is poor. The lidar becomes a position sensor: 4 cm RMS on L3 with every beacon off. A Localize info line reports
+  each match; Signals has the residual; `bOff: "all"` in a Try switches every beacon off. Localization lesson 7, *Scan
+  matching: the lidar as a position sensor*, five measured experiments including the kidnap that scan matching cannot
+  see (perceptual aliasing), chapter 2 §10, the loc slot gets the map's distance field once (`obs.field`) and a
+  scan-matching example.
 - The code behind every lesson. Each of the 35 lessons shows the page's own function for what it teaches (cut from the
   page's source at runtime by `// @code` markers, so it cannot drift), with the lesson's lines marked, a note on what to
   look at and change, and "Edit and run", which puts a plain slot version of the algorithm into the Code tab as "Your

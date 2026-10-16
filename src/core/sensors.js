@@ -18,6 +18,7 @@ function lidarSense() {
 // Each beacon is a two-state Markov chain stepped at every beacon scan: an outage lasts bOutLen s on average
 // and a beacon is down bOut % of the time. Outages draw from their own stream, so the sensor noise is unchanged.
 function beaconsOff() {
+  if (P.bOff === 'all') return new Set(S.beacons.map(b => b.id)); // a Try cfg: every beacon off
   return new Set(
     String(P.bOff || '')
       .split(',')
@@ -31,6 +32,8 @@ function beaconUse() {
   if (P.loc === 'dr') return 'dead reckoning never uses the beacons (odometry only)';
   if (P.loc === 'pf' && P.pfLidar && P.per === 'oracle')
     return 'the particle filter also matches lidar against the prior map, so it can localize without beacons';
+  if (P.loc === 'ekf' && P.scanMatch && P.per === 'oracle')
+    return 'the EKF also matches the lidar scan against the prior map, so it can localize without beacons';
   if (P.loc === 'custom') return 'your localizer gets the beacon readings that remain';
   return null;
 }

@@ -62,7 +62,9 @@ the header of `tools/notes.mjs` documents both). A new lesson's terms go in `LES
 ## Pull requests
 
 - One change per PR, on a branch, with the tests above run and their result in the description.
-- Keep the style of the file you are in; there is no formatter yet (a Prettier pass is planned).
+- The code is formatted with Prettier at 140 columns (`npm run fmt`; CI checks it with `npm run fmt:check`). The
+  one-off reformat commit is listed in `.git-blame-ignore-revs`, so `git blame` skips it once you run
+  `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 - `npm run lint` (after `npm install`) checks every cross-module name: the modules share one scope, so a misspelled
   function from another file is a `ReferenceError` only when that path runs; the lint config collects every
   top-level name of every module and `no-undef` catches it statically. CI runs it on every PR.

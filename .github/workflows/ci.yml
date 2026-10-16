@@ -18,6 +18,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Lint (cross-module names, no-undef)
         run: npm run lint
+      - name: Formatting (Prettier, 140 columns)
+        run: npm run fmt:check
       - name: Build
         run: node build.mjs
       - name: The committed dist/ matches the build

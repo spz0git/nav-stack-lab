@@ -2,7 +2,7 @@
    (level, tabs or lessons) on the right. Splitters resize the dock and the panel; both can be hidden. Stacks on phones. */
 :root{
   --bg:#e8ebe7; --panel:#f6f7f4; --raise:#ffffff; --ink:#1b2122; --muted:#566160; --line:#cbd2cc;
-  --accent:#2058c9; --accent-ink:#ffffff; --amber:#9c6a00; --beacon:#008a87; --rose:#ad2a69; --ok:#2b7741; --warn:#a35e00; --bad:#bb3227;
+  --accent:#2058c9; --accent-ink:#ffffff; --amber:#8a5d00; --beacon:#008a87; --rose:#ad2a69; --ok:#2b7741; --warn:#a35e00; --bad:#bb3227;
   --map-bg:#fbfcf9; --obst:#283233; --unknown:#d3d9d1; --grid:#e5e9e2;
   --f-display:"Barlow Semi Condensed","Arial Narrow",sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -159,7 +159,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--line)}
 .tab{flex:0 0 auto;border:0;background:transparent;padding:10px 9px 9px;font-family:var(--f-display);font-weight:600;font-size:.95rem;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
-.tab small{font-family:var(--f-mono);font-size:.68rem;font-weight:400;margin-right:4px;opacity:.7}
+.tab small{font-family:var(--f-mono);font-size:.68rem;font-weight:400;margin-right:4px}
 /* subsystem accents: the map's hues for localization, perception, planning and control, everywhere */
 [data-sys="loc"]{--sys:var(--rose)} [data-sys="per"]{--sys:var(--amber)} [data-sys="plan"]{--sys:var(--accent)} [data-sys="ctl"]{--sys:var(--ok)}
 .tab[data-sys] small{color:var(--sys);opacity:1;font-weight:600}
@@ -411,7 +411,7 @@ canvas.an-drag{touch-action:none;cursor:crosshair}canvas.an-drag:focus-visible{o
 .log{list-style:none;margin:0;padding:0;font-family:var(--f-mono);font-size:.74rem;height:146px;min-height:60px;max-height:60vh;resize:vertical;overflow-y:auto;display:flex;flex-direction:column;gap:3px}
 .log li{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;color:var(--ink);cursor:pointer;border-radius:3px}
 .log li:hover{background:var(--raise)}
-.log li.later{opacity:.38}
+.log li.later,.log li.later span{color:var(--muted)}   /* after the replayed moment: dimmer, still readable (5.9:1) */
 .log li span{color:var(--muted);text-align:right}
 .log li.warn{color:var(--warn)} .log li.bad{color:var(--bad)} .log li.ok{color:var(--ok)}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}

@@ -14,9 +14,14 @@
   },
   "scripts": {
     "build": "node build.mjs",
+    "lint": "eslint .",
     "test": "node --test \"tests/node/*.test.mjs\"",
     "test:browser": "python3 tests/run_all.py",
     "test:all": "npm test && npm run test:browser",
     "golden": "node tests/node/core.mjs --write-golden"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "globals": "^17.13.0"
   }
 }

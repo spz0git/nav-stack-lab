@@ -51,6 +51,7 @@ function slamExport() {
   S.est = {x: M.x[0], y: M.x[1], th: M.x[2]};
   S.Pc = [M.P[0], M.P[1], M.P[2], M.P[n], M.P[n + 1], M.P[n + 2], M.P[2 * n], M.P[2 * n + 1], M.P[2 * n + 2]];
 }
+// @code slam-add | slamAdd: a new landmark enters the state, with its cross-covariance
 function slamAdd(id, r, b) {
   const M = S.slam,
     n0 = slamDim(),
@@ -87,7 +88,9 @@ function slamAdd(id, r, b) {
   M.ids.push(id);
   M.n++;
 }
+// @end
 // EKF-SLAM measurement update: known or unlabeled IDs, Mahalanobis gating, new landmarks appended to the state and covariance.
+// @code slam-update | slamUpdate: the EKF-SLAM update, correlations and all
 function slamUpdate(z) {
   const M = S.slam,
     sr = sigR(),
@@ -189,6 +192,7 @@ function slamUpdate(z) {
   }
   slamExport();
 }
+// @end
 // S (innovation covariance) recovered from its inverse
 function S00of(b) {
   const d = b.Si[0] * b.Si[3] - b.Si[1] * b.Si[2];

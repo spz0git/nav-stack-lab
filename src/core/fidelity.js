@@ -7,6 +7,7 @@ function sensEnqueue(kind, data) {
   if (!S.sensQ) S.sensQ = [];
   S.sensQ.push({due: S.tick + n, kind, data});
 }
+// @code sens-deliver | sensDeliver: readings delivered late, by latency
 function sensDeliver() {
   S.deliv = {scan: null, z: null};
   if (!S.sensQ || !S.sensQ.length) return;
@@ -26,6 +27,7 @@ function sensDeliver() {
   }
   S.sensQ = keep;
 }
+// @end
 function lidarApply(ranges) {
   S.scan = ranges;
   const e = S.est,
@@ -54,6 +56,7 @@ const SF = {tau: 0.5, A: 2.0, B: 0.35, Ar: 3.0, Br: 0.5, Aw: 2.5, Bw: 0.25};
 function pedGoal(p) {
   return p.dir > 0 ? p.b : p.a;
 }
+// @code social-force | updatePedsReactive: people as social forces
 function updatePedsReactive(dt) {
   const r = S.robot,
     ps = S.peds.filter(p => !p.car);
@@ -136,6 +139,7 @@ function updatePedsReactive(dt) {
     p.s = 1 - hyp(pedGoal(p)[0] - p.x, pedGoal(p)[1] - p.y) / Math.max(1e-6, hyp(p.b[0] - p.a[0], p.b[1] - p.a[1]));
   }
 }
+// @end
 // ---- other vehicles: a car-like body on a closed loop, yielding to the ego when it is close ahead ----
 function carsInit() {
   if (!LV.cars) return;
@@ -230,6 +234,7 @@ function carCircles(p) {
    Agents block a cell at a time when the predicted disc (plus the robot radius and a margin) covers it;
    beyond the prediction horizon only the static map counts. The ST speed planner then enforces the timing. */
 // Space-time A* for the diff-drive robot: a search over (x, y, t) with waits, against the agents' predicted positions.
+// @code stastar | stAstar: A* over (cell, time) with the predicted people as moving obstacles
 function stAstar(sx, sy, gx, gy) {
   const CW = 2,
     cw = RES * CW,
@@ -364,3 +369,4 @@ function stAstar(sx, sy, gx, gy) {
   const waits = cells.length - 1 - (pts.length - 2);
   return {ok: true, pts, exp, extra: waits > 0 ? `${(waits * dtc).toFixed(1)} s of waiting planned` : ''};
 }
+// @end

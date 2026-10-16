@@ -11,8 +11,8 @@ function builtinCmd() {
 // the lidar, so a wall the map has wrong (drift, a late scan) or a corner cut on the swing round it is hit side-on.
 // Sweep the footprint along the commanded arc against this scan's points (placed with the estimate, so their positions
 // relative to the robot are as measured) and cap the speed at what stops before the first point closer than MARGIN
-// that the arc approaches. DWA and MPC check the scan themselves.
-const GUARD_CTL = ['pp', 'pid', 'stanley', 'rwf'],
+// that the arc approaches. DWA and MPC check the scan themselves; a controller in the Code tab gets the guard like the trackers.
+const GUARD_CTL = ['pp', 'pid', 'stanley', 'rwf', 'custom'], // your code is a path tracker too (switch the guard off to drive without it)
   GUARD_MARG = 0.05;
 function lidarGuard(c) {
   S.guard = null;

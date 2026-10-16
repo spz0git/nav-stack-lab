@@ -42,6 +42,12 @@ Predict: A step test with dead reckoning on noisy odometry: what will the true e
 - Settle exactly: no beacon jumps to disturb it
 Answer: 1
 
+## Code: ekfUpdate, the correction the loop sees
+snippet: ekf-update
+focus: S.est = {x: e.x + K[0]
+example: loc/ekf
+Note: This line is where the estimator enters the loop: the controller's error is measured from S.est, and every correction here is a step the tracker then reacts to. Edit and run: the EKF example as the localizer with pure pursuit on; raise its assumed range noise and the steps grow smaller and slower.
+
 ## Think about
 Q: Why does the measured overshoot go up with the estimator but the model's margins do not change?
 A: The margins describe the loop from true error to command, which the estimator does not alter. The estimator adds an input, its error, at the measurement; the loop's response to that input is the sensitivity function, which is large near the crossover. Same loop, extra disturbance, more motion.

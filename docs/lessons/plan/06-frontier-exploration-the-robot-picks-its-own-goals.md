@@ -65,6 +65,12 @@ Predict: Swap pure pursuit for DWA. What changes?
 - It is faster: DWA cuts the corners
 Answer: 1
 
+## Code: frontiers
+snippet: frontiers
+focus: if (lo[k] < -0.05 && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW)) && !nearWall(i, j)) isF[k] = 1;
+focus: out.push({cells, size: cells.length
+Note: One line defines a frontier cell: known free, an unknown 4-neighbour, no seen wall within the lethal radius. The clustering in between is a flood fill; the last marked line records each cluster with its goal cell. The scoring is in exploreNext, a few lines further in the module.
+
 ## Think about
 Q: Why score a frontier by size divided by distance, rather than go to the nearest or the largest?
 A: Nearest-first makes the robot nibble at the rim of what it knows and criss-cross the building, since the nearest frontier is usually a sliver left behind; largest-first sends it across the building for a big one while a decent one is next door. Size per metre is the crudest estimate of what matters, new floor seen per metre driven; the research versions estimate the information gain of each frontier and the cost of getting there, and divide those.

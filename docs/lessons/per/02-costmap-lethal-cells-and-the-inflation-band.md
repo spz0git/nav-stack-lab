@@ -41,6 +41,12 @@ Predict: On the unknown building with unseen cells treated as lethal, what does 
 - Drives the same route as the optimistic policy, more slowly
 Answer: 1
 
+## Code: buildCostmap
+snippet: costmap
+focus: cm.lethal[i] = d[i] < LETHAL ? 1 : 0; … cm.pen[i] = d[i] < LETHAL ? 1 : q > 0 ? q * q : 0;
+example: plan/astar
+Note: The distance transform does the work; the two marked lines turn a distance into a lethal flag and a quadratic penalty over the inflation band. Edit and run: the A* example reads obs.dist and adds its own penalty (the 0.6 m term); change that number and watch the path hug the walls or avoid them.
+
 ## Think about
 Q: Why is the lethal radius 0.4 m and not 0.3 m, the robot's radius?
 A: The extra 0.1 m is the budget for everything the planner does not model: tracking error, the 0.1 m cell size, the chamfer transform's rounding. A planned path grazing a 0.3 m boundary would put the real robot in contact every time the tracker was a few centimetres off, which is always.

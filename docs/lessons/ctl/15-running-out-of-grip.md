@@ -54,6 +54,11 @@ Predict: The kinematic car with the impossible 6 m/s² cap: how will it do?
 - It saturates its steering rate and rings
 Answer: 1
 
+## Code: dynStep, the friction limit
+snippet: dyn-step
+focus: G.ff = (P.mu * G.m * GRAV * G.lr) / G.L; … G.fr = (P.mu * G.m * GRAV * G.lf) / G.L;
+Note: The two lines set how much lateral force each axle can give: μ times the weight on that axle. Everything in the lesson about running out of grip is these two clamps being reached in dynF.
+
 ## Think about
 Q: Why does the understeering car push wide rather than spin?
 A: Its front tyres reach their limit first: they carry a larger share of the slip, so they saturate while the rears still have grip. The front then slides and the car turns less (pushes wide); the rear holds, so the yaw motion stays stable. An oversteering car saturates the rear first, the tail steps out, and the yaw motion can diverge, which is why road cars are tuned to understeer.

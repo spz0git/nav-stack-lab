@@ -44,6 +44,11 @@ Predict: With the ghost layer off, what fills the parts of the map the lidar has
 - Grey unknown cells
 Answer: 2
 
+## Code: integrateScan
+snippet: logodds
+focus: lo[idx] = clamp(lo[idx] + (last && hit ? L_OCC : L_FREE), -L_CLAMP, L_CLAMP);
+Note: One line is the whole lesson: every cell on the beam gets L_FREE added, the last one L_OCC if the beam hit something, and the value is clamped. The rest is Bresenham's walk from the robot's cell to the endpoint. Perception has no code slot; the planner slot sees the result as obs.lethal.
+
 ## Think about
 Q: Why use log-odds instead of storing a probability per cell?
 A: Because Bayes' rule for a binary cell becomes an addition in log-odds, with no normalization, and the clamp is a simple cap. Storing probabilities would need a multiply, a renormalize and care near 0 and 1 for every one of the thousand beams per second. Log-odds also make the asymmetry explicit: +0.85 for a hit against −0.4 for a crossing is a design choice about which error is cheaper.

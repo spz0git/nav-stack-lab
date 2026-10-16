@@ -43,6 +43,13 @@ Predict: Scripted people, who never deviate, and the robot ignoring them: how do
 - Fewer: scripted people walk predictable lines
 Answer: 0
 
+## Code: updatePedsReactive, the forces
+snippet: social-force
+focus: let fx = (p.v * ex - (p.vx || 0)) / SF.tau, … fy = (p.v * ey - (p.vy || 0)) / SF.tau;
+focus: f = SF.A * Math.exp((p.r + q.r - dd) / SF.B);
+example: pred/cv
+Note: The first marked pair is the goal force, a relaxation toward the preferred velocity; the second is the person-to-person repulsion, exponential in the gap. The robot enters as one more repulsion a few lines down. Edit and run: the predictor example assumes constant velocity, which is exactly what these forces break.
+
 ## Think about
 Q: Which metric is harder to flatter: contact count or closest approach?
 A: Closest approach, slightly: a yielding person who steps aside late still produces a small distance, where the contact count would show nothing. Neither is immune. The honest comparison is the same planner against both people models, and the difference between them is how much the planner relies on cooperation.

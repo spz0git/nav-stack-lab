@@ -55,6 +55,7 @@ function spdBuild() {
   return M;
 }
 // G: commanded speed → speed (open). L: the MPC's loop, broken at the rate input.
+// @code spd-parts | spdParts: the speed loop transfer function
 function spdParts(M, s) {
   const zi = Cx.exp(Cx.scale(s, -M.T)),
     one = [1, 0],
@@ -69,6 +70,7 @@ function spdParts(M, s) {
   const L = Cx.mul(pre, Cx.add(Cx.scale(zi, K.vc), Cx.scale(Cx.mul(G, zi), K.v))); // the controller sees v and its own command one tick later
   return {L, Le: Cx.mul(pre, Cx.scale(Cx.mul(G, zi), K.v))};
 }
+// @end
 // exact discrete loop: states [v, vc, up, q0..q_nL]
 function spdLayout(M) {
   const L = {v: 0, vc: 1, up: 2};

@@ -113,6 +113,7 @@ window.__nav = {
     return LV;
   },
   SLOTS,
+  SLOT_LIBRARY,
   slotLoad,
   slamLandmarks,
   tryGo,

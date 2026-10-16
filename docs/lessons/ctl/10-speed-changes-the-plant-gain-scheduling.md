@@ -39,6 +39,13 @@ Predict: Restoring the speed term, L_d = 0.5 + 0.5v, at 1.6 m/s: where will the 
 - Near the low-speed loop: crossover under 3 rad/s, margin above 60°
 Answer: 2
 
+## Code: anGains, the operating point
+snippet: an-gains
+focus: B.robot.v = v0;
+focus: B.odo = {v: v0, w};
+example: ctl/pp
+Note: The gains are read by driving the bench at the operating speed and perturbing it: the controller is linearized numerically, which is why gain scheduling shows up as gains that change with v0. Edit and run: the pure-pursuit example; make its look-ahead independent of speed and the schedule flattens.
+
 ## Think about
 Q: Why does the crossover level off at 2.2/k rather than keep falling?
 A: ω_c = 2.2 v₀/(L₀ + k v₀); as v₀ grows the L₀ becomes negligible and the ratio tends to 2.2/k. The loop's bandwidth becomes a constant set by k alone, which is the designer's choice of how fast the loop should be at speed.

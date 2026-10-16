@@ -63,6 +63,7 @@ function holoField(gx, gy, dist, thr) {
 }
 // Hybrid A*: a search over (x, y, θ) with arc primitives at the planning lock, Reeds–Shepp shots to the goal, the
 // max(2D Dijkstra, Reeds–Shepp) heuristic, gear and steering penalties, and an expansion budget.
+// @code hybrid | hybridAstar: motion primitives on a pose grid, with Reeds–Shepp shots
 function hybridAstar(e, wp) {
   const dist = S.cm.dist,
     L = P.wheelbase,
@@ -301,3 +302,4 @@ function hybridAstar(e, wp) {
   for (const g of segs) len += pathLen(g.pts);
   return {ok: true, segs, len, exp, extra: `${segs.length - 1} cusp${segs.length === 2 ? '' : 's'}${tail ? ' · RS shot' : ''}`};
 }
+// @end

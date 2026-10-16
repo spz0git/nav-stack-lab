@@ -3,6 +3,17 @@
 The version label in the page header (`v37 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- The code behind every lesson. Each of the 35 lessons shows the page's own function for what it teaches (cut from the
+  page's source at runtime by `// @code` markers, so it cannot drift), with the lesson's lines marked, a note on what to
+  look at and change, and "Edit and run", which puts a plain slot version of the algorithm into the Code tab as "Your
+  code" on the lesson's level. Twelve slot examples (`src/examples/`): dead reckoning, EKF, particle filter; A*,
+  Dijkstra, RRT*; pure pursuit, Stanley, PID, rear-wheel feedback; constant velocity, standing still. The Code tab gets
+  an examples menu and a "How this fits in" panel per slot (where it runs in the tick, what it gets and returns, what
+  happens when it fails); the "Your code" choice in Localize, Plan, Control and Perceive explains itself with a button
+  into the Code tab. `tests/extest.py` runs every example against its built-in.
+
 ## v37 · 2026-10-16
 
 Phase 4, content (from the assessment of 2026-10-15 and the owner's direction):

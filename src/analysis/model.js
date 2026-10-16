@@ -160,6 +160,7 @@ function inBench(B, fn) {
     S = saved;
   }
 }
+// @code bench-tick | benchTick: one tick of the nonlinear bench the linear model is checked against
 function benchTick(B, inj) {
   B.tick++;
   B.t += DT;
@@ -202,11 +203,13 @@ function benchTick(B, inj) {
   applyCmd(c);
   return uc;
 }
+// @end
 function benchPrime(B) {
   for (let i = 0; i < latN(); i++) B.cmdQ.push({v: B.robot.v, w: 0, steer: 0});
 }
 
 // ---- controller gains at the operating point ----
+// @code an-gains | anGains: the controller gains at the operating speed
 function anGains(v0) {
   const ctl = anCtl(),
     car = isCar(),
@@ -280,6 +283,7 @@ function anGains(v0) {
     AN.useEst = est;
   }
 }
+// @end
 
 // ---- the car with tyre slip: δ → [v_y, r] by the linear bicycle model at v₀ (dynLin, core/vehicle.js), θ̇ₑ = r and
 // ė = v₀ θₑ + v_y − l_r r (the rear axle's sideways velocity). The exact discretization of [v_y, r, θₑ, e] over one
@@ -395,6 +399,7 @@ function anBuild() {
 // (delay T/2 + latency). Controller and actuator elements that run in the 20 Hz loop are evaluated
 // exactly at z = e^{sT}: the discrete lag a/(1−(1−a)z⁻¹), the PID's rectangular integral and
 // backward difference, and the MPC's rate integrator T/(1−z⁻¹) and memory 1/(1−K_u z⁻¹).
+// @code loop-parts | Lparts: the open-loop transfer function, factor by factor
 function Lparts(M, s) {
   const g = M.g,
     v = M.v0,
@@ -448,6 +453,7 @@ function Lparts(M, s) {
   }
   return {L, Le};
 }
+// @end
 function Ls(M, s) {
   return Lparts(M, s).L;
 }
@@ -553,6 +559,7 @@ function linResponse(M, L, kind, tEnd) {
   }
   return out;
 }
+// @code step-metrics | stepMetrics: overshoot, rise and settling time from a response
 function stepMetrics(resp, kind) {
   const n = resp.length,
     fin = resp.slice(Math.floor(n * 0.85)).reduce((a, p) => a + p[1], 0) / Math.ceil(n * 0.15);
@@ -575,8 +582,10 @@ function stepMetrics(resp, kind) {
   for (const [t, e] of resp) if (Math.abs(e - fin) > 0.02 * Math.max(Math.abs(pk), 1e-9)) ts = t;
   return {peak: pk, settle: ts, final: fin};
 }
+// @end
 
 // ---- margins, sensitivity peak, Nyquist encirclements ----
+// @code an-freq | anFreq: the Bode and Nyquist points, crossover and the margins
 function anFreq(M) {
   const wN = Math.PI / M.T,
     ws = [];
@@ -677,6 +686,7 @@ function anFreq(M) {
   } // unstable: negative GM = gain reduction needed
   return {pts, wc, pm, gm, w180, ms, dm, Ncw, P: Pol, wN};
 }
+// @end
 function anCompute() {
   const M = anBuild();
   const R = {M};
@@ -874,6 +884,7 @@ function nearestPole(ps, tg) {
 // two free gains: start from the delay-free formulas and correct the target until the real pole lands on it
 // Pole placement for the delay-free two-integrator loop: s² + gK_θ s + g v K_e = 0, so a pair at damping ζ and natural
 // frequency ω_n needs K_e = ω_n²/(g v) and K_θ = 2ζω_n/g; the target is the pair itself.
+// @code lqr | placeGains and lqrGains: the design gains in closed form
 function placeGains(M, zeta, wn) {
   const g = M.g,
     v = M.v0;
@@ -890,6 +901,7 @@ function lqrGains(M, qe, qth, r) {
     zeta = (g * Kth) / (2 * wn);
   return {Ke, Kth, wn, zeta, tg: [-zeta * wn, wn * Math.sqrt(Math.max(0, 1 - Math.min(1, zeta * zeta)))]};
 }
+// @end
 function placeTwo(M, tg) {
   let t = tg.slice(),
     best = null;

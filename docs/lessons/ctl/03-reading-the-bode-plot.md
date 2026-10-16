@@ -39,6 +39,12 @@ Predict: Where will the nine measured points land relative to the model curves?
 - On the magnitude curve but about 25° off in phase
 Answer: 0
 
+## Code: anFreq, the crossover
+snippet: an-freq
+focus: if (pm == null || m < pm) { … wc = w;
+example: ctl/rwf
+Note: The Bode points are computed a few lines above; the marked lines find the gain crossover, the frequency where |L| = 1, and record the phase margin there. Edit and run: the rear-wheel-feedback example; halve both gains and see the crossover move left on the plot.
+
 ## Think about
 Q: Why do two integrators give −40 dB per decade and −180°?
 A: Each 1/s has magnitude 1/ω, which falls by a factor 10, −20 dB, per decade of frequency, and phase −90°. Two in series multiply the magnitudes and add the phases.

@@ -47,6 +47,12 @@ Predict: Keeping the ×3 bias but raising the assumed motion noise to ×4, what 
 - It stays the same; only NEES changes
 Answer: 0
 
+## Code: ekfUpdate, one beacon reading
+snippet: ekf-update
+focus: const K = [ … S.est = {x: e.x + K[0]
+example: loc/ekf
+Note: The marked lines are the lesson: the gain K = P Hᵀ S⁻¹ and the state correction x + K ν. Everything above them builds H, S and the innovation ν for one reading; the Joseph form below keeps Σ symmetric. Edit and run: the EKF example has the same update in plain 3×3 arithmetic; double sr (the assumed range noise) and watch NEES fall below 1.
+
 ## Think about
 Q: Why is the expected NEES 3, and not 1 or 9?
 A: Σ⁻¹ whitens the error: if the filter is consistent, Σ^{−1/2} <i>e</i> has three components that are each standard normal, and the sum of three squared standard normals is χ² with three degrees of freedom, whose mean is 3. With a 2-D position-only check it would be 2; for a track with position and velocity, 4.

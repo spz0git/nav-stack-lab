@@ -41,6 +41,12 @@ Predict: A 1.2 m lookahead carrying 0.3 s of latency, six ticks: what will the s
 - A clean, slow step with a few per cent overshoot and margin to spare
 Answer: 2
 
+## Code: anFreq, the delay margin
+snippet: an-freq
+focus: const dm = pm != null && wc ? (pm * Math.PI) / 180 / wc : null;
+example: ctl/rwf
+Note: One line: the phase margin in radians divided by the crossover frequency is the delay the loop can absorb. Edit and run: the rear-wheel-feedback example; lower the gains to raise the margin, then add latency in the Vehicle tab until it breaks.
+
 ## Think about
 Q: Why does the simulator's unstable response decay instead of growing?
 A: Because the turn-rate limit clips the command. Describing-function reasoning: a saturated actuator acts like a gain that falls as the amplitude grows, so the amplitude rises until the effective gain brings the loop to the edge of stability, a limit cycle, or, when the clipped loop has margin to spare as here, the oscillation decays. Linear instability plus saturation is bounded, not safe.

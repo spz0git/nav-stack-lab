@@ -4370,3 +4370,92 @@ article.chapter .notes-table td button.try {
   display: block;
   margin-top: 3px;
 }
+
+/* the code behind a lesson (learn.js lessonCodeHTML) */
+.lcode {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  margin: 0.4em 0 0.6em;
+}
+.lcode-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6em;
+  flex-wrap: wrap;
+  padding: 0.35em 0.6em;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.86em;
+}
+.lcode-fn {
+  font-family: var(--f-mono);
+}
+.lcode-pre {
+  margin: 0;
+  padding: 0.5em 0.6em;
+  max-height: 24em;
+  overflow: auto;
+  font-size: 0.8em;
+  line-height: 1.45;
+  white-space: pre;
+  tab-size: 2;
+}
+.lcode .note {
+  padding: 0.3em 0.6em 0;
+}
+.lcode .tries {
+  padding: 0.3em 0.6em 0.5em;
+}
+.codehl .focl {
+  display: inline-block;
+  width: 100%;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: inset 2px 0 var(--accent);
+}
+
+/* the Code tab's "How this fits in" panel (panes2.js codeHowHTML) */
+.codehow {
+  margin: 0.3em 0 0.5em;
+  font-size: 0.9em;
+}
+.codehow summary {
+  cursor: pointer;
+}
+.codestrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2em;
+  margin: 0.4em 0;
+}
+.codestrip .chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.05em 0.55em;
+  font-size: 0.86em;
+}
+.codestrip .chip.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.codestrip .arr {
+  opacity: 0.6;
+}
+.codedl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2em 0.7em;
+  margin: 0.2em 0 0;
+}
+.codedl dt {
+  font-weight: 600;
+}
+.codedl dd {
+  margin: 0;
+}
+.codeexl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}

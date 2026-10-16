@@ -110,6 +110,7 @@ function dynInfo() {
   return {K, vch: K > 0 ? Math.sqrt(L / K) : null, vcrit: K < 0 ? Math.sqrt(-L / K) : null, aMax: P.mu * GRAV, L, lf, lr};
 }
 // The linear model about straight driving at speed vx: [v̇_y, ṙ] = A [v_y, r] + B tanδ (chapter 1 §4; Analyze uses it)
+// @code dyn-lin | dynLin: the linearized car at speed v, and the characteristic speed
 function dynLin(vx) {
   const {L, lf, lr, m, Iz} = dynGeom(),
     Cf = P.Cf,
@@ -124,6 +125,7 @@ function dynLin(vx) {
     B: [(sg * Cf) / m, (sg * lf * Cf) / Iz]
   };
 }
+// @end
 // Its yaw mode in words: natural frequency and damping, or two time constants
 function dynModes(vx) {
   const {A} = dynLin(vx),
@@ -141,6 +143,7 @@ function dynModes(vx) {
   return {tau: [-1 / l1, -1 / l2], text: `time constants ${(-1000 / l1).toFixed(0)} and ${(-1000 / l2).toFixed(0)} ms`};
 }
 // Lateral dynamics at forward speed vx and wheel angle de: o = [v̇_y, ṙ]; also returns slip angles and forces in T
+// @code tyre-model | dynF: the lateral tyre forces of the dynamic bicycle
 function dynF(vy, yr, vx, de, G, o, T) {
   const sg = vx < 0 ? -1 : 1,
     af = sg * (G.td - (vy + G.lf * yr) / vx),
@@ -158,6 +161,8 @@ function dynF(vy, yr, vx, de, G, o, T) {
   }
   return o;
 }
+// @end
+// @code dyn-step | dynStep: one step of the car with tyre slip
 function dynStep(r, vx, de) {
   const G = dynGeom();
   G.ff = (P.mu * G.m * GRAV * G.lr) / G.L;
@@ -217,6 +222,7 @@ function dynStep(r, vx, de) {
   }
   return {x, y, th, vy, r: yr};
 }
+// @end
 // Slip state of the current motion (UI signals): slip angles, sideslip at the CoM, lateral acceleration
 function dynSlip(rb) {
   const G = dynGeom();
@@ -243,6 +249,7 @@ const sigV = (v, w, k) => k * (0.1 * Math.abs(v) + 0.02);
 const sigW = (v, w, k) => k * (0.2 * Math.abs(w) + 0.1 * Math.abs(v) + 0.02);
 const gyroSig = () => (P.gyroSig * Math.PI) / 180,
   gyroBias = () => (P.gyroBias * Math.PI) / 180;
+// @code odometry | odometry: the wheel encoders and the gyro, with their noise and bias
 function odometry() {
   const r = S.robot,
     g = S.rngW,
@@ -264,6 +271,7 @@ function odometry() {
   } else wo = w + 0.01 * P.odoB * r.v + sigW(r.v, w, k) * g.n();
   S.odo = {v: vo, w: wo};
 }
+// @end
 // the filter's assumed turn-rate noise: the gyro's σ (scaled by the assumed-noise slider) when the gyro is on
 const filtSigW = (v, w) => (P.gyro ? P.filtK * gyroSig() : sigW(v, w, assumedK()));
 const assumedK = () => P.filtK * Math.max(P.odoK, 0.25);

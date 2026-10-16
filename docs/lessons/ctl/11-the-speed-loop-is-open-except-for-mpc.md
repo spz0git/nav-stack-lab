@@ -43,6 +43,11 @@ Predict: Adding 0.2 s of latency to the open speed chain: what happens?
 - The 10–90 % rise time grows by 0.2 s
 Answer: 0
 
+## Code: spdParts, the speed loop
+snippet: spd-parts
+focus: const L = Cx.mul(pre, Cx.add(Cx.scale(zi, K.vc), Cx.scale(Cx.mul(G, zi), K.v))); // the controller sees v and its own command one tick later
+Note: Only the MPC closes the speed loop; for every other controller the function returns the plant alone, which is the lesson. The MPC's loop reads its own last command and the measured speed one tick late, the two z⁻¹ factors.
+
 ## Think about
 Q: Why do most small robots run speed open-loop at this level?
 A: Because the motor controller underneath already closes a fast current and velocity loop at kilohertz rates, so from the navigation stack's point of view the actuator is a well-behaved first-order lag. The open chain here models that: what the navigation layer sees is the inner loop's response, not the motor.

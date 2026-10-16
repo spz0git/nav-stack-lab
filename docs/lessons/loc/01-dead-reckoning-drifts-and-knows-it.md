@@ -38,6 +38,12 @@ Predict: With the odometry noise slider at ×3, what happens to the actual posit
 - About the same, 1 to 2.5 m
 Answer: 2
 
+## Code: locPredict, the prediction step
+snippet: ekf-predict
+focus: const n = integ(e.x, e.y, th, v, w, DT); … for (let i = 0; i < 9; i++) Pn[i] += VMV[i];
+example: loc/dr
+Note: The arc is integ; the lines after it are the lesson's covariance growth, G Σ Gᵀ + V M Vᵀ, with sigV and sigW the assumed noise. Dead reckoning runs these lines and nothing else, so Σ only ever grows. Edit and run: the dead-reckoning example, which is the arc alone; replace the arc by a straight step of v·dt and see how little changes at 50 ms.
+
 ## Think about
 Q: Why does the ellipse stretch across the direction of travel rather than along it?
 A: Speed noise and speed bias act along the heading, and their effect on position grows with distance driven. Heading noise acts across the heading, and its effect grows with distance driven <i>times</i> the heading error, which itself keeps growing. The sideways term wins after the first few metres, and the <i>G</i> Σ <i>G</i>ᵀ step carries it forward every tick.

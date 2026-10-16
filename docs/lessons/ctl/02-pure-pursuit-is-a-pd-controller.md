@@ -41,6 +41,13 @@ Predict: The 0.2 m step on the fast loop in the full simulator: how will the mea
 - It lands on the prediction, with a few per cent overshoot
 Answer: 2
 
+## Code: ctlPP, the carrot and the curvature
+snippet: pp
+focus: const Ld = Math.max(0.1, P.ppL0 + P.ppK * Math.abs(S.odo.v)); … alpha = wrap(Math.atan2(dy, dx) - thv);
+focus: const kap = (2 * Math.sin(alpha)) / L;
+example: ctl/pp
+Note: The look-ahead distance, the angle α to the carrot and the one-line pure-pursuit law, κ = 2 sin α / L. Edit and run: the pure-pursuit example; make L (its look-ahead) 0.4 and then 1.6 and watch the PD gains of the lesson change in the Analyze view.
+
 ## Think about
 Q: Pure pursuit has ζ = 0.71 regardless of settings. Where does that number come from?
 A: From the ratio of the two geometric gains: K_θ/K_e = L_d, so ζ = K_θ/(2√(K_e v)) = (2v/L_d)/(2√(2v²/L_d²)) = 1/√2. The lookahead cancels. Rear-wheel feedback has two gains and so two knobs; pure pursuit has one and spends it on bandwidth.

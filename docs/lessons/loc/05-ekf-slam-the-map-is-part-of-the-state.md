@@ -46,6 +46,12 @@ Predict: The plain EKF on the same level with the beacon map given: what error s
 - The same as SLAM at 12 m once its map is complete
 Answer: 1
 
+## Code: slamAdd, a landmark enters the state
+snippet: slam-add
+focus: const Jx = [1, 0, -r * Math.sin(a), 0, 1, r * Math.cos(a)], … Jz = [Math.cos(a), -r * Math.sin(a), Math.sin(a), r * Math.cos(a)];
+focus: // P_mx = Jx P_xx ; P_mm = Jx P_xx Jxᵀ + Jz R Jzᵀ ; P_m,others = Jx P_x,others … Pn[(n0 + i) * n + n0 + j] = s;
+Note: The two Jacobians of the inverse observation and the four blocks of the grown covariance: a new landmark is born correlated with the pose that saw it, which is what makes loop closure work later. No slot runs SLAM; the localizer slot could, with the landmarks kept in mem.
+
 ## Think about
 Q: Why does SLAM's absolute error never reach zero even when every loop is closed?
 A: Because no reading says where anything is in the world; only relative positions are observed. The frame is pinned by the initial pose, so the whole map carries the initial uncertainty plus whatever drift occurred before the first loop closed. That is the gauge freedom of SLAM, and it is why real systems anchor the map with GPS or a surveyed landmark when they need world coordinates.

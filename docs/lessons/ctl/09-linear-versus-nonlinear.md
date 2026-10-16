@@ -43,6 +43,12 @@ Predict: Injecting a large sine: where will the measured points leave the model 
 - Nowhere: the injection amplitude does not matter
 Answer: 1
 
+## Code: benchTick, the nonlinear bench
+snippet: bench-tick
+focus: if (inj) { … } // the injected rate enters the command integrator
+example: ctl/pp
+Note: The bench runs the real controller and vehicle model tick by tick; the injection enters as an added rate command, so the measured response includes every nonlinearity the linear model leaves out. Edit and run: the pure-pursuit example drives the same loop; the Analyze view cannot linearize your code, so Linear versus nonlinear is what you get.
+
 ## Think about
 Q: Why does saturation reduce overshoot here but cause limit cycles elsewhere?
 A: Saturation lowers the effective gain. In a loop with plenty of phase margin a lower gain is more damped, hence less overshoot. In a loop past its delay margin the lower gain brings the loop back toward the stability boundary rather than through it, so the oscillation neither grows nor dies: a limit cycle. Same mechanism, different starting margin.

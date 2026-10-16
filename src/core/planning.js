@@ -11,6 +11,7 @@ const NB = [
   [-1, 1, SQ2],
   [-1, -1, SQ2]
 ];
+// @code astar | gridSearch: A* on the costmap, with ε and the trace
 function gridSearch(s, g, eps, tr) {
   // tr: an object to receive the expansion order (closedAt, openAt: 1-based step)
   const cm = S.cm,
@@ -69,6 +70,7 @@ function gridSearch(s, g, eps, tr) {
   }
   return {gs, par, closed, exp, found};
 }
+// @end
 const center = k => [((k % GW) + 0.5) * RES, (((k / GW) | 0) + 0.5) * RES];
 function smoothPath(pts) {
   if (pts.length < 3) return pts;
@@ -117,6 +119,7 @@ function astar(sx, sy, gx, gy) {
   return {ok: true, pts, exp: R.exp, cost: R.gs[g]};
 }
 // RRT*: sample, steer from the nearest node, connect to the cheapest parent within the radius, rewire; the radius shrinks with n.
+// @code rrtstar | rrtstar: sampling, the nearest node, choosing a parent and rewiring
 function rrtstar(sx, sy, gx, gy) {
   const g = S.rngA,
     cm = S.cm;
@@ -220,6 +223,7 @@ function rrtstar(sx, sy, gx, gy) {
   if (P.smooth) pts = smoothPath(pts);
   return {ok: true, pts, exp: X.length, cost: pathLen(pts)};
 }
+// @end
 
 /* RS_BEGIN */
 const RS = (() => {

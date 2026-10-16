@@ -59,6 +59,12 @@ Predict: Give the car the grid planner's path of sharp corners. What happens?
 - It parks, but ignores the goal headings
 Answer: 0
 
+## Code: hybridAstar, the primitives
+snippet: hybrid
+focus: const steers = [-dm, -dm / 2, 0, dm / 2, dm], … dirs = P.revOK ? [1, -1] : [1];
+focus: // analytic expansion: try a Reeds–Shepp shot to the goal
+Note: Five steering angles times one or two directions are the motion primitives every node expands into; the analytic expansion tries to finish with an exact Reeds–Shepp curve whenever a node is close. The planner slot can return reverse legs as segs, so a car planner of your own is possible; the A* example plans for the unicycle only.
+
 ## Think about
 Q: Why is the maximum of the two heuristics admissible, and why not their sum?
 A: Each heuristic is a lower bound on the true cost, so the larger one is still a lower bound and the search is still optimal. The sum would double-count: a path that is long because of obstacles and long because of turning is not twice as long. The sum would be inadmissible and could make the search skip the optimal path.

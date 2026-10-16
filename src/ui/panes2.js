@@ -114,15 +114,16 @@ function codePane() {
     .map(k => `<button data-v="${k}" aria-pressed="${k === codeSlot}">${SLOT_DEFS[k].name}${SLOTS[k].worker ? ' ●' : ''}</button>`)
     .join('')}</div></div>
   <p class="note">${blurb} It runs in a sandboxed Web Worker in lockstep with the simulation, with a ${D.timeout} ms budget per call: no access to the page or its state beyond what it is given, and no network except what the page's own origin would allow a worker.</p>
+  <details class="codehow" id="codehow"${howOpen.code ? ' open' : ''}><summary>How this fits in</summary>${codeHowHTML(codeSlot)}</details>
   <div class="codewrap"><pre class="codehl" id="codehl" aria-hidden="true"></pre><textarea id="code" spellcheck="false" aria-label="${D.name} code">${esc(sl.code)}</textarea></div>
-  <div class="controls codebar"><button class="btn primary" id="loadcode">Load and use</button><button class="btn" id="resetcode">Restore example</button><button class="btn" id="viewsrc" data-src="${codeSlot}">Built-in source</button><span class="lbl" id="codeinfo"></span></div>
+  <div class="controls codebar"><button class="btn primary" id="loadcode">Load and use</button><label class="lbl codeexl">Example <select class="sel" id="codeex" aria-label="Slot example">${(SLOT_LIBRARY[codeSlot] || []).map(e => `<option value="${e.id}"${e.code === sl.code ? ' selected' : ''}>${esc(e.name)}</option>`).join('')}<option value=""${(SLOT_LIBRARY[codeSlot] || []).some(e => e.code === sl.code) ? '' : ' selected'}>edited</option></select></label><button class="btn" id="viewsrc" data-src="${codeSlot}">Built-in source</button><span class="lbl" id="codeinfo"></span></div>
   <p class="codestat ${sl.status.cls}" id="codestat">${esc(sl.status.msg)}</p>`;
 }
 // A small highlighter for the editor: comments, strings, numbers, keywords, and the obs/out property names the
 // slot API uses; the line an error names (status "Line n: …") is tinted.
 const CODE_KW =
   /\b(const|let|var|function|return|if|else|for|while|do|of|in|new|true|false|null|undefined|this|class|break|continue|switch|case|default|typeof|throw|try|catch|finally|Math)\b/g;
-function codeHighlight(src, errLine) {
+function codeHighlight(src, errLine, focus) {
   const esc2 = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const re = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`)|(\b\d+(?:\.\d+)?(?:e[+-]?\d+)?\b)/g;
   let out = '',
@@ -142,12 +143,11 @@ function codeHighlight(src, errLine) {
     i = m.index + m[0].length;
   }
   out += plainTok(src.slice(i));
-  if (errLine > 0) {
+  if (errLine > 0 || (focus && focus.size)) {
     const L = out.split('\n');
-    if (L[errLine - 1] != null) {
-      L[errLine - 1] = `<span class="errl">${L[errLine - 1] || ' '}</span>`;
-      out = L.join('\n');
-    }
+    if (errLine > 0 && L[errLine - 1] != null) L[errLine - 1] = `<span class="errl">${L[errLine - 1] || ' '}</span>`;
+    if (focus) for (const n of focus) if (L[n - 1] != null) L[n - 1] = `<span class="focl">${L[n - 1] || ' '}</span>`;
+    out = L.join('\n');
   }
   return out + '\n';
 }
@@ -221,12 +221,69 @@ function wireCode() {
       refreshAll();
     }
   };
-  $('#resetcode').onclick = () => {
-    const ex = codeSlot === 'ctl' ? DEFAULT_CODE : SLOT_EXAMPLES[codeSlot];
-    SLOTS[codeSlot].code = ex;
-    ta.value = ex;
+  $('#codeex').onchange = e => {
+    const ex = slotExample(codeSlot, e.target.value);
+    if (!ex.code) return;
+    SLOTS[codeSlot].code = ex.code;
+    ta.value = ex.code;
     codeSync();
   };
+  const how = $('#codehow');
+  if (how) how.ontoggle = () => (howOpen.code = how.open);
   $('#viewsrc').onclick = () =>
     showSource({ctl: 'core/controllers.js', plan: 'core/planning.js', loc: 'core/localization.js', pred: 'core/agents.js'}[codeSlot]);
 }
+
+// Where a slot sits in the tick, what it gets and returns, and what happens when it fails: the Code tab's
+// "How this fits in" panel. The slot's chip is lit in the pipeline strip.
+const CODE_HOW = {
+  loc: {
+    when: 'every 50 ms tick, right after the sensors deliver and before the mission, the planner and the controller read the estimate',
+    gets: 'obs.odom (v, ω), obs.beacons (range and bearing per beacon seen, or null), obs.map, obs.scan, obs.init on the first call, obs.dt; mem, an object that survives between calls',
+    returns: '{x, y, th}, and cov (3×3, nine numbers) for the ellipse: the pose the whole stack uses from then on',
+    fails:
+      'an error, or a call over 200 ms, stops the slot: the status line names the line, the estimate stays where it was until Load and use again'
+  },
+  plan: {
+    when: 'when the mission needs a path: at the start, after a replan trigger (path blocked, off path, stuck, periodic, agent blocking), after a skipped goal',
+    gets: 'obs.start and obs.goal (poses), obs.grid, obs.lethal and obs.dist (the costmap as the planners see it), obs.vehicle',
+    returns: '{path: [[x, y], …]}, or {segs} with reverse legs for the car, or {error}',
+    fails:
+      'an error, a call over 3 s, or a path with fewer than two points counts as a failed plan: NO_PATH, retried after 2 s, the goal skipped after three failures'
+  },
+  ctl: {
+    when: 'every 50 ms while the robot drives a leg (state DRIVE); the lidar safety stop and the speed planner act on what it returns',
+    gets: 'obs.pose (the estimate, not the truth), obs.odom, obs.path (the leg, resampled every 0.1 m), obs.goal, obs.scan, obs.agents, obs.limits, obs.dir, obs.vehicle',
+    returns: '{v, w} for the unicycle or {v, steer} for the car, and mark to draw a point',
+    fails:
+      'an error, or a call over 200 ms, stops the robot (v = 0) until Load and use again; the lidar safety stop (Control → guard), when on, caps the speed of your code as it does the trackers'
+  },
+  pred: {
+    when: 'at 10 Hz with the confirmed tracks, before the speed planner, DWA and MPC plan around them',
+    gets: 'obs.tracks (position, velocity, radius, age), obs.horizon, obs.dt, obs.lethal and obs.grid',
+    returns: '{trajectories: {id: [[x, y, r], …]}}, one sample per step out to the horizon',
+    fails: 'an error, or a call over 200 ms, leaves the planners without predictions: they see nobody coming'
+  }
+};
+function codeHowHTML(k) {
+  const H = CODE_HOW[k],
+    D = SLOT_DEFS[k],
+    tab = {loc: 'Localize', plan: 'Plan', ctl: 'Control', pred: 'Perceive'}[k];
+  const strip = [
+    ['sens', 'sensors'],
+    ['loc', 'localizer'],
+    ['mis', 'mission'],
+    ['plan', 'planner'],
+    ['pred', 'predictor'],
+    ['ctl', 'controller'],
+    ['veh', 'vehicle']
+  ]
+    .map(([id, n]) => `<span class="chip${id === k ? ' on' : ''}">${n}</span>`)
+    .join('<span class="arr">→</span>');
+  return `<div class="codestrip">${strip}</div><dl class="codedl"><dt>Called</dt><dd>${H.when}.</dd><dt>Gets</dt><dd>${H.gets}.</dd><dt>Returns</dt><dd>${H.returns}.</dd><dt>If it fails</dt><dd>${H.fails}.</dd><dt>Load and use</dt><dd>compiles the editor into a fresh Web Worker (${D.timeout} ms per call) and switches ${tab} → ${D.name.toLowerCase()} to Your code; pick the built-in there to go back. Every lesson's "The code" block has Edit and run, which fills this editor with the matching example on the lesson's level.</dd></dl>`;
+}
+// "Your code" info lines in the pipeline tabs carry a button into the Code tab (schema.js); the example loads as is
+document.addEventListener('click', e => {
+  const b = e.target && e.target.closest ? e.target.closest('[data-code]') : null;
+  if (b) codeOpen(b.dataset.code, null);
+});

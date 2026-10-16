@@ -41,6 +41,13 @@ Predict: On the busy floor, how often will the speed planner escalate from slowi
 - A couple of times in the whole run
 Answer: 2
 
+## Code: missionTick, the replan triggers
+snippet: mission-tick
+focus: F.pendingReason = 'off path';
+focus: F.pendingReason = 'path blocked';
+focus: F.pendingReason = 'stuck';
+Note: The three marked lines are three of the triggers of the lesson; each sets a reason and sends the machine to PLAN, and the event log prints the reason. The thresholds (1 m off the path, 6 m look-ahead, 0.15 m in 5 s) are a few lines above each. The behaviour layer has no code slot; your planner is what it calls.
+
 ## Think about
 Q: Why skip a goal after three failures instead of trying forever?
 A: A goal that cannot be reached, because it is walled off, in unknown space treated as lethal, or occupied by someone who will not move, would otherwise stall the whole mission. Three attempts over about 6 s is enough to tell a transient blockage from a permanent one on this floor; the right number depends on how often the world changes.

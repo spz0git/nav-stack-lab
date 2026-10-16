@@ -40,7 +40,7 @@
           <select class="sel speed" id="speed" aria-label="Simulation speed" title="Simulation speed ([ and ] change it)"></select>
         </div>
         <div class="scrub" id="scrub">
-          <div class="tl-track" id="tl-track"><div class="tl-marks" id="tl-marks" aria-hidden="true"></div><input type="range" id="scrubr" min="0" max="0" value="0" aria-label="Time in the recorded run" title="Drag to review the run (pauses). , and . step 0.1 s. Run or Step continues from the live state."></div>
+          <button type="button" class="ibtn" id="scrub-play" title="Play the recording (P)" aria-pressed="false" disabled>▶</button><div class="tl-track" id="tl-track"><div class="tl-marks" id="tl-marks" aria-hidden="true"></div><div class="tl-loop" id="tl-loop" hidden><i class="tl-h a" title="Loop in point: drag (I sets it at the shown moment)"></i><i class="tl-h b" title="Loop out point: drag (O sets it at the shown moment)"></i><button type="button" class="tl-x" title="Clear the loop">×</button></div><input type="range" id="scrubr" min="0" max="0" value="0" aria-label="Time in the recorded run" title="Drag to review the run (pauses). , and . step 0.1 s. Run or Step continues from the live state."></div>
           <span class="kv tl-time" id="scrubt"></span><button class="btn small" id="scrub-live" hidden title="Back to the live state (End)">Live</button>
           <label class="check sm tl-opt" title="Pause the simulation when the robot touches an obstacle or a person"><input type="checkbox" id="pausec"><span>Pause on contact</span></label>
         </div>

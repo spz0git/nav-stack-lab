@@ -45,6 +45,7 @@ function palItems(){
   const act=(id,name,run,keys,detail)=>add('a:'+id,name,'Action','',run,detail,keys);
   act('run',running?'Pause':'Run',()=>$('#run').click(),'Space');act('step','Step 0.5 s',()=>$('#stepb').click(),'N');act('reset','Reset the run',()=>$('#resetb').click(),'R');
   if(REPLAY.active)act('live','Back to live',exitReplay,'End');
+  if(REC.frames.length>1){act('play',REPLAY.playing?'Pause the recording':'Play the recording',()=>replayPlay(!REPLAY.playing),'P');act('loopin','Loop from here',()=>loopSet('in'),'I','The loop region\'s in point at the shown moment');act('loopout','Loop to here',()=>loopSet('out'),'O','The loop region\'s out point at the shown moment');if(REPLAY.loop)act('loopclear','Clear the loop',()=>loopSet('clear'));}
   LEVELS.forEach((L,i)=>add('lv:'+i,`${L.id} ${L.name}`,'Level','',()=>loadLevel(i),plain(L.adds).slice(0,90)));
   MODES.forEach(([v,l])=>add('m:'+v,l,'Mode','',()=>setUIMode(v),MODE_HINT[v]));
   TOOLS.forEach(([id,name,key,hint])=>add('t:'+id,`Tool: ${name}`,'Map','',()=>{if(AN.mode!=='sim')setUIMode('sim');setTool(id);},hint,key));

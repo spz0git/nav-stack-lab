@@ -19,6 +19,9 @@ Phase 2, workspace polish (from the assessment of 2026-10-15):
   it paused (`ui/urlstate.js`).
 - The event log has a search box (matching lines are marked on the timeline), a severity filter (All, Warnings,
   Errors), an order toggle (oldest first) and follows the replayed moment.
+- The recording plays: ▶ next to the timeline (or P) plays it at the speed setting from the shown moment; I and O
+  set a loop region's in and out points (handles on the track drag them, × clears), playback wraps inside it, and
+  "Whole run" in the plots and the CSV export are trimmed to it.
 
 ## v34 · 2026-10-16
 

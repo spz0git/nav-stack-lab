@@ -490,6 +490,13 @@ details.see>p{margin:0 0 5px}
 .logbar .lbl{font-family:var(--f-mono);font-size:.72rem}
 .log li.hit{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .tl-m.hit{background:var(--accent);top:1px;height:26px;width:2px;opacity:.7}
+/* replay playback and the loop region (Phase 2.5) */
+#scrub-play{padding:2px 8px;font-size:.8rem;line-height:1.4}#scrub-play[aria-pressed="true"]{color:var(--ink);border-color:var(--muted)}
+.tl-loop{position:absolute;top:3px;bottom:3px;z-index:1;background:color-mix(in srgb,var(--accent) 16%,transparent);border-left:2px solid var(--accent);border-right:2px solid var(--accent);border-radius:3px;pointer-events:none}
+.tl-loop[hidden]{display:none}
+.tl-h{position:absolute;top:-2px;bottom:-2px;width:12px;cursor:ew-resize;pointer-events:auto;touch-action:none}.tl-h.a{left:-7px}.tl-h.b{right:-7px}
+.tl-x{position:absolute;right:-9px;top:-11px;width:16px;height:16px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:.7rem;line-height:1;padding:0;pointer-events:auto;cursor:pointer}
+.tl-x:hover{color:var(--bad)}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
 
 .srcdlg{width:min(96vw,980px);max-height:90vh;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:0;display:flex;flex-direction:column}
@@ -737,7 +744,7 @@ article.chapter .notes-table td button.try{display:block;margin-top:3px}
           <select class="sel speed" id="speed" aria-label="Simulation speed" title="Simulation speed ([ and ] change it)"></select>
         </div>
         <div class="scrub" id="scrub">
-          <div class="tl-track" id="tl-track"><div class="tl-marks" id="tl-marks" aria-hidden="true"></div><input type="range" id="scrubr" min="0" max="0" value="0" aria-label="Time in the recorded run" title="Drag to review the run (pauses). , and . step 0.1 s. Run or Step continues from the live state."></div>
+          <button type="button" class="ibtn" id="scrub-play" title="Play the recording (P)" aria-pressed="false" disabled>▶</button><div class="tl-track" id="tl-track"><div class="tl-marks" id="tl-marks" aria-hidden="true"></div><div class="tl-loop" id="tl-loop" hidden><i class="tl-h a" title="Loop in point: drag (I sets it at the shown moment)"></i><i class="tl-h b" title="Loop out point: drag (O sets it at the shown moment)"></i><button type="button" class="tl-x" title="Clear the loop">×</button></div><input type="range" id="scrubr" min="0" max="0" value="0" aria-label="Time in the recorded run" title="Drag to review the run (pauses). , and . step 0.1 s. Run or Step continues from the live state."></div>
           <span class="kv tl-time" id="scrubt"></span><button class="btn small" id="scrub-live" hidden title="Back to the live state (End)">Live</button>
           <label class="check sm tl-opt" title="Pause the simulation when the robot touches an obstacle or a person"><input type="checkbox" id="pausec"><span>Pause on contact</span></label>
         </div>
@@ -8162,7 +8169,9 @@ function configFromHash(){
    log line pauses and replays that moment: map, status strip, plot and log all show it. Hovering the track or the
    plot shows a time cursor in the plot and the robot at that time on the map. Run or Step continues from the live state.
    ============================================================ */
-const REPLAY={active:false,i:0};
+// playing: the recording plays at the speed setting; loop: [tA, tB] in s or null, the region playback wraps in and
+// the plots' whole-run window and the CSV are trimmed to
+const REPLAY={active:false,i:0,playing:false,acc:0,loop:null};
 const CURSOR={hover:null};   // hovered time [s] on the track or the plot, or null
 function replayFrame(){return REPLAY.active&&REC.frames.length?REC.frames[clamp(REPLAY.i,0,REC.frames.length-1)]:null;}
 // the time the page is showing: the replayed frame's, or the live one
@@ -8179,7 +8188,31 @@ function seekTime(t){
   syncScrub();drawMaybeReplay();drawPlot();refreshAll();hashSoon();
 }
 function seekFrame(i){const n=REC.frames.length;if(!n)return;seekTime(REC.frames[clamp(i,0,n-1)].t);}
-function exitReplay(){if(REPLAY.active){REPLAY.active=false;logDirty=true;syncScrub();draw();drawPlot();refreshAll();hashSoon();}}
+function exitReplay(){if(REPLAY.active){REPLAY.active=false;REPLAY.playing=false;logDirty=true;syncScrub();draw();drawPlot();refreshAll();hashSoon();}}
+// Play the recording (P): from the shown moment, or from the start (or the loop's start) when live; pauses the simulation
+function replayPlay(on){
+  const F=REC.frames;if(on&&F.length<2)return;
+  if(on){running=false;if(!REPLAY.active){REPLAY.active=true;REPLAY.i=REPLAY.loop?frameAt(REPLAY.loop[0]):0;}else if(!REPLAY.loop&&REPLAY.i>=F.length-1)REPLAY.i=0;REPLAY.playing=true;REPLAY.acc=0;}
+  else{REPLAY.playing=false;hashSoon();}
+  logDirty=true;syncScrub();drawMaybeReplay();drawPlot();refreshAll();
+}
+// one animation frame of playback (loop.js): frames are 10 Hz, so 0.1 s of recording per 0.1 s × speed
+function replayTick(dt){
+  if(!REPLAY.playing||!REPLAY.active)return;const F=REC.frames;if(F.length<2){REPLAY.playing=false;return;}
+  REPLAY.acc+=dt*speed;const n=Math.floor(REPLAY.acc/0.1);if(!n)return;REPLAY.acc-=n*0.1;
+  const a=REPLAY.loop?frameAt(REPLAY.loop[0]):0,b=REPLAY.loop?frameAt(REPLAY.loop[1]):F.length-1;let i=REPLAY.i+n;
+  if(i>b){if(REPLAY.loop&&b>a)i=a+(i-a)%(b-a+1);else{i=b;REPLAY.playing=false;hashSoon();}}
+  REPLAY.i=i;logDirty=true;
+}
+// The loop region: I and O set the in and out points at the shown moment; the handles on the track drag them
+function loopSet(which,t){
+  const R=twRange();if(!R)return;const[r0,r1]=R;if(t==null)t=shownT();t=clamp(t,r0,r1);
+  if(which==='clear')REPLAY.loop=null;
+  else if(which==='in')REPLAY.loop=[t,REPLAY.loop?Math.max(REPLAY.loop[1],Math.min(r1,t+0.5)):r1];
+  else REPLAY.loop=[REPLAY.loop?Math.min(REPLAY.loop[0],Math.max(r0,t-0.5)):r0,t];
+  if(REPLAY.loop&&REPLAY.loop[1]-REPLAY.loop[0]<0.2)REPLAY.loop=null;
+  tlKey='';syncScrub();drawPlot();
+}
 // Event marks: what a log line means for the timeline
 const TL_KINDS=[[/^(Plan|Replan)\b/,'plan','plan'],[/^Reached goal|^Mission complete/,'goal','goal'],[/Collision|walked into|contact/i,'contact','contact'],
   [/kidnapped|Scattered|Relocali[sz]ed|Position σ/,'loc','localization'],[/no path|Skipping goal|Speed planner|stuck/i,'warn','warning']];
@@ -8191,10 +8224,13 @@ function syncScrub(){
   const r=$('#scrubr');r.max=Math.max(0,n-1);r.disabled=n<2;
   if(!REPLAY.active)r.value=Math.max(0,n-1);else r.value=clamp(REPLAY.i,0,n-1);
   const f=n?F[REPLAY.active?clamp(REPLAY.i,0,n-1):n-1]:null,tEnd=n?F[n-1].t:0;
-  $('#scrubt').textContent=n<2?'no recording yet':REPLAY.active?`${f.t.toFixed(1)} / ${tEnd.toFixed(1)} s · replay`:`${S.t.toFixed(1)} s · live`;
+  const t0=n?F[0].t:0,span=Math.max(1e-6,tEnd-t0);
+  $('#scrubt').textContent=n<2?'no recording yet':REPLAY.active?`${f.t.toFixed(1)} / ${tEnd.toFixed(1)} s · ${REPLAY.playing?'playing':'replay'}`:`${S.t.toFixed(1)} s · live`;
   $('#scrub-live').hidden=!REPLAY.active;
+  const pb=$('#scrub-play');pb.disabled=n<2;pb.setAttribute('aria-pressed',String(REPLAY.playing));pb.textContent=REPLAY.playing?'❚❚':'▶';pb.title=REPLAY.playing?'Pause the recording (P)':'Play the recording (P)';
+  const lp=$('#tl-loop');if(REPLAY.loop&&n>1){const[a,b]=REPLAY.loop;lp.hidden=false;lp.style.left=`${(100*(a-t0)/span).toFixed(2)}%`;lp.style.width=`${(100*(b-a)/span).toFixed(2)}%`;lp.title=`Loop ${a.toFixed(1)}–${b.toFixed(1)} s`;}else lp.hidden=true;
   // marks: redrawn when the log or the recorded span changes
-  const t0=n?F[0].t:0,span=Math.max(1e-6,tEnd-t0),key=S.log.length+'|'+(S.log[0]&&S.log[0].t)+'|'+t0.toFixed(1)+'|'+tEnd.toFixed(0)+'|'+HEALTH.ev.length+'|'+LOGV.q;
+  const key=S.log.length+'|'+(S.log[0]&&S.log[0].t)+'|'+t0.toFixed(1)+'|'+tEnd.toFixed(0)+'|'+HEALTH.ev.length+'|'+LOGV.q;
   if(key!==tlKey){tlKey=key;
     $('#tl-marks').innerHTML=n<2?'':S.log.map(l=>{const k=tlKind(l.msg);if(!k||l.t<t0-1e-6||l.t>tEnd+1e-6)return'';return`<i class="tl-m ${k[0]}" style="left:${(100*(l.t-t0)/span).toFixed(2)}%" title="${l.t.toFixed(1)} s · ${esc(l.msg)}"></i>`;}).join('')+
       HEALTH.ev.filter(h=>h.t>=t0-1e-6&&h.t<=tEnd+1e-6).map(h=>`<i class="tl-m h-${h.lvl}" style="left:${(100*(h.t-t0)/span).toFixed(2)}%" title="${h.t.toFixed(1)} s · ${esc(h.msg)}"></i>`).join('')+   // health lights turning amber or red (health.js)
@@ -8205,6 +8241,13 @@ function syncScrub(){
  // , and . step one frame (0.1 s); Home/End go to the start and back to live
  r.addEventListener('keydown',e=>{if(e.key==='End'){e.preventDefault();exitReplay();}});
  $('#scrub-live').onclick=exitReplay;
+ $('#scrub-play').onclick=()=>replayPlay(!REPLAY.playing);
+ // the loop region's handles drag its in and out points; × clears it
+ {const lp=$('#tl-loop'),tr=$('#tl-track');let drag=null;
+  lp.querySelectorAll('.tl-h').forEach(h=>h.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();drag=h.classList.contains('a')?'in':'out';h.setPointerCapture(e.pointerId);}));
+  lp.addEventListener('pointermove',e=>{if(!drag)return;const F=REC.frames;if(F.length<2)return;const b=r.getBoundingClientRect(),u=clamp((e.clientX-b.left)/b.width,0,1);loopSet(drag,F[0].t+u*(F[F.length-1].t-F[0].t));});
+  lp.addEventListener('pointerup',()=>{drag=null;});lp.addEventListener('pointercancel',()=>{drag=null;});
+  lp.querySelector('.tl-x').onclick=e=>{e.stopPropagation();loopSet('clear');};}
  const tr=$('#tl-track');
  tr.addEventListener('pointermove',e=>{const F=REC.frames;if(F.length<2)return;const b=r.getBoundingClientRect(),u=clamp((e.clientX-b.left)/b.width,0,1);
    CURSOR.hover=F[0].t+u*(F[F.length-1].t-F[0].t);tr.title=`${CURSOR.hover.toFixed(1)} s`;hoverChanged();});
@@ -8212,6 +8255,8 @@ function syncScrub(){
 document.addEventListener('keydown',e=>{
   const t=e.target,tag=t&&t.tagName;if(tag==='INPUT'&&t.type!=='range'||tag==='TEXTAREA'||tag==='SELECT'||e.metaKey||e.ctrlKey||e.altKey)return;
   if(e.key===','||e.key==='.'){const n=REC.frames.length;if(n<2||AN.mode!=='sim')return;e.preventDefault();seekFrame((REPLAY.active?REPLAY.i:n-1)+(e.key==='.'?1:-1));}
+  if(AN.mode!=='sim')return;const k=e.key.toLowerCase();
+  if(k==='p'){e.preventDefault();replayPlay(!REPLAY.playing);}else if(k==='i'){e.preventDefault();loopSet('in');}else if(k==='o'){e.preventDefault();loopSet('out');}
 });
 // A hover elsewhere on the page (track or plot) redraws the plot cursor and the robot at that time on the map
 let hoverQ=0;
@@ -8668,7 +8713,8 @@ function timeWindow(dMin,dMax){
   t1=Math.min(dMax,t1);const t0=Math.max(dMin,t1-span);return[t0,Math.max(t1,t0+1e-3)];
 }
 const twLabel=(t0,t1)=>TW.all?`whole run, ${t0.toFixed(0)}–${t1.toFixed(0)} s`:TW.end!=null?`${t0.toFixed(0)}–${t1.toFixed(0)} s`:`last ${Math.round(t1-t0)} s`;
-function twRange(){const A=S&&S.plot.length?S.plot:REC.frames;return A.length>1?[A[0].t,A[A.length-1].t]:null;}
+function twRange(){const A=S&&S.plot.length?S.plot:REC.frames;if(A.length<2)return null;const R=[A[0].t,A[A.length-1].t];
+  return REPLAY.loop?[Math.max(R[0],REPLAY.loop[0]),Math.min(R[1],REPLAY.loop[1])]:R;}   // a loop region trims the window
 function twSet(span,end){const R=twRange();if(!R)return;TW.all=false;TW.span=clamp(span,2,Math.max(2,R[1]-R[0]));TW.end=end==null||end>=R[1]-0.05?null:Math.max(R[0]+TW.span,end);syncTW();drawPlot();}
 function twReset(){TW.all=false;TW.span=30;TW.end=null;syncTW();drawPlot();}
 function syncTW(){const b=$('#pl-all');if(b)b.setAttribute('aria-pressed',String(TW.all));}
@@ -8776,7 +8822,7 @@ wirePlotCanvas(pv);
 function runCSV(){
   const F=REC.frames;if(F.length<2)return null;const ids=SIGNALS.map(s=>s[0]);
   const head=['t',...ids.map(id=>{const u=sigUnit(SIG[id]);return id+(u?` [${u}]`:'');})];
-  const rows=[head.join(',')];for(const f of F){rows.push([f.t.toFixed(2),...ids.map(id=>{const v=sigAt(id,f.t);return v==null?'':+v.toFixed(5);})].join(','));}
+  const rows=[head.join(',')];for(const f of F){if(REPLAY.loop&&(f.t<REPLAY.loop[0]-1e-6||f.t>REPLAY.loop[1]+1e-6))continue;rows.push([f.t.toFixed(2),...ids.map(id=>{const v=sigAt(id,f.t);return v==null?'':+v.toFixed(5);})].join(','));}
   return rows.join('\n');
 }
 // the preset plot and the added panes stacked into one image, on the page background
@@ -8834,6 +8880,7 @@ function palItems(){
   const act=(id,name,run,keys,detail)=>add('a:'+id,name,'Action','',run,detail,keys);
   act('run',running?'Pause':'Run',()=>$('#run').click(),'Space');act('step','Step 0.5 s',()=>$('#stepb').click(),'N');act('reset','Reset the run',()=>$('#resetb').click(),'R');
   if(REPLAY.active)act('live','Back to live',exitReplay,'End');
+  if(REC.frames.length>1){act('play',REPLAY.playing?'Pause the recording':'Play the recording',()=>replayPlay(!REPLAY.playing),'P');act('loopin','Loop from here',()=>loopSet('in'),'I','The loop region\'s in point at the shown moment');act('loopout','Loop to here',()=>loopSet('out'),'O','The loop region\'s out point at the shown moment');if(REPLAY.loop)act('loopclear','Clear the loop',()=>loopSet('clear'));}
   LEVELS.forEach((L,i)=>add('lv:'+i,`${L.id} ${L.name}`,'Level','',()=>loadLevel(i),plain(L.adds).slice(0,90)));
   MODES.forEach(([v,l])=>add('m:'+v,l,'Mode','',()=>setUIMode(v),MODE_HINT[v]));
   TOOLS.forEach(([id,name,key,hint])=>add('t:'+id,`Tool: ${name}`,'Map','',()=>{if(AN.mode!=='sim')setUIMode('sim');setTool(id);},hint,key));
@@ -9145,7 +9192,7 @@ function vmMark(){document.querySelectorAll('#viewmenu [data-preset]').forEach(x
 
 /* ---------- keyboard shortcuts (?) ---------- */
 const KEYS=[['Run','Space','Run or pause'],['Run','N','Step 0.5 s'],['Run','R','Reset'],['Run','[  ]','Slower, faster'],
-  ['Timeline',',  .','Back or forward 0.1 s in the recording'],['Timeline','End','Back to live'],
+  ['Timeline',',  .','Back or forward 0.1 s in the recording'],['Timeline','End','Back to live'],['Timeline','P','Play or pause the recording at the speed setting'],['Timeline','I  O','Loop in and out points at the shown moment; drag the handles; × clears'],
   ['Map','V G H K B','Select · Goal · Goal with heading · Kidnap · Beacon'],['Map','L','Layers'],['Map','F','Follow the robot'],['Map','0','Fit the whole world'],['Map','Esc','Close a popover, clear the selection, back to Goal'],
   ['Map','Wheel · drag','Zoom · pan (drag also pans with any tool but Goal with heading; Shift-drag always)'],
   ['Plots','Wheel · drag','Zoom · pan the time window'],['Plots','Double-click','Follow the last 30 s again'],['Plots','Click','Show that moment'],
@@ -9192,6 +9239,7 @@ function loop(ts){
   const dt=Math.min(0.1,(ts-lastTs)/1000||0);lastTs=ts;
   if(running&&!busy){acc+=dt*speed;const n=Math.min(40,Math.floor(acc/DT));if(n>0){acc-=n*DT;advance(n);}}
   else if(!running)acc=0;
+  replayTick(dt);
   if(AN.mode==='sim'){drawMaybeReplay();if(frame++%3===0){drawPlot();refreshAll();syncScrub();}}
   requestAnimationFrame(loop);
 }
@@ -9294,7 +9342,7 @@ async function runToMoment(t){
 /* ---- ui/boot.js ---- */
 
 /* ---------- boot ---------- */
-UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{SEL=null;if(REPLAY.active){REPLAY.active=false;logDirty=true;}buildLevels();applyTabLayers(true);plotDefault();renderAllPanes();hashSoon();};UI.mode=()=>AN.mode;
+UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{SEL=null;if(REPLAY.active){REPLAY.active=false;logDirty=true;}REPLAY.playing=false;REPLAY.loop=null;buildLevels();applyTabLayers(true);plotDefault();renderAllPanes();hashSoon();};UI.mode=()=>AN.mode;
 buildTabs();loadLevel(0);let linkCfg=null;{const c=configFromHash();if(c){try{applyConfig(c);linkCfg=c;logE('Setup restored from the link','ok');}catch(e){logE('Could not restore the setup from the link: '+e.message,'warn');}}}syncModeUI();renderLearn();lessonFromHash()||chapterFromHash()||(location.hash==='#learn'&&setUIMode('learn'));readTokens();draw();drawPlot();
 if(linkCfg){hashLast=location.hash.slice(1);if(linkCfg.mode==='an')setMode('an');else if(linkCfg.t>0)runToMoment(linkCfg.t);}
 requestAnimationFrame(loop);

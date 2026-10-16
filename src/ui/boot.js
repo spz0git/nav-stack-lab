@@ -1,6 +1,6 @@
 
 /* ---------- boot ---------- */
-UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{SEL=null;if(REPLAY.active){REPLAY.active=false;logDirty=true;}buildLevels();applyTabLayers(true);plotDefault();renderAllPanes();hashSoon();};UI.mode=()=>AN.mode;
+UI.draw=()=>{if(AN.mode==='sim')draw();};UI.refresh=refreshAll;UI.invalidate=anInvalidate;UI.levelChanged=()=>{SEL=null;if(REPLAY.active){REPLAY.active=false;logDirty=true;}REPLAY.playing=false;REPLAY.loop=null;buildLevels();applyTabLayers(true);plotDefault();renderAllPanes();hashSoon();};UI.mode=()=>AN.mode;
 buildTabs();loadLevel(0);let linkCfg=null;{const c=configFromHash();if(c){try{applyConfig(c);linkCfg=c;logE('Setup restored from the link','ok');}catch(e){logE('Could not restore the setup from the link: '+e.message,'warn');}}}syncModeUI();renderLearn();lessonFromHash()||chapterFromHash()||(location.hash==='#learn'&&setUIMode('learn'));readTokens();draw();drawPlot();
 if(linkCfg){hashLast=location.hash.slice(1);if(linkCfg.mode==='an')setMode('an');else if(linkCfg.t>0)runToMoment(linkCfg.t);}
 requestAnimationFrame(loop);

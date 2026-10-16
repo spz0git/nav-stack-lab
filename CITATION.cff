@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: If you use Nav Stack Lab in teaching or research, please cite it as below.
+title: "Nav Stack Lab: a browser simulator for robot navigation with loop analysis and guided lessons"
+type: software
+authors:
+  - family-names: szaf
+    name-particle: ""
+version: "31"
+date-released: 2026-10-16
+repository-code: https://github.com/spz0git/nav-stack-lab
+url: https://spz0git.github.io/nav-stack-lab/
+license: MIT
+keywords:
+  - robotics
+  - navigation
+  - localization
+  - path planning
+  - control
+  - simulation
+  - education
+abstract: >-
+  A complete robot navigation stack in one HTML file: localization (dead reckoning, EKF, particle filter, EKF-SLAM),
+  perception (occupancy mapping, costmaps, agent tracking), planning (A*, RRT*, Hybrid A*, space-time A*) and control
+  (pure pursuit, Stanley, rear-wheel feedback, PID, DWA, MPC) on a simulated differential-drive robot or car, a
+  linear loop-analysis view checked against the nonlinear simulator, and guided lessons with companion chapters.

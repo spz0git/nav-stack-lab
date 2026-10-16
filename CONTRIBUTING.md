@@ -1,0 +1,63 @@
+# Contributing
+
+Thanks for looking. This page says what the project is for, what kind of change it takes, how to run the tests that
+every pull request passes, and how the pieces fit, so that a first contribution lands on the first try.
+
+## What the project is
+
+A complete robot navigation stack that runs in one HTML file, honest enough to learn from: every number a lesson
+quotes is measured in the simulator, every formula in a chapter is the one the code implements, and the linear
+analysis is checked against the nonlinear simulation. The target reader is a student or an engineer who wants to see
+localization, perception, planning and control interact, change one thing, and watch what happens.
+
+The page has no runtime dependencies and no build-time dependencies beyond Node (the TeX converter is vendored).
+Keep it that way: a change that pulls in a framework, a bundler or a CDN will not be accepted.
+
+## What we take
+
+- **Lessons and chapters** that are measured, not asserted: a new lesson comes with the `tests/measure_*.py` run
+  that produced its "What you will see" numbers (seed 7) and a derivation link into a chapter section.
+- **Simulator features** from the roadmap (`docs/roadmap.md`, "Candidate next steps") or the good-first-issue list
+  (`docs/good-first-issues.md`): a planner, an estimator, a sensor model, a signal. Each comes with a lesson or a
+  level Try that shows what it does, and with the L1–L5 regression summary unchanged unless the change intends it.
+- **Workspace improvements** that borrow a proven pattern (Foxglove, RViz, Rerun are the references) and work on a
+  phone too.
+- **Fixes** with a run export or a setup link that reproduces the problem.
+
+What we do not take: content that is not measured, changes that make the page depend on a server, and large
+rewrites without an issue first. Open an issue before a change that touches more than one subsystem.
+
+## The test gate
+
+Every pull request:
+
+1. Builds: `./build.sh` (Node 18+). Commit the rebuilt `dist/` with the source change; CI checks that the committed
+   page equals a fresh build.
+2. Passes the Node golden test: `npm test` (10 s). If your change intends to move the L1–L5 numbers, regenerate the
+   baseline with `npm run golden` in the same PR and say why.
+3. Passes the browser gate: `python3 tests/run_all.py` (about three minutes with Playwright's Chromium;
+   `pip install playwright && playwright install chromium` once). `test.py`'s summary must not change,
+   `p5test.py`, `chtest.py` and `dyntest.py` must report no errors.
+4. For a UI change: screenshots at 1440 × 900 and 390 × 844, light and dark, in the PR description
+   (`tests/shots.py <dir>` makes them).
+
+## How the code is organised
+
+`src/` is concatenated in `manifest.json` order into one page (see the README's source layout). Three rules:
+
+- `core/` never touches the DOM. It reaches the page only through the `UI` hooks in `core/state.js`, which is why
+  the same core runs in Node (`tests/node/core.mjs`) and in the Experiments workers.
+- A parameter lives in `core/params.js` (`DEFAULTS`), is shown by `ui/schema.js`, and is set through `setParam`
+  (`core/config.js`), never by writing `P.x` from the UI.
+- A number the user sees comes from the simulation or the analysis, not from a constant in the UI.
+
+Lessons are in `src/analysis/lessons.js` and `lessons2.js` (`['Label', cfg, {setup, see, shows}]` Trys; `q:` for
+questions); chapters in `docs/notes/*.md` (markdown + TeX, `{{live:key}}` values from `src/ui/chapters.js`,
+`[try: Label | {cfg}]` buttons; the header of `tools/notes.mjs` documents both).
+
+## Pull requests
+
+- One change per PR, on a branch, with the tests above run and their result in the description.
+- Keep the style of the file you are in; there is no formatter yet (a Prettier pass is planned).
+- The maintainer merges, bumps the version label, and republishes the demo; see `docs/maintaining.md`.
+- By contributing you agree that your contribution is licensed under the project's licence (see `LICENSE`).

@@ -1,9 +1,9 @@
 # Changelog
 
-The version label in the page header (`v38 · 2026-10-16`) is the number used here; `src/version.json` holds it.
+The version label in the page header (`v39 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v39 · 2026-10-16
 
 - Velocity obstacles (Control → Response to agents → Velocity obstacles, for the path trackers): one cone per tracked
   person (the ray-disc quadratic within a horizon τ), the tracker's command tested against them and, when inside,

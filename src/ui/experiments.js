@@ -686,7 +686,7 @@ function wireExp(pane) {
 function currentConfig() {
   const c = {level: LV.id, seed: P.seed, params: baseOverrides()};
   const dg = LV.wps.map(w => [w[0], w[1], w.length > 2 ? w[2] : null]),
-    cg = WPS.map(w => [w.x, w.y, w.th == null ? null : w.th]);
+    cg = WPS.some(w => w.explore) ? dg : WPS.map(w => [w.x, w.y, w.th == null ? null : w.th]); // a frontier goal is the mission's, not the setup's
   if (JSON.stringify(dg) !== JSON.stringify(cg)) c.goals = cg.map(g => g.map(v => (v == null ? null : +v.toFixed(2))));
   return c;
 }

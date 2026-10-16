@@ -206,6 +206,19 @@ function draw() {
   drawOverlays(dpr, k, px);
   drawScaleBar(dpr, k, px);
 }
+// The frontiers (known free next to unknown) as amber cells, the chosen one brighter, while exploring
+function drawFrontiers(px) {
+  if (!LAYERS.frontier || !exploring() || !S.frontiers) return;
+  const goal = WPS[0] && WPS[0].explore ? WPS[0].key : -1;
+  for (const f of S.frontiers) {
+    ctx.fillStyle = rgba(TOK.warn, f.key === goal ? 0.85 : 0.4);
+    for (const k of f.cells) {
+      const i = k % GW,
+        j = (k - i) / GW;
+      ctx.fillRect(i * RES, j * RES, RES, RES);
+    }
+  }
+}
 // The layers of the map, one function each, in drawing order (called by draw with the scale: dpr, k world→px, px(n) a size in screen px)
 function drawGrid(dpr, k, px) {
   // 1 m grid
@@ -351,6 +364,7 @@ function drawGhostRun(dpr, k, px) {
     ctx.stroke();
     ctx.setLineDash([]);
   }
+  drawFrontiers(px); // frontier exploration: the frontiers of the last pick (mission.js)
   drawCompare(px); // a run picked in Runs → Compare (runs.js)
   if (LAYERS.sweep) drawSweep(px); // the paths of an experiment's runs (experiments.js)
 }

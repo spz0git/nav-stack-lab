@@ -16,6 +16,11 @@ Phase 4, content (from the assessment of 2026-10-15 and the owner's direction):
   weights with the closed-form gains, both shown as a what-if where the pair really lands with the delays in the
   loop; a lesson Try can ask for either (`place`, `lqr`). Control lesson 18, *Placing the poles on purpose: pole
   placement and LQR*, and chapter 6 §8 with the Riccati equation solved in closed form.
+- Frontier exploration (Mission → Goal order → Explore) on any level with lidar mapping: the robot picks its own goals,
+  the largest nearby frontier (known free next to unknown, at least N cells), drops a goal once nothing behind it is
+  unknown any more, retries the ones that failed once nothing else is left, and stops when the map has no frontier.
+  A Frontiers layer, a "Floor seen" signal and status metric, L4 gets an Explore button. Lesson 6 of the planning
+  group, *Frontier exploration: the robot picks its own goals*, with five measured experiments, and chapter 4 §7.
 
 ## v36 · 2026-10-16
 

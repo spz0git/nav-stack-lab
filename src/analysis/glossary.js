@@ -698,7 +698,19 @@ const GLOSS = {
   feedforward: ['feedforward', 'A command computed from the path itself (here its curvature), added to the feedback.', '', ['feedforward']],
   offset: ['Offset chip', 'Analysis readout of the steady lateral offset the tracker settles at on the circle.', 'm', ['Offset chip']],
   steerrate: ['steering-rate limit', 'The fastest the steering angle can change, 1.5 rad/s.', 'rad/s', ['steering-rate limit']],
-  stanley: ['Stanley', "Path tracker that steers by the heading error plus a term in the front axle's cross-track error.", '', ['Stanley']]
+  stanley: ['Stanley', "Path tracker that steers by the heading error plus a term in the front axle's cross-track error.", '', ['Stanley']],
+  frontiercell: [
+    'frontier cell',
+    'A known-free cell with an unknown neighbour: standing there, the lidar would see something new. Frontiers are clusters of them.',
+    '',
+    ['frontier cells', 'frontier cell', 'frontiers']
+  ],
+  floorseen: [
+    'floor seen',
+    "The share of the true free floor whose cells the robot's map knows (free or occupied). What exploration maximizes.",
+    '%',
+    ['floor seen', 'floor is seen', 'of the floor']
+  ]
 };
 // Terms each lesson uses, in reading order (keyed by lesson title)
 // the car with tyre slip (lessons on the dynamic bicycle model)
@@ -819,6 +831,8 @@ const LESSON_TERMS = {
   'RRT*: sampling, rewiring, and luck': 'rrtstar samples parent rewire neigh asym rrad ntree seed',
   'Hybrid A*: planning for a car': 'hybrid heading minturn arcs reverse heur hcost eps dijkstra rs analytic steerlimit fulllock tracker',
   'Replanning and the behaviour layer': 'fsm replan lethal estimate speedplanner agent states costmap',
+  'Frontier exploration: the robot picks its own goals':
+    'frontier frontiercell floorseen logodds lethal inflation costmap fsm replan estimate',
   'Space-time A*: planning with time as a coordinate': 'sta refspeed horizon ijk kidx t dtst v0r cij pa rrobot speedplanner expansions',
   'The loop being analyzed': 'tracker v0c integrator the gpl uc wturn delta Lwb ectl derivative opoint findiff hold latency actlag',
   'Pure pursuit is a PD controller': 'pd carrot Ld alpha the ectl pp curv linearized wturn v0c Ls sL Td wc pm delta Lwb gpl',

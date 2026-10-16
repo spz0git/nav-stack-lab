@@ -14,7 +14,7 @@ async ({lvl, overrides, secs, seed, cfg}) => {
   if(secs>0)await N.advance(Math.round(secs/0.05));
   const plans=S.log.filter(l=>/^(Plan|Replan)/.test(l.msg)).map(l=>l.t.toFixed(1)+' '+l.msg).reverse();
   const reasons={};for(const l of S.log){const m=/^Replan \(([^)]+)\)/.exec(l.msg);if(m)reasons[m[1]]=(reasons[m[1]]||0)+1;}
-  const other=S.log.filter(l=>/no path|Skipping|Cusp|Contact|yield|Reached|complete/i.test(l.msg)).map(l=>l.t.toFixed(1)+' '+l.msg).reverse();
+  const other=S.log.filter(l=>/no path|Skipping|Cusp|Contact|yield|Reached|complete|Explor|Frontier/i.test(l.msg)).map(l=>l.t.toFixed(1)+' '+l.msg).reverse();
   return{t:+S.t.toFixed(1),state:S.fsm.state,done:N.WPS.filter(w=>w.done&&!w.skipped).length,skip:N.WPS.filter(w=>w.skipped).length,coll:S.coll,ped:S.collPed,
     minPed:isFinite(S.minPed)?+S.minPed.toFixed(2):null,dist:+S.dist.toFixed(1),plans,reasons,other,stats:S.planStats};
 }'''

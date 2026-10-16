@@ -263,9 +263,21 @@ const SCHEMA = {
       opts: [
         ['sequential', 'In order'],
         ['greedy', 'Greedy nearest'],
-        ['optimal', 'Optimal']
+        ['optimal', 'Optimal'],
+        ['explore', 'Explore (frontiers)']
       ]
     },
+    {
+      type: 'info',
+      text: () =>
+        P.mis === 'explore'
+          ? P.per === 'mapping'
+            ? `Frontier exploration: the robot picks its own goals, the largest nearby frontier (known free next to unknown, at least ${P.exploreMin} cells), until none is left. The goals on the map are ignored; the status strip shows the floor seen.`
+            : 'Exploration needs lidar mapping: Perceive → Map source → lidar mapping. With a prior map there is nothing unknown to explore.'
+          : '',
+      show: () => P.mis === 'explore'
+    },
+    {k: 'exploreMin', label: 'Smallest frontier worth a visit', min: 2, max: 30, step: 1, unit: 'cells', show: () => P.mis === 'explore'},
     {k: 'replan', label: 'Periodic replan (0 = event-driven only)', min: 0, max: 5, step: 0.5, unit: 's'},
     {k: 'lostGuard', type: 'bool', label: 'Stop when position σ exceeds 1 m (diff-drive also turns in place)'}
   ],

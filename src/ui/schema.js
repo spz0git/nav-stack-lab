@@ -1,148 +1,597 @@
 // the odometry sliders in physical units, at the cruise speed driving straight (model: odometry() in core/vehicle.js)
-function odoInfo(){
-  const v=anV0(),e=odoErr(v),deg=x=>x*180/Math.PI,at=`At ${v.toFixed(2)} m/s: `;
-  if(!P.odoK&&!P.odoB)return at+'no error. Dead reckoning on these readings matches the truth.';
-  const noise=P.odoK?`each 50 ms reading is off by σ ${e.sv.toFixed(2)} m/s in speed and ${e.sw.toFixed(2)} rad/s (${deg(e.sw).toFixed(1)}°/s) in turn rate, at random.`:'no random error.';
-  const bias=P.odoB?` Bias: speed reads ${(2*P.odoB).toFixed(1)} % high (+${(100*e.bv).toFixed(1)} cm/s), turn rate +${e.bw.toFixed(3)} rad/s (${deg(e.bw).toFixed(2)}°/s), always the same way → about ${Math.round(60*deg(e.bw))}° of heading drift per minute.`:' No bias.';
-  return at+noise+bias;
+function odoInfo() {
+  const v = anV0(),
+    e = odoErr(v),
+    deg = x => (x * 180) / Math.PI,
+    at = `At ${v.toFixed(2)} m/s: `;
+  if (!P.odoK && !P.odoB) return at + 'no error. Dead reckoning on these readings matches the truth.';
+  const noise = P.odoK
+    ? `each 50 ms reading is off by σ ${e.sv.toFixed(2)} m/s in speed and ${e.sw.toFixed(2)} rad/s (${deg(e.sw).toFixed(1)}°/s) in turn rate, at random.`
+    : 'no random error.';
+  const bias = P.odoB
+    ? ` Bias: speed reads ${(2 * P.odoB).toFixed(1)} % high (+${(100 * e.bv).toFixed(1)} cm/s), turn rate +${e.bw.toFixed(3)} rad/s (${deg(e.bw).toFixed(2)}°/s), always the same way → about ${Math.round(60 * deg(e.bw))}° of heading drift per minute.`
+    : ' No bias.';
+  return at + noise + bias;
 }
 // the car with tyre slip in numbers (model: dynStep() in core/vehicle.js; theory: chapter 1 §4–5)
-function dynInfoText(){
-  const D=dynInfo(),v=Math.min(P.vcruise,P.vmax),K=D.K,kind=Math.abs(K)<1e-5?'neutral steer':K>0?'understeer':'oversteer';
-  const sp=K>0?`characteristic speed v_ch ${D.vch.toFixed(2)} m/s (r/δ peaks there, at half of v/L)`:K<0?`critical speed v_crit ${D.vcrit.toFixed(2)} m/s (the yaw motion is unstable above it)`:'no characteristic speed';
-  return`K_us ${K.toFixed(4)} rad/(m/s²) (${(K*180/Math.PI).toFixed(2)}° per m/s²): ${kind} · ${sp} · grip limit μg ${D.aMax.toFixed(2)} m/s². At the cruise speed ${v.toFixed(2)} m/s: r/δ is ${(100*D.L/(D.L+K*v*v)).toFixed(0)} % of v/L, the yaw mode has ${dynModes(v).text}, and the grip runs out on turns tighter than ${(v*v/D.aMax).toFixed(2)} m (the car steers down to ${minTurnR().toFixed(2)} m).`;
+function dynInfoText() {
+  const D = dynInfo(),
+    v = Math.min(P.vcruise, P.vmax),
+    K = D.K,
+    kind = Math.abs(K) < 1e-5 ? 'neutral steer' : K > 0 ? 'understeer' : 'oversteer';
+  const sp =
+    K > 0
+      ? `characteristic speed v_ch ${D.vch.toFixed(2)} m/s (r/δ peaks there, at half of v/L)`
+      : K < 0
+        ? `critical speed v_crit ${D.vcrit.toFixed(2)} m/s (the yaw motion is unstable above it)`
+        : 'no characteristic speed';
+  return `K_us ${K.toFixed(4)} rad/(m/s²) (${((K * 180) / Math.PI).toFixed(2)}° per m/s²): ${kind} · ${sp} · grip limit μg ${D.aMax.toFixed(2)} m/s². At the cruise speed ${v.toFixed(2)} m/s: r/δ is ${((100 * D.L) / (D.L + K * v * v)).toFixed(0)} % of v/L, the yaw mode has ${dynModes(v).text}, and the grip runs out on turns tighter than ${((v * v) / D.aMax).toFixed(2)} m (the car steers down to ${minTurnR().toFixed(2)} m).`;
 }
-const dynPresetOn=n=>Object.entries(DYN_PRESETS[n]).every(([k,v])=>P[k]===v);
-function dynPreset(n){for(const[k,v]of Object.entries(DYN_PRESETS[n]))setParam(k,v,false);renderAllPanes();}
-const SCHEMA={
- loc:[{k:'loc',type:'seg',label:'Estimator',opts:[['truth','Ground truth'],['dr','Dead reckoning'],['ekf','EKF'],['pf','Particle filter'],['slam','EKF-SLAM'],['custom','Your code']]},
-      {type:'info',text:()=>'Odometry is perfect on this level (noise and bias 0), so dead reckoning matches the truth exactly.',show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
-      {type:'btn',label:'Add odometry noise and bias (×1)',act:()=>{setParam('odoK',1,false);setParam('odoB',1,false);renderAllPanes();},show:()=>P.loc==='dr'&&!P.odoK&&!P.odoB},
-      {type:'info',text:()=>`EKF-SLAM estimates the beacon positions too: ${S&&S.slam?S.slam.n:0} mapped. The map starts empty; the first reading of each beacon places it.`,show:()=>P.loc==='slam'},
-      {type:'info',text:()=>SLOTS.loc.worker?'Your localizer is loaded (Code tab).':'Load a localizer in the Code tab; until then the estimate stays at the start pose.',show:()=>P.loc==='custom'},
-      {k:'assoc',type:'seg',label:'Beacon association',opts:[['known','Known IDs'],['unknown','Unlabeled']],show:()=>filt()||P.loc==='slam'},
-      {k:'npart',label:'Particles',min:50,max:2000,step:50,show:pf_},
-      {k:'inject',type:'bool',label:'Recovery injection (augmented MCL + sensor resetting)',show:pf_},
-      {k:'pfLidar',type:'bool',label:'Also weight particles by lidar against the prior map (likelihood field)',show:()=>pf_()&&P.per==='oracle'},
-      {k:'filtK',label:'Filter\'s assumed motion noise',min:0.25,max:6,step:0.25,unit:'× true',show:()=>P.loc!=='truth'},
-      {type:'btn',label:'Scatter particles',act:()=>scatterParticles(),show:pf_},
-      {type:'info',text:()=>'Dead reckoning never uses the beacons: it integrates odometry only, so its error and ellipse only grow. Switch to EKF or the particle filter to see beacons pull the estimate back.',show:()=>P.loc==='dr'},
-      {type:'info',text:()=>'Ground truth: the estimate is the true pose, so the beacons and their on/off state change nothing here (L1, L2 and L6 start this way). Pick EKF or Particle filter to see what the beacons are worth.',show:()=>P.loc==='truth'},
-      {type:'btn',label:'Use the EKF (beacons only)',act:()=>{setParam('loc','ekf',false);renderAllPanes();},show:()=>P.loc==='truth'},
-      {type:'head',label:'Odometry (wheel encoders)'},
-      {k:'odoK',label:'Odometry noise (× base σ)',min:0,max:3,step:0.1,unit:'×'},
-      {k:'odoB',label:'Odometry calibration bias (× base bias)',min:0,max:3,step:0.1,unit:'×'},
-      {type:'info',text:odoInfo},
-      {k:'gyro',type:'bool',label:'Yaw-rate gyro in the odometry (off: turn rate from the steering encoder, v tan δ / L, so tyre slip reads as odometry error)',show:isDyn},
-      {type:'head',label:'Beacons'},
-      {type:'beacons',label:'Beacons on (tap to switch one off)'},
-      {type:'bsensor'},
-      {type:'info',text:()=>`The particle filter scores particles with lidar against the prior map as well as with the beacons, so it stays localized with every beacon off (lidar localization, as AMCL does). Untick "Also weight particles by lidar" above to depend on the beacons alone.`,show:()=>P.loc==='pf'&&P.pfLidar&&P.per==='oracle'},
-      {k:'lmK',label:'Beacon range/bearing noise',min:0,max:3,step:0.1,unit:'×'},
-      {k:'lmRange',label:'Beacon sensor range',min:2,max:15,step:0.5,unit:'m'},
-      {k:'clutter',label:'False beacon detections per scan (unlabeled mode)',min:0,max:3,step:0.1},
-      {k:'bOut',label:'Random beacon outages (share of time each is down)',min:0,max:90,step:5,unit:'%',show:()=>P.loc!=='truth'},
-      {k:'bOutLen',label:'Mean outage length (short = flicker)',min:0.2,max:10,step:0.2,unit:'s',show:()=>P.loc!=='truth'&&P.bOut>0}],
- per:[{k:'per',type:'seg',label:'Map source',opts:[['oracle','Prior map'],['mapping','Lidar mapping']]},
-      {k:'unknownAs',type:'seg',label:'Unknown space is',opts:[['free','Free (optimistic)'],['lethal','Lethal (cautious)']],show:()=>P.per==='mapping'},
-      {type:'info',text:()=>'Lethal: the planners plan only through cells the lidar has already seen free (and 0.4 m clear of unseen ones). At the start that is a small island around the robot, and nothing in this lab explores (picks goals at the edge of the seen space to grow it), so a goal in an unseen room has no plan, the robot never moves, and it never sees more. Frontier exploration is what makes the cautious policy usable; with Free the planner goes optimistically and replans as walls appear.',show:()=>P.per==='mapping'&&P.unknownAs==='lethal'},
-      {k:'infl',label:'Inflation band beyond lethal',min:0,max:1.5,step:0.05,unit:'m'},
-      {k:'lidarSig',label:'Lidar range noise σ',min:0,max:0.15,step:0.005,unit:'m'},
-      {type:'btn',label:'Clear built map',act:()=>{S.lo.fill(0);buildCostmap();dirty.occ=true;logE('Occupancy grid cleared','warn');draw();},show:()=>P.per==='mapping'},
-      {k:'agents',type:'seg',label:'Agent tracking',opts:[['off','Off'],['truth','Ground truth'],['lidar','Lidar (clusters + Kalman)']]},
-      {k:'agPred',type:'seg',label:'Prediction',opts:[['cv','Constant velocity'],['static','Static (frozen)'],['custom','Your code']],show:agOn},
-      {type:'info',text:()=>SLOTS.pred.worker?'Your predictor is loaded (Code tab).':'Load a predictor in the Code tab; until then constant velocity is used.',show:()=>agOn()&&P.agPred==='custom'},
-      {k:'agT',label:'Prediction horizon T_p',min:1,max:6,step:0.5,unit:'s',show:agOn},
-      {k:'agGrow',label:'Prediction uncertainty growth g',min:0,max:0.5,step:0.05,unit:'m/s',show:()=>agOn()&&P.agPred==='cv'},
-      {k:'agSigA',label:'Tracker process noise σ_a',min:0.1,max:3,step:0.1,unit:'m/s²',show:()=>P.agents==='lidar'}],
- mis:[{k:'mis',type:'seg',label:'Goal order',opts:[['sequential','In order'],['greedy','Greedy nearest'],['optimal','Optimal']]},
-      {k:'replan',label:'Periodic replan (0 = event-driven only)',min:0,max:5,step:0.5,unit:'s'},
-      {k:'lostGuard',type:'bool',label:'Stop when position σ exceeds 1 m (diff-drive also turns in place)'}],
- plan:[{k:'plan',type:'seg',label:'Global planner',opts:()=>[['straight','Straight line'],['astar','A*'],['rrtstar','RRT*'],...(isCar()?[['rs','Reeds–Shepp'],['hybrid','Hybrid A*']]:[['stastar','Space-time A*']]),['custom','Your code']]},
-      {type:'btn',label:'Step through the last search',act:()=>searchPlayStart(true),show:()=>!!(S&&S.searchTrace&&S.searchTrace.n)},
-       {type:'info',text:()=>'Space-time A* plans (x, y, t) on a 0.2 m grid against the agents\' predicted positions over the prediction horizon, and waits when that is cheaper than a detour. It needs agent tracking (Perceive).',show:()=>P.plan==='stastar'},
-       {type:'info',text:()=>SLOTS.plan.worker?'Your planner is loaded (Code tab).':'Load a planner in the Code tab; until then every plan fails.',show:()=>P.plan==='custom'},
-       {type:'info',text:()=>'A* and RRT* plan for a point with clearance. They ignore the car\'s heading, body and turning radius.',show:()=>isCar()&&(P.plan==='astar'||P.plan==='rrtstar')},
-       {type:'info',text:()=>'Reeds–Shepp ignores obstacles entirely.',show:()=>P.plan==='rs'},
-       {k:'planPct',label:'Steering used by the planner',min:50,max:100,step:5,unit:'% of δ_max',show:()=>isCar()&&(P.plan==='hybrid'||P.plan==='rs')},
-       {type:'info',text:()=>`Planning radius ${planR().toFixed(2)} m (vehicle minimum ${minTurnR().toFixed(2)} m)`,show:()=>isCar()&&(P.plan==='hybrid'||P.plan==='rs')},
-       {k:'eps',label:'Heuristic weight ε',min:1,max:5,step:0.25,show:()=>P.plan==='astar'||P.plan==='hybrid'},
-       {k:'hybH',type:'seg',label:'Hybrid A* heuristic',opts:[['both','max(2D, Reeds–Shepp)'],['2d','2D Dijkstra only']],show:()=>P.plan==='hybrid'},
-       {k:'revOK',type:'bool',label:'Allow reversing',show:()=>P.plan==='hybrid'},
-       {k:'revPen',label:'Reverse cost multiplier',min:1,max:5,step:0.1,unit:'×',show:()=>P.plan==='hybrid'&&P.revOK},
-       {k:'gearPen',label:'Gear-change penalty',min:0,max:10,step:0.5,unit:'m',show:()=>P.plan==='hybrid'&&P.revOK},
-       {k:'rrtIt',label:'RRT* samples',min:300,max:4000,step:100,show:()=>P.plan==='rrtstar'},
-       {k:'smooth',type:'bool',label:'Line-of-sight shortcut smoothing',show:()=>P.plan==='astar'||P.plan==='rrtstar'},
-       {k:'agPlan',type:'bool',label:'When the speed planner reports an agent blocking the path, replan around its predicted positions'},
-       {type:'btn',label:'Replan now',act:()=>{if(S.fsm.queue.length){S.fsm.state='PLAN';S.fsm.pendingReason='manual';advanceMission();}}}],
- ctl:[{k:'ctl',type:'seg',label:'Path tracker',opts:()=>[['pp','Pure pursuit'],['rwf','Rear-wheel feedback'],...(isCar()?[['stanley','Stanley']]:[]),['pid',isCar()?'PID steering':'PID heading'],['dwa','DWA'],['mpc','MPC'],['custom','Your code']]},
-      {k:'vcruise',label:'Cruise speed (reference profile)',min:0.2,max:()=>isDyn()?4:2,step:0.05,unit:'m/s',show:()=>P.ctl!=='custom'},
-      {k:'spd',type:'seg',label:'Response to agents',opts:()=>P.ctl==='mpc'?[['none','Constraints only'],['st','Speed planning (ST graph)']]:[['none','Ignore'],['stop','Reactive stop'],['st','Speed planning (ST graph)']],show:()=>AG_ST_CTL.includes(P.ctl)},
-      {type:'info',text:()=>'Speed planning needs agent tracking: Perceive → Agent tracking.',show:()=>AG_ST_CTL.includes(P.ctl)&&P.spd==='st'&&!agOn()},
-      {k:'stMarg',label:'Clearance kept from predicted agents',min:0,max:1,step:0.05,unit:'m',show:stActive},
-      {type:'info',text:()=>P.ctl==='mpc'?'MPC adds a clearance constraint per footprint circle and step against the nearest predicted agent (NMPC with obstacle constraints); with speed planning its reference also follows the ST profile.':'DWA checks each rollout against the agents\' predicted positions at the same time step.',show:()=>(P.ctl==='dwa'||P.ctl==='mpc')&&agOn()},
-      {k:'guard',type:'bool',label:'Lidar safety stop: slow down for scan points on the commanded arc',show:()=>GUARD_CTL.includes(P.ctl)},
-      {type:'info',text:()=>'Path trackers follow the path and never read the lidar; the path is only as good as the map, and a map built on a drifting estimate puts walls in the wrong place. The safety stop sweeps the footprint along the arc the tracker commands, against this scan (its points are where the lidar measured them, relative to the robot), and caps the speed at what stops in time, like a robot\'s collision monitor. Stopped, the robot replans after 5 s. DWA and MPC check the scan themselves.',show:()=>GUARD_CTL.includes(P.ctl)&&P.guard},
-      {k:'ppL0',label:'Lookahead L<sub>0</sub>',min:0.1,max:2.5,step:0.05,unit:'m',show:()=>P.ctl==='pp'||P.ctl==='pid'},
-      {k:'ppK',label:'Lookahead gain k (L = L<sub>0</sub> + k·v)',min:0,max:2,step:0.05,unit:'s',show:()=>P.ctl==='pp'||P.ctl==='pid'},
-      {k:'alat',label:'Lateral accel limit',min:0.1,max:()=>isDyn()?8:2,step:0.05,unit:'m/s²',show:()=>P.ctl==='pp'||P.ctl==='stanley'||P.ctl==='rwf'||P.ctl==='mpc'},
-      {k:'rwKth',label:'Heading gain k_θ',min:0,max:6,step:0.1,unit:'1/m',show:()=>P.ctl==='rwf'},
-      {k:'rwKe',label:'Lateral gain k_e',min:0,max:12,step:0.1,unit:'1/m²',show:()=>P.ctl==='rwf'},
-      {k:'stanK',label:'Stanley gain k',min:0.1,max:8,step:0.1,show:()=>P.ctl==='stanley'},
-      {type:'info',text:()=>'Reverse legs use pure pursuit.',show:()=>P.ctl==='stanley'},
-      {k:'kp',label:'Kp',min:0,max:8,step:0.1,show:()=>P.ctl==='pid'},
-      {k:'ki',label:'Ki',min:0,max:3,step:0.05,show:()=>P.ctl==='pid'},
-      {k:'kd',label:'Kd',min:0,max:1,step:0.01,show:()=>P.ctl==='pid'},
-      {k:'dwaG',label:'Goal weight',min:0,max:3,step:0.05,show:()=>P.ctl==='dwa'},
-      {k:'dwaO',label:'Clearance weight',min:0,max:3,step:0.05,show:()=>P.ctl==='dwa'},
-      {k:'dwaV',label:'Speed weight',min:0,max:3,step:0.05,show:()=>P.ctl==='dwa'},
-      {k:'dwaT',label:'Rollout horizon',min:0.5,max:3,step:0.1,unit:'s',show:()=>P.ctl==='dwa'},
-      {k:'mpcMode',type:'seg',label:'MPC formulation',opts:[['nmpc','Nonlinear (NMPC)'],['ltv','Linearized about reference (LTV)']],show:mpc_},
-      {k:'mpcNp',label:'Prediction horizon Np',min:3,max:40,step:1,unit:'steps',show:mpc_},
-      {k:'mpcNc',label:'Control horizon Nc (free moves, then held)',min:1,max:40,step:1,unit:'steps',show:mpc_},
-      {k:'mpcDt',label:'Prediction step Δt',min:0.05,max:0.3,step:0.05,unit:'s',show:mpc_},
-      {type:'info',text:()=>{const np=Math.round(P.mpcNp),nc=Math.min(Math.round(P.mpcNc),np);return`Looks ${(np*P.mpcDt).toFixed(1)} s ahead with ${nc} free input move${nc>1?'s':''} (${(nc*P.mpcDt).toFixed(1)} s); ${2*nc} decision variables.${P.mpcNc>P.mpcNp?' Nc is capped at Np.':''}`;},show:mpc_},
-      {k:'mpcIt',label:'SQP iterations per tick',min:1,max:10,step:1,show:()=>mpc_()&&P.mpcMode==='nmpc'},
-      {k:'mpcQlat',label:'Weight: lateral error',min:0,max:100,step:1,show:mpc_},
-      {k:'mpcQlon',label:'Weight: along-track error',min:0,max:50,step:0.5,show:mpc_},
-      {k:'mpcQth',label:'Weight: heading error',min:0,max:50,step:0.5,show:mpc_},
-      {k:'mpcQv',label:'Weight: speed error',min:0,max:20,step:0.5,show:mpc_},
-      {k:'mpcQf',label:'Terminal weight multiplier',min:1,max:30,step:1,unit:'×',show:mpc_},
-      {k:'mpcRa',label:'Input weight: acceleration',min:0,max:5,step:0.05,show:mpc_},
-      {k:'mpcRs',label:'Input weight: steering rate (car) / angular accel',min:0,max:5,step:0.05,show:mpc_},
-      {k:'mpcRd',label:'Input change weight (Δu between moves)',min:0,max:10,step:0.1,show:mpc_},
-      {k:'mpcRho',label:'Constraint penalty ρ (augmented Lagrangian)',min:10,max:1000,step:10,show:mpc_},
-      {k:'mpcObs',type:'bool',label:'Obstacle constraints from lidar (nonconvex, NMPC only)',show:()=>mpc_()&&P.mpcMode==='nmpc'},
-      {k:'mpcMarg',label:'Obstacle margin',min:0,max:0.5,step:0.01,unit:'m',show:()=>mpc_()&&P.mpcMode==='nmpc'&&P.mpcObs},
-      {k:'mpcLag',type:'bool',label:'Include actuator lag τ in the prediction model (adds 2 states)',show:mpc_},
-      {k:'mpcDyn',type:'bool',label:'Tyre model in the prediction (dynamic bicycle: sideslip v_y and yaw rate r, adds 2 states)',show:()=>mpc_()&&isDyn()},
-      {type:'info',text:()=>P.mpcDyn?'The MPC predicts with the simulator\'s tyre model: the car turns less than its wheels point, later, and no harder than μg allows, so it starts a swerve earlier and steers further than the kinematic model would. It reads v_y and r as a gyro and a sideslip estimator would give them.':'The MPC predicts with the kinematic car (θ̇ = v tan δ / L): it believes every steering angle is a turn it will get, at any speed.',show:()=>mpc_()&&isDyn()},
-      {type:'info',text:()=>`Input bounds come from Vehicle: |a| ≤ ${(P.accel?P.amax:3).toFixed(2)} m/s², ${isCar()?`|δ̇| ≤ ${P.steerRate.toFixed(1)} rad/s`:`|α| ≤ ${(P.accel?P.alpha:8).toFixed(1)} rad/s²`}. ${P.accel?'':'Acceleration limits are off, so the model assumes 3 m/s². '}${P.mpcLag&&!(P.lag>0)?'Lag τ is 0 in Vehicle, so the lag model is inactive.':''}`,show:mpc_}],
- veh:[{k:'veh',type:'seg',label:'Vehicle model',opts:[['diff','Unicycle (diff-drive)'],['car','Car (kinematic)'],['dyn','Car (dynamic: tyre slip)']]},
-      {type:'info',text:()=>'The car with tyre slip (dynamic bicycle model, chapter 1 §4): a tyre pushes sideways only by slipping, so the car turns less than its wheels point, and no more than the grip allows. Planners and trackers still assume the kinematic car, and so does the MPC unless Control → Tyre model in the prediction is ticked.',show:isDyn},
-      {k:'wheelbase',label:'Wheelbase L',min:0.3,max:1.2,step:0.05,unit:'m',show:isCar},
-      {k:'steerMaxDeg',label:'Max steering angle δ_max',min:15,max:45,step:1,unit:'°',show:isCar},
-      {type:'info',text:()=>`Minimum turning radius L / tan δ_max = ${minTurnR().toFixed(2)} m · body ${carLen().toFixed(2)} × ${CAR.width.toFixed(2)} m`,show:isCar},
-      {k:'steerRate',label:'Steering rate limit',min:0.2,max:4,step:0.1,unit:'rad/s',show:isCar},
-      {type:'btns',label:'Tyres',items:()=>[['Grippy',()=>dynPreset('grippy'),dynPresetOn('grippy'),'Realistic tyres: C_f 500, C_r 700 N/rad, μ 0.9; kinematic-like below 2 m/s'],['Slippery floor',()=>dynPreset('slippery'),dynPresetOn('slippery'),'Soft tyres on a slippery floor: C_f 40, C_r 90 N/rad, μ 0.25; v_ch 2.6 m/s']],show:isDyn},
-      {k:'mass',label:'Mass m',min:2,max:40,step:1,unit:'kg',show:isDyn},
-      {k:'Iz',label:'Yaw inertia I_z',min:0.1,max:5,step:0.05,unit:'kg·m²',show:isDyn},
-      {k:'lf',label:'Front axle to centre of mass l_f',min:0.05,max:()=>+(P.wheelbase-0.05).toFixed(2),step:0.01,unit:'m',show:isDyn},
-      {k:'Cf',label:'Front cornering stiffness C_f',min:10,max:2000,step:5,unit:'N/rad',show:isDyn},
-      {k:'Cr',label:'Rear cornering stiffness C_r',min:10,max:2000,step:5,unit:'N/rad',show:isDyn},
-      {k:'mu',label:'Friction coefficient μ',min:0.05,max:1.5,step:0.05,show:isDyn},
-      {type:'info',text:dynInfoText,show:isDyn},
-      {k:'vmax',label:'Max speed v_max (reverse: half; car reverse ≤ 0.35)',min:0.3,max:()=>isDyn()?4:2,step:0.05,unit:'m/s'},
-      {k:'wmax',label:'Max turn rate ω_max',min:0.3,max:4,step:0.1,unit:'rad/s',show:()=>!isCar()},
-      {k:'accel',type:'bool',label:'Acceleration limits'},
-      {k:'amax',label:'Linear accel',min:0.1,max:3,step:0.05,unit:'m/s²',show:()=>P.accel},
-      {k:'alpha',label:'Angular accel',min:0.2,max:8,step:0.1,unit:'rad/s²',show:()=>P.accel&&!isCar()},
-      {k:'lag',label:'Actuator lag τ',min:0,max:0.6,step:0.01,unit:'s'},
-      {k:'latency',label:'Control latency (whole ticks)',min:0,max:0.5,step:0.05,unit:'s'},
-      {k:'sensLat',label:'Sensor latency (lidar and beacons, whole ticks)',min:0,max:0.5,step:0.05,unit:'s'},
-      {k:'people',type:'seg',label:'People',opts:[['scripted','Scripted'],['reactive','Reactive (social force)']],show:()=>LV.peds.length>0},
-      {k:'vehicles',type:'bool',label:'Other vehicles drive the lanes',show:()=>!!(LV.cars&&LV.cars.length)},
-      {k:'biasDeg',label:'Steering misalignment (bias)',min:-5,max:5,step:0.25,unit:'°',show:isCar},
-      {k:'biasW',label:'Turn-rate bias (e.g. weak motor)',min:-0.3,max:0.3,step:0.01,unit:'rad/s',show:()=>!isCar()},
-      {k:'seed',label:'Random seed (applies on Reset)',min:1,max:99,step:1}],
+const dynPresetOn = n => Object.entries(DYN_PRESETS[n]).every(([k, v]) => P[k] === v);
+function dynPreset(n) {
+  for (const [k, v] of Object.entries(DYN_PRESETS[n])) setParam(k, v, false);
+  renderAllPanes();
+}
+const SCHEMA = {
+  loc: [
+    {
+      k: 'loc',
+      type: 'seg',
+      label: 'Estimator',
+      opts: [
+        ['truth', 'Ground truth'],
+        ['dr', 'Dead reckoning'],
+        ['ekf', 'EKF'],
+        ['pf', 'Particle filter'],
+        ['slam', 'EKF-SLAM'],
+        ['custom', 'Your code']
+      ]
+    },
+    {
+      type: 'info',
+      text: () => 'Odometry is perfect on this level (noise and bias 0), so dead reckoning matches the truth exactly.',
+      show: () => P.loc === 'dr' && !P.odoK && !P.odoB
+    },
+    {
+      type: 'btn',
+      label: 'Add odometry noise and bias (×1)',
+      act: () => {
+        setParam('odoK', 1, false);
+        setParam('odoB', 1, false);
+        renderAllPanes();
+      },
+      show: () => P.loc === 'dr' && !P.odoK && !P.odoB
+    },
+    {
+      type: 'info',
+      text: () =>
+        `EKF-SLAM estimates the beacon positions too: ${S && S.slam ? S.slam.n : 0} mapped. The map starts empty; the first reading of each beacon places it.`,
+      show: () => P.loc === 'slam'
+    },
+    {
+      type: 'info',
+      text: () =>
+        SLOTS.loc.worker
+          ? 'Your localizer is loaded (Code tab).'
+          : 'Load a localizer in the Code tab; until then the estimate stays at the start pose.',
+      show: () => P.loc === 'custom'
+    },
+    {
+      k: 'assoc',
+      type: 'seg',
+      label: 'Beacon association',
+      opts: [
+        ['known', 'Known IDs'],
+        ['unknown', 'Unlabeled']
+      ],
+      show: () => filt() || P.loc === 'slam'
+    },
+    {k: 'npart', label: 'Particles', min: 50, max: 2000, step: 50, show: pf_},
+    {k: 'inject', type: 'bool', label: 'Recovery injection (augmented MCL + sensor resetting)', show: pf_},
+    {
+      k: 'pfLidar',
+      type: 'bool',
+      label: 'Also weight particles by lidar against the prior map (likelihood field)',
+      show: () => pf_() && P.per === 'oracle'
+    },
+    {k: 'filtK', label: "Filter's assumed motion noise", min: 0.25, max: 6, step: 0.25, unit: '× true', show: () => P.loc !== 'truth'},
+    {type: 'btn', label: 'Scatter particles', act: () => scatterParticles(), show: pf_},
+    {
+      type: 'info',
+      text: () =>
+        'Dead reckoning never uses the beacons: it integrates odometry only, so its error and ellipse only grow. Switch to EKF or the particle filter to see beacons pull the estimate back.',
+      show: () => P.loc === 'dr'
+    },
+    {
+      type: 'info',
+      text: () =>
+        'Ground truth: the estimate is the true pose, so the beacons and their on/off state change nothing here (L1, L2 and L6 start this way). Pick EKF or Particle filter to see what the beacons are worth.',
+      show: () => P.loc === 'truth'
+    },
+    {
+      type: 'btn',
+      label: 'Use the EKF (beacons only)',
+      act: () => {
+        setParam('loc', 'ekf', false);
+        renderAllPanes();
+      },
+      show: () => P.loc === 'truth'
+    },
+    {type: 'head', label: 'Odometry (wheel encoders)'},
+    {k: 'odoK', label: 'Odometry noise (× base σ)', min: 0, max: 3, step: 0.1, unit: '×'},
+    {k: 'odoB', label: 'Odometry calibration bias (× base bias)', min: 0, max: 3, step: 0.1, unit: '×'},
+    {type: 'info', text: odoInfo},
+    {
+      k: 'gyro',
+      type: 'bool',
+      label: 'Yaw-rate gyro in the odometry (off: turn rate from the steering encoder, v tan δ / L, so tyre slip reads as odometry error)',
+      show: isDyn
+    },
+    {type: 'head', label: 'Beacons'},
+    {type: 'beacons', label: 'Beacons on (tap to switch one off)'},
+    {type: 'bsensor'},
+    {
+      type: 'info',
+      text: () =>
+        `The particle filter scores particles with lidar against the prior map as well as with the beacons, so it stays localized with every beacon off (lidar localization, as AMCL does). Untick "Also weight particles by lidar" above to depend on the beacons alone.`,
+      show: () => P.loc === 'pf' && P.pfLidar && P.per === 'oracle'
+    },
+    {k: 'lmK', label: 'Beacon range/bearing noise', min: 0, max: 3, step: 0.1, unit: '×'},
+    {k: 'lmRange', label: 'Beacon sensor range', min: 2, max: 15, step: 0.5, unit: 'm'},
+    {k: 'clutter', label: 'False beacon detections per scan (unlabeled mode)', min: 0, max: 3, step: 0.1},
+    {
+      k: 'bOut',
+      label: 'Random beacon outages (share of time each is down)',
+      min: 0,
+      max: 90,
+      step: 5,
+      unit: '%',
+      show: () => P.loc !== 'truth'
+    },
+    {
+      k: 'bOutLen',
+      label: 'Mean outage length (short = flicker)',
+      min: 0.2,
+      max: 10,
+      step: 0.2,
+      unit: 's',
+      show: () => P.loc !== 'truth' && P.bOut > 0
+    }
+  ],
+  per: [
+    {
+      k: 'per',
+      type: 'seg',
+      label: 'Map source',
+      opts: [
+        ['oracle', 'Prior map'],
+        ['mapping', 'Lidar mapping']
+      ]
+    },
+    {
+      k: 'unknownAs',
+      type: 'seg',
+      label: 'Unknown space is',
+      opts: [
+        ['free', 'Free (optimistic)'],
+        ['lethal', 'Lethal (cautious)']
+      ],
+      show: () => P.per === 'mapping'
+    },
+    {
+      type: 'info',
+      text: () =>
+        'Lethal: the planners plan only through cells the lidar has already seen free (and 0.4 m clear of unseen ones). At the start that is a small island around the robot, and nothing in this lab explores (picks goals at the edge of the seen space to grow it), so a goal in an unseen room has no plan, the robot never moves, and it never sees more. Frontier exploration is what makes the cautious policy usable; with Free the planner goes optimistically and replans as walls appear.',
+      show: () => P.per === 'mapping' && P.unknownAs === 'lethal'
+    },
+    {k: 'infl', label: 'Inflation band beyond lethal', min: 0, max: 1.5, step: 0.05, unit: 'm'},
+    {k: 'lidarSig', label: 'Lidar range noise σ', min: 0, max: 0.15, step: 0.005, unit: 'm'},
+    {
+      type: 'btn',
+      label: 'Clear built map',
+      act: () => {
+        S.lo.fill(0);
+        buildCostmap();
+        dirty.occ = true;
+        logE('Occupancy grid cleared', 'warn');
+        draw();
+      },
+      show: () => P.per === 'mapping'
+    },
+    {
+      k: 'agents',
+      type: 'seg',
+      label: 'Agent tracking',
+      opts: [
+        ['off', 'Off'],
+        ['truth', 'Ground truth'],
+        ['lidar', 'Lidar (clusters + Kalman)']
+      ]
+    },
+    {
+      k: 'agPred',
+      type: 'seg',
+      label: 'Prediction',
+      opts: [
+        ['cv', 'Constant velocity'],
+        ['static', 'Static (frozen)'],
+        ['custom', 'Your code']
+      ],
+      show: agOn
+    },
+    {
+      type: 'info',
+      text: () =>
+        SLOTS.pred.worker
+          ? 'Your predictor is loaded (Code tab).'
+          : 'Load a predictor in the Code tab; until then constant velocity is used.',
+      show: () => agOn() && P.agPred === 'custom'
+    },
+    {k: 'agT', label: 'Prediction horizon T_p', min: 1, max: 6, step: 0.5, unit: 's', show: agOn},
+    {
+      k: 'agGrow',
+      label: 'Prediction uncertainty growth g',
+      min: 0,
+      max: 0.5,
+      step: 0.05,
+      unit: 'm/s',
+      show: () => agOn() && P.agPred === 'cv'
+    },
+    {k: 'agSigA', label: 'Tracker process noise σ_a', min: 0.1, max: 3, step: 0.1, unit: 'm/s²', show: () => P.agents === 'lidar'}
+  ],
+  mis: [
+    {
+      k: 'mis',
+      type: 'seg',
+      label: 'Goal order',
+      opts: [
+        ['sequential', 'In order'],
+        ['greedy', 'Greedy nearest'],
+        ['optimal', 'Optimal']
+      ]
+    },
+    {k: 'replan', label: 'Periodic replan (0 = event-driven only)', min: 0, max: 5, step: 0.5, unit: 's'},
+    {k: 'lostGuard', type: 'bool', label: 'Stop when position σ exceeds 1 m (diff-drive also turns in place)'}
+  ],
+  plan: [
+    {
+      k: 'plan',
+      type: 'seg',
+      label: 'Global planner',
+      opts: () => [
+        ['straight', 'Straight line'],
+        ['astar', 'A*'],
+        ['rrtstar', 'RRT*'],
+        ...(isCar()
+          ? [
+              ['rs', 'Reeds–Shepp'],
+              ['hybrid', 'Hybrid A*']
+            ]
+          : [['stastar', 'Space-time A*']]),
+        ['custom', 'Your code']
+      ]
+    },
+    {
+      type: 'btn',
+      label: 'Step through the last search',
+      act: () => searchPlayStart(true),
+      show: () => !!(S && S.searchTrace && S.searchTrace.n)
+    },
+    {
+      type: 'info',
+      text: () =>
+        "Space-time A* plans (x, y, t) on a 0.2 m grid against the agents' predicted positions over the prediction horizon, and waits when that is cheaper than a detour. It needs agent tracking (Perceive).",
+      show: () => P.plan === 'stastar'
+    },
+    {
+      type: 'info',
+      text: () =>
+        SLOTS.plan.worker ? 'Your planner is loaded (Code tab).' : 'Load a planner in the Code tab; until then every plan fails.',
+      show: () => P.plan === 'custom'
+    },
+    {
+      type: 'info',
+      text: () => "A* and RRT* plan for a point with clearance. They ignore the car's heading, body and turning radius.",
+      show: () => isCar() && (P.plan === 'astar' || P.plan === 'rrtstar')
+    },
+    {type: 'info', text: () => 'Reeds–Shepp ignores obstacles entirely.', show: () => P.plan === 'rs'},
+    {
+      k: 'planPct',
+      label: 'Steering used by the planner',
+      min: 50,
+      max: 100,
+      step: 5,
+      unit: '% of δ_max',
+      show: () => isCar() && (P.plan === 'hybrid' || P.plan === 'rs')
+    },
+    {
+      type: 'info',
+      text: () => `Planning radius ${planR().toFixed(2)} m (vehicle minimum ${minTurnR().toFixed(2)} m)`,
+      show: () => isCar() && (P.plan === 'hybrid' || P.plan === 'rs')
+    },
+    {k: 'eps', label: 'Heuristic weight ε', min: 1, max: 5, step: 0.25, show: () => P.plan === 'astar' || P.plan === 'hybrid'},
+    {
+      k: 'hybH',
+      type: 'seg',
+      label: 'Hybrid A* heuristic',
+      opts: [
+        ['both', 'max(2D, Reeds–Shepp)'],
+        ['2d', '2D Dijkstra only']
+      ],
+      show: () => P.plan === 'hybrid'
+    },
+    {k: 'revOK', type: 'bool', label: 'Allow reversing', show: () => P.plan === 'hybrid'},
+    {k: 'revPen', label: 'Reverse cost multiplier', min: 1, max: 5, step: 0.1, unit: '×', show: () => P.plan === 'hybrid' && P.revOK},
+    {k: 'gearPen', label: 'Gear-change penalty', min: 0, max: 10, step: 0.5, unit: 'm', show: () => P.plan === 'hybrid' && P.revOK},
+    {k: 'rrtIt', label: 'RRT* samples', min: 300, max: 4000, step: 100, show: () => P.plan === 'rrtstar'},
+    {k: 'smooth', type: 'bool', label: 'Line-of-sight shortcut smoothing', show: () => P.plan === 'astar' || P.plan === 'rrtstar'},
+    {k: 'agPlan', type: 'bool', label: 'When the speed planner reports an agent blocking the path, replan around its predicted positions'},
+    {
+      type: 'btn',
+      label: 'Replan now',
+      act: () => {
+        if (S.fsm.queue.length) {
+          S.fsm.state = 'PLAN';
+          S.fsm.pendingReason = 'manual';
+          advanceMission();
+        }
+      }
+    }
+  ],
+  ctl: [
+    {
+      k: 'ctl',
+      type: 'seg',
+      label: 'Path tracker',
+      opts: () => [
+        ['pp', 'Pure pursuit'],
+        ['rwf', 'Rear-wheel feedback'],
+        ...(isCar() ? [['stanley', 'Stanley']] : []),
+        ['pid', isCar() ? 'PID steering' : 'PID heading'],
+        ['dwa', 'DWA'],
+        ['mpc', 'MPC'],
+        ['custom', 'Your code']
+      ]
+    },
+    {
+      k: 'vcruise',
+      label: 'Cruise speed (reference profile)',
+      min: 0.2,
+      max: () => (isDyn() ? 4 : 2),
+      step: 0.05,
+      unit: 'm/s',
+      show: () => P.ctl !== 'custom'
+    },
+    {
+      k: 'spd',
+      type: 'seg',
+      label: 'Response to agents',
+      opts: () =>
+        P.ctl === 'mpc'
+          ? [
+              ['none', 'Constraints only'],
+              ['st', 'Speed planning (ST graph)']
+            ]
+          : [
+              ['none', 'Ignore'],
+              ['stop', 'Reactive stop'],
+              ['st', 'Speed planning (ST graph)']
+            ],
+      show: () => AG_ST_CTL.includes(P.ctl)
+    },
+    {
+      type: 'info',
+      text: () => 'Speed planning needs agent tracking: Perceive → Agent tracking.',
+      show: () => AG_ST_CTL.includes(P.ctl) && P.spd === 'st' && !agOn()
+    },
+    {k: 'stMarg', label: 'Clearance kept from predicted agents', min: 0, max: 1, step: 0.05, unit: 'm', show: stActive},
+    {
+      type: 'info',
+      text: () =>
+        P.ctl === 'mpc'
+          ? 'MPC adds a clearance constraint per footprint circle and step against the nearest predicted agent (NMPC with obstacle constraints); with speed planning its reference also follows the ST profile.'
+          : "DWA checks each rollout against the agents' predicted positions at the same time step.",
+      show: () => (P.ctl === 'dwa' || P.ctl === 'mpc') && agOn()
+    },
+    {
+      k: 'guard',
+      type: 'bool',
+      label: 'Lidar safety stop: slow down for scan points on the commanded arc',
+      show: () => GUARD_CTL.includes(P.ctl)
+    },
+    {
+      type: 'info',
+      text: () =>
+        "Path trackers follow the path and never read the lidar; the path is only as good as the map, and a map built on a drifting estimate puts walls in the wrong place. The safety stop sweeps the footprint along the arc the tracker commands, against this scan (its points are where the lidar measured them, relative to the robot), and caps the speed at what stops in time, like a robot's collision monitor. Stopped, the robot replans after 5 s. DWA and MPC check the scan themselves.",
+      show: () => GUARD_CTL.includes(P.ctl) && P.guard
+    },
+    {k: 'ppL0', label: 'Lookahead L<sub>0</sub>', min: 0.1, max: 2.5, step: 0.05, unit: 'm', show: () => P.ctl === 'pp' || P.ctl === 'pid'},
+    {
+      k: 'ppK',
+      label: 'Lookahead gain k (L = L<sub>0</sub> + k·v)',
+      min: 0,
+      max: 2,
+      step: 0.05,
+      unit: 's',
+      show: () => P.ctl === 'pp' || P.ctl === 'pid'
+    },
+    {
+      k: 'alat',
+      label: 'Lateral accel limit',
+      min: 0.1,
+      max: () => (isDyn() ? 8 : 2),
+      step: 0.05,
+      unit: 'm/s²',
+      show: () => P.ctl === 'pp' || P.ctl === 'stanley' || P.ctl === 'rwf' || P.ctl === 'mpc'
+    },
+    {k: 'rwKth', label: 'Heading gain k_θ', min: 0, max: 6, step: 0.1, unit: '1/m', show: () => P.ctl === 'rwf'},
+    {k: 'rwKe', label: 'Lateral gain k_e', min: 0, max: 12, step: 0.1, unit: '1/m²', show: () => P.ctl === 'rwf'},
+    {k: 'stanK', label: 'Stanley gain k', min: 0.1, max: 8, step: 0.1, show: () => P.ctl === 'stanley'},
+    {type: 'info', text: () => 'Reverse legs use pure pursuit.', show: () => P.ctl === 'stanley'},
+    {k: 'kp', label: 'Kp', min: 0, max: 8, step: 0.1, show: () => P.ctl === 'pid'},
+    {k: 'ki', label: 'Ki', min: 0, max: 3, step: 0.05, show: () => P.ctl === 'pid'},
+    {k: 'kd', label: 'Kd', min: 0, max: 1, step: 0.01, show: () => P.ctl === 'pid'},
+    {k: 'dwaG', label: 'Goal weight', min: 0, max: 3, step: 0.05, show: () => P.ctl === 'dwa'},
+    {k: 'dwaO', label: 'Clearance weight', min: 0, max: 3, step: 0.05, show: () => P.ctl === 'dwa'},
+    {k: 'dwaV', label: 'Speed weight', min: 0, max: 3, step: 0.05, show: () => P.ctl === 'dwa'},
+    {k: 'dwaT', label: 'Rollout horizon', min: 0.5, max: 3, step: 0.1, unit: 's', show: () => P.ctl === 'dwa'},
+    {
+      k: 'mpcMode',
+      type: 'seg',
+      label: 'MPC formulation',
+      opts: [
+        ['nmpc', 'Nonlinear (NMPC)'],
+        ['ltv', 'Linearized about reference (LTV)']
+      ],
+      show: mpc_
+    },
+    {k: 'mpcNp', label: 'Prediction horizon Np', min: 3, max: 40, step: 1, unit: 'steps', show: mpc_},
+    {k: 'mpcNc', label: 'Control horizon Nc (free moves, then held)', min: 1, max: 40, step: 1, unit: 'steps', show: mpc_},
+    {k: 'mpcDt', label: 'Prediction step Δt', min: 0.05, max: 0.3, step: 0.05, unit: 's', show: mpc_},
+    {
+      type: 'info',
+      text: () => {
+        const np = Math.round(P.mpcNp),
+          nc = Math.min(Math.round(P.mpcNc), np);
+        return `Looks ${(np * P.mpcDt).toFixed(1)} s ahead with ${nc} free input move${nc > 1 ? 's' : ''} (${(nc * P.mpcDt).toFixed(1)} s); ${2 * nc} decision variables.${P.mpcNc > P.mpcNp ? ' Nc is capped at Np.' : ''}`;
+      },
+      show: mpc_
+    },
+    {k: 'mpcIt', label: 'SQP iterations per tick', min: 1, max: 10, step: 1, show: () => mpc_() && P.mpcMode === 'nmpc'},
+    {k: 'mpcQlat', label: 'Weight: lateral error', min: 0, max: 100, step: 1, show: mpc_},
+    {k: 'mpcQlon', label: 'Weight: along-track error', min: 0, max: 50, step: 0.5, show: mpc_},
+    {k: 'mpcQth', label: 'Weight: heading error', min: 0, max: 50, step: 0.5, show: mpc_},
+    {k: 'mpcQv', label: 'Weight: speed error', min: 0, max: 20, step: 0.5, show: mpc_},
+    {k: 'mpcQf', label: 'Terminal weight multiplier', min: 1, max: 30, step: 1, unit: '×', show: mpc_},
+    {k: 'mpcRa', label: 'Input weight: acceleration', min: 0, max: 5, step: 0.05, show: mpc_},
+    {k: 'mpcRs', label: 'Input weight: steering rate (car) / angular accel', min: 0, max: 5, step: 0.05, show: mpc_},
+    {k: 'mpcRd', label: 'Input change weight (Δu between moves)', min: 0, max: 10, step: 0.1, show: mpc_},
+    {k: 'mpcRho', label: 'Constraint penalty ρ (augmented Lagrangian)', min: 10, max: 1000, step: 10, show: mpc_},
+    {
+      k: 'mpcObs',
+      type: 'bool',
+      label: 'Obstacle constraints from lidar (nonconvex, NMPC only)',
+      show: () => mpc_() && P.mpcMode === 'nmpc'
+    },
+    {
+      k: 'mpcMarg',
+      label: 'Obstacle margin',
+      min: 0,
+      max: 0.5,
+      step: 0.01,
+      unit: 'm',
+      show: () => mpc_() && P.mpcMode === 'nmpc' && P.mpcObs
+    },
+    {k: 'mpcLag', type: 'bool', label: 'Include actuator lag τ in the prediction model (adds 2 states)', show: mpc_},
+    {
+      k: 'mpcDyn',
+      type: 'bool',
+      label: 'Tyre model in the prediction (dynamic bicycle: sideslip v_y and yaw rate r, adds 2 states)',
+      show: () => mpc_() && isDyn()
+    },
+    {
+      type: 'info',
+      text: () =>
+        P.mpcDyn
+          ? "The MPC predicts with the simulator's tyre model: the car turns less than its wheels point, later, and no harder than μg allows, so it starts a swerve earlier and steers further than the kinematic model would. It reads v_y and r as a gyro and a sideslip estimator would give them."
+          : 'The MPC predicts with the kinematic car (θ̇ = v tan δ / L): it believes every steering angle is a turn it will get, at any speed.',
+      show: () => mpc_() && isDyn()
+    },
+    {
+      type: 'info',
+      text: () =>
+        `Input bounds come from Vehicle: |a| ≤ ${(P.accel ? P.amax : 3).toFixed(2)} m/s², ${isCar() ? `|δ̇| ≤ ${P.steerRate.toFixed(1)} rad/s` : `|α| ≤ ${(P.accel ? P.alpha : 8).toFixed(1)} rad/s²`}. ${P.accel ? '' : 'Acceleration limits are off, so the model assumes 3 m/s². '}${P.mpcLag && !(P.lag > 0) ? 'Lag τ is 0 in Vehicle, so the lag model is inactive.' : ''}`,
+      show: mpc_
+    }
+  ],
+  veh: [
+    {
+      k: 'veh',
+      type: 'seg',
+      label: 'Vehicle model',
+      opts: [
+        ['diff', 'Unicycle (diff-drive)'],
+        ['car', 'Car (kinematic)'],
+        ['dyn', 'Car (dynamic: tyre slip)']
+      ]
+    },
+    {
+      type: 'info',
+      text: () =>
+        'The car with tyre slip (dynamic bicycle model, chapter 1 §4): a tyre pushes sideways only by slipping, so the car turns less than its wheels point, and no more than the grip allows. Planners and trackers still assume the kinematic car, and so does the MPC unless Control → Tyre model in the prediction is ticked.',
+      show: isDyn
+    },
+    {k: 'wheelbase', label: 'Wheelbase L', min: 0.3, max: 1.2, step: 0.05, unit: 'm', show: isCar},
+    {k: 'steerMaxDeg', label: 'Max steering angle δ_max', min: 15, max: 45, step: 1, unit: '°', show: isCar},
+    {
+      type: 'info',
+      text: () =>
+        `Minimum turning radius L / tan δ_max = ${minTurnR().toFixed(2)} m · body ${carLen().toFixed(2)} × ${CAR.width.toFixed(2)} m`,
+      show: isCar
+    },
+    {k: 'steerRate', label: 'Steering rate limit', min: 0.2, max: 4, step: 0.1, unit: 'rad/s', show: isCar},
+    {
+      type: 'btns',
+      label: 'Tyres',
+      items: () => [
+        [
+          'Grippy',
+          () => dynPreset('grippy'),
+          dynPresetOn('grippy'),
+          'Realistic tyres: C_f 500, C_r 700 N/rad, μ 0.9; kinematic-like below 2 m/s'
+        ],
+        [
+          'Slippery floor',
+          () => dynPreset('slippery'),
+          dynPresetOn('slippery'),
+          'Soft tyres on a slippery floor: C_f 40, C_r 90 N/rad, μ 0.25; v_ch 2.6 m/s'
+        ]
+      ],
+      show: isDyn
+    },
+    {k: 'mass', label: 'Mass m', min: 2, max: 40, step: 1, unit: 'kg', show: isDyn},
+    {k: 'Iz', label: 'Yaw inertia I_z', min: 0.1, max: 5, step: 0.05, unit: 'kg·m²', show: isDyn},
+    {
+      k: 'lf',
+      label: 'Front axle to centre of mass l_f',
+      min: 0.05,
+      max: () => +(P.wheelbase - 0.05).toFixed(2),
+      step: 0.01,
+      unit: 'm',
+      show: isDyn
+    },
+    {k: 'Cf', label: 'Front cornering stiffness C_f', min: 10, max: 2000, step: 5, unit: 'N/rad', show: isDyn},
+    {k: 'Cr', label: 'Rear cornering stiffness C_r', min: 10, max: 2000, step: 5, unit: 'N/rad', show: isDyn},
+    {k: 'mu', label: 'Friction coefficient μ', min: 0.05, max: 1.5, step: 0.05, show: isDyn},
+    {type: 'info', text: dynInfoText, show: isDyn},
+    {
+      k: 'vmax',
+      label: 'Max speed v_max (reverse: half; car reverse ≤ 0.35)',
+      min: 0.3,
+      max: () => (isDyn() ? 4 : 2),
+      step: 0.05,
+      unit: 'm/s'
+    },
+    {k: 'wmax', label: 'Max turn rate ω_max', min: 0.3, max: 4, step: 0.1, unit: 'rad/s', show: () => !isCar()},
+    {k: 'accel', type: 'bool', label: 'Acceleration limits'},
+    {k: 'amax', label: 'Linear accel', min: 0.1, max: 3, step: 0.05, unit: 'm/s²', show: () => P.accel},
+    {k: 'alpha', label: 'Angular accel', min: 0.2, max: 8, step: 0.1, unit: 'rad/s²', show: () => P.accel && !isCar()},
+    {k: 'lag', label: 'Actuator lag τ', min: 0, max: 0.6, step: 0.01, unit: 's'},
+    {k: 'latency', label: 'Control latency (whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
+    {k: 'sensLat', label: 'Sensor latency (lidar and beacons, whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
+    {
+      k: 'people',
+      type: 'seg',
+      label: 'People',
+      opts: [
+        ['scripted', 'Scripted'],
+        ['reactive', 'Reactive (social force)']
+      ],
+      show: () => LV.peds.length > 0
+    },
+    {k: 'vehicles', type: 'bool', label: 'Other vehicles drive the lanes', show: () => !!(LV.cars && LV.cars.length)},
+    {k: 'biasDeg', label: 'Steering misalignment (bias)', min: -5, max: 5, step: 0.25, unit: '°', show: isCar},
+    {k: 'biasW', label: 'Turn-rate bias (e.g. weak motor)', min: -0.3, max: 0.3, step: 0.01, unit: 'rad/s', show: () => !isCar()},
+    {k: 'seed', label: 'Random seed (applies on Reset)', min: 1, max: 99, step: 1}
+  ]
 };

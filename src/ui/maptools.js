@@ -4,204 +4,668 @@
    the robot, its estimate, a goal, a person, an agent track or a beacon. The Layers button opens the map's display
    list: a switch and a one-line status for each overlay.
    ============================================================ */
-const ICON={
-  select:'<path d="M4 2.5l8.5 5-3.8 1.1L6.6 12.6z" fill="currentColor" stroke="none"/>',
-  wp:'<circle cx="8" cy="8" r="5"/><path d="M8 5.2v5.6M5.2 8h5.6"/>',
-  pose:'<circle cx="5" cy="11" r="2.6"/><path d="M7 9l5.5-5.5M8.8 3.5h3.7v3.7"/>',
-  kidnap:'<circle cx="4.2" cy="11.8" r="2.2" fill="currentColor" stroke="none"/><path d="M6 10l4.6-4.6" stroke-dasharray="1.8 1.6"/><circle cx="12" cy="4" r="2.2"/>',
-  beacon:'<path d="M8 2.2l5.2 5.8L8 13.8 2.8 8z"/><path d="M4.4 4.4l7.2 7.2"/>',
-  clear:'<path d="M3 4.6h10M6.4 4.6V3h3.2v1.6M4.6 4.6l.7 8.6h5.4l.7-8.6"/>',
-  layers:'<path d="M8 2.4l5.8 2.9L8 8.2 2.2 5.3z"/><path d="M2.2 8.2L8 11.1l5.8-2.9M2.2 11L8 13.9l5.8-2.9"/>'};
-const svgI=k=>`<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
-const TOOLS=[['select','Select','V','Select: click the robot, its estimate, a goal, a person, a track or a beacon to see its values'],
-  ['wp','Goal','G','Goal: tap the map to add a goal (up to 8 open)'],
-  ['pose','Goal with heading','H','Goal with heading: press and drag the way the robot should face'],
-  ['kidnap','Kidnap','K','Kidnap: tap where to put the robot. The estimator is not told'],
-  ['beacon','Beacon on/off','B','Beacon: tap a diamond to switch it off or on']];
-let toolBefore='wp',toolHintT=0;
-function setTool(id){
-  if(id!=='kidnap')toolBefore=id;tapMode=id;
-  $('#maptools').querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===id)));
-  cv.style.touchAction=id==='pose'?'none':'manipulation';cv.dataset.tool=id;
-  const h=$('#toolhint'),T=TOOLS.find(t=>t[0]===id);h.textContent=T[3];h.hidden=id==='wp';clearTimeout(toolHintT);
-  if(id!=='wp'&&id!=='kidnap')toolHintT=setTimeout(()=>{h.hidden=true;},5000);   // Kidnap is one tap and then gone, so its hint stays
-  if(id==='kidnap')logE('Tap the map where the robot should be teleported','warn');
+const ICON = {
+  select: '<path d="M4 2.5l8.5 5-3.8 1.1L6.6 12.6z" fill="currentColor" stroke="none"/>',
+  wp: '<circle cx="8" cy="8" r="5"/><path d="M8 5.2v5.6M5.2 8h5.6"/>',
+  pose: '<circle cx="5" cy="11" r="2.6"/><path d="M7 9l5.5-5.5M8.8 3.5h3.7v3.7"/>',
+  kidnap:
+    '<circle cx="4.2" cy="11.8" r="2.2" fill="currentColor" stroke="none"/><path d="M6 10l4.6-4.6" stroke-dasharray="1.8 1.6"/><circle cx="12" cy="4" r="2.2"/>',
+  beacon: '<path d="M8 2.2l5.2 5.8L8 13.8 2.8 8z"/><path d="M4.4 4.4l7.2 7.2"/>',
+  clear: '<path d="M3 4.6h10M6.4 4.6V3h3.2v1.6M4.6 4.6l.7 8.6h5.4l.7-8.6"/>',
+  layers: '<path d="M8 2.4l5.8 2.9L8 8.2 2.2 5.3z"/><path d="M2.2 8.2L8 11.1l5.8-2.9M2.2 11L8 13.9l5.8-2.9"/>'
+};
+const svgI = k =>
+  `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
+const TOOLS = [
+  ['select', 'Select', 'V', 'Select: click the robot, its estimate, a goal, a person, a track or a beacon to see its values'],
+  ['wp', 'Goal', 'G', 'Goal: tap the map to add a goal (up to 8 open)'],
+  ['pose', 'Goal with heading', 'H', 'Goal with heading: press and drag the way the robot should face'],
+  ['kidnap', 'Kidnap', 'K', 'Kidnap: tap where to put the robot. The estimator is not told'],
+  ['beacon', 'Beacon on/off', 'B', 'Beacon: tap a diamond to switch it off or on']
+];
+let toolBefore = 'wp',
+  toolHintT = 0;
+function setTool(id) {
+  if (id !== 'kidnap') toolBefore = id;
+  tapMode = id;
+  $('#maptools')
+    .querySelectorAll('[data-tool]')
+    .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === id)));
+  cv.style.touchAction = id === 'pose' ? 'none' : 'manipulation';
+  cv.dataset.tool = id;
+  const h = $('#toolhint'),
+    T = TOOLS.find(t => t[0] === id);
+  h.textContent = T[3];
+  h.hidden = id === 'wp';
+  clearTimeout(toolHintT);
+  if (id !== 'wp' && id !== 'kidnap')
+    toolHintT = setTimeout(() => {
+      h.hidden = true;
+    }, 5000); // Kidnap is one tap and then gone, so its hint stays
+  if (id === 'kidnap') logE('Tap the map where the robot should be teleported', 'warn');
 }
-{const bar=document.createElement('div');bar.className='maptools';bar.id='maptools';bar.setAttribute('role','toolbar');bar.setAttribute('aria-label','Map tools');
- bar.innerHTML=TOOLS.map(([id,name,key])=>`<button type="button" data-tool="${id}" aria-pressed="false" aria-label="${name}" title="${name} (${key})">${svgI(id)}</button>`).join('')+
-   `<span class="mt-sep"></span><button type="button" id="clearwp" aria-label="Clear goals and trails" title="Remove every goal and the trails driven so far (the previous run has its own Forget, bottom right)">${svgI('clear')}</button>`;
- const hint=document.createElement('div');hint.className='toolhint';hint.id='toolhint';hint.hidden=true;hint.setAttribute('aria-live','polite');
- const mw=$('.mapwrap');mw.insertBefore(hint,mw.firstChild);mw.insertBefore(bar,mw.firstChild);
- bar.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool===tapMode&&b.dataset.tool!=='wp'?'wp':b.dataset.tool));}
-$('#clearwp').onclick=()=>{WPS=[];S.fsm.queue=[];S.fsm.state='IDLE';S.track=null;S.plan=null;S.ctlViz=null;S.search=null;S.trailT=[];S.trailE=[];if(SEL&&SEL.k==='goal')SEL=null;logE('Goals and trails cleared');draw();refreshAll();};
+{
+  const bar = document.createElement('div');
+  bar.className = 'maptools';
+  bar.id = 'maptools';
+  bar.setAttribute('role', 'toolbar');
+  bar.setAttribute('aria-label', 'Map tools');
+  bar.innerHTML =
+    TOOLS.map(
+      ([id, name, key]) =>
+        `<button type="button" data-tool="${id}" aria-pressed="false" aria-label="${name}" title="${name} (${key})">${svgI(id)}</button>`
+    ).join('') +
+    `<span class="mt-sep"></span><button type="button" id="clearwp" aria-label="Clear goals and trails" title="Remove every goal and the trails driven so far (the previous run has its own Forget, bottom right)">${svgI('clear')}</button>`;
+  const hint = document.createElement('div');
+  hint.className = 'toolhint';
+  hint.id = 'toolhint';
+  hint.hidden = true;
+  hint.setAttribute('aria-live', 'polite');
+  const mw = $('.mapwrap');
+  mw.insertBefore(hint, mw.firstChild);
+  mw.insertBefore(bar, mw.firstChild);
+  bar
+    .querySelectorAll('[data-tool]')
+    .forEach(b => (b.onclick = () => setTool(b.dataset.tool === tapMode && b.dataset.tool !== 'wp' ? 'wp' : b.dataset.tool)));
+}
+$('#clearwp').onclick = () => {
+  WPS = [];
+  S.fsm.queue = [];
+  S.fsm.state = 'IDLE';
+  S.track = null;
+  S.plan = null;
+  S.ctlViz = null;
+  S.search = null;
+  S.trailT = [];
+  S.trailE = [];
+  if (SEL && SEL.k === 'goal') SEL = null;
+  logE('Goals and trails cleared');
+  draw();
+  refreshAll();
+};
 setTool('wp');
 
 /* ---------- Select: a pinned card with live values ---------- */
-let SEL=null;
-function mapSelectAt(x,y){const best=mapPick(x,y,18);SEL=best?best[2]:null;renderSelection();draw();}
-// the selected thing in the shown state (live, or the replayed frame), or null when it no longer exists
-function selResolve(V){
-  if(!SEL)return null;const k=SEL.k;
-  if(k==='robot')return V.robot;if(k==='est')return P.loc==='truth'?null:V.est;
-  if(k==='goal')return WPS[SEL.i]||null;if(k==='ped')return V.peds[SEL.i]||null;
-  if(k==='track')return V.agents&&V.agents.tracks.find(t=>t.id===SEL.id)||null;
-  if(k==='beacon')return S.beacons.find(b=>b.id===SEL.id)||null;return null;
+let SEL = null;
+function mapSelectAt(x, y) {
+  const best = mapPick(x, y, 18);
+  SEL = best ? best[2] : null;
+  renderSelection();
+  draw();
 }
-function selCard(V){
-  const o=selResolve(V);if(!o)return null;const r=V.robot,e=V.est,f2=v=>(+v).toFixed(2),row=(a,b)=>`<dt>${a}</dt><dd>${b}</dd>`;
-  const LOCN={truth:'ground truth',dr:'dead reckoning',ekf:'EKF',pf:'particle filter',slam:'EKF-SLAM',custom:'your code'};
-  switch(SEL.k){
-    case'robot':return['True pose',row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('heading',`${deg(o.th).toFixed(1)}°`)+row('speed',`${f2(o.v)} m/s`)+
-      (isCar()?row('steering δ',`${deg(o.d).toFixed(1)}°`):row('turn rate ω',`${f2(o.w)} rad/s`))+row('command',`${f2(V.cmd.v)} m/s · ${isCar()?deg(V.cmd.steer||0).toFixed(1)+'°':f2(V.cmd.w)+' rad/s'}`)+
-      (isDyn()?(q=>row('slip',`β ${deg(q.beta).toFixed(1)}° · α_f ${deg(q.af).toFixed(1)}° · α_r ${deg(q.ar).toFixed(1)}°`)+row('yaw rate',`${f2(o.r||0)} rad/s (kinematic ${f2(o.wk||0)})`)+row('a_y',`${f2(Math.abs(q.ay))} of ${f2(P.mu*GRAV)} m/s² (μg)`))(dynSlip(o)):'')+
-      row('contact',o.contact||o.pedContact?'<span class="bad">yes</span>':'no')];
-    case'est':{const P3=V.Pc,sd=i=>P3?Math.sqrt(Math.max(0,P3[i])):null;
-      return[`Estimate · ${LOCN[P.loc]||P.loc}`,row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('heading',`${deg(o.th).toFixed(1)}°`)+
-      row('error',`${f2(hyp(r.x-o.x,r.y-o.y))} m · ${deg(Math.abs(wrap(r.th-o.th))).toFixed(1)}°`)+
-      (P3?row('σ x · y · θ',`${f2(sd(0))} · ${f2(sd(4))} m · ${deg(sd(8)).toFixed(1)}°`):'')+
-      (V===S&&S.pf?row('particles',`N_eff ${S.pf.neff.toFixed(0)} of ${S.pf.N}`):'')];}
-    case'goal':{const q=S.fsm.queue.indexOf(SEL.i);return[`Goal ${q>=0?q+1:SEL.i+1}`,row('status',o.done?(o.skipped?'skipped':'reached'):q===0?'active':'queued')+
-      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+(o.th!=null?row('heading',`${deg(o.th).toFixed(0)}°`):'')+row('distance',`${f2(hyp(r.x-o.x,r.y-o.y))} m from the robot`)];}
-    case'ped':return[o.car?'Vehicle (ground truth)':`Person ${SEL.i+1} (ground truth)`,row('position',`${f2(o.x)}, ${f2(o.y)} m`)+
-      row('speed',`${f2(o.car?o.v:hyp(o.vx||0,o.vy||0))} m/s${o.wait>0?' · paused':''}`)+row('distance',`${f2(Math.max(0,hyp(r.x-o.x,r.y-o.y)-(o.r||0.3)))} m to the robot's centre, minus its radius`)];
-    case'track':{const pr=agOn()?agPred(o,P.agT):null;return[`Agent track #${o.id}`,row('status',o.conf?'confirmed':'tentative')+row('position',`${f2(o.x)}, ${f2(o.y)} m`)+
-      row('velocity',`${f2(hyp(o.vx,o.vy))} m/s · ${deg(Math.atan2(o.vy,o.vx)).toFixed(0)}°`)+row('radius',`${f2(o.r)} m`)+row('hits',String(o.hits))+
-      row('σ position',`${f2(Math.sqrt(Math.max(0,o.pxx)))} m`)+(pr?row(`in ${P.agT} s`,`${f2(pr[0])}, ${f2(pr[1])} m (r ${f2(pr[2])})`):'')];}
-    case'beacon':{const d=hyp(r.x-o.x,r.y-o.y);return[`Beacon ${o.id}`,row('status',beaconsOff().has(o.id)?'switched off':V.bDown&&V.bDown[o.id]?'in an outage':'on')+
-      row('position',`${f2(o.x)}, ${f2(o.y)} m`)+row('range',`${f2(d)} m from the robot${d>P.lmRange?' (beyond the '+P.lmRange+' m sensor range)':''}`)+
-      (V===S&&S.bWhy?row('this scan',(BS_WHY[S.bWhy[o.id]]||['no scan yet'])[0])+row('readings',`${(S.bSeen[o.id].filter(t=>t>S.t-5).length/Math.max(0.2,Math.min(5,S.t))).toFixed(1)} per s (scan rate 5 Hz)`):'')+
-      row('noise',`σ_r ${(0.08*P.lmK).toFixed(2)} m · σ_b ${deg(0.03*P.lmK).toFixed(1)}° → ${f2(d*0.03*P.lmK)} m sideways here`)];}
+// the selected thing in the shown state (live, or the replayed frame), or null when it no longer exists
+function selResolve(V) {
+  if (!SEL) return null;
+  const k = SEL.k;
+  if (k === 'robot') return V.robot;
+  if (k === 'est') return P.loc === 'truth' ? null : V.est;
+  if (k === 'goal') return WPS[SEL.i] || null;
+  if (k === 'ped') return V.peds[SEL.i] || null;
+  if (k === 'track') return (V.agents && V.agents.tracks.find(t => t.id === SEL.id)) || null;
+  if (k === 'beacon') return S.beacons.find(b => b.id === SEL.id) || null;
+  return null;
+}
+function selCard(V) {
+  const o = selResolve(V);
+  if (!o) return null;
+  const r = V.robot,
+    e = V.est,
+    f2 = v => (+v).toFixed(2),
+    row = (a, b) => `<dt>${a}</dt><dd>${b}</dd>`;
+  const LOCN = {truth: 'ground truth', dr: 'dead reckoning', ekf: 'EKF', pf: 'particle filter', slam: 'EKF-SLAM', custom: 'your code'};
+  switch (SEL.k) {
+    case 'robot':
+      return [
+        'True pose',
+        row('position', `${f2(o.x)}, ${f2(o.y)} m`) +
+          row('heading', `${deg(o.th).toFixed(1)}°`) +
+          row('speed', `${f2(o.v)} m/s`) +
+          (isCar() ? row('steering δ', `${deg(o.d).toFixed(1)}°`) : row('turn rate ω', `${f2(o.w)} rad/s`)) +
+          row('command', `${f2(V.cmd.v)} m/s · ${isCar() ? deg(V.cmd.steer || 0).toFixed(1) + '°' : f2(V.cmd.w) + ' rad/s'}`) +
+          (isDyn()
+            ? (q =>
+                row('slip', `β ${deg(q.beta).toFixed(1)}° · α_f ${deg(q.af).toFixed(1)}° · α_r ${deg(q.ar).toFixed(1)}°`) +
+                row('yaw rate', `${f2(o.r || 0)} rad/s (kinematic ${f2(o.wk || 0)})`) +
+                row('a_y', `${f2(Math.abs(q.ay))} of ${f2(P.mu * GRAV)} m/s² (μg)`))(dynSlip(o))
+            : '') +
+          row('contact', o.contact || o.pedContact ? '<span class="bad">yes</span>' : 'no')
+      ];
+    case 'est': {
+      const P3 = V.Pc,
+        sd = i => (P3 ? Math.sqrt(Math.max(0, P3[i])) : null);
+      return [
+        `Estimate · ${LOCN[P.loc] || P.loc}`,
+        row('position', `${f2(o.x)}, ${f2(o.y)} m`) +
+          row('heading', `${deg(o.th).toFixed(1)}°`) +
+          row('error', `${f2(hyp(r.x - o.x, r.y - o.y))} m · ${deg(Math.abs(wrap(r.th - o.th))).toFixed(1)}°`) +
+          (P3 ? row('σ x · y · θ', `${f2(sd(0))} · ${f2(sd(4))} m · ${deg(sd(8)).toFixed(1)}°`) : '') +
+          (V === S && S.pf ? row('particles', `N_eff ${S.pf.neff.toFixed(0)} of ${S.pf.N}`) : '')
+      ];
+    }
+    case 'goal': {
+      const q = S.fsm.queue.indexOf(SEL.i);
+      return [
+        `Goal ${q >= 0 ? q + 1 : SEL.i + 1}`,
+        row('status', o.done ? (o.skipped ? 'skipped' : 'reached') : q === 0 ? 'active' : 'queued') +
+          row('position', `${f2(o.x)}, ${f2(o.y)} m`) +
+          (o.th != null ? row('heading', `${deg(o.th).toFixed(0)}°`) : '') +
+          row('distance', `${f2(hyp(r.x - o.x, r.y - o.y))} m from the robot`)
+      ];
+    }
+    case 'ped':
+      return [
+        o.car ? 'Vehicle (ground truth)' : `Person ${SEL.i + 1} (ground truth)`,
+        row('position', `${f2(o.x)}, ${f2(o.y)} m`) +
+          row('speed', `${f2(o.car ? o.v : hyp(o.vx || 0, o.vy || 0))} m/s${o.wait > 0 ? ' · paused' : ''}`) +
+          row('distance', `${f2(Math.max(0, hyp(r.x - o.x, r.y - o.y) - (o.r || 0.3)))} m to the robot's centre, minus its radius`)
+      ];
+    case 'track': {
+      const pr = agOn() ? agPred(o, P.agT) : null;
+      return [
+        `Agent track #${o.id}`,
+        row('status', o.conf ? 'confirmed' : 'tentative') +
+          row('position', `${f2(o.x)}, ${f2(o.y)} m`) +
+          row('velocity', `${f2(hyp(o.vx, o.vy))} m/s · ${deg(Math.atan2(o.vy, o.vx)).toFixed(0)}°`) +
+          row('radius', `${f2(o.r)} m`) +
+          row('hits', String(o.hits)) +
+          row('σ position', `${f2(Math.sqrt(Math.max(0, o.pxx)))} m`) +
+          (pr ? row(`in ${P.agT} s`, `${f2(pr[0])}, ${f2(pr[1])} m (r ${f2(pr[2])})`) : '')
+      ];
+    }
+    case 'beacon': {
+      const d = hyp(r.x - o.x, r.y - o.y);
+      return [
+        `Beacon ${o.id}`,
+        row('status', beaconsOff().has(o.id) ? 'switched off' : V.bDown && V.bDown[o.id] ? 'in an outage' : 'on') +
+          row('position', `${f2(o.x)}, ${f2(o.y)} m`) +
+          row('range', `${f2(d)} m from the robot${d > P.lmRange ? ' (beyond the ' + P.lmRange + ' m sensor range)' : ''}`) +
+          (V === S && S.bWhy
+            ? row('this scan', (BS_WHY[S.bWhy[o.id]] || ['no scan yet'])[0]) +
+              row(
+                'readings',
+                `${(S.bSeen[o.id].filter(t => t > S.t - 5).length / Math.max(0.2, Math.min(5, S.t))).toFixed(1)} per s (scan rate 5 Hz)`
+              )
+            : '') +
+          row(
+            'noise',
+            `σ_r ${(0.08 * P.lmK).toFixed(2)} m · σ_b ${deg(0.03 * P.lmK).toFixed(1)}° → ${f2(d * 0.03 * P.lmK)} m sideways here`
+          )
+      ];
+    }
   }
   return null;
 }
-{const c=document.createElement('div');c.className='selcard';c.id='selcard';c.hidden=true;c.setAttribute('aria-live','polite');
- c.innerHTML='<div class="selhead"><b id="sel-title"></b><button type="button" class="ibtn" id="sel-x" aria-label="Clear the selection" title="Clear the selection (Esc)">×</button></div><dl id="sel-body"></dl>';
- $('.mapwrap').appendChild(c);$('#sel-x').onclick=()=>{SEL=null;renderSelection();draw();};}
-function renderSelection(){
-  const c=$('#selcard');if(!SEL||!S){c.hidden=true;return;}
-  const f=replayFrame(),card=selCard(f?frameView(f):S);if(!card){c.hidden=true;return;}
-  c.hidden=false;$('#sel-title').textContent=card[0];$('#sel-body').innerHTML=card[1];
+{
+  const c = document.createElement('div');
+  c.className = 'selcard';
+  c.id = 'selcard';
+  c.hidden = true;
+  c.setAttribute('aria-live', 'polite');
+  c.innerHTML =
+    '<div class="selhead"><b id="sel-title"></b><button type="button" class="ibtn" id="sel-x" aria-label="Clear the selection" title="Clear the selection (Esc)">×</button></div><dl id="sel-body"></dl>';
+  $('.mapwrap').appendChild(c);
+  $('#sel-x').onclick = () => {
+    SEL = null;
+    renderSelection();
+    draw();
+  };
+}
+function renderSelection() {
+  const c = $('#selcard');
+  if (!SEL || !S) {
+    c.hidden = true;
+    return;
+  }
+  const f = replayFrame(),
+    card = selCard(f ? frameView(f) : S);
+  if (!card) {
+    c.hidden = true;
+    return;
+  }
+  c.hidden = false;
+  $('#sel-title').textContent = card[0];
+  $('#sel-body').innerHTML = card[1];
 }
 // a dashed ring around the selected thing (drawn in world coordinates by draw())
-function drawSelection(px){
-  const o=selResolve(S);if(!o||o.x==null)return;const rr=SEL.k==='ped'||SEL.k==='track'?(o.r||0.3)+px(6):px(14);
-  ctx.save();ctx.strokeStyle=TOK.accent;ctx.lineWidth=px(2);ctx.setLineDash([px(4),px(3)]);ctx.beginPath();ctx.arc(o.x,o.y,Math.max(rr,px(12)),0,TAU);ctx.stroke();ctx.restore();
+function drawSelection(px) {
+  const o = selResolve(S);
+  if (!o || o.x == null) return;
+  const rr = SEL.k === 'ped' || SEL.k === 'track' ? (o.r || 0.3) + px(6) : px(14);
+  ctx.save();
+  ctx.strokeStyle = TOK.accent;
+  ctx.lineWidth = px(2);
+  ctx.setLineDash([px(4), px(3)]);
+  ctx.beginPath();
+  ctx.arc(o.x, o.y, Math.max(rr, px(12)), 0, TAU);
+  ctx.stroke();
+  ctx.restore();
 }
 
 /* ---------- Layers: the map's display list, with a status line per overlay ---------- */
-const LAYER_DEFS=[['belief','Belief','Particles or the 95 % covariance ellipse','loc'],['beam','Beacon readings','Rays from the estimate','loc'],['trail','Trails','Solid = truth, dashed = estimate','loc'],
-  ['lidar','Lidar hits','As perceived','per'],['cost','Costmap','Inflation','per'],['ghost','True-map outline','Over the built map','per'],['agents','Agents','Tracks, predictions, ego positions at the same times','per'],
-  ['search','Planner search','A* closed set, Hybrid A* nodes or the RRT* tree','plan'],['dwa','Local plan','DWA rollouts, MPC prediction and reference','ctl'],['look','Lookahead','The path tracker\'s carrot','ctl'],['slip','Sideslip','Velocity at the centre of mass against the heading','ctl'],
-  ['ghostrun','Previous run','Ghost trail and ghost plot series',''],['sweep','Experiment runs','The paths of the last experiment\'s runs, coloured by the varied value','']];
+const LAYER_DEFS = [
+  ['belief', 'Belief', 'Particles or the 95 % covariance ellipse', 'loc'],
+  ['beam', 'Beacon readings', 'Rays from the estimate', 'loc'],
+  ['trail', 'Trails', 'Solid = truth, dashed = estimate', 'loc'],
+  ['lidar', 'Lidar hits', 'As perceived', 'per'],
+  ['cost', 'Costmap', 'Inflation', 'per'],
+  ['ghost', 'True-map outline', 'Over the built map', 'per'],
+  ['agents', 'Agents', 'Tracks, predictions, ego positions at the same times', 'per'],
+  ['search', 'Planner search', 'A* closed set, Hybrid A* nodes or the RRT* tree', 'plan'],
+  ['dwa', 'Local plan', 'DWA rollouts, MPC prediction and reference', 'ctl'],
+  ['look', 'Lookahead', "The path tracker's carrot", 'ctl'],
+  ['slip', 'Sideslip', 'Velocity at the centre of mass against the heading', 'ctl'],
+  ['ghostrun', 'Previous run', 'Ghost trail and ghost plot series', ''],
+  ['sweep', 'Experiment runs', "The paths of the last experiment's runs, coloured by the varied value", '']
+];
 // [has something to draw now?, status text]
-function layerStatus(k){
-  const tr=P.loc==='truth',ctlTr=['pp','rwf','stanley','pid'].includes(P.ctl);
-  switch(k){
-    case'belief':return S.pf?[1,`${S.pf.N} particles`]:S.Pc?[1,'95 % ellipse']:[0,tr?'ground truth has no belief':'no covariance yet'];
-    case'beam':return tr||P.loc==='dr'?[0,`${tr?'ground truth':'dead reckoning'} uses no beacons`]:[1,`${S.lastZ.length} readings this scan`];
-    case'trail':return S.trailT.length>1?[1,`${S.trailT.length} points`]:[0,'starts when the robot moves'];
-    case'lidar':return S.scanPts.length?[1,`${S.scanPts.length} hits`]:[0,'no scan yet'];
-    case'cost':return[1,`inflation ${P.infl} m`];
-    case'ghost':return P.per==='mapping'?[1,'over the lidar map']:[0,'only with lidar mapping (Perceive)'];
-    case'agents':return agOn()?[1,`${S.agents?S.agents.tracks.length:0} tracks`]:[0,'agent tracking is off (Perceive)'];
-    case'search':return S.search?[1,S.planStats?`${S.planStats.name} · ${S.planStats.exp||0} ${S.planStats.name==='RRT*'?'nodes':'expansions'}`:'last search']:[0,'no search to show (straight line or no plan yet)'];
-    case'dwa':return P.ctl==='dwa'||P.ctl==='mpc'?[S.ctlViz?1:0,P.ctl==='mpc'?'MPC prediction':'DWA rollouts']:[0,'only DWA and MPC'];
-    case'look':return ctlTr?[S.ctlViz&&S.ctlViz.carrot?1:0,'carrot of the path tracker']:[0,'only the path trackers'];
-    case'slip':return isDyn()?[Math.abs(S.robot.v)>0.05?1:0,`β ${deg(dynSlip(S.robot).beta).toFixed(1)}°`]:[0,'only the car with tyre slip (Vehicle)'];
-    case'ghostrun':return GHOST&&GHOST.level===LV.id?[1,GHOST.label]:[0,'no previous run on this level'];
-    case'sweep':return EXP.results.length&&EXP.level===LV.id?[1,`${EXP.results.length} runs of the last experiment`]:[0,'no experiment run on this level yet (Tools → Experiments)'];
+function layerStatus(k) {
+  const tr = P.loc === 'truth',
+    ctlTr = ['pp', 'rwf', 'stanley', 'pid'].includes(P.ctl);
+  switch (k) {
+    case 'belief':
+      return S.pf ? [1, `${S.pf.N} particles`] : S.Pc ? [1, '95 % ellipse'] : [0, tr ? 'ground truth has no belief' : 'no covariance yet'];
+    case 'beam':
+      return tr || P.loc === 'dr'
+        ? [0, `${tr ? 'ground truth' : 'dead reckoning'} uses no beacons`]
+        : [1, `${S.lastZ.length} readings this scan`];
+    case 'trail':
+      return S.trailT.length > 1 ? [1, `${S.trailT.length} points`] : [0, 'starts when the robot moves'];
+    case 'lidar':
+      return S.scanPts.length ? [1, `${S.scanPts.length} hits`] : [0, 'no scan yet'];
+    case 'cost':
+      return [1, `inflation ${P.infl} m`];
+    case 'ghost':
+      return P.per === 'mapping' ? [1, 'over the lidar map'] : [0, 'only with lidar mapping (Perceive)'];
+    case 'agents':
+      return agOn() ? [1, `${S.agents ? S.agents.tracks.length : 0} tracks`] : [0, 'agent tracking is off (Perceive)'];
+    case 'search':
+      return S.search
+        ? [
+            1,
+            S.planStats
+              ? `${S.planStats.name} · ${S.planStats.exp || 0} ${S.planStats.name === 'RRT*' ? 'nodes' : 'expansions'}`
+              : 'last search'
+          ]
+        : [0, 'no search to show (straight line or no plan yet)'];
+    case 'dwa':
+      return P.ctl === 'dwa' || P.ctl === 'mpc'
+        ? [S.ctlViz ? 1 : 0, P.ctl === 'mpc' ? 'MPC prediction' : 'DWA rollouts']
+        : [0, 'only DWA and MPC'];
+    case 'look':
+      return ctlTr ? [S.ctlViz && S.ctlViz.carrot ? 1 : 0, 'carrot of the path tracker'] : [0, 'only the path trackers'];
+    case 'slip':
+      return isDyn()
+        ? [Math.abs(S.robot.v) > 0.05 ? 1 : 0, `β ${deg(dynSlip(S.robot).beta).toFixed(1)}°`]
+        : [0, 'only the car with tyre slip (Vehicle)'];
+    case 'ghostrun':
+      return GHOST && GHOST.level === LV.id ? [1, GHOST.label] : [0, 'no previous run on this level'];
+    case 'sweep':
+      return EXP.results.length && EXP.level === LV.id
+        ? [1, `${EXP.results.length} runs of the last experiment`]
+        : [0, 'no experiment run on this level yet (Tools → Experiments)'];
   }
-  return[0,''];
+  return [0, ''];
 }
-function layerPopHTML(){
-  return`<div class="lp-head"><b>Layers</b><span class="lbl">${layersEdited?'your choice':'set by the tab'}</span>${layersEdited?`<button type="button" class="linkbtn" id="lp-auto">Let each tab choose</button>`:''}</div>`+
-    LAYER_DEFS.map(([k,name,sub,sys])=>{const[has,st]=layerStatus(k),on=!!LAYERS[k];
-      return`<label class="lp-row${on?'':' off'}"${sys?` data-sys="${sys}"`:''}><input type="checkbox" data-layer="${k}" ${on?'checked':''}><span class="lp-name">${name}<small>${sub}</small></span><span class="lp-st ${on&&has?'live':on?'idle':''}" title="${esc(st)}">${esc(st)}</span></label>`;}).join('')+
-    (GHOST&&GHOST.level===LV.id?`<p class="lp-foot">Previous run: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button type="button" class="linkbtn" id="lp-forget">Forget it</button></p>`:'')+
-    `<p class="lp-foot">Drawing only; nothing here changes the simulation.</p>`;
+function layerPopHTML() {
+  return (
+    `<div class="lp-head"><b>Layers</b><span class="lbl">${layersEdited ? 'your choice' : 'set by the tab'}</span>${layersEdited ? `<button type="button" class="linkbtn" id="lp-auto">Let each tab choose</button>` : ''}</div>` +
+    LAYER_DEFS.map(([k, name, sub, sys]) => {
+      const [has, st] = layerStatus(k),
+        on = !!LAYERS[k];
+      return `<label class="lp-row${on ? '' : ' off'}"${sys ? ` data-sys="${sys}"` : ''}><input type="checkbox" data-layer="${k}" ${on ? 'checked' : ''}><span class="lp-name">${name}<small>${sub}</small></span><span class="lp-st ${on && has ? 'live' : on ? 'idle' : ''}" title="${esc(st)}">${esc(st)}</span></label>`;
+    }).join('') +
+    (GHOST && GHOST.level === LV.id
+      ? `<p class="lp-foot">Previous run: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button type="button" class="linkbtn" id="lp-forget">Forget it</button></p>`
+      : '') +
+    `<p class="lp-foot">Drawing only; nothing here changes the simulation.</p>`
+  );
 }
-let lpKey='';
-function renderLayerPop(force){
-  const p=$('#layerpop');if(!p||p.hidden)return;
-  const key=LAYER_DEFS.map(([k])=>(LAYERS[k]?1:0)+layerStatus(k).join('/')).join('|')+layersEdited;if(key===lpKey&&!force)return;lpKey=key;
-  const foc=document.activeElement&&p.contains(document.activeElement)?document.activeElement.dataset.layer:null;
-  p.innerHTML=layerPopHTML();
-  p.querySelectorAll('input[data-layer]').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.layer]=cb.checked;layersEdited=true;renderLayerPop(true);if(activeTab==='view')renderAllPanes();draw();});
-  const fg=$('#lp-forget');if(fg)fg.onclick=()=>{forgetGhost();renderLayerPop(true);};
-  const au=$('#lp-auto');if(au)au.onclick=()=>{layersEdited=false;layersKey='';applyTabLayers(true);renderLayerPop(true);if(activeTab==='view')renderAllPanes();};
-  if(foc){const el=p.querySelector(`input[data-layer="${foc}"]`);if(el)el.focus();}
+let lpKey = '';
+function renderLayerPop(force) {
+  const p = $('#layerpop');
+  if (!p || p.hidden) return;
+  const key = LAYER_DEFS.map(([k]) => (LAYERS[k] ? 1 : 0) + layerStatus(k).join('/')).join('|') + layersEdited;
+  if (key === lpKey && !force) return;
+  lpKey = key;
+  const foc = document.activeElement && p.contains(document.activeElement) ? document.activeElement.dataset.layer : null;
+  p.innerHTML = layerPopHTML();
+  p.querySelectorAll('input[data-layer]').forEach(
+    cb =>
+      (cb.onchange = () => {
+        LAYERS[cb.dataset.layer] = cb.checked;
+        layersEdited = true;
+        renderLayerPop(true);
+        if (activeTab === 'view') renderAllPanes();
+        draw();
+      })
+  );
+  const fg = $('#lp-forget');
+  if (fg)
+    fg.onclick = () => {
+      forgetGhost();
+      renderLayerPop(true);
+    };
+  const au = $('#lp-auto');
+  if (au)
+    au.onclick = () => {
+      layersEdited = false;
+      layersKey = '';
+      applyTabLayers(true);
+      renderLayerPop(true);
+      if (activeTab === 'view') renderAllPanes();
+    };
+  if (foc) {
+    const el = p.querySelector(`input[data-layer="${foc}"]`);
+    if (el) el.focus();
+  }
 }
-function toggleLayerPop(on){
-  const p=$('#layerpop'),b=$('#mv-layers');on=on==null?p.hidden:on;p.hidden=!on;b.setAttribute('aria-expanded',String(on));
-  if(on){renderLayerPop(true);const f=p.querySelector('input');if(f)f.focus();}
+function toggleLayerPop(on) {
+  const p = $('#layerpop'),
+    b = $('#mv-layers');
+  on = on == null ? p.hidden : on;
+  p.hidden = !on;
+  b.setAttribute('aria-expanded', String(on));
+  if (on) {
+    renderLayerPop(true);
+    const f = p.querySelector('input');
+    if (f) f.focus();
+  }
 }
-{const b=document.createElement('button');b.id='mv-layers';b.type='button';b.title='Layers: what the map draws (L)';b.setAttribute('aria-label','Layers');b.setAttribute('aria-expanded','false');b.setAttribute('aria-controls','layerpop');b.innerHTML=svgI('layers');
- const vb=$('.mapview');vb.insertBefore(b,$('#mv-key'));b.onclick=()=>toggleLayerPop();
- const p=document.createElement('div');p.className='layerpop';p.id='layerpop';p.hidden=true;p.setAttribute('role','dialog');p.setAttribute('aria-label','Map layers');$('.mapwrap').appendChild(p);
- document.addEventListener('pointerdown',e=>{if(!p.hidden&&!p.contains(e.target)&&!b.contains(e.target))toggleLayerPop(false);},true);}
+{
+  const b = document.createElement('button');
+  b.id = 'mv-layers';
+  b.type = 'button';
+  b.title = 'Layers: what the map draws (L)';
+  b.setAttribute('aria-label', 'Layers');
+  b.setAttribute('aria-expanded', 'false');
+  b.setAttribute('aria-controls', 'layerpop');
+  b.innerHTML = svgI('layers');
+  const vb = $('.mapview');
+  vb.insertBefore(b, $('#mv-key'));
+  b.onclick = () => toggleLayerPop();
+  const p = document.createElement('div');
+  p.className = 'layerpop';
+  p.id = 'layerpop';
+  p.hidden = true;
+  p.setAttribute('role', 'dialog');
+  p.setAttribute('aria-label', 'Map layers');
+  $('.mapwrap').appendChild(p);
+  document.addEventListener(
+    'pointerdown',
+    e => {
+      if (!p.hidden && !p.contains(e.target) && !b.contains(e.target)) toggleLayerPop(false);
+    },
+    true
+  );
+}
 
 /* ---------- the previous run's path: a chip on the map names it and offers Hide (the layer) and Forget ---------- */
-function forgetGhost(){GHOST=null;renderGhostChip();if(activeTab==='view')renderAllPanes();draw();drawPlot();}
-let ghKey='';
-function renderGhostChip(){
-  const c=$('#ghostchip');if(!c)return;const on=!!(GHOST&&GHOST.level===LV.id&&LAYERS.ghostrun&&AN.mode==='sim');
-  const key=on?GHOST.label+GHOST.t:'';if(key===ghKey)return;ghKey=key;c.hidden=!on;if(!on)return;
-  c.innerHTML=`<span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span><button type="button" class="linkbtn" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="linkbtn" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button>`;
-  $('#gh-hide').onclick=()=>{LAYERS.ghostrun=false;layersEdited=true;renderGhostChip();renderLayerPop(true);if(activeTab==='view')renderAllPanes();draw();drawPlot();};
-  $('#gh-forget').onclick=forgetGhost;
+function forgetGhost() {
+  GHOST = null;
+  renderGhostChip();
+  if (activeTab === 'view') renderAllPanes();
+  draw();
+  drawPlot();
 }
-{const c=document.createElement('div');c.id='ghostchip';c.className='ghostchip';c.hidden=true;$('.mapwrap').appendChild(c);}
+let ghKey = '';
+function renderGhostChip() {
+  const c = $('#ghostchip');
+  if (!c) return;
+  const on = !!(GHOST && GHOST.level === LV.id && LAYERS.ghostrun && AN.mode === 'sim');
+  const key = on ? GHOST.label + GHOST.t : '';
+  if (key === ghKey) return;
+  ghKey = key;
+  c.hidden = !on;
+  if (!on) return;
+  c.innerHTML = `<span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span><button type="button" class="linkbtn" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="linkbtn" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button>`;
+  $('#gh-hide').onclick = () => {
+    LAYERS.ghostrun = false;
+    layersEdited = true;
+    renderGhostChip();
+    renderLayerPop(true);
+    if (activeTab === 'view') renderAllPanes();
+    draw();
+    drawPlot();
+  };
+  $('#gh-forget').onclick = forgetGhost;
+}
+{
+  const c = document.createElement('div');
+  c.id = 'ghostchip';
+  c.className = 'ghostchip';
+  c.hidden = true;
+  $('.mapwrap').appendChild(c);
+}
 
 /* ---------- the planner's search, step by step: the last plan's expansion order (S.searchTrace) played back on the map.
    The sim pauses while it plays; Run (or Done) returns to the finished search. ---------- */
-function searchPlayStart(auto){
-  const tr=S.searchTrace;if(!tr||!tr.n)return false;
-  running=false;SP.on=true;SP.tr=tr;SP.n=0;SP.gen++;SP.play=!!auto;SP.last=performance.now();LAYERS.search=true;
-  renderSearchChip();draw();if(SP.play)requestAnimationFrame(spTick);return true;
+function searchPlayStart(auto) {
+  const tr = S.searchTrace;
+  if (!tr || !tr.n) return false;
+  running = false;
+  SP.on = true;
+  SP.tr = tr;
+  SP.n = 0;
+  SP.gen++;
+  SP.play = !!auto;
+  SP.last = performance.now();
+  LAYERS.search = true;
+  renderSearchChip();
+  draw();
+  if (SP.play) requestAnimationFrame(spTick);
+  return true;
 }
-function searchPlayEnd(){SP.on=false;SP.play=false;SP.tr=null;dirty.search=true;lastSearch=null;renderSearchChip();draw();}
-function spTick(now){if(!SP.on||!SP.play)return;const N=SP.tr.n;SP.n=Math.min(N,SP.n+(now-SP.last)/1000*Math.max(1,N/SP.dur));SP.last=now;
-  if(SP.n>=N)SP.play=false;renderSearchChip();draw();if(SP.play)requestAnimationFrame(spTick);}
-function spGo(n){SP.n=clamp(Math.round(n),0,SP.tr.n);SP.play=false;renderSearchChip();draw();}
-function renderSearchChip(){
-  const c=$('#searchchip');if(!c)return;c.hidden=!SP.on;if(!SP.on){SP.key='';return;}
-  const tr=SP.tr,N=tr.n,n=Math.floor(SP.n),wh=tr.type==='rrt'?'node':'expansion';
-  let extra='';if(tr.type==='grid'&&n>0){let f=0;const ca=tr.closedAt,oa=tr.openAt;for(let k=0;k<NC;k++)if(oa[k]>=0&&oa[k]<=n&&!(ca[k]>0&&ca[k]<=n))f++;extra=` · frontier ${f}`;}
-  const txt=`${tr.name} · ${wh} ${n} of ${N}${extra}${n>=N?' · done':''}`;
-  if(!c.firstChild||SP.key!==N+'|'+tr.name){SP.key=N+'|'+tr.name;
-    c.innerHTML=`<span class="sp-t" id="sp-t"></span><span class="sp-b"><button type="button" class="ibtn" data-sp="0" title="Back to the start" aria-label="Back to the start">⏮</button><button type="button" class="ibtn" data-sp="-1" title="One ${wh} back" aria-label="One ${wh} back">◀</button><button type="button" class="ibtn" data-sp="p" id="sp-p" aria-label="Play or pause"></button><button type="button" class="ibtn" data-sp="1" title="One ${wh} forward" aria-label="One ${wh} forward">▶</button><button type="button" class="ibtn" data-sp="N" title="To the end" aria-label="To the end">⏭</button></span><input type="range" id="sp-r" min="0" max="${N}" step="1" aria-label="Search step"><button type="button" class="linkbtn" id="sp-x" title="Back to the finished search; Run drives">Done</button>`;
-    c.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{const a=b.dataset.sp,n0=Math.floor(SP.n);
-      if(a==='p'){if(SP.n>=SP.tr.n)SP.n=0;SP.play=!SP.play;SP.last=performance.now();if(SP.play)requestAnimationFrame(spTick);renderSearchChip();}
-      else spGo(a==='0'?0:a==='N'?SP.tr.n:n0+(+a));});
-    $('#sp-r').oninput=e=>spGo(+e.target.value);$('#sp-x').onclick=searchPlayEnd;}
-  $('#sp-t').textContent=txt;$('#sp-p').textContent=SP.play?'❚❚':'▷';$('#sp-p').title=SP.play?'Pause':'Play';const r=$('#sp-r');if(+r.value!==n)r.value=String(n);
+function searchPlayEnd() {
+  SP.on = false;
+  SP.play = false;
+  SP.tr = null;
+  dirty.search = true;
+  lastSearch = null;
+  renderSearchChip();
+  draw();
 }
-{const c=document.createElement('div');c.id='searchchip';c.className='searchchip';c.hidden=true;c.setAttribute('role','group');c.setAttribute('aria-label','Planner search playback');$('.mapwrap').after(c);}   // under the map, so it never covers the search
+function spTick(now) {
+  if (!SP.on || !SP.play) return;
+  const N = SP.tr.n;
+  SP.n = Math.min(N, SP.n + ((now - SP.last) / 1000) * Math.max(1, N / SP.dur));
+  SP.last = now;
+  if (SP.n >= N) SP.play = false;
+  renderSearchChip();
+  draw();
+  if (SP.play) requestAnimationFrame(spTick);
+}
+function spGo(n) {
+  SP.n = clamp(Math.round(n), 0, SP.tr.n);
+  SP.play = false;
+  renderSearchChip();
+  draw();
+}
+function renderSearchChip() {
+  const c = $('#searchchip');
+  if (!c) return;
+  c.hidden = !SP.on;
+  if (!SP.on) {
+    SP.key = '';
+    return;
+  }
+  const tr = SP.tr,
+    N = tr.n,
+    n = Math.floor(SP.n),
+    wh = tr.type === 'rrt' ? 'node' : 'expansion';
+  let extra = '';
+  if (tr.type === 'grid' && n > 0) {
+    let f = 0;
+    const ca = tr.closedAt,
+      oa = tr.openAt;
+    for (let k = 0; k < NC; k++) if (oa[k] >= 0 && oa[k] <= n && !(ca[k] > 0 && ca[k] <= n)) f++;
+    extra = ` · frontier ${f}`;
+  }
+  const txt = `${tr.name} · ${wh} ${n} of ${N}${extra}${n >= N ? ' · done' : ''}`;
+  if (!c.firstChild || SP.key !== N + '|' + tr.name) {
+    SP.key = N + '|' + tr.name;
+    c.innerHTML = `<span class="sp-t" id="sp-t"></span><span class="sp-b"><button type="button" class="ibtn" data-sp="0" title="Back to the start" aria-label="Back to the start">⏮</button><button type="button" class="ibtn" data-sp="-1" title="One ${wh} back" aria-label="One ${wh} back">◀</button><button type="button" class="ibtn" data-sp="p" id="sp-p" aria-label="Play or pause"></button><button type="button" class="ibtn" data-sp="1" title="One ${wh} forward" aria-label="One ${wh} forward">▶</button><button type="button" class="ibtn" data-sp="N" title="To the end" aria-label="To the end">⏭</button></span><input type="range" id="sp-r" min="0" max="${N}" step="1" aria-label="Search step"><button type="button" class="linkbtn" id="sp-x" title="Back to the finished search; Run drives">Done</button>`;
+    c.querySelectorAll('[data-sp]').forEach(
+      b =>
+        (b.onclick = () => {
+          const a = b.dataset.sp,
+            n0 = Math.floor(SP.n);
+          if (a === 'p') {
+            if (SP.n >= SP.tr.n) SP.n = 0;
+            SP.play = !SP.play;
+            SP.last = performance.now();
+            if (SP.play) requestAnimationFrame(spTick);
+            renderSearchChip();
+          } else spGo(a === '0' ? 0 : a === 'N' ? SP.tr.n : n0 + +a);
+        })
+    );
+    $('#sp-r').oninput = e => spGo(+e.target.value);
+    $('#sp-x').onclick = searchPlayEnd;
+  }
+  $('#sp-t').textContent = txt;
+  $('#sp-p').textContent = SP.play ? '❚❚' : '▷';
+  $('#sp-p').title = SP.play ? 'Pause' : 'Play';
+  const r = $('#sp-r');
+  if (+r.value !== n) r.value = String(n);
+}
+{
+  const c = document.createElement('div');
+  c.id = 'searchchip';
+  c.className = 'searchchip';
+  c.hidden = true;
+  c.setAttribute('role', 'group');
+  c.setAttribute('aria-label', 'Planner search playback');
+  $('.mapwrap').after(c);
+} // under the map, so it never covers the search
 // draw the search as it stood after n steps: expanded set, frontier (A*), the newest node and its way back to the start
-function drawSearchPlay(px){
-  const tr=SP.tr,n=Math.floor(SP.n);if(!tr)return;const A=TOK.accent;
-  const back=(pts)=>{ctx.strokeStyle=A;ctx.lineWidth=px(2.4);ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();};
-  const cur=(x,y,r)=>{ctx.fillStyle=TOK.bad;ctx.strokeStyle=TOK['map-bg'];ctx.lineWidth=px(1.5);ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();ctx.stroke();};
-  if(tr.type==='grid'){
-    const key=SP.gen+'|'+n;if(SP.paintKey!==key){SP.paintKey=key;const g=srchCv.getContext('2d'),im=g.createImageData(GW,GH),d=im.data,Ac=rgb(A),Fc=rgb(TOK.amber),ca=tr.closedAt,oa=tr.openAt;
-      for(let k=0;k<NC;k++){const cl=ca[k]>0&&ca[k]<=n,op=!cl&&oa[k]>=0&&oa[k]<=n;if(!cl&&!op)continue;const C=cl?Ac:Fc;d[k*4]=C[0];d[k*4+1]=C[1];d[k*4+2]=C[2];d[k*4+3]=cl?70:190;}
-      g.putImageData(im,0,0);lastSearch=null;}
-    ctx.drawImage(srchCv,0,0,W,H);
-    if(n>0){const u=tr.order[n-1],pts=[];for(let k=u,i=0;k>=0&&i<NC;k=tr.par[k],i++)pts.push(center(k));back(pts);const c=center(u);cur(c[0],c[1],px(4));}}
-  else if(tr.type==='pts'){const q=tr.pts,s=tr.cell?tr.cell*0.8:px(2);ctx.fillStyle=rgba(A,0.4);for(let i=0;i<n;i++)ctx.fillRect(q[2*i]-s/2,q[2*i+1]-s/2,s,s);
-    if(n>0){const pts=[];for(let i=n-1,k=0;i>=0&&k<100000;i=tr.pix[i],k++)pts.push([q[2*i],q[2*i+1]]);back(pts);cur(q[2*(n-1)],q[2*(n-1)+1],px(4));}}
-  else{const{X,Y,Pa0,QX,QY,rew}=tr,m=Math.max(1,n),Pa=Pa0.slice(0,m);for(let k=0;k<rew.length;k+=2)if(rew[k]<m)Pa[rew[k+1]]=rew[k];
-    ctx.strokeStyle=rgba(A,0.45);ctx.lineWidth=px(1);ctx.beginPath();for(let i=1;i<m;i++){ctx.moveTo(X[i],Y[i]);ctx.lineTo(X[Pa[i]],Y[Pa[i]]);}ctx.stroke();
-    if(m>1){const i=m-1;ctx.setLineDash([px(3),px(3)]);ctx.strokeStyle=TOK.rose;ctx.lineWidth=px(1.2);ctx.beginPath();ctx.moveTo(X[Pa[i]],Y[Pa[i]]);ctx.lineTo(QX[i],QY[i]);ctx.stroke();ctx.setLineDash([]);
-      ctx.fillStyle=TOK.rose;ctx.beginPath();ctx.arc(QX[i],QY[i],px(3),0,TAU);ctx.fill();   // the random sample this node grew toward
-      const pts=[];for(let k=i,c=0;k>=0&&c<m;k=Pa[k],c++)pts.push([X[k],Y[k]]);back(pts);cur(X[i],Y[i],px(4));}}
+function drawSearchPlay(px) {
+  const tr = SP.tr,
+    n = Math.floor(SP.n);
+  if (!tr) return;
+  const A = TOK.accent;
+  const back = pts => {
+    ctx.strokeStyle = A;
+    ctx.lineWidth = px(2.4);
+    ctx.beginPath();
+    pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+    ctx.stroke();
+  };
+  const cur = (x, y, r) => {
+    ctx.fillStyle = TOK.bad;
+    ctx.strokeStyle = TOK['map-bg'];
+    ctx.lineWidth = px(1.5);
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+  };
+  if (tr.type === 'grid') {
+    const key = SP.gen + '|' + n;
+    if (SP.paintKey !== key) {
+      SP.paintKey = key;
+      const g = srchCv.getContext('2d'),
+        im = g.createImageData(GW, GH),
+        d = im.data,
+        Ac = rgb(A),
+        Fc = rgb(TOK.amber),
+        ca = tr.closedAt,
+        oa = tr.openAt;
+      for (let k = 0; k < NC; k++) {
+        const cl = ca[k] > 0 && ca[k] <= n,
+          op = !cl && oa[k] >= 0 && oa[k] <= n;
+        if (!cl && !op) continue;
+        const C = cl ? Ac : Fc;
+        d[k * 4] = C[0];
+        d[k * 4 + 1] = C[1];
+        d[k * 4 + 2] = C[2];
+        d[k * 4 + 3] = cl ? 70 : 190;
+      }
+      g.putImageData(im, 0, 0);
+      lastSearch = null;
+    }
+    ctx.drawImage(srchCv, 0, 0, W, H);
+    if (n > 0) {
+      const u = tr.order[n - 1],
+        pts = [];
+      for (let k = u, i = 0; k >= 0 && i < NC; k = tr.par[k], i++) pts.push(center(k));
+      back(pts);
+      const c = center(u);
+      cur(c[0], c[1], px(4));
+    }
+  } else if (tr.type === 'pts') {
+    const q = tr.pts,
+      s = tr.cell ? tr.cell * 0.8 : px(2);
+    ctx.fillStyle = rgba(A, 0.4);
+    for (let i = 0; i < n; i++) ctx.fillRect(q[2 * i] - s / 2, q[2 * i + 1] - s / 2, s, s);
+    if (n > 0) {
+      const pts = [];
+      for (let i = n - 1, k = 0; i >= 0 && k < 100000; i = tr.pix[i], k++) pts.push([q[2 * i], q[2 * i + 1]]);
+      back(pts);
+      cur(q[2 * (n - 1)], q[2 * (n - 1) + 1], px(4));
+    }
+  } else {
+    const {X, Y, Pa0, QX, QY, rew} = tr,
+      m = Math.max(1, n),
+      Pa = Pa0.slice(0, m);
+    for (let k = 0; k < rew.length; k += 2) if (rew[k] < m) Pa[rew[k + 1]] = rew[k];
+    ctx.strokeStyle = rgba(A, 0.45);
+    ctx.lineWidth = px(1);
+    ctx.beginPath();
+    for (let i = 1; i < m; i++) {
+      ctx.moveTo(X[i], Y[i]);
+      ctx.lineTo(X[Pa[i]], Y[Pa[i]]);
+    }
+    ctx.stroke();
+    if (m > 1) {
+      const i = m - 1;
+      ctx.setLineDash([px(3), px(3)]);
+      ctx.strokeStyle = TOK.rose;
+      ctx.lineWidth = px(1.2);
+      ctx.beginPath();
+      ctx.moveTo(X[Pa[i]], Y[Pa[i]]);
+      ctx.lineTo(QX[i], QY[i]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = TOK.rose;
+      ctx.beginPath();
+      ctx.arc(QX[i], QY[i], px(3), 0, TAU);
+      ctx.fill(); // the random sample this node grew toward
+      const pts = [];
+      for (let k = i, c = 0; k >= 0 && c < m; k = Pa[k], c++) pts.push([X[k], Y[k]]);
+      back(pts);
+      cur(X[i], Y[i], px(4));
+    }
+  }
 }
 
 /* ---------- keys: V G H K B pick a tool, L opens Layers, Esc closes Layers, clears the selection, returns to Goal ---------- */
-document.addEventListener('keydown',e=>{
-  const t=e.target,tag=t&&t.tagName;if(e.metaKey||e.ctrlKey||e.altKey||tag==='TEXTAREA')return;
-  if(e.key==='Escape'){if(!$('#layerpop').hidden){toggleLayerPop(false);$('#mv-layers').focus();return;}if(SEL){SEL=null;renderSelection();draw();return;}if(tapMode!=='wp')setTool('wp');return;}
-  if(tag==='INPUT'&&t.type!=='range'&&t.type!=='checkbox'||tag==='TEXTAREA'||tag==='SELECT'||AN.mode!=='sim')return;
-  const k=e.key.toLowerCase(),T=TOOLS.find(x=>x[2].toLowerCase()===k);
-  if(T){e.preventDefault();setTool(T[0]);}else if(k==='l'){e.preventDefault();toggleLayerPop();}
+document.addEventListener('keydown', e => {
+  const t = e.target,
+    tag = t && t.tagName;
+  if (e.metaKey || e.ctrlKey || e.altKey || tag === 'TEXTAREA') return;
+  if (e.key === 'Escape') {
+    if (!$('#layerpop').hidden) {
+      toggleLayerPop(false);
+      $('#mv-layers').focus();
+      return;
+    }
+    if (SEL) {
+      SEL = null;
+      renderSelection();
+      draw();
+      return;
+    }
+    if (tapMode !== 'wp') setTool('wp');
+    return;
+  }
+  if ((tag === 'INPUT' && t.type !== 'range' && t.type !== 'checkbox') || tag === 'TEXTAREA' || tag === 'SELECT' || AN.mode !== 'sim')
+    return;
+  const k = e.key.toLowerCase(),
+    T = TOOLS.find(x => x[2].toLowerCase() === k);
+  if (T) {
+    e.preventDefault();
+    setTool(T[0]);
+  } else if (k === 'l') {
+    e.preventDefault();
+    toggleLayerPop();
+  }
 });

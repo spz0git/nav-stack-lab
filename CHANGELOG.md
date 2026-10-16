@@ -10,6 +10,9 @@ Phase 3, code health (from the assessment of 2026-10-15):
 - `npm run lint`: ESLint with the shared scope's names generated from the manifest, so a misspelled cross-module
   reference fails statically instead of at runtime on that path; CI runs it. ESLint is a dev dependency only
   (`npm install`); the build and the page still need nothing.
+- The source is formatted with Prettier at 140 columns (`npm run fmt`, checked in CI); one reformat commit, listed
+  in `.git-blame-ignore-revs`. The lines go from 6,277 to 19,610 with no change in behaviour (the golden tests and
+  the browser gate are identical).
 
 ## v35 · 2026-10-16
 

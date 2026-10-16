@@ -1,5 +1,5 @@
-const NOTES={
- loc:`<p><b>Odometry</b> reports the applied speed and turn rate every 50 ms tick with two kinds of error. k is the <b>noise</b> slider and b the <b>calibration bias</b> slider; ×1 is the base model below.</p>
+const NOTES = {
+  loc: `<p><b>Odometry</b> reports the applied speed and turn rate every 50 ms tick with two kinds of error. k is the <b>noise</b> slider and b the <b>calibration bias</b> slider; ×1 is the base model below.</p>
 <div class="eq">v_meas = v·(1 + 0.02 b) + σ_v ε₁,     σ_v = k (0.1|v| + 0.02) m/s
 ω_meas = ω + 0.01 b·v + σ_ω ε₂,      σ_ω = k (0.2|ω| + 0.1|v| + 0.02) rad/s
 ε₁, ε₂ ~ N(0, 1), fresh every tick;   the filters assume k_filter = (assumed motion noise) × max(k, 0.25) and b = 0</div>
@@ -33,7 +33,7 @@ new:      m = p + r [cos(θ+b), sin(θ+b)],  P_mm = J_x P_xx J_xᵀ + J_z R J_z�
           J_x = [1 0 −r sin(θ+b); 0 1 r cos(θ+b)],  J_z = [cos(θ+b) −r sin(θ+b); sin(θ+b) r cos(θ+b)]
 update:   ẑ_j = h(p, θ, m_j) as for the EKF,  ∂h/∂m_j = −∂h/∂p,  P ← P − K S Kᵀ (symmetrized)</div>
 <p><b>Consistency check.</b> NEES = eᵀΣ⁻¹e for the 3-state error. A consistent filter averages about 3. Well above that means the filter is more confident than its error justifies.</p>`,
- per:`<p><b>Prior map</b> hands the planner the true static map. People never appear in it; they are only visible to the lidar.</p>
+  per: `<p><b>Prior map</b> hands the planner the true static map. People never appear in it; they are only visible to the lidar.</p>
 <p><b>Lidar mapping</b> casts 120 beams (360°, 8 m, 10 Hz) and updates a 0.1 m log-odds grid along each ray with Bresenham traversal. The grid is built in the <i>estimated</i> frame, so localization error shows up as smeared or doubled walls.</p>
 <div class="eq">l ← clamp(l + l_meas, ±4),  l_free = −0.4,  l_hit = +0.85
 occupied if l > 0.5;  unknown if l ≈ 0
@@ -47,7 +47,7 @@ z = p + noise (σ_z = 0.1 m);  gate d² = ‖z − p̂‖² / (P_pp + σ_z²) < 
 greedy nearest-neighbour assignment · confirm after 3 hits · coast up to 1 s unseen
 prediction  p(t) = p + v t,   r(t) = r + g t</div>
 <p><b>Ground truth</b> hands over true positions and velocities, which separates prediction error from tracking error. Hits that belong to confirmed tracks are taken out of the static obstacle set the local planners see; the predictions replace them. People do not react to the robot, so this is prediction without interaction.</p>`,
- mis:`<p>The behavior layer is a small state machine. Watch its state in the status bar and its transitions in the event log.</p>
+  mis: `<p>The behavior layer is a small state machine. Watch its state in the status bar and its transitions in the event log.</p>
 <div class="eq">IDLE ─Run→ PLAN ─ok→ DRIVE ─arrived→ PLAN (next) … DONE
                  └fail→ NO_PATH ─2 s→ PLAN   (skip after 3)
 DRIVE → PLAN on: path blocked in costmap · off path (estimate &gt; 1 m from it) · agent blocking (speed planner) · stuck (&lt;0.15 m in 5 s,
@@ -56,7 +56,7 @@ DRIVE → LOST if guard on and σ_pos > 1 m; LOST → PLAN when σ_pos &lt; 0.4 
 <p><b>Arrival is declared on the estimate</b> (0.25 m). The log reports the true distance at that moment, so localization error shows up as missed goals.</p>
 <p><b>Goals with a heading</b> (map tool H: press and drag the way the robot should face; the goal shows an arrow). The unicycle drives to the point, then stops and turns in place, ω = 2.5·(θ<sub>goal</sub> − θ̂) within the turn-rate limit, until the estimate is within 2° of the heading. The car arrives posed with Hybrid A* or Reeds–Shepp (within 0.2 m and 11°); A*, RRT* and Straight plan to a point, so the car reports the heading and does not wait for it.</p>
 <p><b>Ordering.</b> Greedy and Optimal build a cost matrix by running Dijkstra on the costmap from the robot and every goal. Optimal solves the open-path TSP by branch-and-bound enumeration, fine up to about 8 waypoints.</p>`,
- plan:`<p><b>Straight line</b> ignores obstacles. The event-driven blocked-path check is disabled for it, so it fails honestly.</p>
+  plan: `<p><b>Straight line</b> ignores obstacles. The event-driven blocked-path check is disabled for it, so it fails honestly.</p>
 <p><b>A*</b> on the 0.1 m costmap grid, 8-connected, no corner cutting.</p>
 <div class="eq">f = g + ε·h,  h = octile distance (admissible) = (max(Δi, Δj) + (√2 − 1) min(Δi, Δj)) · 0.1 m
 edge cost = length · (1 + 3 · penalty)
@@ -79,7 +79,7 @@ margin 0.15 m · analytic expansion: a Reeds–Shepp shot to the goal every 10 e
 <p>The two heuristics cover each other's blind spots. The 2D term sees walls but not turning; the Reeds–Shepp term sees turning but not walls. Collision checks use the car footprint (three covering circles) on the costmap distance field.</p>
 <p>To give a goal a heading, use the map's <b>Goal with heading</b> tool and drag in the direction the car should face. Goals without a heading are accepted at any heading.</p>
 <p><b>Agents and the global plan.</b> The global plan ignores them on purpose: people move faster than a global plan stays valid, and the speed planner handles them. Only when it reports an agent blocking the path does the replan add that agent's predicted positions over the next 2 s to the costmap, for that one plan.</p>`,
- ctl:`<p><b>Pure pursuit</b> steers toward a carrot point an arc length L ahead on the path.</p>
+  ctl: `<p><b>Pure pursuit</b> steers toward a carrot point an arc length L ahead on the path.</p>
 <div class="eq">L = L₀ + k·v,   α = angle to carrot in body frame
 κ = 2 sin α / L,   ω = v κ
 v ≤ √(a_lat/|κ|),  v ≤ √(2 a d_goal)
@@ -118,7 +118,7 @@ Stanley:       δ = (θ_path − θ) − atan2(k · e_left, 0.5 + |v|)    e_left
 J = Σ Δt [ (v_ref(s) − v)² + 0.3 a² + 3 · proximity ],   blocked cells forbidden
 the speed at t = 0.2 s caps the tracker's speed; the commanded curvature is kept</div>
 <p>a_c and b are the acceleration limit when limits are on, otherwise 0.8 and 1.5 m/s². If no profile avoids the agents the robot brakes. If that lasts about 1 s, or it has waited about 4 s, the behavior layer asks the global planner for a path around the agents' predicted positions. <b>Reactive stop</b> is the baseline without tracking or prediction: brake for any unexplained lidar hit in the footprint corridor ahead.</p>`,
- veh:`<p><b>Unicycle model</b>, a good first abstraction of a differential-drive robot.</p>
+  veh: `<p><b>Unicycle model</b>, a good first abstraction of a differential-drive robot.</p>
 <div class="eq">ẋ = v cos θ,  ẏ = v sin θ,  θ̇ = ω     (exact arc integration, Δt = 50 ms)
 x' = x + (v/ω)(sin(θ + ωΔt) − sin θ),  y' = y − (v/ω)(cos(θ + ωΔt) − cos θ),  θ' = θ + ωΔt   (straight line if ω ≈ 0)
 command → saturate → first-order lag τ → rate limits → integrate
@@ -133,5 +133,5 @@ integrate: ω = v tan δ / L, then the unicycle arc above (exact for v and δ he
 <div class="eq">reactive people:  v̇ = (v₀ e − v)/τ + Σ_j A e^((r + r_j − d_j)/B) n_j + A_r e^((r + r_robot − d)/B_r) n + A_w e^((r − D)/B_w) ∇D
 τ = 0.5 s;  A = 2, B = 0.35 m (people);  A_r = 3, B_r = 0.5 m (robot);  A_w = 2.5, B_w = 0.25 m (walls, D: distance field)
 v ← v + v̇ Δt, |v| ≤ 1.3 v₀;  p ← p + v Δt   e: unit vector to the goal, n: unit vector away from the other body</div>
-<p>The car cannot turn in place: heading changes only while it moves. Physics uses the exact body rectangle. Planners and DWA use three covering circles, which overestimates the bumpers by about 0.14 m. Odometry still reports (v, ω), so localization works unchanged.</p>`,
+<p>The car cannot turn in place: heading changes only while it moves. Physics uses the exact body rectangle. Planners and DWA use three covering circles, which overestimates the bumpers by about 0.14 m. Odometry still reports (v, ω), so localization works unchanged.</p>`
 };

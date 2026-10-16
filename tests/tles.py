@@ -1,11 +1,12 @@
 import asyncio,os
 from playwright.async_api import async_playwright
+from _browser import launch, page_url
 async def main():
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+        b=await launch(p)
         pg=await b.new_page(viewport={'width':1440,'height':900}); errs=[]
         pg.on('pageerror', lambda e: errs.append(str(e)))
-        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(500)
+        await pg.goto(page_url()); await pg.wait_for_timeout(500)
         n=await pg.evaluate("window.__an.LESSONS.length")
         for i in range(n):
             tries=await pg.evaluate(f"window.__an.LESSONS[{i}].tries.length")

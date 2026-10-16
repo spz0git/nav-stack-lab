@@ -2,14 +2,15 @@
 # and the lessons' derivation links (a.chref) open the right chapter at the right heading and come back to the lesson.
 import asyncio,os,sys
 from playwright.async_api import async_playwright
+from _browser import launch, page_url
 OUT=sys.argv[1] if len(sys.argv)>1 else None
 async def main():
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+        b=await launch(p)
         pg=await b.new_page(viewport={'width':1440,'height':900}); errs=[]
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
         pg.on('console', lambda m: errs.append(m.text) if m.type=='error' and 'ERR_TUNNEL' not in m.text else None)
-        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')); await pg.wait_for_timeout(600)
+        await pg.goto(page_url()); await pg.wait_for_timeout(600)
         await pg.click('#tab-learn'); await pg.wait_for_timeout(200)
         ids=await pg.evaluate("[...document.querySelectorAll('.chapter-open')].map(b=>b.dataset.ch)"); print('chapters listed',ids)
         for ch in ids:
@@ -45,7 +46,7 @@ async def main():
         # deep links on a phone
         pg2=await b.new_page(viewport={'width':390,'height':844},device_scale_factor=2)
         for h in ['#notes=ch6','#notes=ch2/4-the-kalman-update-derived']:
-            await pg2.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html')+h); await pg2.wait_for_timeout(700)
+            await pg2.goto(page_url(h)); await pg2.wait_for_timeout(700)
             print('deep link',h,'open:',await pg2.evaluate("!!document.querySelector('#learnview article.chapter')"),'scrollW',await pg2.evaluate("document.documentElement.scrollWidth"))
         if OUT: await pg2.screenshot(path=f'{OUT}/ch_mobile.png')
         print('ERRORS',errs[:5])

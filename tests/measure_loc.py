@@ -1,5 +1,6 @@
 import asyncio, json, sys
 from playwright.async_api import async_playwright
+from _browser import launch, page_url
 # Measures what the localization lessons' Try buttons show, headless: pose error, filter σ, NEES, rejected readings,
 # particle-filter N_eff and injections over time. A case: {name, lvl, set, secs, every, act, dense}.
 # act 'kidnap' or 'scatter' happens after 8 s (as tryGo does); dense = seconds sampled every second after the act.
@@ -28,11 +29,11 @@ async ({lvl, overrides, secs, every, act, dense}) => {
 async def main():
     cases=json.loads(sys.argv[1])
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+        b=await launch(p)
         pg=await b.new_page(viewport={'width':1280,'height':900})
         errs=[]
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+__import__('os').path.abspath('../dist/nav-stack-lab.html'))
+        await pg.goto(page_url())
         await pg.wait_for_timeout(800)
         for c in cases:
             r=await pg.evaluate(RUN,{'lvl':c['lvl'],'overrides':c.get('set',{}),'secs':c.get('secs',150),'every':c.get('every',10),'act':c.get('act'),'dense':c.get('dense')})

@@ -1,5 +1,6 @@
 import asyncio, json, os, sys
 from playwright.async_api import async_playwright
+from _browser import launch, page_url
 # Measures what the car-with-tyre-slip lessons' Try buttons show, headless, by pressing the button's cfg exactly.
 # A case: {name, cfg, secs} — cfg with sim:true runs in the simulator (tryGo) for secs and reports the run:
 #   goals, time, collisions, cross-track RMS and max, the largest a_y and its share of μg, the time spent above 0.8 μg
@@ -41,10 +42,10 @@ async ({cfg}) => {
 async def main():
     cases=json.loads(sys.argv[1])
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+        b=await launch(p)
         pg=await b.new_page(viewport={'width':1280,'height':900});errs=[]
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html'));await pg.wait_for_timeout(800)
+        await pg.goto(page_url());await pg.wait_for_timeout(800)
         expanded=[]
         for c in cases:   # {"lesson": title} expands to every Try button of that control lesson, pressed exactly
             if 'lesson' in c:

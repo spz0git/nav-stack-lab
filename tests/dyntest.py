@@ -1,5 +1,6 @@
 import asyncio, math, os, sys
 from playwright.async_api import async_playwright
+from _browser import launch, page_url
 # The car with tyre slip (P.carPhys 'dyn', core/vehicle.js), checked against what chapter 1 §4–5 predicts:
 #  1. stiff tyres: a whole L6 mission's true path matches the kinematic car (max gap ≲ 1 cm)
 #  2. steady circles: r/δ = v / (L + K_us v²) within 2 % (forward; reverse against the linear model with v_x < 0)
@@ -75,11 +76,11 @@ async ({set, cmds}) => {
 async def main():
     fails=[]
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+        b=await launch(p)
         pg=await b.new_page(viewport={'width':1280,'height':900})
         errs=[]
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
-        await pg.goto('file://'+os.path.abspath('../dist/nav-stack-lab.html'))
+        await pg.goto(page_url())
         await pg.wait_for_timeout(800)
         L=await pg.evaluate('window.__nav.P.wheelbase')
         await pg.evaluate("window.__nav.loadLevel(5)");L=await pg.evaluate('window.__nav.P.wheelbase')

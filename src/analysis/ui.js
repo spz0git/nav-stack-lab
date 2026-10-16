@@ -1118,6 +1118,39 @@ function pzEvent(e) {
     sy = m.yr[1] - ((py - m.y0) / (m.y1 - m.y0)) * (m.yr[1] - m.yr[0]);
   return [sx, Math.abs(sy)];
 } // the right half too: a what-if may be unstable
+// A design from numbers rather than a drag: pole placement by (ζ, ω_n) or LQR by (q_e, q_θ, r). The gains are the
+// delay-free textbook ones; the what-if then shows where the pair really lands with the hold, latency and lag in the loop.
+function anDesign(kind, a, b, c) {
+  const R = AN.res;
+  if (!R || R.loop === 'spd' || R.M.kind === 'none') return;
+  const d = kind === 'lqr' ? lqrGains(R.M, a, b, c) : placeGains(R.M, a, b);
+  if (!isFinite(d.tg[0]) || !isFinite(d.tg[1])) return;
+  anWhatIfAt(d.tg);
+  if (AN.wi) {
+    const w = AN.wi,
+      ask =
+        kind === 'lqr'
+          ? `LQR with q_e = ${a}, q_θ = ${b}, r = ${c} asks for a pair at ζ ${fmt(d.zeta, 2)}, ω_n ${fmt(d.wn, 2)} rad/s`
+          : `pole placement asks for a pair at ζ ${a}, ω_n ${b} rad/s`;
+    w.design = `${ask}. The textbook gains ignore the delays: K_e = ${fmt(d.Ke, 2)}, K_θ = ${fmt(d.Kth, 2)}. With the hold, latency and lag in the loop the same pair needs K_e = ${fmt(w.Ke, 2)}, K_θ = ${fmt(w.Kth, 2)}${w.clamped ? ', beyond what the Control sliders reach (Apply writes their ends)' : ''}.`;
+    renderAnalysis();
+  }
+}
+function wireAnDesign() {
+  const row = $('#an-design');
+  if (!row) return;
+  const num = id => parseFloat($('#' + id).value);
+  $('#d-place').onclick = () => anDesign('place', clamp(num('d-zeta') || 0.7, 0.05, 2), clamp(num('d-wn') || 2, 0.1, 30));
+  $('#d-lqr').onclick = () =>
+    anDesign('lqr', clamp(num('d-qe') || 1, 1e-4, 1e4), clamp(num('d-qth') || 0, 0, 1e4), clamp(num('d-r') || 0.1, 1e-4, 1e4));
+  row.querySelectorAll('input').forEach(
+    i =>
+      (i.onkeydown = e => {
+        if (e.key === 'Enter') (i.id === 'd-zeta' || i.id === 'd-wn' ? $('#d-place') : $('#d-lqr')).click();
+      })
+  );
+}
+wireAnDesign();
 function anWhatIfAt(tg) {
   const R = AN.res;
   if (!R || R.loop === 'spd' || R.M.kind === 'none') return;
@@ -1590,7 +1623,11 @@ function renderAnalysisCaptions(R) {
       ? `Seen from above: the ${isCar() ? 'car' : 'robot'} starts ${fmt(AN.stepAmp * 100, 0)} cm to the side of the path (the blue line) and drives right; the curve is its sideways offset, the green band ±2 %. Time is on the top axis. ${watch}`
       : `A ${biasUnit().val} ${biasUnit().unit} ${isCar() ? 'steering misalignment' : 'turn-rate bias'} acts from the start, with the ${isCar() ? 'car' : 'robot'} on the path: it drifts off and, without integral action, settles to the side, where the offset makes the controller cancel the error. ${watch}`;
   $('#fig-pz').hidden = false;
-  $('#cap-pz').innerHTML = anPzCaption(R);
+  $('#cap-pz').innerHTML =
+    anPzCaption(R) +
+    (AN.wi && AN.wi.design ? `<p><b>Design.</b> ${AN.wi.design} Apply writes them as rear-wheel feedback's k_e and k_θ.</p>` : '');
+  const dr = $('#an-design');
+  if (dr) dr.hidden = R.M.kind !== 'static' && R.M.kind !== 'dyn';
 }
 
 // The collapsed section for control engineers: block diagram, transfer function, margin chips, Bode, Nyquist, root locus

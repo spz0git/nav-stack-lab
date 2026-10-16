@@ -1,0 +1,41 @@
+# Changelog
+
+The version label in the page header (`v31 · 2026-10-16`) is the number used here; `src/version.json` holds it.
+Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
+
+## Unreleased
+
+Release series (open-source readiness, from the assessment of 2026-10-15):
+
+- The built page is a complete standalone HTML document (doctype, charset, viewport, `lang`, CSP); it renders from
+  any static host, not only inside the claude.ai artifact. `tests/wrap.py` is gone.
+- The four typefaces are embedded (`src/fonts/`, SIL OFL); the page makes no network request at runtime.
+- A public README with the GitHub Pages demo; maintainer rules in `docs/maintaining.md`.
+- Portable tests (`tests/_browser.py`, `tests/run_all.py`, `package.json`); Node golden tests over
+  `dist/core-worker.js` with a committed baseline (`tests/node/golden.json`); GitHub Actions for CI, the nightly
+  browser gate and the Pages deploy.
+- Lessons: the seed is pinned when a Try names a level, the order-dependent control Trys are self-contained, two
+  numeric slips fixed, one notation (Q measurement, M odometry, R process noise, b bearing), the PID row and the
+  kinematic sideslip number corrected.
+- Accessibility: light-mode amber darkened and the dimmed log lines and tab numbers made readable (WCAG AA), group
+  labels on the status strip and the transport bar.
+- Removed from the tree: `legacy/` (the v1–v7 patch scripts; in the history up to this commit) and
+  `docs/screenshots/` (40 MB of phase screenshots; kept on the `archive/screenshots` branch).
+
+## v31 · 2026-10-16
+
+L7, the moose test: a road with a box in the lane for the car with tyre slip; the MPC with the tyre model in its
+prediction (`mpcDyn`); a lidar safety stop (PR #42).
+
+## v30 · 2026-10-15
+
+v29 feedback: sensor settings on Localize and Perceive, the previous run on every tab, Analyze lateral derivations
+with the step test played back, Analyze legends, the planner's search step by step (PRs #38–#41).
+
+## v29 · 2026-10-15
+
+Car with tyre slip: a third vehicle (dynamic bicycle model, linear tyres with a friction limit) with Grippy and
+Slippery floor presets, sideslip on the map, slip signals and a grip-limit health light, Analyze with the tyres in the
+plant, three control lessons, chapter 1 with the lab's car (PRs #33–#37).
+
+Earlier versions: see `docs/roadmap.md` (phases 6 and 7, the enhancement plan v8–v13) and the git history.

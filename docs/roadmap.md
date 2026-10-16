@@ -126,7 +126,10 @@ A third vehicle option, so that the control lessons can show understeer, the cha
   the lidar-only map beats the beacon EKF's. D* Lite (plan lesson 7, ch4 §8): kept per goal in `S.dstar`, the same cost model as
   `gridSearch`; the honest result is that it only wins where changes are sparse (a static map with periodic replans),
   and loses under lidar mapping, whose inflation band changes thousands of cells per scan (a 0.1 tolerance on penalty
-  changes keeps its breathing out). Still open: velocity obstacles.
+  changes keeps its breathing out). Velocity obstacles (per lesson 6, ch4 §9, `agVO` in `core/agents.js`): sampled, not an LP, so it reads like the
+  lesson; measured against scripted people (who walk through the robot in an aisle: contacts no velocity avoids),
+  reacting people (none) and the shelves (the cones know no walls; the safety stop stops the mission too). Part A is
+  complete; what the four items showed about the lab is in their lessons.
 - The code behind every lesson (owner's direction: show the code and let the learner change it; "Your code" was a
   button with no explanation). A function marked `// @code <id> | <title>` … `// @end` in the source is a snippet; the
   build indexes the markers (`tools/code.mjs`) and the page cuts the text from its own script tag at runtime

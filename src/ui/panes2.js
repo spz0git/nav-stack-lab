@@ -55,7 +55,7 @@ const TAB_LAYERS = {
   per: ['lidar', 'cost', 'ghost', 'ghostrun', 'slip', 'frontier'],
   mis: ['ghostrun', 'slip', 'frontier', 'lidar'],
   plan: ['search', 'ghostrun', 'slip', 'frontier'],
-  ctl: ['dwa', 'look', 'trail', 'ghostrun', 'slip']
+  ctl: ['dwa', 'look', 'trail', 'ghostrun', 'slip', 'vo', 'agents']
 };
 let layersEdited = false,
   layersKey = '';
@@ -76,6 +76,7 @@ function layersPane() {
   const L = [
     ['frontier', 'Frontiers: known free cells next to unknown space, while exploring'],
     ['graph', 'Pose graph: keyframes and edges, loop closures in the accent colour'],
+    ['vo', 'Velocity obstacles: the cones, the command and the chosen velocity'],
     ['sweep', 'Experiment runs: the paths of the last experiment, coloured by the varied value'],
     ['ghost', 'True-map outline over the built map'],
     ['cost', 'Costmap inflation'],

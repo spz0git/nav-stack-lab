@@ -206,6 +206,49 @@ function draw() {
   drawOverlays(dpr, k, px);
   drawScaleBar(dpr, k, px);
 }
+// Velocity obstacles in world coordinates, scaled by τ: for each person a cone with its apex where the robot would be
+// if it moved with the person, tangent to the person's disc at τ; the tracker's command and the chosen velocity as
+// arrows of length τ·v from the robot (the command red when it lies in a cone)
+function drawVO(px) {
+  if (!LAYERS.vo || !S.vo || P.spd !== 'vo') return;
+  const V = S.vo,
+    e = S.est,
+    tau = V.tau;
+  ctx.lineWidth = px(1);
+  for (const k of V.cones) {
+    const Ax = e.x + tau * k.vx,
+      Ay = e.y + tau * k.vy,
+      Px = Ax + k.ax,
+      Py = Ay + k.ay,
+      d = hyp(k.ax, k.ay);
+    if (d <= k.R) continue;
+    const ang = Math.atan2(k.ay, k.ax),
+      half = Math.asin(k.R / d),
+      L = d + 3;
+    ctx.fillStyle = rgba(TOK.rose, 0.12);
+    ctx.strokeStyle = rgba(TOK.rose, 0.5);
+    ctx.beginPath();
+    ctx.moveTo(Ax, Ay);
+    ctx.lineTo(Ax + L * Math.cos(ang - half), Ay + L * Math.sin(ang - half));
+    ctx.lineTo(Ax + L * Math.cos(ang + half), Ay + L * Math.sin(ang + half));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(Px, Py, k.R, 0, TAU);
+    ctx.stroke();
+  }
+  const arrow = (ux, uy, color) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = px(2);
+    ctx.beginPath();
+    ctx.moveTo(e.x, e.y);
+    ctx.lineTo(e.x + tau * ux, e.y + tau * uy);
+    ctx.stroke();
+  };
+  arrow(V.pref[0], V.pref[1], rgba(isFinite(V.tHit) ? TOK.rose : TOK.ink, 0.8));
+  if (V.pick) arrow(V.pick[0], V.pick[1], rgba(TOK.accent, 0.9));
+}
 // The pose graph: keyframes as dots, odometry edges thin, loop closures in the accent colour
 function drawGraph(px) {
   if (!LAYERS.graph || !S.pg) return;
@@ -395,6 +438,7 @@ function drawGhostRun(dpr, k, px) {
   }
   drawFrontiers(px); // frontier exploration: the frontiers of the last pick (mission.js)
   drawGraph(px); // pose-graph SLAM: keyframes and edges (pgslam.js)
+  drawVO(px); // velocity obstacles: the cones and the chosen velocity (agents.js)
   drawCompare(px); // a run picked in Runs → Compare (runs.js)
   if (LAYERS.sweep) drawSweep(px); // the paths of an experiment's runs (experiments.js)
 }

@@ -16,7 +16,7 @@ async ({lvl, overrides, secs, seed, cfg}) => {
   const reasons={};for(const l of S.log){const m=/^Replan \(([^)]+)\)/.exec(l.msg);if(m)reasons[m[1]]=(reasons[m[1]]||0)+1;}
   const other=S.log.filter(l=>/no path|Skipping|Cusp|Contact|yield|Reached|complete|Explor|Frontier/i.test(l.msg)).map(l=>l.t.toFixed(1)+' '+l.msg).reverse();
   return{t:+S.t.toFixed(1),state:S.fsm.state,done:N.WPS.filter(w=>w.done&&!w.skipped).length,skip:N.WPS.filter(w=>w.skipped).length,coll:S.coll,ped:S.collPed,
-    minPed:isFinite(S.minPed)?+S.minPed.toFixed(2):null,dist:+S.dist.toFixed(1),plans,reasons,other,stats:S.planStats, tot:S.planTot};
+    minPed:isFinite(S.minPed)?+S.minPed.toFixed(2):null,dist:+S.dist.toFixed(1),plans,reasons,other,stats:S.planStats, tot:S.planTot, vo:S.voN||0, voStops:S.voStops||0};
 }'''
 async def main():
     cases=json.loads(sys.argv[1])
@@ -34,7 +34,7 @@ async def main():
                 if len(seeds)>1:
                     print('==',c.get('name',''),'seed',sd,[l for l in r['plans'] if 'RRT' in l][:1])
                 else:
-                    print('==',c.get('name',''),c.get('cfg') or ('L%d'%(c['lvl']+1),c.get('set',{})),{k:r[k] for k in ['t','state','done','skip','coll','ped','minPed','dist']},'replans',r['reasons'],'plans',r['tot'] and {k:(round(v) if k!='n' else v) for k,v in r['tot'].items()})
+                    print('==',c.get('name',''),c.get('cfg') or ('L%d'%(c['lvl']+1),c.get('set',{})),{k:r[k] for k in ['t','state','done','skip','coll','ped','minPed','dist','vo','voStops']},'replans',r['reasons'],'plans',r['tot'] and {k:(round(v) if k!='n' else v) for k,v in r['tot'].items()})
                     for l in r['plans']: print('   ',l)
                     for l in r['other'][:14]: print('      ',l)
         print('ERRORS:',errs[:5])

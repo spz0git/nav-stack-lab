@@ -451,6 +451,7 @@ const SCHEMA = {
             ]
           : [
               ['none', 'Ignore'],
+              ['vo', 'Velocity obstacles'],
               ['stop', 'Reactive stop'],
               ['st', 'Speed planning (ST graph)']
             ],
@@ -461,6 +462,14 @@ const SCHEMA = {
       text: () => 'Speed planning needs agent tracking: Perceive → Agent tracking.',
       show: () => AG_ST_CTL.includes(P.ctl) && P.spd === 'st' && !agOn()
     },
+    {
+      type: 'info',
+      text: () =>
+        `Each tracked person's cone of colliding velocities, within the horizon; a command inside one is moved to the nearest sampled velocity outside all of them.${S && S.voN ? ` This run: ${S.voN} interventions, ${S.voStops || 0} stops.` : ''}`,
+      show: () => P.spd === 'vo'
+    },
+    {k: 'voT', label: 'Velocity-obstacle horizon τ', min: 1, max: 6, step: 0.5, unit: 's', show: () => P.spd === 'vo'},
+    {k: 'voMargin', label: 'Clearance added to the radii', min: 0, max: 0.6, step: 0.05, unit: 'm', show: () => P.spd === 'vo'},
     {k: 'stMarg', label: 'Clearance kept from predicted agents', min: 0, max: 1, step: 0.05, unit: 'm', show: stActive},
     {
       type: 'info',

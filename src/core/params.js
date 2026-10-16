@@ -119,7 +119,7 @@ const PARAM_OPTS = {
   agents: ['off', 'truth', 'lidar'],
   agPred: ['cv', 'static', 'custom'],
   mis: ['sequential', 'greedy', 'optimal', 'explore'],
-  plan: ['straight', 'astar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'custom'],
+  plan: ['straight', 'astar', 'dstar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'custom'],
   hybH: ['both', '2d'],
   ctl: ['pp', 'rwf', 'stanley', 'pid', 'dwa', 'mpc', 'custom'],
   spd: ['none', 'stop', 'st'],

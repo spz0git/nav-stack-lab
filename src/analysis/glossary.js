@@ -735,7 +735,20 @@ const GLOSS = {
     'Iterative closest point: pair each point with its nearest in the other scan, solve the best rigid alignment of the pairs, repeat.',
     '',
     ['ICP']
-  ]
+  ],
+  dstar: [
+    'D* Lite',
+    'An incremental A* run from the goal: the search is kept between plans and only the cells a change touched are repaired.',
+    '',
+    ['D* Lite']
+  ],
+  rhs: [
+    'rhs',
+    "A cell's one-step lookahead: the best cost through any neighbour; where it differs from g the cell needs repair.",
+    '',
+    ['rhs', 'lookahead']
+  ],
+  km: ['k_m', "D* Lite's key offset: the heuristic change from the robot's motion, added once instead of re-keying the queue.", '', ['k_m']]
 };
 // Terms each lesson uses, in reading order (keyed by lesson title)
 // the car with tyre slip (lessons on the dynamic bicycle model)
@@ -860,6 +873,8 @@ const LESSON_TERMS = {
   'RRT*: sampling, rewiring, and luck': 'rrtstar samples parent rewire neigh asym rrad ntree seed',
   'Hybrid A*: planning for a car': 'hybrid heading minturn arcs reverse heur hcost eps dijkstra rs analytic steerlimit fulllock tracker',
   'Replanning and the behaviour layer': 'fsm replan lethal estimate speedplanner agent states costmap',
+  'D* Lite: repairing the plan instead of starting over':
+    'dstar rhs km astar heur expansions costmap lethal inflation penalty replan fsm eps node',
   'Frontier exploration: the robot picks its own goals':
     'frontier frontiercell floorseen logodds lethal inflation costmap fsm replan estimate',
   'Space-time A*: planning with time as a coordinate': 'sta refspeed horizon ijk kidx t dtst v0r cij pa rrobot speedplanner expansions',

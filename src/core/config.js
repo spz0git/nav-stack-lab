@@ -109,11 +109,20 @@ const PARAM_EFFECTS = [
       } else logE(`Goal order → ${v}`);
     }
   ],
-  [['plan', 'smooth'], () => requestReplan('planner changed')],
+  [
+    ['plan', 'smooth'],
+    () => {
+      S.dstar = null; // D* Lite's search is tied to its planner and ε
+      requestReplan('planner changed');
+    }
+  ],
   [
     ['eps', 'rrtIt'],
     (k, v, old, live) => {
-      if (!live) requestReplan('planner changed');
+      if (!live) {
+        S.dstar = null;
+        requestReplan('planner changed');
+      }
     }
   ],
   [

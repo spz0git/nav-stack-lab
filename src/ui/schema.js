@@ -317,6 +317,7 @@ const SCHEMA = {
       opts: () => [
         ['straight', 'Straight line'],
         ['astar', 'A*'],
+        ['dstar', 'D* Lite'],
         ['rrtstar', 'RRT*'],
         ...(isCar()
           ? [
@@ -326,6 +327,16 @@ const SCHEMA = {
           : [['stastar', 'Space-time A*']]),
         ['custom', 'Your code']
       ]
+    },
+    {
+      type: 'info',
+      text: () => {
+        const D = S && S.dstar;
+        if (!D)
+          return 'D* Lite keeps its search between plans: the first plan costs what A* costs, a replan only repairs the vertices the map change touched.';
+        return `The search is kept across the ${D.plans} plan${D.plans === 1 ? '' : 's'} on this goal; the last one${D.changed ? `, after ${D.changed} cells changed,` : ''} took ${D.exp} vertex update${D.exp === 1 ? '' : 's'}.`;
+      },
+      show: () => P.plan === 'dstar'
     },
     {
       type: 'btn',

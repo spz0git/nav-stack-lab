@@ -10,7 +10,7 @@ title: Sensor latency: stale readings, moving prediction
 ## Try: EKF, latency 0.2 s
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","sensLat":0.2},"tab":"veh","plot":"pos"}
 Setup: L3 with the EKF, beacons every 0.2 s delivered 0.2 s late. Vehicle tab, Position error plot.
-See: The pose error sits at 12 to 16 cm whenever the robot is driving, against 1 to 5 cm without latency, and the error is almost all along the direction of travel. The filter's σ stays at a few centimetres, so NEES reads 50 to 80 and the status strip flags it overconfident for the whole drive; the moment the mission completes and the robot stops, NEES drops to 2.7. All five goals are still reached, in the same time.
+See: The pose error sits at 10 to 17 cm whenever the robot is driving, against 1 to 7 cm without latency, and the error is almost all along the direction of travel. The filter's σ stays at a few centimetres, so NEES reads 25 to 110 (peaks near 200) and the status strip flags it overconfident for the whole drive; within about ten seconds of the mission completing and the robot stopping, NEES is back to 2 or 3. All five goals are still reached, in the same time.
 Shows: The same signature as odometry bias in the localization lessons, from a different cause: a reading that is right about a pose the robot no longer occupies. 0.8 m/s × 0.2 s = 16 cm is the whole effect, and it is invisible to the filter because it never enters any noise model. The mission survives because the error is constant and the planner does not care about 15 cm; a gate would.
 Predict: Beacon readings delivered 0.2 s late to the EKF at 0.8 m/s: how large will the position error be while driving?
 - A few centimetres: the filter averages the delay away
@@ -21,8 +21,8 @@ Answer: 1
 ## Try: Particle filter, latency 0.2 s
 cfg: {"sim":true,"level":4,"set":{"sensLat":0.2},"tab":"veh","plot":"pos"}
 Setup: L5 with its particle filter, lidar tracker and speed planner, everything delivered 0.2 s late.
-See: The pose error is 10 to 18 cm and NEES is in the hundreds. The tracker is where it shows: because every scan is shifted by the robot's motion since it was taken, a person's hits jump between scans whenever the robot turns, fail the gate, and start new tracks. The tracker creates dozens of confirmed tracks for four people over the run (37 at peak), the speed planner yields to agents numbered in the hundreds, and the mission replans 29 times instead of twice. It still completes, with two contacts.
-Shows: Latency is not one error, it is one per consumer. The particle filter copes, because its lidar term is tempered and injection repairs what the stale beacons break. The tracker cannot cope, because its gate is built from a 10 cm measurement noise and the latency shift is twice that. Any stack that fuses sensors at different latencies without timestamps builds ghosts.
+See: The pose error is 10 to 18 cm while driving and NEES is in the hundreds; three times, while the robot waits among people at 55 to 62 s, the particle filter is briefly lost (up to 1.3 m off) and snaps back. The tracker is where it shows: because every scan is shifted by the robot's motion since it was taken, a person's hits jump between scans whenever the robot turns, fail the gate, and start new tracks. The tracker confirms hundreds of tracks for four people over the run (37 at once at peak), the speed planner yields to agents numbered in the hundreds, and the mission replans 29 times instead of twice, 25 of them "relocalized" after the particle filter's jumps. It still completes, in about 130 s, with one contact (a person walking into the robot while it waits).
+Shows: Latency is not one error, it is one per consumer. The particle filter mostly copes, because its lidar term is tempered and injection repairs what the stale beacons break; each repair is a jump in the estimate that the planner answers with a replan. The tracker cannot cope, because its gate is built from a 10 cm measurement noise and the latency shift is twice that. Any stack that fuses sensors at different latencies without timestamps builds ghosts.
 Predict: Everything on the busy floor is delivered 0.2 s late. Which consumer suffers most?
 - The particle filter: the pose error grows to metres
 - None: 0.2 s is below every noise model
@@ -47,7 +47,7 @@ Note: Every reading is queued with a due tick; a reading whose tick has not come
 
 ## Think about
 Q: Why does the EKF's NEES recover when the robot stops but the map does not?
-A: The EKF's latency error is proportional to speed, so it vanishes at rest and the filter is instantly consistent again. The map keeps everything it was told: the walls drawn 24 cm too close are still there until enough free beams erase them, and the walls it failed to draw are still missing.
+A: The EKF's latency error is proportional to speed, so it vanishes at rest and the filter is consistent again within seconds. The map keeps everything it was told: the walls drawn 24 cm too close are still there until enough free beams erase them, and the walls it failed to draw are still missing.
 Q: Which is more dangerous: 0.2 s of latency on the beacons or on the lidar?
 A: On this floor, the lidar: the beacons bias the pose by 16 cm, which the planner tolerates, while the lidar shift breaks the people tracker's association and the planner then reacts to ghosts. In general, whichever sensor feeds the consumer with the tightest gate.
 Q: What would a lagged-state filter need to store?

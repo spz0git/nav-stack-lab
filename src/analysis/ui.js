@@ -1561,7 +1561,7 @@ function renderAnalysis() {
   $('#an-msg').textContent =
     AN.msg +
     (ms && ms.satT > 0
-      ? ` The steering-rate limit was active for ${fmt(ms.satT, 2)} s of the test${ms.satT > 0.3 ? ', so the response departs from the linear prediction' : ''}.`
+      ? ` The ${isCar() ? 'steering-rate' : 'turn-rate'} limit was active for ${fmt(ms.satT, 2)} s of the test${ms.satT > 0.3 ? ', so the response departs from the linear prediction' : ''}.`
       : '') +
     (ms && ms.coll ? ' The robot collided during the test.' : '');
   $('#an-step').disabled = AN.busy;

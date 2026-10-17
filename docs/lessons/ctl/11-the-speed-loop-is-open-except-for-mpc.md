@@ -24,7 +24,7 @@ Answer: 1
 ## Try: MPC with the lag modeled
 cfg: {"level":0,"set":{"ctl":"mpc","lag":0.3,"mpcLag":true},"loop":"spd","test":"spdstep"}
 Setup: The MPC on the same lagging actuator, lag in its model, Speed loop view, 0.2 m/s step.
-See: Now there are margins: crossover 3.1 rad/s, phase margin 71°, delay margin 0.40 s, M_s = 1.15, ζ = 0.83. The step rises in the same 0.65 s, overshoots 1 % and settles in 1.1 s.
+See: Now there are margins: crossover 3.1 rad/s, phase margin 71°, delay margin 0.40 s, M_s = 1.15, ζ = 0.83. The model's step rises in the same 0.65 s, overshoots 1 % and settles in 1.1 s; the simulator's is a little slower, 0.80 s to rise and 1.4 s to settle, with no overshoot.
 Shows: A closed loop around the same actuator reaches the reference in the same time, because the actuator still sets the pace, but it is now a loop: a biased or slow actuator would be corrected, and the price is the usual one, margins to keep. The MPC's speed gains come from the same cost weights as its lateral gains, so Q_v is where this loop is tuned.
 Predict: The MPC closing a speed loop around the same actuator: how fast will the step rise compared with the open chain?
 - Much faster: feedback beats the lag

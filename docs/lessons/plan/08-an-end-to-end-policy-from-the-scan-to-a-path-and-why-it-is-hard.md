@@ -13,7 +13,7 @@ in the loop: pts = e ⊕ 4·f(x),  lethal points snapped to the nearest free cel
 ## Try: The open floor, where it works
 cfg: {"sim":true,"level":0,"set":{"plan":"policy"},"tab":"plan"}
 Setup: L1, the open floor the policy was trained on, with the level's four goals. Plan tab.
-See: All four goals in 44.9 m, the same as A*, no collision, and a path on the map that bends around the pillars the way A*'s did. The Plan tab counts a few waypoints moved out of inflated obstacles over the run.
+See: All four goals in 44.9 m, the same as A*, no collision, and a path on the map that bends around the pillars the way A*'s did. The safety layer never has to move a waypoint on this floor, so the Plan tab shows no count.
 Shows: Where the demonstrations cover the situations, imitation works, and the map is a learned function of the scan: no grid, no search, a tenth of a millisecond per plan. Watch the eight points refresh every half second.
 Predict: The busy floor, L5, which the policy never saw, with the speed planner handling the people. Goals?
 - Four of five: open aisles look like the training levels, and the people are not its problem
@@ -24,7 +24,7 @@ Answer: 0
 ## Try: A floor it never saw
 cfg: {"sim":true,"level":4,"set":{"plan":"policy","spd":"st"},"tab":"plan"}
 Setup: L5 with the speed planner, the policy as the global planner.
-See: Four of five goals, 79 m, one contact with a person and two brushes with shelves; A* with the same speed planner reaches five with two contacts. The fourth goal is given up after the policy pins the robot against a shelf end.
+See: Four of five goals, 79 m, no contact with a person and two brushes with shelves; A* with the same speed planner reaches five with one contact. The fourth goal is given up after the policy pins the robot against a shelf end.
 Shows: Generalization to a new floor of the same kind. The scan features are local, and wide aisles with shelves look like what it learned from, so it mostly drives; the failure is the one it has everywhere, a corner clipped by 30 or 50 cm. The people it leaves to the speed planner, which is the modular design: the learned block does one job.
 Predict: L2, the warehouse aisles it was trained on. Goals out of four?
 - Four: it was trained there
@@ -38,15 +38,15 @@ Setup: L2, a training level, the policy as the planner.
 See: At 4 s the robot collides with the first shelf's end: the policy's path cuts the corner the expert went around, the safety layer moves the points out of the inflation but the robot is already pinned, and the tracker pushes forward against the shelf until the goal is given up as stuck at 20 s. No goal of four, three collisions; A* takes all four in 59 m.
 Shows: Compounding error in one picture. The policy's open-loop error on held-out expert moments is 9 cm at the first point and 66 cm at the eighth; at an aisle's entrance 9 cm is enough to touch, and after the touch the robot is in a state no demonstration showed, where the policy keeps asking for forward. The expert never collided, so the data has no example of backing out.
 Predict: Point the policy at a subgoal 3 m along the A* route instead of the goal. Does it get through the aisles?
-- No better: the failure is the first metre of the corner, not the long-range direction
-- Yes: with the global part taken away the policy only has to avoid
+- Hardly: one goal instead of none; the failure is the first metre of each corner, not the long-range direction
+- Yes, all four: with the global part taken away the policy only has to avoid
 - Worse: two planners fight
 Answer: 0
 
 ## Try: A classical subgoal
 cfg: {"sim":true,"level":1,"set":{"plan":"policy","policyGoal":"subgoal"},"tab":"plan"}
 Setup: L2 with the hybrid: A* finds the route, the policy is pointed at the point 3 m along it and drives.
-See: One goal of four, two collisions: the same corner, the same pin. The subgoal lies around the shelf end, the policy still cuts the corner on the way to it.
+See: One goal of four, two collisions. The first corner goes better this time and the first goal is reached at 12 s, but at 16 s, on the way to the second, the robot is pinned against a shelf again: the subgoal lies around the shelf end, and the policy still cuts the corner on the way to it.
 Shows: The hybrid fixes a different failure, the long-range one, where a reactive policy drives at a goal behind a wall. The failure here is local: the imprecision of an imitated path at a corner, and that needs more data near corners, a better network, or a safety layer that understands recovery, not a better goal.
 Predict: L4, the building with rooms and doors, with the policy pointed at the goal. Goals?
 - One or none: doors are corners twice over, and a goal behind a wall points the policy at the wall

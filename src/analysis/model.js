@@ -784,7 +784,8 @@ function runStepTest() {
       for (let i = 0; i < N; i++) {
         benchTick(B, null);
         const e = benchErr(B) - B.ess;
-        if (isCar() && Math.abs(B.robot.d - lastD) / DT >= P.steerRate * 0.98) satT += DT;
+        // the actuator limit in force: the car's steering rate, the unicycle's turn rate
+        if (isCar() ? Math.abs(B.robot.d - lastD) / DT >= P.steerRate * 0.98 : Math.abs(B.robot.w) >= P.wmax * 0.98) satT += DT;
         lastD = B.robot.d;
         out.push([B.t, kind === 'offset' ? e / amp : e / bu.toModel(bu.val)]);
         const s = along();

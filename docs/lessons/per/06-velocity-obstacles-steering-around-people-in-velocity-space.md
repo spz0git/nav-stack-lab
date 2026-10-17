@@ -7,15 +7,15 @@ title: Velocity obstacles: steering around people in velocity space
 VO_a = { u : the ray hits within τ }   a cone with apex v_a tangent to the disc of radius R at d, cut by the disc of radius R/τ at d/τ
 u* = argmin |u − u_cmd|² over the samples outside every VO_a;   none free → stop</div>
 <p><b>Where it comes from.</b> Fiorini and Shiller's velocity obstacles (1998); the quadratic is the ray-disc intersection written out, and the cone is what that quadratic says over all <i>u</i>. Reciprocal velocity obstacles (van den Berg et al. 2008) split the avoidance between two parties that both run the method; the lab's people do not run it, which is the point of the last experiments. <a class="chref" href="#notes=ch4/9-velocity-obstacles-avoiding-people-in-velocity-space">The cone, the quadratic, the sampling and the measured runs: chapter 4 §9</a></p>
-<p><b>What the lab does.</b> Control → Response to agents → Velocity obstacles, for the path trackers. The Velocity obstacles layer draws each person's cone in world coordinates scaled by τ, the tracker's command as an arrow (red when it lies in a cone) and the chosen velocity in the accent colour; the Control tab counts the interventions and the stops. The horizon τ and the clearance added to the radii are sliders. The numbers below are L5, the busy floor, at seed 7 over 150 s with pure pursuit and lidar tracking; "contacts" is the number of times the robot and a person overlap.</p>
+<p><b>What the lab does.</b> Control → Response to agents → Velocity obstacles, for the path trackers. The Velocity obstacles layer draws each person's cone in world coordinates scaled by τ, the tracker's command as an arrow (red when it lies in a cone) and the chosen velocity in the accent colour; the Control tab counts the interventions and the stops. The horizon τ and the clearance added to the radii are sliders. The numbers below are L5, the busy floor, at seed 7 with pure pursuit and lidar tracking; "contacts" is the number of times the robot and a person overlap, counted up to Mission complete (a scripted person who later walks into the parked robot is left out).</p>
 
 ## Try: Ignore the people, for reference
 cfg: {"sim":true,"level":4,"set":{"spd":"none"},"tab":"ctl"}
 Setup: L5 with the trackers ignoring the agents: the five goals, 83 m, with people walking their fixed segments through the aisles.
-See: Four contacts, at 51, 54, 79 and about 100 s, all five goals in 123 s. The speed planner on the same run: two contacts, four yields.
-Shows: The reference, and the kind of people: scripted ones, who walk through the robot as if it were not there. Half the contacts are people stepping out from behind shelves, which no response can see coming.
+See: Three contacts, at 51, 54 and 79 s, all five goals in 106 s. The speed planner on the same run: one contact, four yields.
+Shows: The reference, and the kind of people: scripted ones, who walk through the robot as if it were not there. None of the contacts is a surprise: each person had been in view of the lidar, and tracked, for four to eight seconds before the robot drove into them.
 Predict: Turn velocity obstacles on, horizon 3 s. How many contacts?
-- About the same as the speed planner, two or three: the people from behind shelves remain
+- One or two, about the speed planner's: people walking straight at the robot in a corridor remain
 - None: a cone per person is a complete answer
 - More: the detours walk into other people
 Answer: 0
@@ -23,8 +23,8 @@ Answer: 0
 ## Try: Velocity obstacles, 3 s horizon
 cfg: {"sim":true,"level":4,"set":{"spd":"vo"},"tab":"ctl","layers":{"vo":true,"agents":true}}
 Setup: The same run with velocity obstacles, τ = 3 s, 0.2 m of clearance. Velocity obstacles layer on.
-See: 145 interventions and 31 stops over the run, three contacts instead of four, the same 84 m and all five goals. Watch an aisle encounter: the command arrow turns red as it enters a cone, the chosen velocity swings 30 or 40° to the side, and the robot slides past the person rather than braking behind them.
-Shows: Steering around works where there is room to steer. The contact that remains at 55 s is a scripted person walking straight down a one-metre aisle at 1.2 m/s: every forward and sideways velocity collides, the robot stops, and the person walks into it. Backing away at 0.3 m/s would not escape either; nothing short of leaving the aisle would, and velocity obstacles know nothing about the shelves.
+See: 145 interventions and 31 stops over the run, two contacts instead of three, the same 84 m and all five goals. Watch an aisle encounter: the command arrow turns red as it enters a cone, the chosen velocity swings 30 or 40° to the side, and the robot slides past the person rather than braking behind them.
+Shows: Steering around works where there is room to steer. The two contacts that remain, at 55 and 81 s, are scripted people walking along a corridor straight at the robot, at 0.6 and 0.8 m/s: every forward and sideways velocity collides, the robot stops, and the person walks into it. Backing away at 0.3 m/s would not escape either; nothing short of leaving the corridor would, and velocity obstacles know nothing about the shelves.
 Predict: Shorten the horizon to 2 s. Contacts?
 - Fewer: later, sharper detours that the aisle has room for
 - More: the robot reacts too late
@@ -34,11 +34,11 @@ Answer: 0
 ## Try: Velocity obstacles, 2 s horizon
 cfg: {"sim":true,"level":4,"set":{"spd":"vo","voT":2},"tab":"ctl","layers":{"vo":true,"agents":true}}
 Setup: τ = 2 s.
-See: 116 interventions, 17 stops, two contacts, 84 m, five goals. The detours start later and swing less, and one of the two remaining contacts of the 3 s run is avoided because the earlier, wider detour had put the robot in a worse place when the person turned.
+See: 116 interventions, 17 stops, one contact, 84 m, five goals. The detours start later and swing less, and the 3 s run's contact at 81 s does not happen; the one at 55 s, the person walking straight at the robot along the top corridor, remains.
 Shows: The horizon is a bet on how long the person keeps their velocity. A long τ reacts to collisions that would never happen because the person turns first, and reacts early, which in an aisle can mean committing to the wrong side; a short one reacts to what is about to happen. Two to three seconds is what the crowd-simulation literature settled on for walking people.
 Predict: Make the people react (social forces, lesson 5), keep τ = 3 s. Contacts?
 - None: two parties avoiding each other is what the cone assumes, and more
-- The same two or three: the cones do not know the people react
+- The same one or two: the cones do not know the people react
 - More: both swerve the same way and dance
 Answer: 0
 
@@ -70,7 +70,7 @@ Note: voHits is the quadratic of the lesson: the discriminant says whether the r
 ## Think about
 Q: The cone's apex sits at the person's velocity, not at the robot. Why?
 A: Because what matters is the relative velocity. A robot that moves exactly like the person never changes its distance to them, so that velocity is the one that cannot collide, the apex; every velocity whose difference from it points into the disc does. Drawing the cones in the world, as the layer does, means placing the apex where the robot would be in τ if it moved with the person.
-Q: With scripted people the contacts went from four to two or three; with reacting people to zero. What does a real robot's crowd look like?
+Q: With scripted people the contacts went from three to one or two; with reacting people to zero. What does a real robot's crowd look like?
 A: Mostly reacting: people do not walk into robots, and a planner that assumes they keep their velocity is pessimistic in exactly the way that makes it swerve too much, then swerve back. That is why the field moved from VO to reciprocal VO and ORCA, which assume the other party does half the work, and why some stacks now learn the share from data.
 Q: The lab samples 76 velocities; ORCA solves a small linear program instead. What is the difference in practice?
 A: ORCA turns each cone into a half-plane constraint and finds the nearest allowed velocity exactly, in microseconds, for hundreds of neighbours; sampling finds the nearest of a few dozen guesses and can miss a narrow gap between two cones. Sampling is easier to read and to combine with other costs, which is why DWA samples; the LP is what you run at scale.

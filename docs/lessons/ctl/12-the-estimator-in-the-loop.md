@@ -12,7 +12,7 @@ the model's L(jω) describes e → u; the injection measures the whole chain, es
 ## Try: EKF in the loop, step test
 cfg: {"level":0,"set":{"ctl":"pp","loc":"ekf","odoK":1},"useEst":true,"test":"step","stepKind":"offset","stepAmp":0.2}
 Setup: Pure pursuit on the diff-drive, the EKF with beacons as the localizer, a 0.2 m step test run through the estimate.
-See: The model predicts 4.3 % overshoot and settling in 4.7 s; the measured true error overshoots 12.8 % and takes 6.6 s to settle within 2 %, ending about 9 % off, where the estimate happens to sit when the window closes. The response is visibly jerkier than the ground-truth version.
+See: The model predicts 4.3 % overshoot and settling in 4.7 s; the measured true error overshoots 12.8 % and has not settled within 2 % when the 6.6 s window closes: it ends about 9 % off, where the estimate happens to sit. The response is visibly jerkier than the ground-truth version.
 Shows: The loop is doing exactly what it should with the information it has. Every beacon update moves the estimate a few centimetres, the controller treats each move as a path error and corrects it, and the true position follows the estimate's jumps. The extra overshoot is not a controller problem; it is the estimator's noise passing through the loop's sensitivity function, and the cure is a better estimate or a less aggressive loop, not a different tracker.
 Predict: The step test through the EKF estimate: how will the measured true error compare with the model?
 - On the model: the EKF is accurate to centimetres
@@ -34,7 +34,7 @@ Answer: 0
 ## Try: Dead reckoning in the loop
 cfg: {"level":0,"set":{"ctl":"pp","loc":"dr","odoK":2},"useEst":true,"test":"step","stepKind":"offset","stepAmp":0.2}
 Setup: The same step test with dead reckoning on odometry noise ×2 as the localizer.
-See: The measured true error overshoots 21 % and never settles: by the end of the window it is 2.5 times the step and still drifting. The controller is tracking the path perfectly in its own estimated frame.
+See: The measured true error overshoots 21 % and never settles: by the end of the window it is more than 2.5 times the step (2.8 at the last sample) and still drifting. The controller is tracking the path perfectly in its own estimated frame.
 Shows: A loop closed on a drifting estimate drives the robot wherever the estimate drifts, with full confidence. Nothing in the controller can detect it, because from the controller's side the error is zero. This is the formal reason the localization chapters come first: the loop regulates e_est, and e_est is only as good as chapter 2 makes it.
 Predict: A step test with dead reckoning on noisy odometry: what will the true error do?
 - Settle with a larger overshoot, like the EKF

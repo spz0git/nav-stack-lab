@@ -16,7 +16,7 @@ Setup: L5 with the prior map, the clustering detector of lesson 3 (hits the map 
 See: 1 034 detections over the run, precision 0.92, recall 1.00; the tracks' velocity error 0.26 m/s RMS; one contact.
 Shows: With a good map the rule is nearly perfect: a hit either lies on a wall or it does not. This is the standard the learned detector has to be measured against, and it is a high one.
 Predict: Switch to lidar mapping, so the robot builds the map as it drives. What does the rule do?
-- It fails at first and recovers once the walls have been seen a few times: thousands of false detections meanwhile
+- It drowns: thousands of false detections from walls the map has not settled yet, for the whole run
 - Nothing changes: the walls are seen before any person
 - It stops detecting: unknown space explains everything
 Answer: 0
@@ -35,7 +35,7 @@ Answer: 0
 ## Try: The learned detector, building its own map
 cfg: {"sim":true,"level":4,"set":{"agents":"learned","spd":"st","per":"mapping"},"tab":"per","layers":{"lidar":true,"agents":true}}
 Setup: Perceive → Agent tracking → Learned detector, lidar mapping on. Lidar layer on: hits in rose are beams the network calls a person.
-See: 1 017 detections, precision 0.66, recall 0.70, velocity error 0.40 m/s, four goals, no contact. Watch the colours: a person's arc of hits turns rose as they walk, a shelf end stays amber even before the map knows it; the misses are people seen edge-on at the far end of an aisle, two or three beams.
+See: 1 017 detections, precision 0.66, recall 0.70, velocity error 0.40 m/s, four goals, one contact. Watch the colours: a person's arc of hits turns rose as they walk, a shelf end stays amber even before the map knows it; the misses are people seen edge-on at the far end of an aisle, two or three beams.
 Shows: Ten times the precision of the rule without a map, at the cost of some recall. What the network learned is visible in the colours: a short convex arc whose range changes when the robot's own motion is taken out. It knows nothing about this building; it was trained on simulated scans with the true labels, and it transfers to a run it never saw.
 Predict: Give the learned detector the prior map. Does it get better?
 - A little: 0.73 precision, but it does not use the map, so not much

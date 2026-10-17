@@ -14,19 +14,19 @@ move cost = Δt·(1 or √2) + 0.3·Δt·penalty,   wait = 1.2·Δt;   h = octil
 ## Try: Space-time A*
 cfg: {"sim":true,"level":4,"set":{"plan":"stastar"},"tab":"plan","layers":{"search":true},"searchStep":true}
 Setup: L5, the busy floor, with the space-time planner and the search layer on.
-See: Seven plans with 200 to 3 500 expansions each, fewer than plain A* on the same legs because the cells are twice as large. Once, at 106 s, the planner escalates with an agent-blocking replan and then reports "no space-time route within the horizon"; the mission retries two seconds later and continues. Five goals in 128 s with two contacts, the same two as A* with the agent layer.
-Shows: On this floor the contacts come from people stepping out from behind shelves inside the planner's reaction time, and no planner that works from predictions can see them. Space-time A* changes the route where the route is the problem, in doorways and narrow aisles with a person coming the other way; here the speed planner was already resolving most encounters by slowing, so the gain is small. The failure to find a route within the horizon is honest: the horizon was full.
+See: Seven plans with 200 to 3 500 expansions each, fewer than plain A* on the same legs because the cells are twice as large. Once, at 106 s, the planner escalates with an agent-blocking replan and then reports "no space-time route within the horizon"; the mission retries two seconds later and continues. Five goals in 128 s with one contact, at 108 s, in the same encounter that filled the horizon; A* with the agent layer also makes one, in a different encounter at 52 s.
+Shows: On this floor each planner makes one contact, in a different encounter: a contact happens where a person moves inside the planner's reaction time and away from what was predicted, and no planner that works from predictions can plan around that. Space-time A* changes the route where the route is the problem, in doorways and narrow aisles with a person coming the other way; here the speed planner was already resolving most encounters by slowing, so the gain is small. The failure to find a route within the horizon is honest: the horizon was full.
 Predict: Space-time A* on the busy floor against plain A* with the agent layer: how do the contacts compare?
 - Fewer: the planner routes around predicted people
-- The same: the contacts come from people it could not see
+- The same number: the contacts come from people it could not predict
 - More: the schedule is stale by the time the robot arrives
 Answer: 1
 
 ## Try: A* with the agent layer
 cfg: {"sim":true,"level":4,"set":{"plan":"astar"},"tab":"plan","layers":{"search":true},"searchStep":true}
 Setup: Plain A* on the same floor; people enter the costmap only when the speed planner escalates.
-See: Five plans of 1 400 to 5 900 expansions, two agent-blocking replans, five goals in 121 s with two contacts. The route is spatial only; every encounter is handled by the speed planner until it gives up and asks for a replan.
-Shows: Faster mission, same contacts: the comparison that keeps a new planner honest. A richer planner is worth its complexity only where the simpler one fails, and this floor, with wide aisles and few people, is not that place. Narrow the aisles or add people and the ranking changes; the lab cannot do that yet, which is a known limit.
+See: Five plans of 1 400 to 5 900 expansions, two agent-blocking replans, five goals in 121 s with one contact. The route is spatial only; every encounter is handled by the speed planner until it gives up and asks for a replan.
+Shows: Faster mission, as many contacts: the comparison that keeps a new planner honest. A richer planner is worth its complexity only where the simpler one fails, and this floor, with wide aisles and few people, is not that place. Narrow the aisles or add people and the ranking changes; the lab cannot do that yet, which is a known limit.
 Predict: Plain A* on the same floor, with people entering the costmap only on escalation: how does the mission time compare with space-time A*?
 - Shorter
 - About the same
@@ -36,10 +36,10 @@ Answer: 0
 ## Try: Space-time A*, reactive people
 cfg: {"sim":true,"level":4,"set":{"plan":"stastar","people":"reactive"},"tab":"plan"}
 Setup: The space-time planner against people who step aside.
-See: No contacts, closest approach 0.43 m, five goals in 132 s. Around 73 s the particle filter briefly loses the robot and the mission replans six times in two seconds as the estimate settles ("relocalized"), then carries on.
-Shows: The combination that looks best is the one with the most help: predictions the planner can trust plus people who absorb the error. The relocalization episode is unrelated to the planner and shows in every run on this level with a different timing; a run is a sum of everything in the stack, and the planner is one term.
+See: No contacts, closest approach 0.59 m, five goals in 132 s. Around 73 s the particle filter briefly loses the robot and the mission replans six times in two seconds as the estimate settles ("relocalized"), then carries on.
+Shows: The combination that looks best is the one with the most help: predictions the planner can trust plus people who absorb the error. The relocalization episode is unrelated to the planner: the same floor and seed with scripted people has none, with either planner; a run is a sum of everything in the stack, and the planner is one term.
 Predict: Space-time A* against reactive people: what will the contact count be?
-- Still two: the planner, not the people, sets the floor
+- Still one: the planner, not the people, sets the floor
 - Higher: the planner and the person dodge into each other
 - Zero
 Answer: 2

@@ -32,7 +32,7 @@ Answer: 2
 cfg: {"level":0,"set":{"ctl":"pp","ppL0":0.1,"ppK":0,"latency":0.1}}
 Setup: The same fast loop with two ticks of latency.
 See: Still N = 2, Z = 2, phase margin −60°; the curve has rotated far past −1 and the unstable poles have moved further right (ζ = −0.35). M_s is no longer meaningful.
-Shows: More delay does not add more unstable poles here, it makes the existing pair grow faster: the oscillation at roughly the crossover frequency doubles in amplitude every cycle instead of every few. The Nyquist count tells you whether; the pole positions tell you how fast.
+Shows: More delay does not add more unstable poles here, it makes the existing pair grow faster and swing slower: at one tick the pair sits at 1.5 ± 16.7j and the oscillation grows about 1.8 times per cycle; at two ticks it sits at 4.4 ± 11.8j and grows about tenfold per cycle (e^(2π·4.4/11.8)), at 11.8 rad/s instead of 16.7. The Nyquist count tells you whether; the pole positions tell you how fast.
 Predict: Doubling the latency to two ticks: what changes in the count and the poles?
 - N rises to 4: two more unstable poles
 - The curve rotates right round and N returns to 0

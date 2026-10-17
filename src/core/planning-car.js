@@ -168,6 +168,7 @@ function hybridAstar(e, wp) {
         shots++;
         const cs = RS.solve([x, y, th], q1, R);
         for (let ci = 0, tried = 0; ci < cs.length && tried < 4 && !tail; ci++) {
+          if (!P.revOK && cs[ci].L.some(d => d < -1e-9)) continue; // Allow reversing off: forward-only shots, as the expansions
           // reject shots with gear legs too short to execute (< 0.25 m)
           let short = false,
             acc = 0,

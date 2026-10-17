@@ -12,7 +12,7 @@ L(s) = (2v₀²/L_d²) · (1 + s·L_d/v₀) / s² · e^(−sT_d)</div>
 cfg: {"level":0,"set":{"ctl":"pp","ppL0":1.5,"ppK":0}}
 Setup: Lookahead fixed at 1.5 m, diff-drive at 0.8 m/s.
 See: Crossover 1.17 rad/s (2.2 × 0.8/1.5 = 1.17), phase margin 63.9°, delay margin 0.95 s, M_s = 1.03, ζ = 0.71. The Bode magnitude crosses 0 dB low and the phase is still far from −180° there.
-Shows: A long lookahead is a slow loop: it would take about 4 s to settle a step, and it corrects errors gently, cutting corners on a curvy path. In exchange it tolerates nearly a second of extra delay. The damping is the same 0.71 it always is.
+Shows: A long lookahead is a slow loop: it takes about 8 s to settle a step (7.8 s predicted, 7.85 s in the simulator), and it corrects errors gently, cutting corners on a curvy path. In exchange it tolerates nearly a second of extra delay. The damping is the same 0.71 it always is.
 Predict: Lengthening the lookahead to 1.5 m: what happens to the crossover and the delay margin?
 - Crossover falls; delay margin grows to nearly a second
 - Crossover rises; delay margin shrinks
@@ -33,20 +33,20 @@ Answer: 1
 ## Try: Fast loop, step test
 cfg: {"level":0,"set":{"ctl":"pp","ppL0":0.1,"ppK":0},"test":"step","stepKind":"offset","stepAmp":0.2}
 Setup: The step test on the fast loop (0.1 m lookahead): a 0.2 m sideways shift of the path, run in the full simulator.
-See: The dashed amber measured response lands on the linear prediction: 2 % overshoot measured against 4.6 % predicted, rise 0.55 s, settled in 1.2 s. The two curves differ only where the turn-rate limit briefly clips the first command.
-Shows: The linear model is a good model of the simulator for small signals, which is the whole justification for analyzing a nonlinear robot with Bode plots. The small-signal limit is tested in the linear-versus-nonlinear lesson; here, 0.2 m is small.
+See: The dashed amber measured response is much slower than the linear prediction: rise 0.55 s against 0.15 s, settled in 1.2 s against 0.45 s, 2 % overshoot against 4.6 %. The message under the plot reads "The turn-rate limit was active for 0.30 s of the test."
+Shows: At 160 rad/s of turn rate per metre of offset, a 0.2 m step asks for 32 rad/s, and the robot can turn at 1.8: for the first 0.3 s the command is pinned at the limit and the error closes at the rate the limit allows, not the rate the model assumes. The linear model is a model of the simulator for small signals, and "small" depends on the gains: the same 0.2 m step on the L1 default lookahead lands on its prediction (rise 1.65 s against 1.7 s), while this loop saturates even at 5 cm. A fast loop has a small linear range as well as a small delay budget. The linear-versus-nonlinear lesson takes this further.
 Predict: The 0.2 m step on the fast loop in the full simulator: how will the measured response compare with the prediction?
 - It rings: the simulator has delays the model lacks
 - Much slower: the turn-rate limit dominates
 - It lands on the prediction, with a few per cent overshoot
-Answer: 2
+Answer: 1
 
 ## Code: ctlPP, the carrot and the curvature
 snippet: pp
 focus: const Ld = Math.max(0.1, P.ppL0 + P.ppK * Math.abs(S.odo.v)); … alpha = wrap(Math.atan2(dy, dx) - thv);
 focus: const kap = (2 * Math.sin(alpha)) / L;
 example: ctl/pp
-Note: The look-ahead distance, the angle α to the carrot and the one-line pure-pursuit law, κ = 2 sin α / L. Edit and run: the pure-pursuit example; make L (its look-ahead) 0.4 and then 1.6 and watch the PD gains of the lesson change in the Analyze view.
+Note: The look-ahead distance, the angle α to the carrot and the one-line pure-pursuit law, κ = 2 sin α / L. Edit and run: the pure-pursuit example; make L (its look-ahead) 0.4 and then 1.6 and compare the runs. The Analyze view cannot linearize your code; to watch the PD gains of the lesson change, set the built-in pure pursuit's L<sub>0</sub> to the same values, with <i>k</i> = 0, in the Control tab.
 
 ## Think about
 Q: Pure pursuit has ζ = 0.71 regardless of settings. Where does that number come from?

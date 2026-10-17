@@ -26,9 +26,9 @@ See: The tint now fills the aisles edge to edge and the planner replans at once 
 Shows: A band wider than the corridor is symmetric: every route through the corridor pays the same penalty, so the band stops steering and only adds cost. The closest approach is set by the tracker cutting a corner in a doorway, which no band changes, only the lethal radius does. The band is a preference about open space; margins against contact belong in the lethal threshold.
 Predict: Widening the band to 1.4 m, wider than the aisles: what happens to the closest approach to a shelf?
 - It grows to about a metre: the band keeps the robot central
-- It shrinks: a uniform penalty stops steering the planner
-- It stays about the same; only the lethal radius sets it
-Answer: 2
+- It does not grow: the closest pass is a corner the band cannot widen; only the lethal radius sets it
+- It drops to zero: a uniform penalty lets the robot scrape the shelves
+Answer: 1
 
 ## Try: Unknown = lethal
 cfg: {"sim":true,"level":3,"set":{"unknownAs":"lethal"},"tab":"per"}

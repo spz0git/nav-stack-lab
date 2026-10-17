@@ -11,7 +11,7 @@ title: Delay margin: the latency budget
 ## Try: Fast loop (L<sub>0</sub> 0.1 m): small budget
 cfg: {"level":0,"set":{"ctl":"pp","ppL0":0.1,"ppK":0,"latency":0}}
 Setup: Pure pursuit with a 0.1 m lookahead, no latency.
-See: Phase margin 40.4° at 17.6 rad/s: 0.705 rad / 17.6 rad/s = 0.040 s of delay margin. The chip reads 0.04 s.
+See: Phase margin 40.4° at 17.6 rad/s: 0.705 rad / 17.6 rad/s = 0.040 s of delay margin. The chip reads 40 ms.
 Shows: The budget is smaller than one control tick. Any sensor or network that adds 50 ms, which almost anything does, breaks this loop. A real stack would never run a lateral loop at 17 rad/s for exactly this reason; the lookahead would be lengthened until the budget covered the measured latency with room to spare.
 Predict: Phase margin 40° at 17.6 rad/s: roughly how much extra delay does that buy?
 - About 40 ms, less than one tick
@@ -22,11 +22,11 @@ Answer: 0
 ## Try: Fast loop + 0.05 s latency, step test
 cfg: {"level":0,"set":{"ctl":"pp","ppL0":0.1,"ppK":0,"latency":0.05},"test":"step","stepKind":"offset","stepAmp":0.1}
 Setup: The same loop with one tick of latency, past its 40 ms budget, and a 0.1 m step test.
-See: The linear prediction (solid) grows without bound: unstable poles. The measured response (dashed amber) rings hard, overshoots about 8 times the predicted amount, and dies down over about 4 s; the message under the plot reports that the turn-rate limit was active.
-Shows: Saturation is what separates "unstable" from "destroyed". When the command hits the turn-rate limit the loop gain effectively falls, the oscillation stops growing, and here it decays; with a little more delay it would settle into a sustained limit cycle instead. A linear analysis says the loop is unstable; the nonlinear vehicle shows how badly, and a limit cycle at the actuator limit is the symptom to recognize on a real vehicle.
+See: The linear prediction (solid) grows without bound: unstable poles. The measured response (dashed amber) swings 8 % past the path and then settles into a steady weave of ±3.6 % of the step (±3.6 mm), one cycle about every 0.45 s (14 rad/s), that does not die out before the plot ends. The message under the plot reads "The turn-rate limit was active for 0.60 s of the test, so the response departs from the linear prediction."
+Shows: Saturation is what separates "unstable" from "destroyed". When the command hits the turn-rate limit the loop gain effectively falls and the oscillation stops growing, but it does not decay either: the amplitude settles where the clipped loop sits on the edge of stability, a limit cycle. A linear analysis says the loop is unstable; the nonlinear vehicle shows how badly, and a limit cycle at the actuator limit is the symptom to recognize on a real vehicle.
 Predict: Past its delay budget by 10 ms, how will the simulated step respond?
 - It grows without bound, as the linear model says
-- It rings hard, but the turn-rate limit bounds it and it dies down
+- It rings, then the turn-rate limit holds it in a steady weave that does not die out
 - Normally: 10 ms over budget is within rounding
 Answer: 1
 
@@ -45,11 +45,11 @@ Answer: 2
 snippet: an-freq
 focus: const dm = pm != null && wc ? (pm * Math.PI) / 180 / wc : null;
 example: ctl/rwf
-Note: One line: the phase margin in radians divided by the crossover frequency is the delay the loop can absorb. Edit and run: the rear-wheel-feedback example; lower the gains to raise the margin, then add latency in the Vehicle tab until it breaks.
+Note: One line: the phase margin in radians divided by the crossover frequency is the delay the loop can absorb. Edit and run: the rear-wheel-feedback example as your controller; add latency in the Vehicle tab until it breaks. The Analyze view cannot linearize your code; on the built-in rear-wheel feedback, halving both gains raises the delay margin from 0.35 to 0.46 s.
 
 ## Think about
-Q: Why does the simulator's unstable response decay instead of growing?
-A: Because the turn-rate limit clips the command. Describing-function reasoning: a saturated actuator acts like a gain that falls as the amplitude grows, so the amplitude rises until the effective gain brings the loop to the edge of stability, a limit cycle, or, when the clipped loop has margin to spare as here, the oscillation decays. Linear instability plus saturation is bounded, not safe.
+Q: Why does the simulator's unstable response stop growing?
+A: Because the turn-rate limit clips the command. Describing-function reasoning: a saturated actuator acts like a gain that falls as the amplitude grows, so the amplitude rises until the effective gain brings the loop to the edge of stability, and there it stays: a limit cycle, here ±3.6 mm at about 14 rad/s, still going 15 s after the step. Linear instability plus saturation is bounded, not safe.
 Q: A stack measures 120 ms from camera exposure to steering command. What crossover can it afford with 45° of margin?
 A: Keep at least 45° after the delay: if the undelayed loop has 65° (pure pursuit), 20° = 0.35 rad may go to delay, so ω_c ≤ 0.35/0.12 ≈ 2.9 rad/s. At 15 m/s with ω_c = 2.2 v/L_d, that is a lookahead of at least 11 m. Latency sets the lookahead.
 Q: The delay margin chip is computed from the phase margin at one frequency. When is that misleading?

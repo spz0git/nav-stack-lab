@@ -64,7 +64,7 @@ const LEVELS = [
     adds: 'Perfect pose and a known map, a few pillars, straight-line paths. Everything is ideal except the controller, so this is where you tune tracking.',
     tries: [
       {
-        t: '<b>Control:</b> drop pure-pursuit L<sub>0</sub> to 0.1 m, then raise it to 2 m. Watch the cross-track plot: short lookahead oscillates, long lookahead cuts corners.',
+        t: '<b>Control:</b> drop pure-pursuit L<sub>0</sub> to 0.1 m, then raise it to 2 m. Watch the cross-track plot: with perfect pose and no lag the short lookahead hugs the path (2 cm RMS against 10 cm at the default 0.5 m; add lag and it weaves), and the long one cuts corners (0.33 m RMS, 1.0 m at the corners).',
         b: [
           ['L<sub>0</sub> = 0.1 m', {set: {ppL0: 0.1}, tab: 'ctl', plot: 'cte'}],
           ['L<sub>0</sub> = 2 m', {set: {ppL0: 2}, tab: 'ctl', plot: 'cte'}]
@@ -141,7 +141,7 @@ const LEVELS = [
         ]
       },
       {
-        t: '<b>Mission:</b> Optimal versus In order. The log shows total mission cost for each.',
+        t: '<b>Mission:</b> Optimal versus In order. The log shows the planned cost of the optimal order (51.4); In order prints none, so compare the mission times: 78.3 s in order, 63.0 s optimal.',
         b: [
           ['In order', {set: {mis: 'sequential'}, tab: 'mis'}],
           ['Optimal', {set: {mis: 'optimal'}, tab: 'mis'}]
@@ -276,7 +276,7 @@ const LEVELS = [
         b: [['Hide the ghost', {layers: {ghost: false}, tab: 'view', keep: true}]]
       },
       {
-        t: '<b>Control:</b> MPC with obstacle constraints handles the tight rooms. Switch it to LTV, which cannot take nonconvex obstacle constraints, and watch it clip the table.',
+        t: '<b>Control:</b> MPC with obstacle constraints handles the tight rooms. Switch it to LTV, which cannot take nonconvex obstacle constraints: here it still reaches 4/4 without contact, but tracks looser (cross-track 0.13 m RMS against 0.07 m).',
         b: [
           ['MPC', {set: {ctl: 'mpc'}, tab: 'ctl'}],
           ['LTV', {set: {ctl: 'mpc', mpcMode: 'ltv'}, tab: 'ctl'}]
@@ -364,7 +364,7 @@ const LEVELS = [
         ]
       },
       {
-        t: '<b>Localize:</b> raise false detections and watch gating and robust weights hold.',
+        t: '<b>Localize:</b> raise false detections to 2 per scan. Gating and robust weights hold most of the time, but the particle filter loses the robot in short spells (up to 10.8 m off), hits a shelf and skips the last goal (4 of 5, against 5 of 5).',
         b: [['2 false detections per scan', {set: {clutter: 2}, tab: 'loc'}]]
       },
       {
@@ -424,18 +424,18 @@ const LEVELS = [
     adds: 'The robot becomes a car: kinematic bicycle model, 32° steering limit, a turning radius near 1 m, and a body that cannot turn in place. Goals now carry a heading: reverse into a bay, nose into another, then parallel park. People cross the lanes on their way to and from cars, pausing before they turn back.',
     tries: [
       {
-        t: '<b>Plan:</b> watch Hybrid A* insert reverse legs (dashed orange). Then switch to A*: the path ignores heading and turning radius, so the car swings wide and misses the bay.',
+        t: '<b>Plan:</b> watch Hybrid A* insert reverse legs (dashed orange). Then switch to A*: the path ignores heading and turning radius, so the car hits a parked car on the way to the first bay and reaches none of the four.',
         b: [
           ['Hybrid A*', {tab: 'plan'}],
           ['A*', {set: {plan: 'astar'}, tab: 'plan'}]
         ]
       },
       {
-        t: '<b>Plan:</b> pick Reeds–Shepp. It finds the shortest maneuver but ignores obstacles, so it drives through parked cars.',
+        t: '<b>Plan:</b> pick Reeds–Shepp. It finds the shortest maneuver but ignores obstacles, so it drives into parked cars (2 collisions, 1 of 4).',
         b: [['Reeds–Shepp', {set: {plan: 'rs'}, tab: 'plan'}]]
       },
       {
-        t: '<b>Plan:</b> untick Allow reversing. The reverse-in bay and the parallel slot become unreachable or far longer.',
+        t: '<b>Plan:</b> untick Allow reversing. The reverse-in bay and the parallel slot become unreachable, and so does the last goal, since the car cannot back out of the nose-in bay (1 of 4).',
         b: [['No reversing', {set: {revOK: false}, tab: 'plan'}]]
       },
       {
@@ -457,7 +457,7 @@ const LEVELS = [
         ]
       },
       {
-        t: '<b>Localize:</b> switch to EKF and raise odometry noise. The log reports the true final pose error at every bay.',
+        t: '<b>Localize:</b> switch to EKF and double the odometry noise. The car parks only the nose-in bay (the log gives the true error, 0.14 m and 4°); it hits a parked car at the reverse-in bay and the wall behind the parallel slot, and skips both (2 of 4).',
         b: [['EKF, noise ×2', {set: {loc: 'ekf', odoK: 2}, tab: 'loc', plot: 'pos'}]]
       },
       {
@@ -566,7 +566,7 @@ const LEVELS = [
     adds: "Speed. The car with tyre slip, on the slippery floor, enters a two-lane road at 3.5 m/s, above its characteristic speed of 2.6 m/s. A box blocks the right lane, a second one the left lane 7 m on: swerve left, then back (a slalom like the moose test). The map is known and the plan is fixed; what decides the run is whether the controller's model knows the tyres. The MPC starts with the kinematic model.",
     tries: [
       {
-        t: '<b>Control:</b> the kinematic MPC drives into the first box. It starts the swerve at 1.35 s and steers up to 15°, expecting <i>v</i> tan δ / <i>L</i> of yaw rate, and gets about a third of it: 0.65 m right of its path at 2.4 s, it hits the box. Tick Tyre model in the prediction: the MPC knows the car turns at 40 % of what its wheels point, so it starts at 0.8 s, steers up to 21°, and passes both boxes, 0.40 m off the path at worst. The plots show the yaw rate <i>r</i> against <i>v</i> tan δ / <i>L</i>, and the cross-track error.',
+        t: '<b>Control:</b> the kinematic MPC drives into the first box. It starts the swerve at 1.35 s and steers up to 15°, expecting <i>v</i> tan δ / <i>L</i> of yaw rate, and gets about a third of it: 0.67 m right of its path at 2.4 s, it hits the box. Tick Tyre model in the prediction: the MPC knows the car turns at 40 % of what its wheels point, so it starts at 0.8 s, steers up to 21°, and passes both boxes, 0.40 m off the path at worst. The plots show the yaw rate <i>r</i> against <i>v</i> tan δ / <i>L</i>, and the cross-track error.',
         b: [
           ['Kinematic MPC', {layers: {slip: true}, tab: 'ctl', panes: [['yawr', 'yawk'], ['cte']]}],
           ['Tyre model in the MPC', {set: {mpcDyn: true}, layers: {slip: true}, tab: 'ctl', panes: [['yawr', 'yawk'], ['cte']]}]

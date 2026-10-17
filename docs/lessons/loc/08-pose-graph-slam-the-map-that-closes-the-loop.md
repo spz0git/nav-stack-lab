@@ -24,43 +24,43 @@ Answer: 0
 ## Try: Pose-graph SLAM on wheel odometry
 cfg: {"sim":true,"level":3,"set":{"loc":"pgslam"},"goals":[[5,13],[13.5,14],[21,13],[22.5,5.5],[21,13],[13.5,14],[5,13]],"tab":"loc","plot":"pos"}
 Setup: The same tour with pose-graph SLAM, both levels on. Pose graph layer on.
-See: 197 keyframes, 190 of them placed by a scan-to-map match, 89 loop closures. The error grows to 0.51 m at the far end (75 s) while the robot is in rooms it has never seen, and comes down to 0.16 m by 100 s as the way back closes loops onto the outbound keyframes; the run ends at 0.32 m with all seven goals reached and the map agreeing on 92 %. Pose RMS 0.33 m against 1.97 m for dead reckoning. The biggest optimization, 197 poses, takes about 0.1 s.
+See: 199 keyframes, 187 of them placed by a scan-to-map match, 85 loop closures. The error grows to 0.6 m at the far end (75 s) while the robot is in rooms it has never seen, and comes down to about 0.1 m around 110 s as the way back closes loops onto the outbound keyframes (54 of the 85 closures join keyframes more than 40 apart); on the last stretch to the start it rises again, and the run ends at 0.33 m with all seven goals reached, one contact at 93 s, and the map agreeing on 93 %. Pose RMS 0.33 m against 1.97 m for dead reckoning. The biggest optimization, 199 poses, takes about a tenth of a second.
 Shows: The pattern of every SLAM run: error grows in new territory and collapses on a revisit. What the closures fix is the past: the optimization moves the far-end keyframes by the drift they carried, and the map rebuilt from them stops showing double walls. What they cannot fix is the offset of the whole far region relative to the start, which no edge measures; only the return constrains it.
 Predict: Turn scan-to-map matching off and keep only the odometry edges and the loop closures. What happens on wheel odometry?
 - The closures alone carry it: about the same accuracy
-- It drifts past the matcher's reach before the return, and only a few closures are found
+- It drifts to metres of error, and only a few closures are found
 - It is more accurate: the matcher was adding noise
 Answer: 1
 
 ## Try: Loop closures alone
 cfg: {"sim":true,"level":3,"set":{"loc":"pgslam","pgMatch":false},"goals":[[5,13],[13.5,14],[21,13],[22.5,5.5],[21,13],[13.5,14],[5,13]],"tab":"loc","plot":"pos"}
 Setup: Odometry edges straight from the wheels, loop closures by ICP only, no scan-to-map matching: the textbook pose graph.
-See: The error is 0.9 m at 20 s and 1.4 m from 60 s on; 17 closures are found, all between nearby keyframes along the same corridor, none onto the outbound pass, because by then the chain's guess is further off than ICP's basin and the wide search. Four goals, three skipped, one contact, map 90 %.
-Shows: A loop closure needs an initial guess within the matcher's reach. Wheel odometry alone has drifted past it by the time the robot returns, and a closure that is not found cannot correct anything. The graph is the global half of lidar SLAM; it needs a local half that keeps the drift small between revisits, which is the scan-to-map matching, or a better odometry.
+See: The error is 0.9 m at 20 s, 2.3 m at 60 s and 2.8 m from 64 s on. The graph finds 13 closures: twelve between 19 and 27 s, while the robot drives back past keyframes it laid down ten seconds earlier and the drift is still under a metre, and one more near the far end at 69 s. With the estimate almost 3 m off, the robot hits an obstacle at 70 s near the far end and stays stuck there, skipping the three goals of the way back: it never drives the return, so no outbound keyframe is ever revisited. Four goals, three skipped, one contact, map 89 %.
+Shows: A loop closure needs a place to come back to and an initial guess within the matcher's reach. Here the closures come only where the drift is still small; by the far end wheel odometry alone has drifted almost 3 m, which is well past ICP's half metre, and in this run that drift also drives the robot into an obstacle before the return could test it. A closure that is not found cannot correct anything. The graph is the global half of lidar SLAM; it needs a local half that keeps the drift small between revisits, which is the scan-to-map matching, or a better odometry.
 Predict: Now give the same loop-closure-only graph the gyro's odometry. What does the error do?
-- Stays within about 0.2 m: the drift stays inside ICP's reach and the closures hold it
-- Still 1.4 m: closures do not depend on the odometry
+- Stays around 0.2 m: the drift stays inside ICP's reach and the closures hold it
+- Still metres off: closures do not depend on the odometry
 - Grows: the gyro's bias is fused twice
 Answer: 0
 
 ## Try: Loop closures alone, with the gyro
 cfg: {"sim":true,"level":3,"set":{"loc":"pgslam","pgMatch":false,"gyro":true},"goals":[[5,13],[13.5,14],[21,13],[22.5,5.5],[21,13],[13.5,14],[5,13]],"tab":"loc","plot":"pos"}
 Setup: Odometry edges from wheels and gyro, loop closures only.
-See: 88 closures, error 0.16 to 0.25 m for the whole run, RMS 0.20 m, all seven goals, map 94 %. Dead reckoning with the gyro and no SLAM at all: RMS 0.23 m, map 94 %.
+See: 82 closures, error 0.13 to 0.27 m for the whole run, RMS 0.19 m, all seven goals, map 94 %. Dead reckoning with the gyro and no SLAM at all: RMS 0.23 m, map 93.5 %.
 Shows: With odometry good enough for the closures to be found, the textbook graph works, and it holds the error at the level of the odometry drift between revisits. The gyro alone already does nearly as well on this tour, which is the honest finding: the closures add consistency of the past poses, not much accuracy of the present one.
 Predict: Turn scan-to-map matching back on, with the gyro. Pose RMS?
-- Under 0.1 m, and the best map of the lesson
-- The same 0.2 m: the matcher cannot beat the gyro
+- About 0.12 m, the best of the tour without beacons
+- The same 0.19 m: the matcher cannot beat the gyro
 - Worse: two corrections fight
 Answer: 0
 
 ## Try: Both levels, with the gyro
 cfg: {"sim":true,"level":3,"set":{"loc":"pgslam","gyro":true},"goals":[[5,13],[13.5,14],[21,13],[22.5,5.5],[21,13],[13.5,14],[5,13]],"tab":"loc","plot":"pos"}
 Setup: Scan-to-map matching and loop closures, wheels and gyro.
-See: Pose RMS 0.09 m, never worse than 0.11 m, 90 closures, map agreement 97 %: better than the EKF with its beacons builds (96 %), with no beacons at all. Scan-to-map matching without any loop closures (Localize → switch them off): RMS 0.25 m, map 93 %.
-Shows: This is a working lidar SLAM: a gyro-grade odometry to stay inside the matcher's reach, scan-to-map matching to remove the drift at every keyframe, loop closures to make the past consistent. On a building this size the matcher does most of the work; the graph earns its keep on longer excursions, and in the next experiment, where nobody chose the route.
+See: Pose RMS 0.12 m, never worse than 0.22 m, 84 closures, map agreement 95 % at the end (96 to 97 % on the way out): within a point of the 96 % the EKF with its beacons builds, with no beacons at all. Scan-to-map matching without any loop closures (Localize → switch them off) does as well: RMS 0.12 m, map 96 %.
+Shows: This is a working lidar SLAM: a gyro-grade odometry to stay inside the matcher's reach, scan-to-map matching to remove the drift at every keyframe, loop closures to make the past consistent. On a building this size the matcher does all the work these numbers can see: with the closures switched off neither the pose RMS nor the map gets worse. The graph earns its keep on longer excursions, where the matcher's own reference has drifted (the last question below).
 Predict: Let frontier exploration pick the goals with this SLAM. How good is the map it builds by itself?
-- About as good: 97 % agreement, with no goal given
+- About as good: 96 % agreement, with no goal given
 - Worse: exploration drives into unknown rooms, where there is nothing to match
 - It fails: the explorer and the SLAM fight over the map
 Answer: 0
@@ -68,7 +68,7 @@ Answer: 0
 ## Try: Explore and map, with nobody steering
 cfg: {"sim":true,"level":3,"set":{"loc":"pgslam","gyro":true,"mis":"explore"},"tab":"loc","plot":"pos"}
 Setup: Frontier exploration (lesson 6 of planning) with pose-graph SLAM and the gyro: the robot picks its own goals and builds its own map.
-See: 155 keyframes, 149 matched, 7 closures, pose RMS 0.08 m, map agreement 97 % when the exploration ends at 160 s. One brush with a shelf at about 110 s, where a frontier goal sat in the corner of a room being corrected.
+See: 192 keyframes, 181 matched, 37 closures, pose RMS 0.10 m, map agreement 96 % when the exploration ends at 119 s with the whole floor seen. One contact at 101 s, on the way to the last frontier.
 Shows: The whole classical stack, end to end, with no map, no beacons and no goals given: perception builds the map, SLAM keeps it consistent, exploration decides where to look, planning and tracking get there. What the modern stacks add on top of this is a smoother that keeps the graph small, place recognition for closures the odometry cannot guess, and a map representation richer than a grid.
 
 ## Code: pgOptimize, the normal equations of a graph
@@ -80,14 +80,14 @@ Note: A and B are an edge's Jacobians to its two poses; the loop after them adds
 ## Think about
 Q: The first pose is held with a huge prior. What goes wrong without it?
 A: H is singular: moving every pose by the same shift and turn changes no edge, so three directions of δ have zero cost and the solve has no answer. Any one pose can be the anchor; the map is then expressed in that pose's frame, which is why SLAM maps are consistent but not aligned to anything outside them unless a known pose or a GPS fix is added as another edge.
-Q: Loop closures alone on wheel odometry found seventeen closures, all along the same corridor, and none onto the outbound pass. Why those and not the useful ones?
-A: Candidates are chosen by the chain's own estimate of where the keyframes are, and ICP converges only from a guess within half a metre or so. The recent keyframes are close in the chain and in the world, so the guess is good; the outbound keyframes are two metres off in the chain's eyes, and the matcher never gets near them. Real systems add place recognition that proposes closures from the scan's appearance regardless of the pose estimate.
-Q: Scan-to-map matching without any loop closure did almost as well as the full method. When would the graph matter more?
+Q: Loop closures alone on wheel odometry found thirteen closures, twelve of them in the first half-minute, and then almost none. Why?
+A: Candidates are chosen by the chain's own estimate of where the keyframes are, and ICP converges only from a guess within half a metre or so. Early on the robot drives back past keyframes it laid down seconds before: close in the chain and in the world, with the drift still under a metre, so the guess is good. After that it is in rooms it has not seen, where there is nothing to close onto, and by the far end the chain is almost 3 m off; a return would have had to find the outbound keyframes from a guess that far wrong. Real systems add place recognition that proposes closures from the scan's appearance regardless of the pose estimate.
+Q: Scan-to-map matching without any loop closure did as well as the full method on this tour. When would the graph matter more?
 A: When the robot is away from mapped space for long enough that the matcher's reference is itself drifted: a long corridor out to a far wing and back, where the return finds the outbound map rotated by the drift. The matcher then aligns to a wrong reference, consistently; only a closure, which compares two scans directly, exposes the inconsistency, and only the optimization fixes the past poses and the map built from them.
 
 ## Check yourself
-Q: A graph of 197 keyframes has three unknowns per pose. With the first pose fixed, how many unknowns does the optimization solve for?
-Answer: 588
+Q: A graph of 199 keyframes has three unknowns per pose. With the first pose fixed, how many unknowns does the optimization solve for?
+Answer: 594
 Tolerance: 0
 Unit: unknowns
-How: 3 × 197 = 591 in all; fixing the first pose removes its three, leaving 588 (the lab keeps them and adds a huge prior instead, which comes to the same)
+How: 3 × 199 = 597 in all; fixing the first pose removes its three, leaving 594 (the lab keeps them and adds a huge prior instead, which comes to the same)

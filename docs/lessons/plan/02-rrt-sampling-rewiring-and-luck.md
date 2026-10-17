@@ -33,12 +33,12 @@ Answer: 2
 ## Try: RRT*, 4000 samples
 cfg: {"sim":true,"level":1,"set":{"plan":"rrtstar","rrtIt":4000},"tab":"plan","layers":{"search":true},"searchStep":true}
 Setup: The budget raised to 4000 samples (about 2300 tree nodes), default seed.
-See: The tree is denser and the legs are 8.3, 13.8, 18.3 and 25.8 m, mission 84 s: better than 1500 on this seed, still a long third leg. Across ten seeds the first leg finds the short route eight times instead of five; at 300 samples it finds no connection to the goal at all four times in ten.
-Shows: More samples shift the distribution, slowly: convergence is in the limit, and the limit is far. The cost per iteration grows with the tree, so 4000 samples take about three times as long as 1500 for a modest gain in reliability. On a 2-D floor with a known map, a grid planner is simply the better tool; RRT* earns its place where no grid is possible, and the variance comes with it.
-Predict: Raise the budget from 1500 to 4000 samples. What happens to the long third leg on this seed?
-- It converges to A*'s length
-- It improves, but stays well above A*
-- It gets worse: a denser tree commits to more wrong aisles
+See: The tree is denser and the legs are 14.9, 13.0, 12.7 and 25.5 m, mission 87 s. The long third leg is gone: 12.7 m against A*'s 12.9. But the first leg, 8.3 m at 1500 samples, now takes the long way round, and the mission is 6 s slower than at 1500. Across ten seeds the first leg finds the short route six times instead of five; at 300 samples it finds no connection to the goal at all four times in ten.
+Shows: A larger budget grows a different tree, not a refined copy of the old one: the samples that decide which aisle each leg takes all change, so one leg converges while another loses the aisle it had. More samples shift the distribution, slowly: convergence is in the limit, and the limit is far. The cost per iteration grows with the tree, so 4000 samples take about three times as long as 1500 for a modest gain in reliability. On a 2-D floor with a known map, a grid planner is simply the better tool; RRT* earns its place where no grid is possible, and the variance comes with it.
+Predict: Raise the budget from 1500 to 4000 samples on the same seed. What happens to the four legs?
+- All four improve or stay: more samples can only refine the tree
+- The long third leg converges to A*'s length, but another leg now takes the long way round
+- Nothing changes: the seed, not the budget, decides the tree
 Answer: 1
 
 ## Code: rrtstar, near nodes and rewiring

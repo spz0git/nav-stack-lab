@@ -14,7 +14,7 @@ b̂ ← b̂ + α(ω_g − b̂)  while standing still        the zero-velocity up
 ## Try: Dead reckoning, wheels only
 cfg: {"sim":true,"level":2,"set":{"loc":"dr","map":"empty","misLoop":true},"goals":[[8,5.5],[16,5.5],[16,10.5],[8,10.5]],"tab":"veh","plot":"eth"}
 Setup: L3's noisy, slightly miscalibrated odometry on the empty floor, dead reckoning, laps of the rectangle in the middle, the Vehicle tab and the θ error plot. The reference run of lesson 1.
-See: The heading is 10° off by 20 s, 25° by a minute, 54° at 100 s and 42° at two minutes (the random part rides on the steady drift), and the true lap turns about the middle of the floor while the believed one stays a rectangle. The position error rises and falls between 1 and 3 m as the robot goes round, pose RMS 2.16 m.
+See: The heading is 10° off by 20 s, 25° by a minute, 54° at 100 s and 42° at two minutes (the random part rides on the steady drift), and the true lap turns about the middle of the floor while the believed one stays a rectangle. The position error rises and falls between a few tenths of a metre and 5 m as the robot goes round (4.9 m at 90 s), pose RMS 2.16 m.
 Shows: What the turn rate from two wheel encoders does over two minutes: a heading error that keeps growing, and a position error that grows with it.
 Predict: Put a gyro in place of the wheels' turn rate, no beacons, two minutes. How far off is the heading at the end?
 - Still tens of degrees: dead reckoning drifts whatever the sensor
@@ -35,8 +35,8 @@ Answer: 1
 
 ## Try: The EKF through long beacon outages, with the gyro
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","gyro":true,"bOut":70,"bOutLen":6},"tab":"veh","plot":"pos"}
-Setup: The EKF on L3 with every beacon down 70 % of the time in outages of about 6 s (lesson 2's hardest beacon case), and the gyro on. Switch the gyro off in Vehicle to compare.
-See: With the gyro the error stays under 0.12 m and the heading within 1° through the outages, pose RMS 0.08 m; with the wheels the same run reaches 0.14 m with the heading 3 to 5° off at the worst moments, RMS 0.13 m.
+Setup: The EKF on L3 with every beacon down 70 % of the time in outages of about 6 s (the "EKF, long outages" case in L3's own Try list, the hardest beacon case there), and the gyro on. Switch the gyro off in Vehicle to compare.
+See: With the gyro the error stays mostly under 0.16 m (0.26 m at worst) and the heading within 1° through the outages, pose RMS 0.08 m; with the wheels the same run stays mostly under 0.27 m (0.46 m at worst) with the heading up to 5° off (12° at the worst moment), RMS 0.13 m.
 Shows: During an outage the filter is dead reckoning, so everything the previous experiment showed applies to the gaps, scaled by their length: a gyro is what lets a filter coast through missing fixes. With beacons every 0.2 s the two are indistinguishable; the sensor earns its place when the fixes stop.
 Predict: Now give the gyro a bias of 0.5°/s the filter is not told about, dead reckoning. What does the heading do?
 - Drifts at 0.5°/s: 60° off after two minutes
@@ -58,7 +58,7 @@ Answer: 0
 ## Try: The bias, with the zero-velocity update
 cfg: {"sim":true,"level":2,"set":{"loc":"dr","gyro":true,"gyroBias":0.5,"zupt":true,"map":"empty","misLoop":true},"goals":[[8,5.5],[16,5.5],[16,10.5],[8,10.5]],"tab":"veh","plot":"eth"}
 Setup: The same biased gyro with the zero-velocity update on: the robot holds still for 2 s, the gyro's mean reading becomes the bias estimate, and it is subtracted from then on. The Vehicle tab's gyro line shows the estimate.
-See: The hold learns the bias to within about a tenth of a degree per second (the Vehicle tab reads 0.43°/s after the hold, and between 0.40 and 0.51°/s as later stops refresh it). The heading then stays within about 2° for the whole run, as with the unbiased gyro, and the robot keeps to its lap. The position error is 0.35 to 0.5 m, pose RMS 0.31 m; what remains is the speed bias.
+See: The hold learns the bias to within about a tenth of a degree per second (the Vehicle tab reads 0.43°/s after the hold, and between 0.40 and 0.54°/s as later stops refresh it). The heading then stays within about 2° for the whole run, as with the unbiased gyro, and the robot keeps to its lap. The position error is 0.15 to 0.5 m, pose RMS 0.31 m; what remains is the speed bias.
 Shows: Two seconds of standing still are worth more than any amount of filtering: at rest the true yaw rate is exactly zero, so the gyro reads its bias and nothing else. Every stop is a chance to recalibrate, which is why IMU drivers do this at every stop. The heading problem is solved; the speed bias is a different sensor's problem.
 Predict: Give the biased gyro to the EKF with the beacons on (no zero-velocity update). What does NEES say?
 - About 3: the beacons correct the bias as fast as it accumulates
@@ -69,7 +69,7 @@ Answer: 1
 ## Try: The EKF with the biased gyro
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","gyro":true,"gyroBias":0.5},"tab":"loc","plot":"pos"}
 Setup: The EKF with its beacons, the gyro on with the 0.5°/s bias and no zero-velocity update. Localize tab and the Position error plot.
-See: The pose error stays small, 0.02 to 0.3 m, and all five goals are reached: the beacons keep catching the heading. But NEES sits between 200 and 550 for the whole run and the error is inside the 2σ band only a fifth of the time. The filter claims centimetres while its heading is 4 to 5° off between fixes.
+See: The pose error stays small, 0.02 to 0.4 m (0.57 m at worst), and all five goals are reached: the beacons keep catching the heading. But NEES sits between 200 and 550 for the whole run and the error is inside the 2σ band only a fifth of the time. The filter claims centimetres while its heading is 2 to 6° off between fixes.
 Shows: The same signature as the wheel bias in lesson 2, two orders of magnitude stronger, because the filter was told the turn rate is now ten times more precise. A real stack either estimates the gyro bias as a fourth state, so that the beacons can correct it, or calibrates it at every stop. Inflating the assumed noise would hide the symptom; neither of the two fixes needs the beacons to be frequent.
 
 ## Code: odometry, wheels or gyro

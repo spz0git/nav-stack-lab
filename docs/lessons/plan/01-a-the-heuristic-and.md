@@ -35,7 +35,7 @@ Answer: 2
 ## Try: Straight line (no planner)
 cfg: {"sim":true,"level":1,"set":{"plan":"straight"},"tab":"plan"}
 Setup: The planner replaced by a straight segment from the estimate to the goal, which ignores the costmap entirely.
-See: The robot drives into the first shelf within a few seconds, is reported stuck three times at five-second intervals, skips the goal, and repeats for the next: three goals skipped in 50 s, one collision, 9 m of driving. The tracker is doing its job perfectly on a path that goes through a wall.
+See: The robot drives into the first shelf within a few seconds, is reported stuck three times at five-second intervals, skips the goal, and repeats for the next: three goals skipped by 50 s, one collision, under 3 m of driving. Only the fourth goal, which happens to have a clear straight line, is reached, at 74 s. The tracker is doing its job perfectly on a path that goes through a wall.
 Shows: What the planner is for, stated by its absence. Every layer below the planner assumes the path is feasible; the tracker has no way to know it is heading into a shelf and no authority to do anything about it if it did. The mission layer eventually gives up on each goal, which is the only thing that keeps the run from lasting forever.
 Predict: Replace the planner by a straight line to the goal. What happens on the first leg?
 - The robot hits the first shelf within seconds and is declared stuck

@@ -11,7 +11,7 @@ PLAN → NO_PATH → (2 s) PLAN, skip after 3</div>
 ## Try: Discover the building
 cfg: {"sim":true,"level":3,"tab":"mis"}
 Setup: L4, the unknown building, mapping as it drives, no periodic replan. Mission tab.
-See: Three "Replan (path blocked)" events at 4.3, 13.2 and 31.2 s, each a wall that appeared across the planned route as the lidar reached it, and four fresh plans at the goals. Every replan is from a few hundred to a few thousand expansions and under 10 ms. All four goals in 67 s.
+See: Three "Replan (path blocked)" events at 4.3, 13.2 and 31.2 s, each a wall that appeared across the planned route as the lidar reached it, and four fresh plans at the goals. Every replan is from sixty to a few thousand expansions and under 10 ms. All four goals in 67 s.
 Shows: Optimistic planning plus cheap replanning is a complete strategy for an unknown map: plan through the unknown as if it were free, and correct the moment the map disagrees. Watch the state machine flicker DRIVE → PLAN → DRIVE at each wall; the robot barely slows, because the plan is back before the next tick.
 Predict: Driving into the unknown building with optimistic planning, how many "path blocked" replans will the log show?
 - None: the planner only plans through seen space
@@ -23,7 +23,7 @@ Answer: 1
 cfg: {"sim":true,"level":3,"set":{"replan":1},"tab":"mis"}
 Setup: The same level with a 1 s periodic replan.
 See: The log shows no "path blocked" replans at all, because the periodic plan, which is silent, always arrives first; about seventy plans run during the mission. The route is the same and the mission takes 70 s instead of 67: the plan is rebuilt from the current estimate every second, and each rebuild restarts the path slightly differently under the tracker.
-Shows: Replanning on a timer is the simple way to keep a plan fresh and it is almost free here, about 3 % of the mission time. On a real vehicle the cost is different: each new plan can differ from the last by a lane's width, and a tracker following a path that keeps moving oscillates. Event-triggered replanning changes the plan only when something changed; periodic replanning changes it whether or not anything did.
+Shows: Replanning on a timer is the simple way to keep a plan fresh and it is almost free here, about 5 % of the mission time. On a real vehicle the cost is different: each new plan can differ from the last by a lane's width, and a tracker following a path that keeps moving oscillates. Event-triggered replanning changes the plan only when something changed; periodic replanning changes it whether or not anything did.
 Predict: Add a 1 s periodic replan. What happens to the "path blocked" replans in the log?
 - They disappear: the silent timer plan always arrives first
 - They double: each wall is caught by both triggers
@@ -33,8 +33,8 @@ Answer: 0
 ## Try: Agent-blocking replans
 cfg: {"sim":true,"level":4,"tab":"mis"}
 Setup: L5, the busy floor, with the speed planner reporting people it cannot get past. Mission tab.
-See: The speed planner yields four times over the run, and twice, at 51 s and 99 s, it escalates: "Replan (agent blocking)", and the new path, 13.6 m and 16.7 m, goes around the person's predicted positions instead of waiting behind them. Five goals in 121 s with two contacts, both from people stepping out behind shelves.
-Shows: The layered design: the trajectory layer (speed) handles most people by slowing, and only when slowing cannot resolve the conflict does the route change. Each escalation costs a full replan with the people stamped into the costmap for 2 s of prediction, cheap here, and the result is a route that is right if the prediction was. The two contacts show the limit: a person the lidar had not seen is in no prediction and in no costmap.
+See: The speed planner yields four times over the run, and twice, at 51 s and 99 s, it escalates: "Replan (agent blocking)", and the new path, 13.6 m and 16.7 m, goes around the person's predicted positions instead of waiting behind them. Five goals in 121 s with one contact, at 52 s, half a second after the first new path.
+Shows: The layered design: the trajectory layer (speed) handles most people by slowing, and only when slowing cannot resolve the conflict does the route change. Each escalation costs a full replan with the people stamped into the costmap for 2 s of prediction, cheap here, and the result is a route that is right if the prediction was. The contact shows the limit: a new route is only as good as the prediction stamped into it, and a person who does not do what was predicted is in the costmap where they were going to be, not where they are: this one had been tracked for seconds and still made contact.
 Predict: On the busy floor, how often will the speed planner escalate from slowing to an "agent blocking" replan?
 - At every encounter with a person
 - Never: slowing always resolves a conflict in a wide aisle

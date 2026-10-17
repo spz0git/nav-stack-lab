@@ -415,7 +415,39 @@ wirePlotCanvas(pv);
   const tl = document.createElement('div');
   tl.className = 'tele-tools';
   tl.innerHTML = `<button type="button" class="ibtn" id="pl-add" title="Add a plot of any recorded signals (up to 3)">+ Plot</button><button type="button" class="ibtn" id="pl-all" aria-pressed="false" title="Show the whole recorded run in every plot">Whole run</button><button type="button" class="ibtn" id="pl-csv" title="Save every signal of this run as CSV (10 Hz)">CSV</button><button type="button" class="ibtn" id="pl-png" title="Save the plots as a PNG image">PNG</button>`;
-  $('.tele-title').appendChild(tl);
+  tl.hidden = true;
+  tl.setAttribute('role', 'menu');
+  tl.querySelectorAll('button').forEach(b => b.setAttribute('role', 'menuitem'));
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'ibtn tele-more';
+  more.id = 'pl-more';
+  more.title = 'More: add a plot, show the whole run, save CSV or PNG';
+  more.setAttribute('aria-label', 'More telemetry actions');
+  more.setAttribute('aria-haspopup', 'menu');
+  more.setAttribute('aria-expanded', 'false');
+  more.innerHTML = '⋯';
+  const head = $('.tele-head');
+  head.appendChild(more);
+  head.appendChild(tl);
+  const open = on => {
+    tl.hidden = !on;
+    more.setAttribute('aria-expanded', String(on));
+  };
+  more.onclick = () => open(tl.hidden);
+  tl.addEventListener('click', e => {
+    if (e.target.closest('button') && e.target.closest('button').id !== 'pl-all') open(false);
+  });
+  document.addEventListener(
+    'pointerdown',
+    e => {
+      if (!tl.hidden && !tl.contains(e.target) && e.target !== more) open(false);
+    },
+    true
+  );
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !tl.hidden) open(false);
+  });
   $('#pl-add').onclick = e => {
     const i = addPane([]);
     if (i != null) openSigBrowser(i, $('#plotcol').querySelector(`.ppane[data-p="${i}"] [data-add]`) || e.currentTarget);

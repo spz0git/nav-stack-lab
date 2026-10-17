@@ -2843,18 +2843,24 @@ details.see > p {
 .tele.folded .tele-grid {
   display: none;
 }
+/* one telemetry toolbar (UI review, step 5): title, channel, Compare, and a "⋯" menu for the rest */
 .tele-head {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 8px 12px;
 }
 .tele-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-right: auto;
+}
+.tele-more {
+  margin-left: auto;
+  min-width: var(--h-dense);
+  font-size: var(--fs-ui);
+  line-height: 1;
 }
 .plotpick {
   display: flex;
@@ -2871,9 +2877,9 @@ details.see > p {
   width: 100%;
   height: 170px;
   display: block;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: var(--r-ctl);
-  background: var(--map-bg);
+  background: transparent;
   touch-action: pan-y;
 }
 /* plot dock (7.4): the preset plot, then added panes of any signals; one shared time window */
@@ -2963,26 +2969,38 @@ details.see > p {
   padding: 0 7px;
 }
 .tele-tools {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-left: 6px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 170px;
+  padding: 4px;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
 }
-.tele-head .plotpick .seg button {
-  padding: 4px 8px;
-  font-size: var(--fs-small);
-}
-.tele-head .plotpick .sel.sm {
-  padding: 3px 4px;
+.tele-tools[hidden] {
+  display: none;
 }
 .tele-tools .ibtn {
-  padding: 3px 8px;
-  font-size: var(--fs-small);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  min-height: var(--h-ctl);
+  padding: 0 10px;
+  font-size: var(--fs-ui);
 }
-.tele-tools .ibtn[aria-pressed='true'] {
-  background: var(--ink);
-  color: var(--panel);
-  border-color: var(--ink);
+.tele-tools .ibtn:hover {
+  background: var(--track);
+}
+.tele-tools .ibtn[aria-pressed='true']::after {
+  content: ' ✓';
+  color: var(--ok);
 }
 .ibtn:disabled {
   opacity: 0.45;
@@ -3190,7 +3208,8 @@ details.see > p {
   width: 9em;
   font: inherit;
   font-size: var(--fs-small);
-  padding: 2px 6px;
+  height: var(--h-dense);
+  padding: 0 6px;
   border: 1px solid var(--line);
   border-radius: var(--r-ctl);
   background: var(--raise);

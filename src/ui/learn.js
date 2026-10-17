@@ -131,11 +131,52 @@ function lessonLink(id) {
   const [g, i] = id.split(':');
   return location.href.split('#')[0] + `#lesson=${g}:${+i + 1}`;
 }
+// The open lesson's progress strip: the same circle as in the list, what fills it (each experiment, the self-check)
+// and a reset. Pressing an experiment or passing the check updates it in place (lessonProgRefresh).
+function lessonProgHTML(id) {
+  const s = lessonState(id),
+    it = lessonItem(id),
+    tried = LEARN.tried[id] || [];
+  if (!it) return '';
+  const steps = it.L.tries
+    .map(
+      (t, j) =>
+        `<span class="lp-step${tried.includes(j) ? ' ok' : ''}" title="${tried.includes(j) ? 'Run' : 'Not run yet'}: ${t[0].replace(/<[^>]+>/g, '').replace(/"/g, '&quot;')}">${tried.includes(j) ? '✓' : '○'} Experiment ${j + 1}</span>`
+    )
+    .concat(it.L.check ? [`<span class="lp-step${s.chk ? ' ok' : ''}">${s.chk ? '✓' : '○'} Check yourself</span>`] : [])
+    .join('');
+  return `<i class="ldot" data-st="${s.st}" aria-hidden="true"></i><span class="lp-txt">${s.st === 'done' ? 'Lesson done' : 'To complete this lesson:'}</span>${steps}<button type="button" class="linkbtn lp-reset" title="Clear this lesson's experiments, predictions and self-check in this browser, so its circle is empty again">Reset</button>`;
+}
+function wireLessonProg(v) {
+  const b = v.querySelector('.lp-reset');
+  if (b)
+    b.onclick = () => {
+      const id = lessonOpen;
+      if (!id) return;
+      learnReset(id); // back in the list it shows empty until it is opened again
+      renderLearn();
+    };
+}
+function lessonProgRefresh(id) {
+  const v = $('#learnview'),
+    d = v && v.querySelector(`details.lesson[data-l="${id}"]`);
+  if (!d) return;
+  const p = d.querySelector('.lprog');
+  if (p) p.innerHTML = lessonProgHTML(id);
+  wireLessonProg(v);
+  const s = d.querySelector('summary');
+  s.title = lessonStateText(id);
+  s.querySelector('.ldot').dataset.st = lessonState(id).st;
+  d.querySelectorAll('[data-try]').forEach(b =>
+    b.classList.toggle('tried', (LEARN.tried[id] || []).includes(+b.dataset.try.split(':')[2]))
+  );
+}
 // A lesson body: the text, its experiments, questions, then its terms. A try is [label, cfg] or, explained,
 // [label, cfg, {setup, see, shows}]; explained tries render as numbered cards. L.q = [[question, answer], …].
 function lessonBodyHTML(L, id) {
   const explained = L.tries.some(t => t[2]),
-    btn = j => `<button class="btn small" data-try="${id}:${j}">\u0002${j}\u0002</button>`; // labels are restored after marking
+    btn = j =>
+      `<button class="btn small${(LEARN.tried[id] || []).includes(j) ? ' tried' : ''}" data-try="${id}:${j}">\u0002${j}\u0002</button>`; // labels are restored after marking
   // Predict first: an experiment with a `predict` question hides "What you will see" until the learner has picked an
   // answer (or opens it); the pick is remembered in this browser. Without a question the text shows as before.
   const tries = explained
@@ -274,6 +315,7 @@ function selfCheck(div) {
     res.textContent = `Right. ${c.how}`;
     LEARN.check[id] = true;
     learnSave();
+    lessonProgRefresh(id);
     return;
   }
   scTries[id] = (scTries[id] || 0) + 1;
@@ -304,7 +346,7 @@ function renderLearn() {
           G.items
             .map((L, i) => {
               const id = `${G.id}:${i}`;
-              return `<details class="lesson" data-l="${id}" ${lessonOpen === id ? 'open' : ''}><summary><span class="lnum">${i + 1}</span><i class="ldot" data-st="${lessonState(id).st}" aria-hidden="true"></i>${L.t}<span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonBodyHTML(L, id)}</div></details>`;
+              return `<details class="lesson" data-l="${id}" ${lessonOpen === id ? 'open' : ''}><summary title="${lessonStateText(id)}"><span class="lnum">${i + 1}</span><i class="ldot" data-st="${lessonState(id).st}" aria-hidden="true"></i>${L.t}<span class="sr-only">, ${lessonState(id).st === 'none' ? 'not started' : lessonState(id).st === 'done' ? 'done' : 'started'}</span><span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonOpen === id ? `<div class="lprog" role="status">${lessonProgHTML(id)}</div>` : ''}${lessonBodyHTML(L, id)}</div></details>`;
             })
             .join('') +
           `</section>`
@@ -312,6 +354,14 @@ function renderLearn() {
       .join('') +
     (cur ? '' : chaptersListHTML());
   wireStartHere(v);
+  const rs = v.querySelector('#learn-reset');
+  if (rs)
+    rs.onclick = () => {
+      if (!confirm('Clear the progress of every lesson in this browser (experiments run, predictions, self-checks)?')) return;
+      learnReset(null);
+      renderLearn();
+    };
+  wireLessonProg(v);
   v.querySelectorAll('.pred-opt').forEach(b => (b.onclick = () => predPick(b.closest('.predict'), +b.dataset.k)));
   v.querySelectorAll('.selfcheck').forEach(d => {
     d.querySelector('.sc-go').onclick = () => selfCheck(d);
@@ -362,6 +412,7 @@ function renderLearn() {
         if (lessonOpen !== id) openLesson(id, {restore: true});
         const cfg = lessonItem(id).L.tries[+j][1];
         learnTried(id, +j);
+        lessonProgRefresh(id);
         if (cfg.sim) return tryGo({...cfg, layers: {...lessonLayers(id), ...(cfg.layers || {})}});
         lessonGo(cfg);
       })

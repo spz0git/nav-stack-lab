@@ -23,12 +23,31 @@ function lessonState(id) {
     started = !!LEARN.seen[id] || tried > 0;
   return {st: done ? 'done' : started ? 'part' : 'none', n, tried, chk};
 }
+// What the circle in front of a lesson means, in words: its tooltip in the list and the strip in the open lesson
+function lessonStateText(id) {
+  const s = lessonState(id);
+  if (s.st === 'none') return 'Not started: open the lesson to start it';
+  const exp = `${s.tried} of ${s.n} experiment${s.n === 1 ? '' : 's'} run`,
+    it = lessonItem(id),
+    chk = it && it.L.check ? (s.chk ? 'Check yourself passed' : 'Check yourself not passed yet') : '';
+  return `${s.st === 'done' ? 'Done' : 'Started'}: ${exp}${chk ? ', ' + chk : ''}`;
+}
 function learnTried(id, j) {
   const a = LEARN.tried[id] || (LEARN.tried[id] = []);
   if (!a.includes(j)) {
     a.push(j);
     learnSave();
   }
+}
+// Reset: one lesson back to not started (its experiments, its self-check, its predictions), or every lesson
+function learnReset(id) {
+  const keys = id ? [id] : null;
+  for (const k of ['seen', 'tried', 'check']) {
+    if (!keys) LEARN[k] = {};
+    else delete LEARN[k][id];
+  }
+  for (const pk of Object.keys(LEARN.pred)) if (!keys || pk.startsWith(id + ':')) delete LEARN.pred[pk];
+  learnSave();
 }
 const allLessonIds = () => LESSON_GROUPS().flatMap(G => G.items.map((_, i) => `${G.id}:${i}`));
 // Next: along the first pass while the open lesson is on it, otherwise the next lesson in the list
@@ -50,9 +69,10 @@ function progressHTML() {
     done = groups.reduce((a, g) => a + g.done, 0),
     part = groups.reduce((a, g) => a + g.part, 0);
   const path = LEARN_PATH.filter(([id]) => lessonState(id).st === 'done').length;
-  if (!done && !part) return '';
+  const key = `<p class="note pkey"><span><i class="ldot" data-st="none" aria-hidden="true"></i>not started</span><span><i class="ldot" data-st="part" aria-hidden="true"></i>started</span><span><i class="ldot" data-st="done" aria-hidden="true"></i>done</span> A lesson's circle fills once you have pressed each of its experiment buttons and passed its Check yourself.${done || part ? ' <button type="button" class="linkbtn" id="learn-reset" title="Clear every lesson\'s progress, predictions and self-checks in this browser">Reset all progress</button>' : ''}</p>`;
+  if (!done && !part) return `<div class="progress" role="group" aria-label="Your progress">${key}</div>`;
   return (
-    `<div class="progress" role="group" aria-label="Your progress"><p class="note">${done} of ${n} lessons done${part ? `, ${part} started` : ''} · first pass ${path} of ${LEARN_PATH.length}</p><div class="pbars">` +
+    `<div class="progress" role="group" aria-label="Your progress"><p class="note">${done} of ${n} lessons done${part ? `, ${part} started` : ''} · first pass ${path} of ${LEARN_PATH.length}</p>${key}<div class="pbars">` +
     groups
       .map(
         g =>

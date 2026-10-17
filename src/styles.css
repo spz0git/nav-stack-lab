@@ -2206,6 +2206,9 @@ details.see > p {
 .learncol.reading .lesson .ldot {
   display: none;
 }
+.learncol.reading .lesson .lprog .ldot {
+  display: inline-block;
+}
 .starthere ol.path li.done a {
   color: var(--muted);
   font-weight: 500;
@@ -2213,6 +2216,66 @@ details.see > p {
 .starthere .ldone {
   color: var(--ok);
   font-weight: 600;
+}
+/* what the lesson circle means: the key above the list, the strip in an open lesson, a pressed experiment */
+.progress .pkey span {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 10px;
+  white-space: nowrap;
+}
+.progress .pkey .linkbtn {
+  margin-left: 4px;
+}
+.pkey .ldot,
+.lprog .ldot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+  margin-right: 5px;
+  background: transparent;
+}
+.pkey .ldot[data-st='part'],
+.lprog .ldot[data-st='part'] {
+  background: linear-gradient(90deg, var(--sys, var(--muted)) 50%, transparent 50%);
+}
+.pkey .ldot[data-st='done'],
+.lprog .ldot[data-st='done'] {
+  background: var(--sys, var(--ok));
+  border-color: var(--sys, var(--ok));
+}
+.lprog {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 2px 0 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--raise);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.lprog .lp-txt {
+  color: var(--ink);
+  font-weight: 500;
+}
+.lprog .lp-step {
+  white-space: nowrap;
+}
+.lprog .lp-step.ok {
+  color: var(--ok);
+}
+.lprog .lp-reset {
+  margin-left: auto;
+}
+.btn.tried::after {
+  content: ' ✓';
+  color: var(--ok);
 }
 /* progress (Phase 1.4) */
 .progress {

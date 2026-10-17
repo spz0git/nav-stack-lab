@@ -1,1 +1,1 @@
-{"version": 42, "date": "2026-10-17", "note": "Lessons on the empty floor where the obstacles only got in the way: localization 6, control 14 (PR #89)"}
+{"version": 43, "date": "2026-10-17", "note": "Every lesson checked against the simulator; reversing, turn-rate message and step-menu fixes (PR #90)"}

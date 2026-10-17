@@ -12,8 +12,8 @@ at 1.5 m/s the car turns at 75 % of v·tanδ/L;  at 2 m/s, 63 %</div>
 <p><b>What the lab does.</b> Vehicle → <b>Car (dynamic: tyre slip)</b> runs the dynamic bicycle model under the same longitudinal chain (command, lag, acceleration and steering-rate limits): states <i>v</i><sub>y</sub> and <i>r</i> at the centre of mass, the pose still at the rear axle, tyres clipped at μ times their load. The <b>Slippery floor</b> preset makes the lab car's characteristic speed 2.6 m/s instead of a passenger car's 27, so the effects show at lab speeds; <b>Grippy</b> is kinematic to within 3 % below 2 m/s. The map's Sideslip layer draws the velocity of the centre of mass against the heading. The odometry reports <i>v</i> tan δ / <i>L</i> unless the yaw-rate gyro is on (Localize tab, Odometry). These runs lift the curve cap <i>a</i><sub>lat</sub> to 1.5 m/s² so the car takes its turns at speed.</p>
 
 ## Try: Kinematic car at 1.5 m/s
-cfg: {"sim":true,"level":0,"set":{"veh":"car","vmax":2,"vcruise":1.5,"alat":1.5},"plot":"cte","layers":{"slip":true}}
-Setup: L1 open floor, the kinematic car at 1.5 m/s with pure pursuit and Hybrid A*, curve cap 1.5 m/s².
+cfg: {"sim":true,"level":0,"set":{"map":"empty","veh":"car","vmax":2,"vcruise":1.5,"alat":1.5},"plot":"cte","layers":{"slip":true}}
+Setup: L1's four goals on the empty floor (Mission → Map → Empty floor: only the outer walls, so a car that leaves its path has room to show it), the kinematic car at 1.5 m/s with pure pursuit and Hybrid A*, curve cap 1.5 m/s².
 See: All 4 goals in 40.8 s, cross-track error 4.2 cm RMS (13 cm at most).
 Shows: The reference: the car the trackers were designed for, at the same speed as the next run.
 Predict: The kinematic car at 1.5 m/s with the curve cap raised to 1.5 m/s²: how will it track?
@@ -23,7 +23,7 @@ Predict: The kinematic car at 1.5 m/s with the curve cap raised to 1.5 m/s²: ho
 Answer: 0
 
 ## Try: Slippery floor, same speed
-cfg: {"sim":true,"level":0,"set":{"veh":"dyn","mass":10,"Iz":0.9,"lf":0.27,"Cf":40,"Cr":90,"mu":0.25,"vmax":2,"vcruise":1.5,"alat":1.5},"plot":"cte","panes":[["yawr","yawk"],["beta"]],"layers":{"slip":true}}
+cfg: {"sim":true,"level":0,"set":{"map":"empty","veh":"dyn","mass":10,"Iz":0.9,"lf":0.27,"Cf":40,"Cr":90,"mu":0.25,"vmax":2,"vcruise":1.5,"alat":1.5},"plot":"cte","panes":[["yawr","yawk"],["beta"]],"layers":{"slip":true}}
 Setup: The same run with the car with tyre slip on the slippery floor. Plots: the yaw rate <i>r</i> against the kinematic <i>v</i> tan δ / <i>L</i>, and the sideslip β.
 See: All 4 goals in 42.0 s, but the cross-track error is 12.1 cm RMS (37 cm at most), three times the kinematic car's. In every turn the yaw rate sits below <i>v</i> tan δ / <i>L</i>, on average at 0.76 of it; β reaches 12° and the arrow on the map points visibly off the heading; the steering sits at its lock 7 % of the time.
 Shows: The tracker asks for a curvature through the kinematic model and gets three quarters of it, so it lags into every turn and steers harder to catch up. Nothing in its code knows why: the plant changed under it.
@@ -34,9 +34,9 @@ Predict: The same run on the slippery floor: how will the yaw rate compare with 
 Answer: 2
 
 ## Try: Dead reckoning on the sliding car
-cfg: {"sim":true,"level":0,"set":{"veh":"dyn","mass":10,"Iz":0.9,"lf":0.27,"Cf":40,"Cr":90,"mu":0.25,"vmax":2,"vcruise":1.5,"alat":1.5,"loc":"dr"},"plot":"cte","panes":[["yawr","yawk"]],"layers":{"slip":true,"trail":true}}
+cfg: {"sim":true,"level":0,"set":{"map":"empty","veh":"dyn","mass":10,"Iz":0.9,"lf":0.27,"Cf":40,"Cr":90,"mu":0.25,"vmax":2,"vcruise":1.5,"alat":1.5,"loc":"dr"},"plot":"cte","panes":[["yawr","yawk"]],"layers":{"slip":true,"trail":true}}
 Setup: The slippery run steered by dead reckoning: the estimate integrates the odometry, which takes the turn rate from the steering encoder, <i>v</i> tan δ / <i>L</i>. On this level the odometry has no noise and no bias.
-See: With the kinematic car this estimate is exact. Here it goes wrong in the first turns: in every turn the odometry reports more turning than the car did. The car reaches the first goal, then collides with a pillar, gets stuck and skips the other goals (1 of 4); at the end the estimate is 0.52 m and 6.7° off the truth.
+See: With the kinematic car this estimate is exact. Here it goes wrong in the first turns: in every turn the odometry reports more turning than the car did (the car turns at 0.77 of <i>v</i> tan δ / <i>L</i>), and the heading error only grows. The car reaches the first two goals by its estimate, 81° off in heading by the end; at 22.6 s it runs into the east wall 3.4 m from where the estimate puts it, gets stuck and skips the last two goals. (On L1 with its pillars the same run met the box after 5 s, before the drift had shown.)
 Shows: Slip is an odometry error that no calibration removes: the encoders measure exactly what the wheels did, and the wheels did not move the car the way the kinematic model says. A filter that trusts this odometry is biased in every turn.
 Predict: Dead reckoning from the steering encoder on the sliding car, noise-free odometry: what will the estimate do?
 - Stay exact: the odometry has no noise and no bias
@@ -45,9 +45,9 @@ Predict: Dead reckoning from the steering encoder on the sliding car, noise-free
 Answer: 1
 
 ## Try: Same, with a yaw-rate gyro
-cfg: {"sim":true,"level":0,"set":{"veh":"dyn","mass":10,"Iz":0.9,"lf":0.27,"Cf":40,"Cr":90,"mu":0.25,"vmax":2,"vcruise":1.5,"alat":1.5,"loc":"dr","gyro":true},"plot":"cte","layers":{"slip":true,"trail":true}}
+cfg: {"sim":true,"level":0,"set":{"map":"empty","veh":"dyn","mass":10,"Iz":0.9,"lf":0.27,"Cf":40,"Cr":90,"mu":0.25,"vmax":2,"vcruise":1.5,"alat":1.5,"loc":"dr","gyro":true},"plot":"cte","layers":{"slip":true,"trail":true}}
 Setup: The same, with the yaw-rate gyro on: the odometry reports the true yaw rate.
-See: All 4 goals in 41.6 s. The heading estimate stays within 0.2° of the truth, but the position drifts to 0.18 m by the end.
+See: All 4 goals in 41.2 s. At the end the heading estimate is 1.1° off the truth, but the position has drifted 0.21 m.
 Shows: A gyro fixes the heading, which is why every real car has one. The sideways slide of the rear axle, <i>v</i><sub>y</sub> − <i>l</i><sub>r</sub><i>r</i>, is in neither the encoders nor the gyro, so position still needs an outside reference: beacons, lidar against the map, GPS.
 Predict: Adding the yaw-rate gyro: what does it fix and what remains?
 - Heading and position both stay exact

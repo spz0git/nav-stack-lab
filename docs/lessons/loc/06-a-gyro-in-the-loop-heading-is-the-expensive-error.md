@@ -9,12 +9,12 @@ title: A gyro in the loop: heading is the expensive error
 θ_err(t) = b·t,   e_⊥(t) ≈ v·b·t²/2        a constant bias b: heading drifts linearly, sideways position quadratically
 b̂ ← b̂ + α(ω_g − b̂)  while standing still        the zero-velocity update: the mean reading at rest is the bias</div>
 <p><b>Where it comes from.</b> The random-walk line is <i>V M V</i>ᵀ of lesson 1 summed over <i>t</i>/Δ<i>t</i> ticks; the bias lines integrate θ̇ = <i>b</i> and ė = <i>v</i>θ once and twice. The zero-velocity update is an exponential average with gain α = 0.1, which settles in the 2 s hold at the start of a run and averages the noise about four times down. <a class="chref" href="#notes=ch2/9-heading-sensors-a-gyro-in-the-motion-model">Derivation: chapter 2 §9</a></p>
-<p><b>What the lab does.</b> Vehicle → Yaw-rate gyro switches the turn-rate source for every vehicle (on the car with tyre slip it also reports the true yaw rate instead of the steering encoder's). The gyro has its own noise σ (0.3°/s per 50 ms reading) and a bias slider the filter is not told about; the zero-velocity update, when on, holds the robot still for the first 2 s of a run, averages the gyro into a bias estimate, and subtracts it from then on, and does the same at every later stop. The Localize tab's assumed-noise slider scales the gyro's σ in the filter as it scaled the wheels'. All numbers below are from L3 at seed 7 over 120 s.</p>
+<p><b>What the lab does.</b> Vehicle → Yaw-rate gyro switches the turn-rate source for every vehicle (on the car with tyre slip it also reports the true yaw rate instead of the steering encoder's). The gyro has its own noise σ (0.3°/s per 50 ms reading) and a bias slider the filter is not told about; the zero-velocity update, when on, holds the robot still for the first 2 s of a run, averages the gyro into a bias estimate, and subtracts it from then on, and does the same at every later stop. The Localize tab's assumed-noise slider scales the gyro's σ in the filter as it scaled the wheels'. The dead-reckoning experiments run as in lesson 1: L3's odometry on the empty floor, the robot lapping an 8 × 5 m rectangle in the middle, the goals repeating, so nothing gets in the way and the drift is all there is to see; the EKF experiments keep L3's shelves and beacons. All numbers below are at seed 7 over 120 s.</p>
 
 ## Try: Dead reckoning, wheels only
-cfg: {"sim":true,"level":2,"set":{"loc":"dr"},"tab":"veh","plot":"pos"}
-Setup: L3 with its noisy, slightly miscalibrated odometry, dead reckoning, the Vehicle tab and the Position error plot. The reference run of lesson 1.
-See: The heading is 15° off by 20 s and 34° by 100 s; the position error reaches 2.4 m. No goal of five is reached, three collisions, pose RMS 1.83 m.
+cfg: {"sim":true,"level":2,"set":{"loc":"dr","map":"empty","misLoop":true},"goals":[[8,5.5],[16,5.5],[16,10.5],[8,10.5]],"tab":"veh","plot":"eth"}
+Setup: L3's noisy, slightly miscalibrated odometry on the empty floor, dead reckoning, laps of the rectangle in the middle, the Vehicle tab and the θ error plot. The reference run of lesson 1.
+See: The heading is 10° off by 20 s, 25° by a minute, 54° at 100 s and 42° at two minutes (the random part rides on the steady drift), and the true lap turns about the middle of the floor while the believed one stays a rectangle. The position error rises and falls between 1 and 3 m as the robot goes round, pose RMS 2.16 m.
 Shows: What the turn rate from two wheel encoders does over two minutes: a heading error that keeps growing, and a position error that grows with it.
 Predict: Put a gyro in place of the wheels' turn rate, no beacons, two minutes. How far off is the heading at the end?
 - Still tens of degrees: dead reckoning drifts whatever the sensor
@@ -23,10 +23,10 @@ Predict: Put a gyro in place of the wheels' turn rate, no beacons, two minutes. 
 Answer: 1
 
 ## Try: Dead reckoning with the gyro
-cfg: {"sim":true,"level":2,"set":{"loc":"dr","gyro":true},"tab":"veh","plot":"pos"}
+cfg: {"sim":true,"level":2,"set":{"loc":"dr","gyro":true,"map":"empty","misLoop":true},"goals":[[8,5.5],[16,5.5],[16,10.5],[8,10.5]],"tab":"veh","plot":"eth"}
 Setup: The same run with the yaw-rate gyro on (σ 0.3°/s, no bias). Still no beacons: dead reckoning only.
-See: The heading stays within 1° for the whole two minutes. The position error stays between 0.2 and 0.5 m, pose RMS 0.33 m against 1.83 m with the wheels, and all five goals are reached (one brush with a shelf at about 60 s, where the along-track error happens to be largest).
-Shows: Heading was the expensive error. Take it away and dead reckoning alone finishes the mission. What is left, a few tens of centimetres along the direction of travel, is the 2 % speed bias and the speed noise, which no gyro can see.
+See: The heading is 0.1° off at a minute and 1.3° at two minutes. The true lap lies on the believed one; the position error stays between 0.25 and 0.5 m, pose RMS 0.35 m against 2.16 m with the wheels.
+Shows: Heading was the expensive error. Take it away and dead reckoning alone keeps the robot on its lap. What is left, a few tens of centimetres along the direction of travel, is the 2 % speed bias and the speed noise, which no gyro can see.
 Predict: The EKF with beacons that are down 70 % of the time in 6 s outages, wheels against gyro: what changes?
 - Nothing visible: the beacons fix the heading whenever they return
 - The error during the outages roughly halves with the gyro
@@ -45,9 +45,9 @@ Predict: Now give the gyro a bias of 0.5°/s the filter is not told about, dead 
 Answer: 0
 
 ## Try: A gyro with a bias the filter is not told about
-cfg: {"sim":true,"level":2,"set":{"loc":"dr","gyro":true,"gyroBias":0.5},"tab":"veh","plot":"pos"}
+cfg: {"sim":true,"level":2,"set":{"loc":"dr","gyro":true,"gyroBias":0.5,"map":"empty","misLoop":true},"goals":[[8,5.5],[16,5.5],[16,10.5],[8,10.5]],"tab":"veh","plot":"eth"}
 Setup: Dead reckoning with the gyro, and a gyro bias of 0.5°/s (Vehicle → Gyro bias). The filter still assumes a zero-mean 0.3°/s noise.
-See: The heading drifts exactly at the bias: 10° at 20 s, 30° at 60 s, 60° at 120 s. The position error is 1.4 m within 20 s, no goal is reached, and NEES climbs into the thousands: the filter's σ grows as if the only error were 0.3°/s of noise.
+See: The heading drifts exactly at the bias: 11° at 20 s, 31° at 60 s, 62° at 120 s, and the true lap turns faster than with the wheels. The position error is 1.4 m by 20 s and 3 m by a minute, against a 2σ band of 1.5 m that never widens, and NEES climbs into the thousands (2400 at two minutes): the filter's σ grows as if the only error were 0.3°/s of noise.
 Shows: A bias is not noise. A gyro with a drifting bias is the wheel-calibration problem all over again, only worse, because the filter has been told the turn rate is now precise. On real IMUs this bias moves with temperature, which is why no driver trusts the factory value for long.
 Predict: Turn the zero-velocity update on. Besides the 2 s hold at the start, what does the run look like?
 - Like the unbiased gyro: heading within a degree or two
@@ -56,9 +56,9 @@ Predict: Turn the zero-velocity update on. Besides the 2 s hold at the start, wh
 Answer: 0
 
 ## Try: The bias, with the zero-velocity update
-cfg: {"sim":true,"level":2,"set":{"loc":"dr","gyro":true,"gyroBias":0.5,"zupt":true},"tab":"veh","plot":"pos"}
+cfg: {"sim":true,"level":2,"set":{"loc":"dr","gyro":true,"gyroBias":0.5,"zupt":true,"map":"empty","misLoop":true},"goals":[[8,5.5],[16,5.5],[16,10.5],[8,10.5]],"tab":"veh","plot":"eth"}
 Setup: The same biased gyro with the zero-velocity update on: the robot holds still for 2 s, the gyro's mean reading becomes the bias estimate, and it is subtracted from then on. The Vehicle tab's gyro line shows the estimate.
-See: The hold learns the bias to within a few hundredths of a degree per second (the Vehicle tab reads about 0.5°/s). The heading then stays within 2° for the whole run, as with the unbiased gyro. The position error is 0.4 to 0.7 m, pose RMS 0.59 m, and on this seed the run reaches 2 of 5 goals with one collision: the 2 s hold shifts the timing of the whole run, and what remains is the speed bias.
+See: The hold learns the bias to within about a tenth of a degree per second (the Vehicle tab reads 0.43°/s after the hold, and between 0.40 and 0.51°/s as later stops refresh it). The heading then stays within about 2° for the whole run, as with the unbiased gyro, and the robot keeps to its lap. The position error is 0.35 to 0.5 m, pose RMS 0.31 m; what remains is the speed bias.
 Shows: Two seconds of standing still are worth more than any amount of filtering: at rest the true yaw rate is exactly zero, so the gyro reads its bias and nothing else. Every stop is a chance to recalibrate, which is why IMU drivers do this at every stop. The heading problem is solved; the speed bias is a different sensor's problem.
 Predict: Give the biased gyro to the EKF with the beacons on (no zero-velocity update). What does NEES say?
 - About 3: the beacons correct the bias as fast as it accumulates

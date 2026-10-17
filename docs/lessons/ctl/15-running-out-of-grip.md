@@ -35,7 +35,7 @@ Answer: 2
 ## Try: Cap above the grip: a_lat 6
 cfg: {"sim":true,"level":0,"set":{"veh":"dyn","mass":10,"Iz":0.9,"lf":0.27,"Cf":40,"Cr":90,"mu":0.25,"vmax":2.5,"vcruise":2,"alat":6},"plot":"cte","panes":[["ay","mug"]],"layers":{"slip":true,"trail":true}}
 Setup: The cap at 6 m/s², more than twice what the floor can give: the speed profile no longer slows for the turns.
-See: The car pushes wide at the first sharp turn: off-path replan at 10.5 s, a collision with a pillar at 25.7 s, and a goal skipped after the car is stuck; 3 of 4 goals. The cross-track error reaches 1.0 m; <i>a</i><sub>y</sub> peaks at 2.13 m/s², 87 % of μg; the front tyres reach their limit (6 % of the run), the steering sits at its lock for 23 % of it, and the Control light is amber in the turns.
+See: The car pushes wide at the first sharp turn: off-path replan at 10.5 s, at 25.7 s its nose in the outer wall below the third goal, and a goal skipped after the car is stuck; 3 of 4 goals. The cross-track error reaches 1.0 m; <i>a</i><sub>y</sub> peaks at 2.13 m/s², 87 % of μg; the front tyres reach their limit (6 % of the run), the steering sits at its lock for 23 % of it, and the Control light is amber in the turns.
 Shows: At the limit, steering is no longer a control input: the tracker can turn the wheels to the lock and the car does not turn any tighter. The only remedy is speed, and it has to come before the turn, which is the speed profile's job, so its a<sub>lat</sub> has to be the grip the floor really has.
 Predict: The cap above the grip, 6 m/s²: what will the car do at the first sharp turn?
 - Steer to the lock and push wide, off the path

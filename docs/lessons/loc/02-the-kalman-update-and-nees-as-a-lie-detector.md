@@ -17,7 +17,7 @@ H = ∂h/∂x = [−Δx/√q  −Δy/√q  0;  Δy/q  −Δx/q  −1],   Q = dia
 ## Try: EKF
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf"},"tab":"loc","plot":"pos"}
 Setup: L3 with the EKF, odometry noise ×1 and bias ×1, assumed noise ×1. Localize tab and the Position error plot.
-See: The error stays between 1 and 5 cm for the whole run and the σ reported by the filter is the same size, so NEES hovers between 2.5 and 5 with the error inside the 2σ band about 97 % of the time. All five goals are reached in about 90 s with no collisions, against zero goals for dead reckoning on the same level. Press F (or ◎ on the map) to follow the robot and watch the estimate: between readings it slides with the odometry, and five times a second it snaps toward the truth as a reading lands. The ellipse breathes in the same rhythm, growing for four ticks and collapsing on the fifth.
+See: The error stays mostly between 1 and 8 cm (RMS 4 cm, peaks near 14 cm) and the σ reported by the filter is the same size, so NEES hovers between 2.5 and 5 with the error inside the 2σ band about 97 % of the time. All five goals are reached in about 90 s with no collisions, against zero goals for dead reckoning on the same level. Press F (or ◎ on the map) to follow the robot and watch the estimate: between readings it slides with the odometry, and five times a second it snaps toward the truth as a reading lands. The ellipse breathes in the same rhythm, growing for three ticks and collapsing on the fourth.
 Shows: This is a healthy filter. The small ×1 bias is there, but a beacon fix every 0.2 s corrects what it accumulates in 0.2 s, which is far below the sensor noise, so it never shows. Note what consistency looks like in the plot: the error is not always inside the band; it pokes out about one time in twenty, as it should.
 Predict: With a beacon fix every 0.2 s on L3, how large will the EKF's position error be during the run?
 - About half a metre
@@ -28,7 +28,7 @@ Answer: 1
 ## Try: EKF, odometry bias ×3
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","odoB":3},"tab":"loc","plot":"pos"}
 Setup: The same filter with the calibration bias at ×3 (Localize tab, Odometry): the speed reads 6 % high and the turn rate carries an offset of 0.03 rad/s per m/s. The filter is not told.
-See: The pose error is still small, 5 to 16 cm, because the beacons keep catching it, but NEES is 8 to 16 whenever the robot is moving, and the status strip flags the filter as overconfident for most of the drive. The error leaves the 2σ band about a third of the time. When the mission completes near 90 s and the robot stops, NEES falls back to 2 to 5 within a few seconds.
+See: The pose error is still small, 2 to 20 cm (peaks near 30 cm), because the beacons keep catching it, but NEES is 6 to 19 whenever the robot is moving, and the status strip flags the filter as overconfident for most of the drive. The error leaves the 2σ band about half the time while driving. When the mission completes near 90 s and the robot stops, NEES falls back to 2 to 5 within about 12 s, once the 20 s window has forgotten the drive.
 Shows: The classic signature of unmodeled bias. Σ shrinks as if the odometry were unbiased, so the gain discounts the innovations, which are no longer zero-mean noise but a steady, one-signed pull (the filter keeps believing it went a little farther and turned a little more than it did). The error is small only because the beacons are frequent and precise. The same bias with a landmark every 50 m instead of every 0.2 s would be metres, with the filter still claiming centimetres. NEES drops when the robot stops because the bias is proportional to speed: no motion, no bias, and the filter is suddenly telling the truth again.
 Predict: The calibration bias is tripled and the filter is not told. What does NEES do?
 - Stays near 3: the beacons correct the bias before it accumulates
@@ -39,7 +39,7 @@ Answer: 2
 ## Try: Bias ×3, assumed noise ×4
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","odoB":3,"filtK":4},"tab":"loc","plot":"pos"}
 Setup: Bias ×3 as before, and the filter's assumed motion noise at ×4 (Localize tab), so its uncertainty grows four times faster between readings.
-See: NEES comes down to 2 to 3 while driving, the error is inside the band 99 % of the time, and the pose error is actually a little smaller than in the previous run, 1 to 4 cm instead of 5 to 16. The ellipse is visibly larger between readings and collapses harder at each one.
+See: NEES comes down to 2 to 3 while driving, the error is inside the band 99 % of the time, and the pose error is actually a little smaller than in the previous run, mostly 1 to 6 cm, RMS 7 cm against 11 cm while driving. The ellipse is visibly larger between readings and collapses harder at each one.
 Shows: Inflating the process noise is the standard practical fix, and it is what "tuning <i>Q</i>" means in most deployed filters: the extra assumed noise stands in for the bias the model lacks. It works here because it makes Σ large enough between readings that the gain trusts the beacons more, which is also why the error improves. The cost comes later: a filter that admits more ignorance between fixes will lose confidence faster during a beacon outage (correct, but the planner has to live with it) and will accept readings from farther away when it starts gating them, which is the next lesson's problem. A bias state in the filter would fix the cause instead of the symptom.
 Predict: Keeping the ×3 bias but raising the assumed motion noise to ×4, what happens to the position error?
 - It gets a little smaller than with ×1 assumed noise
@@ -58,7 +58,7 @@ Q: Why is the expected NEES 3, and not 1 or 9?
 A: Σ⁻¹ whitens the error: if the filter is consistent, Σ^{−1/2} <i>e</i> has three components that are each standard normal, and the sum of three squared standard normals is χ² with three degrees of freedom, whose mean is 3. With a 2-D position-only check it would be 2; for a track with position and velocity, 4.
 Q: Overconfident and underconfident are both inconsistent. Which is more dangerous downstream?
 A: Overconfident. An overconfident filter rejects or discounts the measurements that would correct it, so the error grows while the reported uncertainty does not; the planner then plans with margins that are too small around a pose that is wrong. An underconfident filter wastes information and makes the planner over-cautious, which is a performance cost, not a safety one. Most practitioners tune toward slight underconfidence for that reason.
-Q: In the second experiment the error stayed under 16 cm. Why worry about NEES at all if the pose is that good?
+Q: In the second experiment the error stayed around 30 cm at worst. Why worry about NEES at all if the pose is that good?
 A: Because the pose is good for a reason that will not hold: beacons every 0.2 s. NEES is measuring the filter, not the scenario. The same filter in a scenario with sparser fixes, a longer outage, or a wrong association will fail, and NEES on a benign log is the warning you get before it does.
 
 ## Check yourself

@@ -61,7 +61,7 @@ $$
 
 then the expected number of nodes inside the radius grows like $\ln n$, enough that the rewiring keeps finding improvements, while the cost per iteration stays $O(\ln n)$, and the path cost converges to the optimum with probability one as $n \to \infty$. A fixed radius would also converge but cost $O(n)$ per iteration; a radius shrinking faster would stop converging. For the warehouse's 260 m² of free floor the constant works out to about 22, and the lab's γ = 8 with a 1.5 m cap is well below it. That is common practice: the condition is sufficient, not necessary, and a theoretical γ would make every iteration examine most of the tree on a floor this small.
 
-**What a finite budget buys.** Convergence is a statement about $n \to \infty$. At $n$ = 1500 on the warehouse, the first leg of lesson 2 comes out between 8.3 and 15.3 m depending on the seed, against 8.6 m for A*: half the seeds find the short way through the near aisle and half commit early to the long way round and never rewire out of it, because rewiring only improves connections inside $r_n$ and cannot move a subtree to a different aisle. With 4000 samples eight seeds in ten find the short route; with 300, four in ten find no connection to the goal at all. That is the trade: sampling needs no grid and scales to high-dimensional spaces where grids are hopeless, and it pays with variance that a grid search does not have.
+**What a finite budget buys.** Convergence is a statement about $n \to \infty$. At $n$ = 1500 on the warehouse, the first leg of lesson 2 comes out between 8.3 and 15.3 m depending on the seed, against 8.6 m for A*: half the seeds find the short way through the near aisle and half commit early to the long way round and never rewire out of it, because rewiring only improves connections inside $r_n$ and cannot move a subtree to a different aisle. With 4000 samples six seeds in ten find the short route; with 300, four in ten find no connection to the goal at all. That is the trade: sampling needs no grid and scales to high-dimensional spaces where grids are hopeless, and it pays with variance that a grid search does not have.
 
 [try: RRT* | {"sim":true,"level":1,"set":{"plan":"rrtstar"},"tab":"plan","layers":{"search":true},"searchStep":true}] [try: Next seed | {"sim":true,"level":1,"seed":"next","set":{"plan":"rrtstar"},"tab":"plan","layers":{"search":true},"searchStep":true}]
 
@@ -73,7 +73,7 @@ $$
 \dot\theta = \frac{v \tan\delta}{L}, \qquad R_{\min} = \frac{L}{\tan \delta_{\max}} = \text{{{live:Rmin}} m}
 $$
 
-A grid path has corners of zero radius and no heading, so a car following it swings wide at every corner and cannot park at all: in lesson 3's last experiment plain A* on the car reaches none of the four bays. The planners that work keep a margin on the lock: they plan with {{live:planPct}} % of δ<sub>max</sub>, a turning radius of {{live:Rplan}} m, so that the tracker has steering authority left to correct with. At 100 % every planned turn is at full lock and the tracker has nothing in reserve, which is why that experiment gets stuck twice.
+A grid path has corners of zero radius and no heading, so a car following it swings wide at every corner and cannot park at all: in lesson 3's last experiment plain A* on the car reaches none of the four goals. The planners that work keep a margin on the lock: they plan with {{live:planPct}} % of δ<sub>max</sub>, a turning radius of {{live:Rplan}} m, so that the tracker has steering authority left to correct with. At 100 % every planned turn is at full lock and the tracker has nothing in reserve, which is why that experiment gets stuck twice.
 
 **Reeds–Shepp paths.** Between two poses with no obstacles, the shortest path for a car that can reverse is made of at most five pieces, each an arc at minimum radius (L or R) or a straight (S), with reversals allowed. Reeds and Shepp (1990) showed that 48 such words suffice; by symmetry (reflect, reverse time, swap L and R) they reduce to 12 families, and the lab evaluates all 12 with their four symmetry images for each query, checks each candidate by integrating it to the end pose, and keeps the shortest that lands. Normalizing the problem to $R = 1$ makes the formulas for each family a few lines of trigonometry. Two uses: as a planner on its own (the Reeds–Shepp option, which ignores obstacles) and inside Hybrid A*, twice.
 
@@ -126,7 +126,7 @@ A diagonal move is also checked at the intermediate step, so the robot cannot cu
 
 **Heuristic and budget.** The heuristic is the octile distance to the goal in time units, which is admissible because it assumes free space and no waiting. The search is capped at 60 000 expansions; if the horizon is too crowded to cross it reports "no space-time route within the horizon" and the mission retries 2 s later, which happened once in lesson 5's first run. The output is a path with waits folded in; the speed planner of the Control tab still enforces the timing and reacts to prediction error, so the two layers share the work: the planner picks the route in space-time, the speed planner keeps the schedule.
 
-**What it costs and buys.** The coarser grid means fewer expansions than plain A* on the same legs (200 to 3 500 against 1 400 to 5 900 in lesson 5), so the time dimension is paid for by the cell size. What it buys depends on the people: against scripted people on the busy floor it makes the same two contacts as A* with the agent layer, because the contacts come from people stepping out from behind shelves inside the planner's reaction time; against reactive people it makes none. The honest reading is that the trajectory layer, the speed planner, is doing most of the work on this floor, and space-time planning matters where the route itself must change, in doorways and narrow aisles.
+**What it costs and buys.** The coarser grid means fewer expansions than plain A* on the same legs (200 to 3 500 against 1 400 to 5 900 in lesson 5), so the time dimension is paid for by the cell size. What it buys depends on the people: against scripted people on the busy floor it makes one contact, as many as A* with the agent layer though in a different encounter, because a contact comes from a person moving inside the planner's reaction time, away from what was predicted; against reactive people it makes none. The honest reading is that the trajectory layer, the speed planner, is doing most of the work on this floor, and space-time planning matters where the route itself must change, in doorways and narrow aisles.
 
 [try: Space-time A* | {"sim":true,"level":4,"set":{"plan":"stastar"},"tab":"plan","layers":{"search":true},"searchStep":true}] [try: A* with the agent layer | {"sim":true,"level":4,"set":{"plan":"astar"},"tab":"plan","layers":{"search":true},"searchStep":true}]
 
@@ -140,7 +140,7 @@ A diagonal move is also checked at the intermediate step, so the robot cannot cu
 $$
 u_i = \frac{|F_i|}{1 + d_i},
 $$
-and the highest score is the next goal. Size per metre is the crudest estimate of what exploration wants, new floor per metre driven; the research versions (expected information gain against path cost) estimate the same ratio properly. A goal is dropped the moment none of its cluster's cells borders unknown space any more, checked once a second while driving: the way there usually reveals what was behind it, and 13 of the 15 goals of the run below end this way. A goal the planner cannot reach three times, or the robot is stuck on three times, is put on a failed list and skipped; when nothing but failed frontiers is left, each is tried once more from wherever the robot now stands, and the exploration ends when no frontier is left, or none that has not failed twice.
+and the highest score is the next goal. Size per metre is the crudest estimate of what exploration wants, new floor per metre driven; the research versions (expected information gain against path cost) estimate the same ratio properly. A goal is dropped the moment none of its cluster's cells borders unknown space any more, checked once a second while driving: the way there usually reveals what was behind it, and 13 of the 14 goals of the run below end this way. A goal the planner cannot reach three times, or the robot is stuck on three times, is put on a failed list and skipped; when nothing but failed frontiers is left, each is tried once more from wherever the robot now stands, and the exploration ends when no frontier is left, or none that has not failed twice.
 
 **The floor seen.** The lab reports the share of the true free floor (the level's map, which the robot does not have) whose cells are known, as a signal and in the status strip. It is the quantity exploration maximizes and the one a real robot cannot compute, having no true map.
 
@@ -148,12 +148,12 @@ and the highest score is the next goal. Size per metre is the crudest estimate o
 
 | Run | Floor seen | Time | Distance | Frontier goals | Dropped on the way |
 | --- | --- | --- | --- | --- | --- |
-| Explore | 100 % | 123 s | 94 m | 15 | 13 |
+| Explore | 100 % | 123 s | 94 m | 14 | 13 |
 | The level's four goals | 96 % | 67 s | 50 m | – | – |
-| $N_{\min}$ = 20 | 99 % | 102 s | 78 m | 14 | 12 |
-| $N_{\min}$ = 2 | 100 % | 141 s | 107 m | 16 | 14 |
-| Unknown as lethal | 100 % | 158 s | 112 m | 17 | 14 |
-| DWA tracker | 100 % | 188 s | 86 m | 19 | 11, four given up, one retried |
+| $N_{\min}$ = 20 | 99 % | 102 s | 78 m | 13 | 12 |
+| $N_{\min}$ = 2 | 100 % | 141 s | 107 m | 15 | 14 |
+| Unknown as lethal | 100 % | 158 s | 112 m | 16 | 14 |
+| DWA tracker | 100 % | 187 s | 86 m | 17 | 11, four given up, one retried |
 
 Over six seeds the default run takes 111 to 147 s and 80 to 108 m, always to 100 %, with at most one brush against a shelf. The cautious policy (§5 explains why a hand-placed goal in an unseen room stalls under it) does not block exploration, because a frontier goal is on seen floor by construction; it only forbids the plans to cut through rooms not yet looked into, which costs about a third more time.
 
@@ -173,15 +173,15 @@ compared lexicographically; $h$ is the octile heuristic to the robot's cell $s$,
 
 **The repair loop.** `computeShortestPath` pops the smallest key while it is below $k(s)$ or $s$ is inconsistent. An overconsistent cell is settled, $g \leftarrow rhs$, and its predecessors' $rhs$ recomputed; an underconsistent one is reset, $g \leftarrow \infty$, and recomputed with its predecessors. Each recomputation looks at all eight neighbours, so one vertex update costs about eight A* relaxations, which is the price of the bookkeeping. On a fresh search this is A* in reverse at roughly twice the expansions and seven times the milliseconds; the gain comes afterwards.
 
-**Changes.** When an edge cost changes, the cells whose $rhs$ used it are recomputed and queued if inconsistent: a cell's own $rhs$ and those of its eight neighbours cover every edge touching it. When the robot moves from $s_{old}$ to $s_{new}$, every key's heuristic term is stale by at most $h(s_{old}, s_{new})$; adding that to $k_m$ once keeps old keys comparable to new ones without touching the queue. The lab compares the costmap with the one of the previous plan, counts a cell as changed when its lethal flag flips or its penalty moves by more than 0.1 (the inflation band breathes with every scan), and drops the search when the goal, the planner or ε changes. The path is read from the robot's cell by always stepping to the successor with the smallest $c + g$; the cost model, the corner-cutting rule and the heuristic are those of §2, so A* and D* Lite return the same paths.
+**Changes.** When an edge cost changes, the cells whose $rhs$ used it are recomputed and queued if inconsistent: a cell's own $rhs$ and those of its eight neighbours cover every edge touching it. When the robot moves from $s_{old}$ to $s_{new}$, every key's heuristic term is stale by at most $h(s_{old}, s_{new})$; adding that to $k_m$ once keeps old keys comparable to new ones without touching the queue. The lab compares the costmap with the one of the previous plan, counts a cell as changed when its lethal flag flips or its penalty moves by more than 0.1 (the inflation band breathes with every scan), and drops the search when the goal, the planner or ε changes. The path is read from the robot's cell by always stepping to the successor with the smallest $c + g$; the cost model, the corner-cutting rule and the heuristic are those of §2, so A* and D* Lite return paths of the same cost (from the same pose the costs agree to a ten-thousandth); where two routes tie, the two read-outs can break the tie differently, so the smoothed lengths differ by up to 0.2 m.
 
 **Measured** at seed 7, the whole run, plans counted with their expansions (A*) or vertex updates (D* Lite) and the planner's milliseconds:
 
 | Level and trigger | A* | D* Lite | Paths |
 | --- | --- | --- | --- |
-| L2, prior map, replan every 1 s (76–78 plans) | 152 500 expansions, 72 ms | 24 100 updates, 59 ms | identical |
-| L4, lidar mapping, 3 "path blocked" replans (7–8 plans) | 13 900, 9 ms | 49 700, 85 ms (3 600–4 600 cells changed per replan) | identical |
-| L5, people, 2 "agent blocking" replans (61–63 plans) | 77 700, 42 ms | 29 100, 78 ms (1 250–1 700 cells stamped) | identical |
+| L2, prior map, replan every 1 s (76–78 plans) | 152 500 expansions, 72 ms | 24 100 updates, 59 ms | same cost, lengths within 0.2 m |
+| L4, lidar mapping, 3 "path blocked" replans (7–8 plans) | 13 900, 9 ms | 49 700, 85 ms (3 600–4 600 cells changed per replan) | same cost, lengths within 0.1 m |
+| L5, people, 2 "agent blocking" replans (61–63 plans) | 77 700, 42 ms | 29 100, 78 ms (1 250–1 700 cells stamped) | within 0.3 m until the runs drift apart |
 
 The reading: D* Lite earns its keep where the map is static and only the robot moves, by a factor six in expansions here, and loses where the costmap changes broadly between plans, which a cost field inflated from a growing lidar map does with every scan. Fewer expansions and more milliseconds can go together, because an update costs eight relaxations; the break-even is an eight-fold saving in expansions. Real deployments feed D* Lite binary occupancy with sparse updates and large grids.
 
@@ -197,18 +197,18 @@ No real root, or a negative one, means no collision; a root within the horizon $
 
 **The choice.** The tracker's command, speed times heading, is a velocity. If it lies in any cone the lab samples 76 candidates, speeds of 1, 0.75, 0.5 and 0.25 times the command at headings up to 90° either side in 10° steps, and a slow straight reverse, keeps those outside every cone, and takes the one with the smallest $|u - u_{cmd}|^2 + 0.03\,|\Delta\theta| + 0.02\,|\Delta\theta - \Delta\theta_{last}|$; the last term keeps it from dithering between two equal detours. With no free candidate it stops. The chosen speed replaces the command's and the heading change becomes a turn rate over half a second added to the tracker's own; on the car it becomes a steering increment. The drawing in the world scales velocities by $\tau$: the apex sits where the robot would be in $\tau$ moving with the person, the disc at the person's predicted position.
 
-**What it assumes.** That every person keeps their velocity for $\tau$, that the robot is the only one avoiding, and that nothing else is in the way. Each assumption has a measured consequence below: scripted people who walk through the robot leave contacts no velocity can avoid in a one-metre aisle; reacting people make the method work better than it should (reciprocal velocity obstacles, which split the avoidance, are the honest version); and a detour chosen without the map walks into a shelf, which is why DWA scores the costmap and the people together and ORCA adds walls as constraints.
+**What it assumes.** That every person keeps their velocity for $\tau$, that the robot is the only one avoiding, and that nothing else is in the way. Each assumption has a measured consequence below: scripted people who walk straight at the robot along a corridor leave contacts no velocity can avoid; reacting people make the method work better than it should (reciprocal velocity obstacles, which split the avoidance, are the honest version); and a detour chosen without the map walks into a shelf, which is why DWA scores the costmap and the people together and ORCA adds walls as constraints.
 
-**Measured** on L5 at seed 7, pure pursuit, 150 s, lidar tracking unless stated:
+**Measured** on L5 at seed 7, pure pursuit, lidar tracking unless stated, contacts counted up to Mission complete (a scripted person walking into the parked robot afterwards is left out):
 
 | People | Response | Contacts | Closest | Notes |
 | --- | --- | --- | --- | --- |
-| scripted | ignore | 4 | – | 83 m, five goals in 123 s |
-| scripted | reactive stop | 4 | – | |
-| scripted | speed planning (ST) | 2 | – | four yields |
-| scripted | velocity obstacles, τ 3 s | 3 | – | 145 interventions, 31 stops |
-| scripted | velocity obstacles, τ 2 s | 2 | – | 116 interventions, 17 stops |
-| scripted, truth tracking | velocity obstacles, τ 2 / 3 / 5 s | 2 / 3 / 3 | – | the shelves hide people the tracker never sees |
+| scripted | ignore | 3 | – | 83 m, five goals in 106 s |
+| scripted | reactive stop | 3 | – | |
+| scripted | speed planning (ST) | 1 | – | four yields |
+| scripted | velocity obstacles, τ 3 s | 2 | – | 145 interventions, 31 stops |
+| scripted | velocity obstacles, τ 2 s | 1 | – | 116 interventions, 17 stops |
+| scripted, truth tracking | velocity obstacles, τ 2 / 3 / 5 s | 1 / 2 / 2 | – | the same as with lidar tracking: every person contacted had been in view for four seconds or more |
 | reacting | ignore | 2 | −0.18 m | |
 | reacting | reactive stop | 0 | 0.06 m | |
 | reacting | speed planning (ST) | 0 | 0.18 m | three agent-blocking replans |
@@ -234,7 +234,7 @@ No real root, or a negative one, means no collision; a root within the horizon $
 | the same, pointed at a classical subgoal | 4 of 4 | 1 of 4, 2 | 0 of 4, 4 | – |
 | A* | 4 of 4 | 4 of 4 | 4 of 4 | 5 of 5 |
 
-Open-loop, on the held-out expert run, the policy trained on expert data alone is 9 cm off at the first waypoint and 66 cm at the eighth; after the DAgger data joins, 22 cm and 1.68 m, because the held-out moments are now judged by a policy that also had to fit the harder states. The closed loop is the only test that matters, and it says: fine on the open floor, mostly fine on a floor of the same kind it never saw, and a collision at the first shelf corner of the aisles, every time, where a 10 cm corner cut pins the robot and no demonstration showed how to back out. The subgoal does not help, because the failure is local. The building adds the long-range failure on top: a goal behind a wall points a reactive policy at the wall.
+Open-loop, on the held-out expert run, the policy trained on expert data alone is 9 cm off at the first waypoint and 66 cm at the eighth; after the DAgger data joins, 22 cm and 1.68 m, because the held-out moments are now judged by a policy that also had to fit the harder states. The closed loop is the only test that matters, and it says: fine on the open floor, mostly fine on a floor of the same kind it never saw, and a collision at the first shelf corner of the aisles, every time, where a 10 cm corner cut pins the robot and no demonstration showed how to back out. The subgoal hardly helps, one goal instead of none: it clears the first corner and pins at the next, because the failure is local. The building adds the long-range failure on top: a goal behind a wall points a reactive policy at the wall.
 
 **What it would take.** More data near corners and doors, a convolutional encoder over the beams rather than a flat layer, a recurrent memory or the map as an input, a recovery behaviour in the safety layer, and reinforcement learning on top of the imitation: all standard, none free. The contrast with §9 of chapter 3 is the lesson of the learning track: a learned block with a local, well-posed target was trained in an afternoon and beat the rule where the rule had no map; a learned planner with a global, averaged target was not, and the modular stack around it is what kept the robot on the floor.
 

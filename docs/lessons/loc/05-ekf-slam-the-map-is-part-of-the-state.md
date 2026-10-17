@@ -27,7 +27,7 @@ Answer: 1
 ## Try: EKF-SLAM, range 12 m
 cfg: {"sim":true,"level":2,"set":{"loc":"slam","lmRange":12},"tab":"loc","plot":"pos"}
 Setup: The same filter with beacons visible to 12 m.
-See: The error rises to about 1 m by 40 s, then falls: 0.4 m at 60 s, 0.3 m at 90 s, 7 cm from 100 s on, with NEES between 1 and 3.6 throughout. Four of five goals are reached. Watch the map ellipses shrink together when the robot returns toward beacons it mapped at the start.
+See: The error rises to about 1 m by 40 s, then falls: 0.4 m at 60 s, 0.3 m at 90 s, under 10 cm from 100 s on and 7 cm by 120 s, with NEES between 1 and 3.6 throughout. Four of five goals are reached; one is skipped after the robot brushes a shelf at 55 s. Watch the map ellipses shrink together when the robot returns toward beacons it mapped at the start.
 Shows: With most of the floor sharing landmarks, loop closures happen all the time rather than once. Each re-observation of an early landmark corrects the pose and, through the correlations, every landmark placed since, which is why the error falls after rising rather than plateauing. The longer range costs nothing in the filter except larger matrices; what it buys is a connected map.
 Predict: With beacons visible to 12 m instead of 7 m, how does the error curve change?
 - It plateaus at the same metre: range does not change the drift
@@ -38,7 +38,7 @@ Answer: 2
 ## Try: EKF with the known map
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf"},"tab":"loc","plot":"pos"}
 Setup: The plain EKF of lesson 2 on the same level, with the beacon positions given.
-See: Error between 1 and 5 cm for the whole run, five goals in about 90 s, no collisions.
+See: Error mostly between 1 and 8 cm (RMS 4 cm, peaks near 14 cm), five goals in about 90 s, no collisions.
 Shows: This is the price of the map. Between 5 cm and 1.4 m lies the difference between measuring the robot against the world and measuring it against things it placed itself. It is also why mapping is usually done once, carefully, with loop closures forced, and localization against that map is what runs in the vehicle.
 Predict: The plain EKF on the same level with the beacon map given: what error should you expect?
 - About half of SLAM's plateau, 0.5 m

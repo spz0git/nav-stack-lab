@@ -14,8 +14,8 @@ d² = ‖z − p̂‖² / (P_pp + σ_z²);   gains  k_p = P_pp / (P_pp + σ_z²)
 ## Try: Lidar tracker
 cfg: {"sim":true,"level":4,"tab":"per"}
 Setup: L5, the busy floor: four people at 0.6 to 0.9 m/s, unlabeled beacons, the lidar tracker feeding the speed planner. Perceive tab.
-See: Confirmed tracks appear as solid rings with a line to their predicted position and dashed, fading circles one per second ahead; tentative tracks are dotted. The tracker keeps up to six confirmed tracks for four people over the run (a person seen around a corner briefly becomes two), the mean error of the tracked velocity against the true one is about 0.14 m/s, and the speed planner yields four times and escalates to a replan twice. The mission reaches all five goals in about 190 s with two contacts; the closest approach is a 0.55 m overlap, a person walking into the robot from behind a shelf.
-Shows: Tracks from lidar are good enough to drive by and never clean. The doubles and the velocity error are the price of inferring motion from positions 0.1 s apart; the contacts come from people the lidar could not see until they were already close, which no filter fixes. Compare a track's prediction line with the person's actual motion when someone turns around: the line follows about half a second later.
+See: Confirmed tracks appear as solid rings with a line to their predicted position and dashed, fading circles one per second ahead; tentative tracks are dotted. The tracker keeps up to six confirmed tracks for four people over the run (a person seen around a corner briefly becomes two), the mean error of the tracked velocity against the true one is about 0.14 m/s, and the speed planner yields four times and escalates to a replan twice. The mission reaches all five goals in about 120 s with one contact (counted up to Mission complete): a 0.55 m overlap at 52 s, a person walking down the central cross aisle into the robot's side as it slows and turns.
+Shows: Tracks from lidar are good enough to drive by and never clean. The doubles and the velocity error are the price of inferring motion from positions 0.1 s apart. The contact is not a tracking failure: that person had been tracked for eight seconds, but the speed planner can only slow down along the path, and a person crossing into the robot's side is not avoided by slowing. Compare a track's prediction line with the person's actual motion when someone turns around: the line follows about half a second later.
 Predict: Four people walk the busy floor. How many confirmed tracks will the lidar tracker hold over the run?
 - Exactly four, one per person
 - Fewer than four: people behind shelves are never confirmed
@@ -25,21 +25,21 @@ Answer: 2
 ## Try: Ground truth tracks
 cfg: {"sim":true,"level":4,"set":{"agents":"truth"},"tab":"per"}
 Setup: The same run with the tracker replaced by the simulator's true positions and velocities: no detection, no association, no lag.
-See: The velocity error is zero and exactly four tracks exist. The run is not simply better: one contact instead of two, but the robot also gets stuck behind a person who stops in an aisle, replans three times, skips goal 3, and clips a shelf once; four of five goals in 200 s.
-Shows: The difference between the two runs is what tracking costs, and it is smaller than the difference between two seeds. Perfect tracks make the speed planner's decisions sharper, not the floor less crowded; a planner that yields correctly to a person standing in the only aisle is still stuck. Tracking quality is one term in the contact count, and on this level not the dominant one.
+See: The velocity error is zero and exactly four tracks exist. The run is not simply better: no contact instead of one, but at 57 s, turning away from a person crossing its aisle, the robot clips the end of a shelf and stays stuck against it; it replans three times (once for the person, twice as stuck), skips goal 3, and reaches four of five goals in about 127 s.
+Shows: The difference between the two runs is what tracking costs, and it is smaller than the difference between two seeds. Perfect tracks make the speed planner's decisions sharper, not the floor less crowded; a sharp yield next to a shelf end can still leave the robot pinned against it. Tracking quality is one term in the contact count, and on this level not the dominant one.
 Predict: Replace the tracker with the simulator's true positions and velocities. What happens to the mission?
-- Contacts drop to zero and all goals are reached
-- A little better on contacts, but not simply better overall
+- Better on every count: no contact and all five goals reached
+- Better on contacts, but not simply better overall
 - Identical: the tracker was already perfect
 Answer: 1
 
 ## Try: Prediction frozen
 cfg: {"sim":true,"level":4,"set":{"agPred":"static"},"tab":"per","plot":"st"}
 Setup: The lidar tracker again, but the planner is handed each person's current position with zero velocity and a constant radius. The ST graph shows the result.
-See: The dashed prediction circles collapse onto the track and the prediction line vanishes. The speed planner reacts only once a person is already on the path, so it brakes late: four contacts over the run, twice the tracker's, with the same five goals reached. In the ST graph the blocked regions are horizontal bars (a person in one place for the whole horizon) instead of the sloping bands of a moving one.
+See: The dashed prediction circles collapse onto the track and the prediction line vanishes. The speed planner reacts only once a person is already on the path, so it brakes late: three contacts during the mission, against the tracker's one, with the same five goals reached. In the ST graph the blocked regions are horizontal bars (a person in one place for the whole horizon) instead of the sloping bands of a moving one.
 Shows: Prediction is worth exactly the reaction time it buys. Without it the planner is a reflex, and a reflex at 0.8 m/s against people at 0.9 m/s loses. The constant-velocity extrapolation is crude, and crude is enough here: people walk in straight lines for the 4 s that matter.
 Predict: Hand the planner each person's current position with zero velocity. What happens to the contact count?
-- It roughly doubles: the planner brakes late
+- It rises several-fold: the planner brakes late
 - It stays the same: the speed planner reacts to position anyway
 - It falls: a wrong velocity was misleading the planner
 Answer: 0

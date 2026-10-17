@@ -19,8 +19,8 @@ inject:   (x, y) = m_j − (r + σ_r ε)·(cos φ, sin φ),   θ = φ − (b + �
 ## Try: Scatter the particles (unlabeled)
 cfg: {"sim":true,"level":4,"set":{"loc":"pf"},"tab":"loc","act":"scatter"}
 Setup: L5 defaults: unlabeled beacons, lidar on, injection on. Scattered at 8 s.
-See: The cloud covers the floor (σ about 8.5 m) for one update, then collapses within a second onto a tight cluster, confident to 2 cm, on the mirror pose: 14 m from the truth with the heading 180° off. The lost guard releases the mission and the robot drives on the wrong belief. Over the next minute the fast average sags, the guard trips a few times (σ leaps, up to 25 % of the particles are injected, the robot turns in place) and the set returns to the mirror each time. Around 85 s the readings finally favour the true pose, the cloud jumps across the floor, and from then on the error is centimetres; the first goal falls at about 110 s.
-Shows: Convergence is not correctness. The filter did exactly what the readings justified: with unlabeled beacons the two poses are equally likely, and it picked one. What eventually broke the tie was the lidar seeing an asymmetry of the map from the right place. The long wait is the honest cost of a symmetric environment and an unlabeled sensor; a real stack would add a second cue (a labeled landmark, a magnetometer, a WiFi fingerprint) rather than wait.
+See: The cloud covers the floor (σ about 8.5 m) for one update, then collapses within a second onto a tight cluster, confident to 2 cm, 14 m from the truth with the heading only a few degrees off: another place the unlabeled readings fit. The lost guard releases the mission and the robot drives on the wrong belief. At 13 s the guard trips (σ leaps, up to 25 % of the particles are injected, the robot turns in place) and the set settles on the mirror pose, 7 to 16 m from the truth with the heading 180° off; the robot drives on that and makes contact with an obstacle at 39 s. From 40 s the fast average sags and the guard trips again and again, the set returning to the mirror each time. Near 79 s the readings finally favour the true pose, the cloud jumps across the floor, and from 80 s the error is centimetres (apart from two half-second guard trips near 169 s); the first goal falls at about 106 s.
+Shows: Convergence is not correctness. The filter did exactly what the readings justified: with unlabeled beacons several poses fit them, the mirror pose as well as the true one, and it picked one. What eventually broke the tie was the lidar seeing an asymmetry of the map from the right place. The long wait is the honest cost of a symmetric environment and an unlabeled sensor; a real stack would add a second cue (a labeled landmark, a magnetometer, a WiFi fingerprint) rather than wait.
 Predict: After the 400 particles are scattered over the floor with unlabeled beacons, what does the cloud do in the next second?
 - Stays spread over the floor for tens of seconds
 - Collapses onto the true pose and stays there
@@ -30,10 +30,10 @@ Answer: 2
 ## Try: Scatter with known IDs
 cfg: {"sim":true,"level":4,"set":{"loc":"pf","assoc":"known"},"tab":"loc","act":"scatter"}
 Setup: The same scatter with readings that name their beacon.
-See: The lost guard holds the robot for three seconds while the cloud sorts itself out: 7 m error after one update, 0.7 m after three, 16 cm after four. The mission resumes at about 12 s and the first goal is reached around 38 s, with the error at a few centimetres throughout.
-Shows: With the symmetry removed, three or four readings are enough to pick out the true pose from 400 scattered guesses, because each reading now rules out every particle that is at the wrong range or bearing from a specific beacon. The lesson of the pair is that labels are worth more than particles: identity is the cheapest disambiguation there is.
+See: The lost guard holds the robot for three seconds while the cloud sorts itself out: 7.7 m error after one update, still 6.5 m two seconds later, 0.7 m after three seconds, 16 cm after four. The mission resumes at about 11 s and the first goal is reached around 30 s; the error stays under 18 cm from 11.5 s and is a few centimetres from 20 s on.
+Shows: With the symmetry removed, three or four seconds of readings, some fifteen beacon scans, are enough to pick out the true pose from 400 scattered guesses, because each reading now rules out every particle that is at the wrong range or bearing from a specific beacon. The lesson of the pair is that labels are worth more than particles: identity is the cheapest disambiguation there is.
 Predict: Same scatter, but the readings name their beacon. How long until the error is under 20 cm?
-- About a second, a handful of readings
+- A few seconds, a handful of beacon scans
 - About half a minute
 - A minute or more: it still needs the lidar to break the symmetry
 Answer: 0
@@ -41,7 +41,7 @@ Answer: 0
 ## Try: Scatter, lidar off
 cfg: {"sim":true,"level":4,"set":{"loc":"pf","pfLidar":false},"tab":"loc","act":"scatter"}
 Setup: Unlabeled beacons and no lidar term in the weights; only the beacon likelihood is left.
-See: The cloud collapses onto a wrong cluster at once (near the centre of the floor the mirror pose is close in position but 165° off in heading), loses it, and spends the next hundred seconds in the LOST state with σ around 7 m, the robot turning in place and the fast average never settling. Near 118 s it converges on the truth and reaches a goal at about 150 s; then at 160 s the set collapses again (<i>N</i><sub>eff</sub> down to 3–9) and the robot is lost once more.
+See: The cloud collapses onto a wrong cluster at once (near the centre of the floor the mirror pose is close in position but 165° off in heading), loses it, and spends the next eighty seconds in the LOST state with σ around 7 m, the robot turning in place and the fast average never settling. Near 105 s it converges on the truth and reaches a goal at about 134 s; then at 149 s the set comes apart again (<i>N</i><sub>eff</sub> down to 2–9 from 156 s) and the robot is lost once more.
 Shows: Without a second sensor the beacon readings alone cannot separate the two poses, and without the lidar's steady evidence the set keeps being pulled apart by clutter and injection. The filter is right to be unsure. Watch what the planner does with a belief like that: nothing, which is the lost guard working as intended.
 Predict: Scatter with unlabeled beacons and the lidar term removed from the weights. What happens?
 - It converges faster: fewer terms, less noise in the weights

@@ -9,7 +9,7 @@ simulator, every 50 ms:  u ← u + (u_cmd − u)·(1 − e^(−Δt/τ))
 MPC, lag modeled:        u_{k+1} = u_k + (u_cmd,k − u_k)·(1 − e^(−Δt/τ)),   u_cmd,k+1 = u_cmd,k + u̇_k·Δt
 MPC, lag not modeled:    u_{k+1} = u_k + u̇_k·Δt   (each command takes effect at once)</div>
 <p><b>Where it comes from.</b> The lag is a pole at <i>s</i> = −1/τ in <i>L</i>(<i>s</i>); the MPC's gains, including <i>K</i><sub>c</sub>, are read from the solver by finite differences at the operating point, and the lag model adds the commanded steering as a state the MPC predicts through a first-order response. <a class="chref" href="#notes=ch7/2-the-prediction-model">The lag model: chapter 7 §2</a> · <a class="chref" href="#notes=ch7/6-what-the-analyze-view-sees">how the MPC becomes gains: §6</a> · <a class="chref" href="#notes=ch6/3-the-open-loop-l-s-with-the-clock-in-it">the lag in L(s): chapter 6 §3</a></p>
-<p><b>What the lab does.</b> The actuator lag τ is a Vehicle-tab slider and applies to both speed and steering (turn rate). The MPC's "Include actuator lag" checkbox in the Control tab adds the lag to its prediction model. Margin and tracking performance are different things: run L5 both ways and the cross-track RMS barely changes; what changes is the margin.</p>
+<p><b>What the lab does.</b> The actuator lag τ is a Vehicle-tab slider and applies to both speed and steering (turn rate). The MPC's "Include actuator lag" checkbox in the Control tab adds the lag to its prediction model. Margin and tracking performance are different things: run L5 (τ = 0.15 s) both ways and the cross-track RMS does not improve with the lag modeled, 8.1 cm against 5.8 cm without it at the default seed; what improves is the margin.</p>
 
 ## Try: Pure pursuit, τ = 0.15 s
 cfg: {"level":0,"set":{"ctl":"pp","lag":0.15}}
@@ -37,7 +37,7 @@ Answer: 2
 cfg: {"level":0,"set":{"ctl":"mpc","lag":0.15,"mpcLag":true}}
 Setup: The same MPC with the lag included in its prediction model.
 See: Phase margin 52.8°, M_s = 1.25, delay margin 0.24 s. The block diagram now shows the K_c feedback from the commanded steering, and the analysis reports a crossover of 3.9 rad/s.
-Shows: With the right model the MPC is both faster than pure pursuit (3.9 against 1.9 rad/s) and better damped than the unmodeled version. The feedback on its own command is the mechanism: the controller knows what it has already asked for and does not ask again. This is the general lesson of model-based control: the model is part of the controller, and the margins measure the model as much as the gains.
+Shows: With the right model the MPC is both faster than pure pursuit (3.9 against 1.9 rad/s) and far better margined than the unmodeled version (phase margin 52.8° against 29.7°, M_s 1.25 against 2.04). The feedback on its own command is the mechanism: the controller knows what it has already asked for and does not ask again. This is the general lesson of model-based control: the model is part of the controller, and the margins measure the model as much as the gains.
 Predict: Adding the lag to the MPC's model: what will the analysis show?
 - Margin recovers above 50° and the crossover is above pure pursuit's
 - Margin recovers but the loop is slower than pure pursuit
@@ -52,7 +52,7 @@ Note: With the lag modelled, the state carries the commanded and the actual spee
 ## Think about
 Q: Why does the gain margin improve with the lag while the phase margin worsens?
 A: The lag attenuates: its magnitude 1/√(1 + ω²τ²) falls at high frequency, so where the phase reaches −180° the magnitude is lower than before, which is a larger gain margin. The phase loss at crossover is the cost; the attenuation above crossover is a side benefit. Lag and pure delay differ exactly here, since delay attenuates nothing.
-Q: The cross-track error barely changes between the two MPC runs. Why worry?
+Q: On L5 the MPC without the lag in its model tracks no worse, 5.8 cm of cross-track RMS against 8.1 cm with it. Why prefer the modeled one?
 A: Because tracking error on a known plant in a simulator is the best case. Margin measures what happens on a plant that differs from the model, which every real plant does, by tyre wear, load, temperature and the lag itself changing. A loop at M_s = 2 tracks fine until the day the actuator is 30 % slower, and then it rings. Margin is what a safety case is written in.
 Q: What would the lag model need on a real vehicle?
 A: An identified time constant, which can be measured by stepping the command and timing the response (the speed-loop lesson does exactly this), and a check that it is constant: hydraulic and electric steering lags change with load and temperature. If it varies, the MPC should model the slow end and the margin analysis the fast one.

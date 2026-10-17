@@ -13,7 +13,7 @@ H δ = −b,   H = Σ J_iᵀ J_i,   b = Σ J_iᵀ d_i        the Gauss–Newton 
 ## Try: Lidar only: every beacon off
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","bOff":"all","scanMatch":true},"tab":"loc","plot":"pos"}
 Setup: L3 with its noisy odometry, every beacon switched off, the EKF with scan matching against the prior map. Localize tab, Position error plot, lidar layer on.
-See: The error stays between 1 and 6 cm for the whole run, pose RMS 0.04 m, all five goals reached: the same as with the beacons (RMS 0.04 m). NEES runs between 2 and 9, about 5 on average, and the error is inside the 2σ band 85 % of the time against 97 % with the beacons. Dead reckoning on the same run drifts to 1.6 m RMS, reaches two goals and hits a shelf.
+See: The error stays mostly between 1 and 7 cm (11 cm at worst), pose RMS 0.04 m, all five goals reached: the same as with the beacons (RMS 0.04 m). NEES runs between 2 and 9, about 6 on average, and the error is inside the 2σ band 85 % of the time against 97 % with the beacons. Dead reckoning on the same run drifts to 1.6 m RMS, reaches two goals and hits a shelf.
 Shows: The lidar is a position sensor once there is a map to match it against: no infrastructure, centimetre accuracy. The NEES says the filter is a little overconfident, by about a factor two: the fix is computed from the estimate it then corrects, so it is not independent evidence, and no covariance formula fixes that entirely.
 Predict: Switch every beacon off and turn scan matching on. How good is the estimate?
 - As good as with the beacons: a few centimetres
@@ -24,7 +24,7 @@ Answer: 0
 ## Try: The beacons alone, for comparison
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf"},"tab":"loc","plot":"pos"}
 Setup: The EKF with its beacons and no scan matching, the reference of lesson 2.
-See: Pose RMS 0.04 m, NEES 2.6 to 4.7, inside the 2σ band 97 % of the time. Add scan matching to the beacons (Localize) and the RMS drops to 0.03 m while NEES rises to about 4 and the band share falls to 91 %.
+See: Pose RMS 0.04 m, NEES 2.8 to 5.2, inside the 2σ band 97 % of the time. Add scan matching to the beacons (Localize) and the RMS drops to 0.03 m while NEES rises to about 4.5 and the band share falls to 91 %.
 Shows: Two sensors are better than one by a centimetre, and the consistency gets slightly worse, which is the price of a measurement that is not independent of the state. On a real robot the beacons are a GPS fix, a UWB anchor or nothing at all; the lidar is what is always there.
 Predict: Add scan matching to the beacons. What does NEES do?
 - Rises a little: the fix is computed from the estimate it corrects, so it is not independent
@@ -34,19 +34,19 @@ Answer: 0
 
 ## Try: Beacons mostly down, lidar on
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","scanMatch":true,"bOut":70,"bOutLen":6},"tab":"loc","plot":"pos"}
-Setup: Every beacon down 70 % of the time in outages of about 6 s (lesson 2's hardest beacon case) with scan matching on.
-See: Pose RMS 0.04 m, as if the outages were not there; with the beacons alone the same run reaches 0.14 m during the gaps. NEES 2 to 8.
+Setup: Every beacon down 70 % of the time in outages of about 6 s (the "EKF, long outages" case in L3's own Try list, the hardest beacon case there) with scan matching on.
+See: Pose RMS 0.04 m and never worse than 9 cm, as if the outages were not there; with the beacons alone the same run reaches 0.3 to 0.45 m during the gaps. NEES 2 to 9.5.
 Shows: A second position sensor with its own failure modes is what makes outages harmless. The two fail differently: beacons go down, scan matching goes wrong where the map is wrong or the walls all look alike, and a filter that has both coasts through either.
 Predict: Beacons down 70 % of the time, scan matching on. What happens to the error during the outages?
 - Nothing: the lidar fills the gaps
-- It grows to 0.14 m as before: the matcher only runs when a beacon is seen
+- It grows to tenths of a metre as before: the matcher only runs when a beacon is seen
 - It grows more: two sensors disagree during the gaps
 Answer: 0
 
 ## Try: Kidnapped, lidar only
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","bOff":"all","scanMatch":true},"tab":"loc","plot":"pos","act":"kidnap"}
 Setup: Scan matching without beacons, and at 8 s the robot is moved 16 m across the warehouse without telling the filter.
-See: The estimate stays where the robot was. The matches keep being fused, none rejected: from the old estimate the new scan fits the shelves there about as well as it fitted the ones the robot actually sees, residual a few centimetres, so the matcher is happy and the filter claims 7 cm while it is 16 m off (NEES in the hundred thousands). The robot drives into a shelf at 11 s and skips its goals one by one.
+See: The estimate stays where the robot was. The matches keep being fused, none rejected by the gate (after the first minute a handful are dropped as poor fits): from the old estimate the new scan fits the shelves there about as well as it fitted the ones the robot actually sees, residual a few centimetres, so the matcher is happy and the filter claims 7 cm while it is 16 m off (NEES in the hundred thousands). The robot drives into a shelf at 11 s and skips its goals one by one.
 Shows: Scan matching is local: it finds the nearest fit to where it starts, and in a warehouse of identical shelves the nearest fit is as good as the right one. This is perceptual aliasing, and no amount of gating catches it, because the gate measures the fit, which is fine. Recovering from a kidnap needs a global method: the particle filter's injection of lesson 4, a different sensor, or place recognition.
 Predict: Kidnap the robot with scan matching as its only sensor. What does the matcher do?
 - Keeps fusing good-looking fits at the wrong place: the shelves all look alike
@@ -57,7 +57,7 @@ Answer: 0
 ## Try: Kidnapped, beacons and lidar
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","scanMatch":true},"tab":"loc","plot":"pos","act":"kidnap"}
 Setup: The same kidnap with the beacons on as well.
-See: The beacons pull the estimate across the warehouse: 8.8 m off after one second, 2.1 m at 14 s, 0.25 m at 24 s, 2 cm from 34 s. On the way 76 scan matches are rejected by the gate, the matches at the wrong place that disagree with the beacons, and the filter brushes a shelf at 14 s. With the beacons alone the recovery is a little faster (5 cm at 24 s, no contact): the matcher, fitting the wrong shelves, resists the correction until the gate starts rejecting it.
+See: The beacons pull the estimate across the warehouse: 8.8 m off after one second, 2.1 m at 14 s, 0.25 m at 24 s, 2 cm at 34 s and a few centimetres after. On the way 76 scan matches are rejected: 39 up to 18 s as poor fits, then 37 by the gate between 18 and 26 s, the matches at the wrong place that disagree with the beacons. The robot brushes a shelf at 13 s. With the beacons alone the recovery is a little faster (5 cm at 24 s, no contact): the matcher, fitting the wrong shelves, resists the correction until the gate starts rejecting it.
 Shows: Two sensors are also two opinions. While the beacons say "you are over there", the matcher says "you fit here", and the filter believes whichever claims the smaller covariance until the innovations get too large for the gate. The gate is what keeps the lidar from winning that argument; the beacons are what wins it.
 Predict: The same kidnap with the beacons on. How does the recovery compare with beacons alone?
 - A little slower, with many scan matches rejected on the way

@@ -13,7 +13,7 @@ done:  no frontier left, or none that has not failed</div>
 ## Try: Explore the building
 cfg: {"sim":true,"level":3,"set":{"mis":"explore"},"tab":"mis"}
 Setup: L4, the unknown building, lidar mapping, no goals of its own: Explore. Mission tab, Frontiers layer on.
-See: The first scan leaves one frontier of 1739 cells, the whole rim of the visible area, and the robot heads for its middle. By 10 s there are 14 frontiers and 42 % of the floor is seen; 15 frontier goals are set in all, 13 of them dropped before arrival because the way there revealed what was behind them, and only one is actually reached. 100 % of the floor seen in 123 s and 94 m, with no replan and no collision.
+See: The first scan leaves three frontiers, the largest of 1739 cells the whole rim of the visible area, and the robot heads for its middle. By 10 s there are 14 frontiers and 42 % of the floor is seen; 14 frontier goals are set in all, 13 of them dropped before arrival because the way there revealed what was behind them, and only one is actually reached. 100 % of the floor seen in 123 s and 94 m, with no replan and no collision.
 Shows: The plan-drive-replan loop of the previous lesson with the goals now coming from the map itself. Nearly every goal is abandoned early, which is the point: a frontier goal was never a place to be, only a place from which to see. Watch the amber rim shrink room by room.
 Predict: Let the robot pick its own goals in the unknown building. How many goals will it set itself, and how many of them will it reach?
 - About four, like the level's goals, all of them reached
@@ -35,7 +35,7 @@ Answer: 1
 ## Try: Only the big frontiers
 cfg: {"sim":true,"level":3,"set":{"mis":"explore","exploreMin":20},"tab":"mis"}
 Setup: Explore with the smallest frontier worth a visit raised from 6 to 20 cells.
-See: 99 % seen in 102 s and 78 m, 14 goals: the run skips a 14-cell frontier near (11.6, 1.3) that the default run drove 20 s to look at last. With the threshold at 2 cells it is 141 s and 107 m for the same 100 %.
+See: 99 % seen in 102 s and 78 m, 13 goals: the run skips a 14-cell frontier near (11.6, 1.3) that the default run drove 20 s to look at last. With the threshold at 2 cells it is 141 s and 107 m for the same 100 %.
 Shows: The threshold is a budget. Small frontiers are slivers seen through doorways and gaps between cells the lidar grazed; most of them are seen on the way to something else, and the few that are not cost a trip each for a few square decimetres of floor. A survey wants them; a vacuum does not.
 Predict: Ignore every frontier under 20 cells. What happens to the time and the coverage?
 - Faster, and a little less of the floor seen
@@ -57,7 +57,7 @@ Answer: 1
 ## Try: Explore with DWA
 cfg: {"sim":true,"level":3,"set":{"mis":"explore","ctl":"dwa"},"tab":"mis"}
 Setup: Explore with the dynamic window tracker in place of pure pursuit.
-See: DWA gets stuck three times in doorways and gives up on four frontiers; at 38 s the only frontier left is one it failed, so the mission tries the failed ones once more from where it now stands, and this time the doorway at (10.0, 5.5) works. 100 % of the floor in 188 s, no collision.
+See: DWA gets stuck in doorways and gives up on four frontiers, three where it got stuck and one it could no longer plan to; at 38 s the only frontier left is one it failed, so the mission tries the failed ones once more from where it now stands, and this time the doorway at (10.0, 5.5) works. 100 % of the floor in 187 s, no collision.
 Shows: The exploration layer only chooses goals; whether the robot gets there is the planner's and the tracker's problem, and a frontier in a doorway is the hardest kind of goal, a narrow passage with unknown space behind it. The retry pass is a cheap piece of robustness: a goal that failed from across the building is often easy from next door. RRT* fares worse on this level: its paths hug the corners and the robot wedges itself in one, after which no frontier is reachable.
 Predict: Swap pure pursuit for DWA. What changes?
 - Nothing: the goals are the same
@@ -74,7 +74,7 @@ Note: One line defines a frontier cell: known free, an unknown 4-neighbour, no s
 ## Think about
 Q: Why score a frontier by size divided by distance, rather than go to the nearest or the largest?
 A: Nearest-first makes the robot nibble at the rim of what it knows and criss-cross the building, since the nearest frontier is usually a sliver left behind; largest-first sends it across the building for a big one while a decent one is next door. Size per metre is the crudest estimate of what matters, new floor seen per metre driven; the research versions estimate the information gain of each frontier and the cost of getting there, and divide those.
-Q: Thirteen of the fifteen goals were dropped before the robot arrived. Is that a failure of the goal selection?
+Q: Thirteen of the fourteen goals were dropped before the robot arrived. Is that a failure of the goal selection?
 A: No, it is the method working. A frontier is a place from which the robot expects to see something new, and most of the time it sees it on the way: the goal cell's whole cluster stops bordering unknown space, and keeping on driving there would be wasted metres. A real stack checks the same thing, at a few hertz, against the live map.
 Q: With RRT* the exploration stalls at 86 % with seven frontiers that cannot be reached. What would a real stack do?
 A: Separate the cause. If the goal is unreachable, mark it and move on, as here; if the planner is unreliable, change the planner, since a sampling planner that fails in doorways is the wrong tool for a building; and if the robot is physically wedged, recovery behaviours (back up, rotate, clear the costmap) come before any of this. Exploration only chooses where to go; everything below it still has to work.

@@ -43,7 +43,7 @@ Answer: 0
 snippet: an-freq
 focus: if (pm == null || m < pm) { … wc = w;
 example: ctl/rwf
-Note: The Bode points are computed a few lines above; the marked lines find the gain crossover, the frequency where |L| = 1, and record the phase margin there. Edit and run: the rear-wheel-feedback example; halve both gains and see the crossover move left on the plot.
+Note: The Bode points are computed a few lines above; the marked lines find the gain crossover, the frequency where |L| = 1, and record the phase margin there. Edit and run: the rear-wheel-feedback example as your controller. The Analyze view cannot linearize your code, so to see the crossover move left on the plot, halve both gains of the built-in rear-wheel feedback in the Control tab (k_e 6 → 3, k_θ 3 → 1.5: 2.77 → 1.67 rad/s).
 
 ## Think about
 Q: Why do two integrators give −40 dB per decade and −180°?

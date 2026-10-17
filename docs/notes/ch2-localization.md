@@ -263,7 +263,7 @@ and the linearized problem has the normal equations $H\,\delta = -b$ with $H = \
 
 **The fusion.** The matched pose is a measurement of the whole state with $H = I$: innovation $\nu = \xi_\text{fix} - \mu$ (heading wrapped), $S = \Sigma + \Sigma_\text{fix}$, gain $K = \Sigma S^{-1}$, the update of §4 with the Joseph form. The gate is $\nu^\top S^{-1}\nu < \chi^2_3(99\,\%) = 11.3$. Two rules keep it honest: a match is fused only once the robot has moved 5 cm or turned 6° since the last fused one, because the same scan from the same place is not new evidence; and a fit with residual over 12 cm, or with fewer than 60 % of its hits near any wall, is a match onto the wrong walls and is dropped.
 
-**The double counting.** The matcher starts from the estimate and its result corrects that same estimate: part of the fix is the prior, and fusing it at full weight counts the prior twice. That is why the NEES of the lidar-only runs below sits near 5 rather than 3 even with the inflation. The honest versions start the match from the odometry-only prediction, or treat matches as constraints between poses in a smoother (chapter 2 §8's EKF-SLAM is the filter form of that, and pose-graph SLAM its sparse one).
+**The double counting.** The matcher starts from the estimate and its result corrects that same estimate: part of the fix is the prior, and fusing it at full weight counts the prior twice. That is why the NEES of the lidar-only runs below sits near 6 rather than 3 even with the inflation. The honest versions start the match from the odometry-only prediction, or treat matches as constraints between poses in a smoother (chapter 2 §8's EKF-SLAM is the filter form of that, and pose-graph SLAM its sparse one).
 
 **Aliasing.** Gauss–Newton converges to the nearest minimum of $F$. From an estimate within its basin, half a metre and some 20° on this map, that is the right one. After a kidnap it is whichever shelves happen to be near the old estimate, and in a warehouse of identical shelves those fit the new scan as well as the right ones did: the residual is small, the gate is quiet, and the filter is confidently wrong. Nothing in one scan can tell; detection needs a second hypothesis (the particle filter's injected samples, §7), a sensor that sees past the shelves (the beacons), or a check over a sequence of scans.
 
@@ -272,12 +272,12 @@ and the linearized problem has the normal equations $H\,\delta = -b$ with $H = \
 | Run | Pose RMS | NEES | Inside 2σ | Goals |
 | --- | --- | --- | --- | --- |
 | Dead reckoning, no beacons | 1.58 m | – | – | 2 of 5, one collision |
-| Scan matching, no beacons | 0.04 m | 2 to 9 (≈ 5) | 85 % | 5 |
-| Beacons only | 0.04 m | 2.6 to 4.7 | 97 % | 5 |
-| Beacons and scan matching | 0.03 m | ≈ 4 | 91 % | 5 |
-| Beacons down 70 %, scan matching | 0.04 m | 2 to 8 | 87 % | 5 (0.14 m without it) |
-| Kidnapped at 8 s, lidar only | 16 m from then on | 10⁵ | 0 | 0, no match rejected |
-| Kidnapped at 8 s, beacons and lidar | 0.25 m at 24 s, 2 cm from 34 s | back to 3.5 by 54 s | – | 76 matches rejected on the way |
+| Scan matching, no beacons | 0.04 m | 2 to 9 (≈ 6) | 85 % | 5 |
+| Beacons only | 0.04 m | 2.8 to 5.2 | 97 % | 5 |
+| Beacons and scan matching | 0.03 m | ≈ 4.5 | 91 % | 5 |
+| Beacons down 70 %, scan matching | 0.04 m | 2 to 9.5 | 87 % | 5 (up to 0.46 m without it) |
+| Kidnapped at 8 s, lidar only | 16 m from then on | 10⁵ | 0 | 0, no match rejected by the gate (8 poor fits dropped after a minute) |
+| Kidnapped at 8 s, beacons and lidar | 0.25 m at 24 s, 2 cm at 34 s | back to 3.5 by 54 s | – | 76 matches rejected on the way (39 poor fits, 37 by the gate) |
 
 L2's aisles, with odometry noise and bias ×1 and no beacons: 0.04 m RMS, all four goals.
 
@@ -310,17 +310,18 @@ with $\partial R^\top/\partial\theta = \begin{bmatrix} -s & c \\ -c & -s\end{bma
 
 | Estimator | Pose RMS | Worst | Goals | Map agreement | Closures |
 | --- | --- | --- | --- | --- | --- |
-| Dead reckoning, wheels | 1.97 m | 3.68 m | 2 of 7 | 86 % | – |
-| Graph, loop closures only, wheels | 1.27 m | 1.40 m | 4 of 7 | 90 % | 17, none onto the outbound pass |
-| Graph, scan-to-map only, wheels | 0.25 m | 0.38 m | 7 | 93 % | – |
-| Graph, both, wheels | 0.33 m | 0.51 m | 7 | 92 % | 89 |
-| Dead reckoning, gyro | 0.23 m | 0.29 m | 7 | 94 % | – |
-| Graph, loop closures only, gyro | 0.20 m | 0.25 m | 7 | 94 % | 88 |
-| Graph, both, gyro | 0.09 m | 0.11 m | 7 | 97 % | 90 |
-| EKF with the beacons | 0.03 m | 0.07 m | 7 | 96 % | – |
-| Graph, both, gyro, frontier exploration | 0.08 m | 0.08 m | – | 97 % | 7 |
+| Dead reckoning, wheels | 1.97 m | 3.83 m | 2 of 7 | 86 % | – |
+| Graph, loop closures only, wheels | 2.40 m | 2.86 m | 4 of 7 | 89 % | 13, twelve in the first half-minute; stuck at the far end after a contact, never drives back |
+| Graph, scan-to-map only, wheels | 0.25 m | 0.55 m | 7 | 93 % | – |
+| Graph, both, wheels | 0.33 m | 0.61 m | 7 | 93 % | 85 |
+| Dead reckoning, gyro | 0.23 m | 0.40 m | 7 | 93.5 % | – |
+| Graph, loop closures only, gyro | 0.19 m | 0.27 m | 7 | 94 % | 82 |
+| Graph, scan-to-map only, gyro | 0.12 m | 0.26 m | 7 | 96 % | – |
+| Graph, both, gyro | 0.12 m | 0.22 m | 7 | 95 % | 84 |
+| EKF with the beacons | 0.03 m | 0.12 m | 7 | 96 % | – |
+| Graph, both, gyro, frontier exploration | 0.10 m | 0.22 m | – | 96 % | 37 |
 
-The honest reading: on a building this size the scan-to-map level does most of the work, and loop closures need an odometry good enough to put the chain's guess within ICP's reach; with the gyro the lidar alone builds a better map than the beacon EKF.
+"Worst" is the largest error at any tick. The honest reading: on a building this size the scan-to-map level does the work, and with the gyro the closures add nothing these numbers can see; loop closures need an odometry good enough to put the chain's guess within ICP's reach; and with the gyro the lidar alone builds a map within a point of the beacon EKF's.
 
 [try: Pose-graph SLAM on wheel odometry | {"sim":true,"level":3,"set":{"loc":"pgslam"},"goals":[[5,13],[13.5,14],[21,13],[22.5,5.5],[21,13],[13.5,14],[5,13]],"tab":"loc","plot":"pos"}] [try: Both levels, with the gyro | {"sim":true,"level":3,"set":{"loc":"pgslam","gyro":true},"goals":[[5,13],[13.5,14],[21,13],[22.5,5.5],[21,13],[13.5,14],[5,13]],"tab":"loc","plot":"pos"}]
 

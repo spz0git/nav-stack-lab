@@ -14,7 +14,7 @@ slippery floor at 3.5 m/s:  r/δ = v/(L + K_us·v²) = 0.36·v/L     yaw mode �
 ## Try: Kinematic MPC at 3.5 m/s
 cfg: {"sim":true,"level":6,"panes":[["yawr","yawk"],["cte"]],"layers":{"slip":true}}
 Setup: L7 as it loads: the MPC with its kinematic prediction model. Plots: the yaw rate <i>r</i> against <i>v</i> tan δ / <i>L</i>, and the cross-track error.
-See: The MPC starts the swerve at 1.35 s and steers up to 15°. The yaw rate reaches about a third of <i>v</i> tan δ / <i>L</i> (0.51 against 1.41 rad/s at 1.8 s); the car slides 0.65 m right of its path and hits the first box at 2.4 s. It stays there: this level does not reverse.
+See: The MPC starts the swerve at 1.35 s and steers up to 15°. The yaw rate reaches about a third of <i>v</i> tan δ / <i>L</i> (0.51 against 1.50 rad/s at 1.8 s); the car slides about 0.65 m right of its path and hits the first box at 2.4 s. It stays there: this level does not reverse.
 Shows: The kinematic MPC is not a bad controller of this car; it is a good controller of a different car. Its feedback sees the error grow and steers harder, but the car answers late and at a third of the expected rate, and the box is two seconds away.
 Predict: The kinematic MPC entering the moose test at 3.5 m/s on the slippery floor: what happens?
 - It passes, with a large but recoverable error
@@ -75,8 +75,8 @@ Q: The tyre model got through without braking. Would it brake for a swerve it ca
 A: Not in this lab. At μ 0.1 it hits the first box at 3.5 m/s, as the kinematic MPC does. Its cost holds the speed to the reference, and with the front tyres saturated, slowing down pays off in its prediction only late in the two-second horizon, through a lateral error the Gauss–Newton step does not trade for a speed error. The speed has to come from upstream: a reference speed that respects the grip, v ≤ √(μg/κ), which is the curve cap a_lat set to the real μg.
 Q: The MPC reads v_y and r from the simulator. What would a real car use?
 A: The yaw rate from a gyro, which every car with stability control has. The lateral velocity is not measured directly: it is estimated from the gyro, a lateral accelerometer and the wheel speeds through a model like this one (a sideslip observer), or from a dual-antenna GNSS. Its error enters the MPC as model error, so production controllers often lean on r and weight the sideslip state loosely.
-Q: Hybrid A* plans the slalom with arcs down to 1.13 m. Is that plan feasible at 3.5 m/s?
-A: No tyre could follow those arcs at that speed: 3.5²/1.13 = 10.8 m/s², four times μg here. The MPC survives because it does not follow the plan exactly; it cuts the arcs within the obstacle constraints. A planner for speed needs a curvature limit from the grip, κ ≤ μg/v², or a search over the dynamic model; the MPC can only make the best of the plan it is given.
+Q: Hybrid A* plans the slalom with arcs down to 1.17 m. Is that plan feasible at 3.5 m/s?
+A: No tyre could follow those arcs at that speed: 3.5²/1.17 = 10.5 m/s², more than four times μg here. The MPC survives because it does not follow the plan exactly; it cuts the arcs within the obstacle constraints. A planner for speed needs a curvature limit from the grip, κ ≤ μg/v², or a search over the dynamic model; the MPC can only make the best of the plan it is given.
 
 ## Check yourself
 Q: The slippery-floor car (L = 0.6 m, K_us = 0.0875 rad/(m/s²)) at 3.5 m/s holds a steady steering angle of 10°. What yaw rate r = δ·v/(L + K_us·v²) results, in rad/s?

@@ -8,15 +8,15 @@ robot:  A_r·exp((r_i + r_robot − d)/B_r)·n        walls:  A_w·exp((r_i − 
 v ← v + F·Δt,  |v| ≤ 1.3 v₀;    p ← p + v·Δt   (every 50 ms tick)</div>
 <p>Here <i>e</i> is the unit vector toward the person's goal, <i>v</i> their velocity, <i>d</i> the distance between centres and <i>n</i> the unit vector from the other body to the person; the robot counts with <i>r</i><sub>robot</sub> = 0.3 m (0.55 m for the car), and <i>D</i> is the distance from the person's centre to the nearest wall, read from the map's distance field.</p>
 <p><b>Where it comes from.</b> It is a model, not a derivation: Helbing and Molnár (1995) proposed the drive-plus-repulsion form because it reproduces lane formation and bottleneck behaviour in crowds, and it has been the standard pedestrian model in robotics benchmarks since. The constants here (people <i>A</i> = 2, <i>B</i> = 0.35 m; robot <i>A</i> = 3, <i>B</i> = 0.5 m; walls <i>A</i> = 2.5, <i>B</i> = 0.25 m; speed capped at 1.3 <i>v</i>₀) are tuned to look right on this floor, not fitted to data. <a class="chref" href="#notes=ch3/8-people-who-react-the-social-force-model">Derivation: chapter 3 §8</a></p>
-<p><b>What the lab does.</b> The People switch is in the Vehicle tab. Scripted people walk back and forth on their segment at 0.6 to 0.9 m/s and stop briefly at each end. Reactive people have the same segments and speeds but move by the forces above, integrated every tick. The Response to agents selector in the Control tab chooses whether the robot plans its speed against the tracked people (the ST planner) or ignores them. Contacts and the closest approach are in the Telemetry metrics; a contact also pauses the run unless "Pause on contact" is off.</p>
+<p><b>What the lab does.</b> The People switch is in the Vehicle tab. Scripted people walk back and forth on their segment at 0.6 to 0.9 m/s and turn at each end without stopping. Reactive people have the same segments and speeds but move by the forces above, integrated every tick, and pause for half a second at each end. The Response to agents selector in the Control tab chooses whether the robot plans its speed against the tracked people (the ST planner) or ignores them. Contacts and the closest approach are in the Telemetry metrics; a contact also pauses the run unless "Pause on contact" is off. The counts below are taken up to Mission complete: once the robot is parked at its last goal, a scripted person can still walk into it, and that is left out.</p>
 
 ## Try: Reactive people, speed planning
 cfg: {"sim":true,"level":4,"set":{"people":"reactive"},"tab":"veh"}
 Setup: L5 with reactive people; the robot tracks them and plans its speed against the predictions.
-See: Zero contacts over the run, closest approach 0.18 m, five goals. Watch a person meet the robot in an aisle: they drift sideways a step before the robot has slowed, and the robot's yield is shorter than with scripted people. Four replans, all "agent blocking".
+See: Zero contacts over the run, closest approach 0.18 m, five goals. Watch a person meet the robot in an aisle: they drift sideways a step before the robot has slowed, and the robot's yield is shorter than with scripted people. Four replans, three of them "agent blocking".
 Shows: Both sides are avoiding; the result is better than either would manage alone. This run is the flattering benchmark: the zero depends on the people's cooperation as much as on the planner.
 Predict: Reactive people and the speed planner on: how many contacts over the run?
-- The same two as with scripted people
+- The same one as with scripted people
 - More: two parties dodging the same way collide
 - None
 Answer: 2
@@ -24,7 +24,7 @@ Answer: 2
 ## Try: Reactive people, ignore
 cfg: {"sim":true,"level":4,"set":{"people":"reactive","spd":"none"},"tab":"ctl"}
 Setup: Reactive people again, with the response to agents off: the robot drives its path at cruise speed as if the floor were empty.
-See: Two contacts and a closest approach of −0.18 m (an overlap), with the same five goals. Most encounters end with the person stepping out of the way; the contacts are the two where they could not, in a narrow aisle and from behind.
+See: Two contacts and a closest approach of −0.18 m (an overlap), with the same five goals. Most encounters end with the person stepping out of the way; the contacts are the two where they could not: hemmed in by the shelves, the person slows almost to a stop in the robot's path, and the robot, still at cruise speed, drives into them.
 Shows: A robot that does nothing about people scores only two contacts on this floor, which looks almost acceptable and is entirely the people's doing. The number measures the crowd's politeness, not the planner.
 Predict: Reactive people, and the robot ignores them entirely, driving at cruise speed. How many contacts?
 - Many: one per encounter, the robot never slows
@@ -35,11 +35,11 @@ Answer: 1
 ## Try: Scripted people, ignore
 cfg: {"sim":true,"level":4,"set":{"spd":"none"},"tab":"ctl"}
 Setup: Scripted people, who never deviate, and the response to agents off.
-See: Four contacts and a closest approach of −0.57 m: the robot drives through people. With the speed planner on (the level's default) the same scripted people produce two contacts.
-Shows: Against people who do not yield, the planner's contribution is visible: four contacts to two. Against people who do, it was zero to two. Same planner, same floor; the model of the people changes the measured value of the planner by a factor of two. Report both, and when only one can be run, run the stricter one.
+See: Three contacts and a closest approach of −0.57 m, three times as deep as with reactive people: the robot drives through people. With the speed planner on (the level's default) the same scripted people produce one contact.
+Shows: Against people who do not yield, the planner's contribution is visible: three contacts to one. Against people who do, it was two to none. Same planner, same floor; the model of the people moves every count, and an "ignore" score of two looks acceptable only against the polite crowd. Report both, and when only one can be run, run the stricter one.
 Predict: Scripted people, who never deviate, and the robot ignoring them: how do the contacts compare with the reactive-ignore run?
-- About twice as many
-- About the same: the robot's behaviour is what counts
+- More, and deeper overlaps: nobody steps aside
+- The same, just as deep: the robot's behaviour is what counts
 - Fewer: scripted people walk predictable lines
 Answer: 0
 

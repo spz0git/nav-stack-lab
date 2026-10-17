@@ -57,7 +57,7 @@ Answer: 1
 ## Try: LQR with cheap control, r 0.005
 cfg: {"level":0,"set":{"ctl":"rwf"},"lqr":{"qe":1,"qth":0.5,"r":0.005}}
 Setup: The weights 1, 0.5 and r = 0.005: steering is twenty times cheaper than in the third experiment.
-See: Textbook gains K_e 14.1, K_θ 11.1 and an overdamped pair (ζ 1.65, ω_n 3.4 rad/s, two real poles near −5.5); with the delays in the loop holding that pair takes K_e 68.6, K_θ 14.8, far beyond the sliders. The what-if plot shows the pair where asked; Apply cannot follow.
+See: Textbook gains K_e 14.1, K_θ 11.1 and an overdamped pair (ζ 1.65, ω_n 3.4 rad/s: real poles at −1.1 and −9.9), which the what-if targets at −ζω_n ≈ −5.5; holding a pole there with the delays in the loop takes K_e 68.6, K_θ 14.8, far beyond the sliders. The what-if plot shows that target; Apply cannot follow.
 Shows: Cheap control raises the loop's speed only like (q_e/r)^¼, so a twentyfold cheaper command bought a pair about twice as fast, and the delays, which LQR knows nothing about, make even that expensive. The 60° phase margin LQR guarantees is for the delay-free plant; the margins in the chips are the ones to believe.
 
 ## Code: placeGains and lqrGains

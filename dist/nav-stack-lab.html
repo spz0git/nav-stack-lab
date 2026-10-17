@@ -38,7 +38,9 @@
   --warn: #a35e00;
   --bad: #bb3227;
   --map-bg: #fbfcf9;
-  --obst: #283233;
+  --obst: #cdd2cb;
+  --obst-edge: #9fa89f; /* the drawn edge of an obstacle */
+  --occ: #3e4746; /* a cell the lidar map believes occupied */
   --unknown: #d3d9d1;
   --grid: #e5e9e2;
   --f-display: 'Barlow Semi Condensed', 'Arial Narrow', sans-serif;
@@ -78,7 +80,9 @@
     --warn: #e69c3d;
     --bad: #f06d61;
     --map-bg: #151a1d;
-    --obst: #8e9b97;
+    --obst: #2b3439;
+    --obst-edge: #4b575e;
+    --occ: #a3afab;
     --unknown: #242b2f;
     --grid: #1d2326;
     color-scheme: dark;
@@ -102,7 +106,9 @@
   --warn: #e69c3d;
   --bad: #f06d61;
   --map-bg: #151a1d;
-  --obst: #8e9b97;
+  --obst: #2b3439;
+  --obst-edge: #4b575e;
+  --occ: #a3afab;
   --unknown: #242b2f;
   --grid: #1d2326;
   color-scheme: dark;
@@ -669,6 +675,59 @@ dialog:focus-visible {
 .maptools button[aria-pressed='true'] {
   background: var(--ink);
   color: var(--panel);
+}
+@media (min-width: 761px) {
+  .maptools {
+    flex-direction: column;
+    top: 10px;
+    left: 10px;
+    padding: 4px;
+    gap: 2px;
+    background: var(--raise);
+  }
+  .maptools button {
+    width: var(--h-ctl);
+    height: var(--h-ctl);
+  }
+  .maptools .mt-sep {
+    width: auto;
+    height: 1px;
+    margin: 3px 4px;
+  }
+  .toolhint {
+    top: 10px;
+    left: 58px;
+  }
+  .mapview {
+    top: auto;
+    bottom: 10px;
+    right: 10px;
+    gap: 2px;
+    padding: 4px;
+    background: var(--raise);
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  }
+  .mapview.mv-top {
+    top: 10px;
+    bottom: auto;
+    flex-direction: row;
+  }
+  .mapview button {
+    width: var(--h-ctl);
+    height: var(--h-ctl);
+    border: 0;
+    background: transparent;
+    opacity: 1;
+  }
+  .mapview button:hover {
+    background: var(--track);
+  }
+  .layerpop {
+    top: 56px;
+    right: 10px;
+  }
 }
 .mt-sep {
   width: 1px;
@@ -4509,6 +4568,11 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   }
   .mapview {
     top: 50px;
+  }
+  .mapview.mv-top {
+    top: auto;
+    bottom: 8px;
+    flex-direction: row;
   }
   .toolhint {
     top: 50px;
@@ -21086,6 +21150,8 @@ function readTokens() {
     'bad',
     'map-bg',
     'obst',
+    'obst-edge',
+    'occ',
     'unknown',
     'grid'
   ];
@@ -21116,7 +21182,7 @@ function paintOcc() {
     d = im.data,
     U = rgb(TOK.unknown),
     F = rgb(TOK['map-bg']),
-    O = rgb(TOK.obst);
+    O = rgb(TOK.occ || TOK.obst);
   for (let k = 0; k < NC; k++) {
     const l = S.lo[k];
     let c, t;
@@ -21379,9 +21445,12 @@ function drawMapLayer(dpr, k, px) {
     }
   } else {
     ctx.fillStyle = TOK.obst;
+    ctx.strokeStyle = TOK['obst-edge'] || TOK.obst;
+    ctx.lineWidth = px(1);
     for (const s of S.shapes) {
       shapePath(s);
       ctx.fill();
+      ctx.stroke();
     }
   }
   if (paintStroke) drawStroke(px);
@@ -32322,6 +32391,11 @@ function toggleLayerPop(on) {
   b.innerHTML = svgI('layers');
   const vb = $('.mapview');
   vb.insertBefore(b, $('#mv-key'));
+  const top = document.createElement('div');
+  top.className = 'mapview mv-top';
+  vb.parentNode.insertBefore(top, vb);
+  top.appendChild(b);
+  top.appendChild($('#mv-key'));
   b.onclick = () => toggleLayerPop();
   const p = document.createElement('div');
   p.className = 'layerpop';

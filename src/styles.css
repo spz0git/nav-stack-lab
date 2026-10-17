@@ -103,6 +103,9 @@ body {
   padding-inline: 16px;
   padding-block: 14px 40px;
 }
+.ctx:empty {
+  display: none !important;
+}
 .ctx {
   display: flex;
   flex-direction: column;
@@ -167,13 +170,9 @@ output {
   gap: 10px;
   justify-content: flex-start;
 }
+
 .appbar h1 {
-  font-size: var(--fs-page);
-}
-.appbar .levels.seg {
-  width: auto;
-  flex: 0 1 380px;
-  min-width: 240px;
+  font-size: var(--fs-title);
 }
 .bartools {
   display: none;
@@ -193,6 +192,20 @@ output {
 .ibtn:hover {
   border-color: var(--muted);
   color: var(--ink);
+}
+/* the header's own buttons (Changed, Runs, View) are ghost buttons: no fill, no edge until hovered */
+.bartools > .ibtn {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink);
+  min-height: var(--h-ctl);
+  padding: 2px 10px;
+  font-size: var(--fs-ui);
+}
+.bartools > .ibtn:hover,
+.bartools > .ibtn[aria-expanded='true'] {
+  background: var(--track);
+  border-color: transparent;
 }
 .bartools .ibtn[aria-pressed='true'] {
   color: var(--ink);
@@ -286,19 +299,84 @@ dialog:focus-visible {
 }
 
 /* level rail */
-.levels.seg {
-  display: flex;
-  flex-wrap: nowrap;
-  width: 100%;
+/* the level: one header button that names the floor, and its menu (UI review, step 2) */
+.lvl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
-.levels .lvl {
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 6px 0;
+.lvl-btn b {
   font-family: var(--f-mono);
-  font-size: var(--fs-ui);
+  font-size: var(--fs-small);
   font-weight: 500;
-  letter-spacing: 0.03em;
+}
+.lvl-btn .lvl-name {
+  font-weight: 600;
+}
+.lvl-btn svg {
+  color: var(--muted);
+}
+.lvlmenu {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  max-height: min(640px, calc(100vh - 80px));
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+}
+.lvlmenu[hidden] {
+  display: none;
+}
+.lvl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+.lvl-list .lvl {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 1px 8px;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  padding: 7px 8px;
+}
+.lvl-list .lvl:hover {
+  background: var(--track);
+}
+.lvl-list .lvl[aria-pressed='true'] {
+  background: var(--raise);
+  border-color: var(--line-2);
+}
+.lvl-list .lvl b {
+  grid-row: span 2;
+  font-family: var(--f-mono);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  color: var(--muted);
+  padding-top: 1px;
+}
+.lvl-list .lvl[aria-pressed='true'] b {
+  color: var(--ink);
+}
+.lvl-list .lvl-n {
+  font-weight: 600;
+  font-size: var(--fs-ui);
+}
+.lvl-list .lvl-d {
+  font-size: var(--fs-small);
+  color: var(--muted);
+  line-height: 1.35;
 }
 .brief h3 .lvname {
   font-family: var(--f-display);
@@ -310,13 +388,13 @@ dialog:focus-visible {
 }
 
 .brief {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--r-panel);
-  padding: 10px 14px;
+  padding: 14px 18px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
+  align-content: start;
+  gap: 10px;
+  overflow-y: auto;
+  min-width: 0;
 }
 .brief .adds {
   font-size: var(--fs-value);
@@ -336,6 +414,13 @@ dialog:focus-visible {
 }
 .brief summary h3 {
   display: inline;
+}
+.brief .try > summary {
+  list-style: none;
+  cursor: default;
+}
+.brief .try > summary::-webkit-details-marker {
+  display: none;
 }
 .brief li {
   margin: 2px 0;
@@ -1038,7 +1123,6 @@ dialog:focus-visible {
 }
 /* Learn mode: the right column is the lesson list, then the open lesson at full width */
 .layout[data-mode='learn'] .levels,
-.layout[data-mode='learn'] .brief,
 .layout[data-mode='learn'] .console {
   display: none;
 }
@@ -1631,19 +1715,13 @@ textarea {
   gap: 6px 12px;
 }
 .appbar .modebar {
-  flex: 1 1 0;
+  flex: 0 0 auto;
   min-width: 0;
   flex-wrap: nowrap;
 }
 .appbar #modesel {
   flex: 0 0 auto;
   flex-wrap: nowrap;
-}
-.appbar #modehint {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .view {
   display: flex;
@@ -4088,11 +4166,6 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   }
 }
-@media (min-width: 961px) and (max-width: 1279px) {
-  #modehint {
-    display: none;
-  }
-}
 
 /* Phone (≤ 760 px): one column in the order you use it — title, map, a sticky transport bar, telemetry, then the level,
    brief and the console collapsed to its tab row. The wrappers become display:contents, so this is only a CSS reorder
@@ -4130,9 +4203,6 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   }
   .modebar {
     order: 2;
-  }
-  #modehint {
-    display: none;
   }
   .mapwrap,
   #anview {
@@ -4181,13 +4251,38 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   .levels {
     order: 10;
   }
-  .appbar .levels.seg {
-    flex: 0 0 auto;
+  .lvl-btn {
     width: 100%;
-    min-width: 0;
-  } /* the app bar's 380 px flex basis would become a height here */
-  .brief {
-    order: 11;
+    justify-content: flex-start;
+  }
+  .lvl-btn svg {
+    margin-left: auto;
+  }
+  .lvlmenu {
+    left: 8px !important;
+    right: 8px;
+    width: auto !important;
+    top: auto !important;
+    bottom: 8px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    max-height: 78vh;
+  }
+  .lvl-list {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .lvl-list .lvl {
+    flex: 0 0 auto;
+    grid-template-columns: auto;
+  }
+  .lvl-list .lvl b {
+    grid-row: auto;
+  }
+  .lvl-list .lvl-d {
+    display: none;
   }
   .console,
   .learncol {

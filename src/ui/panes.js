@@ -1,4 +1,3 @@
-let tryOpen = false; // the Try list starts collapsed so the map and telemetry fit on screen
 // the lessons whose experiments run on the current level (by the level their first Try names)
 function lessonsOnLevel() {
   const i = LEVELS.indexOf(LV),
@@ -10,15 +9,70 @@ function lessonsOnLevel() {
   return out;
 }
 let briefOpen = true; // the level's description; folding it is remembered (workspace.js)
+// The level menu (UI review, step 2): one header button names the floor; its menu lists the seven floors on the left
+// and, on the right, the current floor's description and quick experiments (the brief, which used to sit above the tabs).
+const lvMenu = (() => {
+  const m = document.createElement('div');
+  m.id = 'lvlmenu';
+  m.className = 'lvlmenu';
+  m.hidden = true;
+  m.setAttribute('role', 'dialog');
+  m.setAttribute('aria-label', 'Levels and quick experiments');
+  m.innerHTML = `<div class="lvl-list" role="group" aria-label="Level"></div><section class="brief" id="brief" aria-live="polite"></section>`;
+  document.body.appendChild(m);
+  return m;
+})();
+function lvMenuOpen(on) {
+  const b = $('#lvl-btn');
+  if (on == null) on = lvMenu.hidden;
+  lvMenu.hidden = !on;
+  if (b) b.setAttribute('aria-expanded', String(on));
+  if (!on || !b) return;
+  const r = b.getBoundingClientRect(),
+    w = Math.min(760, innerWidth - 16);
+  lvMenu.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+  lvMenu.style.top = r.bottom + 6 + 'px';
+  lvMenu.style.width = w + 'px';
+  const cur = lvMenu.querySelector('.lvl[aria-pressed="true"]');
+  if (cur) cur.focus();
+}
+document.addEventListener(
+  'pointerdown',
+  e => {
+    if (!lvMenu.hidden && !lvMenu.contains(e.target) && !e.target.closest('#lvl-btn')) lvMenuOpen(false);
+  },
+  true
+);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !lvMenu.hidden) {
+    lvMenuOpen(false);
+    $('#lvl-btn').focus();
+  }
+});
+const firstSentence = s => {
+  const t = s.replace(/<[^>]+>/g, '');
+  const k = t.indexOf('. ');
+  return k > 0 ? t.slice(0, k + 1) : t;
+};
 function buildLevels() {
-  $('#levels').innerHTML = LEVELS.map(
-    (L, i) => `<button class="lvl" data-i="${i}" aria-pressed="${L === LV}" title="${L.id} ${L.name}">${L.id}</button>`
+  $('#levels').innerHTML =
+    `<button type="button" class="btn lvl-btn" id="lvl-btn" aria-haspopup="dialog" aria-expanded="${!lvMenu.hidden}" aria-controls="lvlmenu" title="Choose the floor; its description and quick experiments are in this menu"><b>${LV.id}</b><span class="lvl-name">${LV.name}</span><svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+  $('#lvl-btn').onclick = () => lvMenuOpen();
+  const list = lvMenu.querySelector('.lvl-list');
+  list.innerHTML = LEVELS.map(
+    (L, i) =>
+      `<button type="button" class="lvl" data-i="${i}" aria-pressed="${L === LV}"><b>${L.id}</b><span class="lvl-n">${L.name}</span><span class="lvl-d">${firstSentence(L.adds)}</span></button>`
   ).join('');
-  $('#levels')
-    .querySelectorAll('.lvl')
-    .forEach(b => (b.onclick = () => loadLevel(+b.dataset.i)));
+  list.querySelectorAll('.lvl').forEach(
+    b =>
+      (b.onclick = () => {
+        loadLevel(+b.dataset.i);
+        const nb = lvMenu.querySelector(`.lvl[data-i="${b.dataset.i}"]`);
+        if (nb) nb.focus();
+      })
+  );
   $('#brief').innerHTML =
-    `<details class="adds-d" ${briefOpen ? 'open' : ''}><summary><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3></summary><p class="adds">${LV.adds}</p></details><details class="try" ${tryOpen ? 'open' : ''}><summary><h3>Quick experiments (${LV.tries.length}) · one click sets the lab up and runs</h3></summary><p class="note">Short setups to poke at this floor. The guided lessons in Learn explain the same things step by step${
+    `<div class="adds-d"><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3><p class="adds">${LV.adds}</p></div><details class="try" open><summary><h3>Quick experiments (${LV.tries.length}) · one click sets the lab up and runs</h3></summary><p class="note">Short setups to poke at this floor. The guided lessons in Learn explain the same things step by step${
       lessonsOnLevel().length
         ? `: <span class="lvlessons">${lessonsOnLevel()
             .slice(0, 5)
@@ -31,23 +85,18 @@ function buildLevels() {
     .forEach(
       b =>
         (b.onclick = () => {
+          lvMenuOpen(false);
           setUIMode('learn');
           openLesson(b.dataset.lesson);
         })
     );
-  $('#brief .try').ontoggle = e => {
-    tryOpen = e.target.open;
-  };
-  $('#brief .adds-d').ontoggle = e => {
-    briefOpen = e.target.open;
-    wsSave();
-  };
   $('#brief')
     .querySelectorAll('[data-lt]')
     .forEach(
       b =>
         (b.onclick = () => {
           const [i, j] = b.dataset.lt.split(':').map(Number);
+          lvMenuOpen(false);
           tryGo(LV.tries[i].b[j][1]);
         })
     );

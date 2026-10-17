@@ -2863,18 +2863,24 @@ details.see > p {
 .tele.folded .tele-grid {
   display: none;
 }
+/* one telemetry toolbar (UI review, step 5): title, channel, Compare, and a "⋯" menu for the rest */
 .tele-head {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 8px 12px;
 }
 .tele-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-right: auto;
+}
+.tele-more {
+  margin-left: auto;
+  min-width: var(--h-dense);
+  font-size: var(--fs-ui);
+  line-height: 1;
 }
 .plotpick {
   display: flex;
@@ -2891,9 +2897,9 @@ details.see > p {
   width: 100%;
   height: 170px;
   display: block;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: var(--r-ctl);
-  background: var(--map-bg);
+  background: transparent;
   touch-action: pan-y;
 }
 /* plot dock (7.4): the preset plot, then added panes of any signals; one shared time window */
@@ -2983,26 +2989,38 @@ details.see > p {
   padding: 0 7px;
 }
 .tele-tools {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-left: 6px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 170px;
+  padding: 4px;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
 }
-.tele-head .plotpick .seg button {
-  padding: 4px 8px;
-  font-size: var(--fs-small);
-}
-.tele-head .plotpick .sel.sm {
-  padding: 3px 4px;
+.tele-tools[hidden] {
+  display: none;
 }
 .tele-tools .ibtn {
-  padding: 3px 8px;
-  font-size: var(--fs-small);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  min-height: var(--h-ctl);
+  padding: 0 10px;
+  font-size: var(--fs-ui);
 }
-.tele-tools .ibtn[aria-pressed='true'] {
-  background: var(--ink);
-  color: var(--panel);
-  border-color: var(--ink);
+.tele-tools .ibtn:hover {
+  background: var(--track);
+}
+.tele-tools .ibtn[aria-pressed='true']::after {
+  content: ' ✓';
+  color: var(--ok);
 }
 .ibtn:disabled {
   opacity: 0.45;
@@ -3210,7 +3228,8 @@ details.see > p {
   width: 9em;
   font: inherit;
   font-size: var(--fs-small);
-  padding: 2px 6px;
+  height: var(--h-dense);
+  padding: 0 6px;
   border: 1px solid var(--line);
   border-radius: var(--r-ctl);
   background: var(--raise);
@@ -4861,7 +4880,7 @@ article.chapter .notes-table td button.try {
       </div>
       <div class="hsplit" id="dock-split" role="separator" aria-orientation="horizontal" aria-label="Resize the telemetry dock" tabindex="0" title="Drag to resize · double-click to fold the dock"></div>
       <section class="box tele" id="dock">
-        <div class="tele-head"><div class="tele-title"><h2>Telemetry</h2><button class="ibtn fold" id="dock-fold" type="button" aria-expanded="true" title="Fold the dock to its header">▾</button></div><div class="plotpick"><div class="seg" id="plotsel" aria-label="Plot channel"></div><select class="sel sm" id="plotsel2" aria-label="Second channel, right axis" title="Second channel on the right axis"><option value="none">+ compare…</option><option value="pos">Position error</option><option value="eth">θ error</option><option value="cte">Cross-track</option><option value="v">Speed</option><option value="turn">Steering</option></select></div></div>
+        <div class="tele-head"><div class="tele-title"><h2>Telemetry</h2><button class="ibtn fold" id="dock-fold" type="button" aria-expanded="true" title="Fold the dock to its header">▾</button></div><div class="plotpick"><div class="seg sm" id="plotsel" aria-label="Plot channel"></div><select class="sel sm" id="plotsel2" aria-label="Second channel, right axis" title="Second channel on the right axis"><option value="none">Compare…</option><option value="pos">Position error</option><option value="eth">θ error</option><option value="cte">Cross-track</option><option value="v">Speed</option><option value="turn">Steering</option></select></div></div>
         <div class="tele-grid">
           <div class="plotcol" id="plotcol" data-n="1"><canvas id="plot" aria-label="Time series plot"></canvas></div>
           <div class="tele-side">
@@ -33269,7 +33288,39 @@ wirePlotCanvas(pv);
   const tl = document.createElement('div');
   tl.className = 'tele-tools';
   tl.innerHTML = `<button type="button" class="ibtn" id="pl-add" title="Add a plot of any recorded signals (up to 3)">+ Plot</button><button type="button" class="ibtn" id="pl-all" aria-pressed="false" title="Show the whole recorded run in every plot">Whole run</button><button type="button" class="ibtn" id="pl-csv" title="Save every signal of this run as CSV (10 Hz)">CSV</button><button type="button" class="ibtn" id="pl-png" title="Save the plots as a PNG image">PNG</button>`;
-  $('.tele-title').appendChild(tl);
+  tl.hidden = true;
+  tl.setAttribute('role', 'menu');
+  tl.querySelectorAll('button').forEach(b => b.setAttribute('role', 'menuitem'));
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'ibtn tele-more';
+  more.id = 'pl-more';
+  more.title = 'More: add a plot, show the whole run, save CSV or PNG';
+  more.setAttribute('aria-label', 'More telemetry actions');
+  more.setAttribute('aria-haspopup', 'menu');
+  more.setAttribute('aria-expanded', 'false');
+  more.innerHTML = '⋯';
+  const head = $('.tele-head');
+  head.appendChild(more);
+  head.appendChild(tl);
+  const open = on => {
+    tl.hidden = !on;
+    more.setAttribute('aria-expanded', String(on));
+  };
+  more.onclick = () => open(tl.hidden);
+  tl.addEventListener('click', e => {
+    if (e.target.closest('button') && e.target.closest('button').id !== 'pl-all') open(false);
+  });
+  document.addEventListener(
+    'pointerdown',
+    e => {
+      if (!tl.hidden && !tl.contains(e.target) && e.target !== more) open(false);
+    },
+    true
+  );
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !tl.hidden) open(false);
+  });
   $('#pl-add').onclick = e => {
     const i = addPane([]);
     if (i != null) openSigBrowser(i, $('#plotcol').querySelector(`.ppane[data-p="${i}"] [data-add]`) || e.currentTarget);

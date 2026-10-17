@@ -88,22 +88,11 @@ function scanReproject(prev, v, w, dt) {
   return out;
 }
 // @code ag-learned | agDetectLearned: the learned per-beam detector, its clusters and the hit points it hands on
-// The learned detector: a 1D convolution over the beams (MODELS.detector, trained in training/detector) gives each
-// beam the probability that its hit lies on a person; beams above 0.5 are clustered as agDetect clusters unexplained
-// hits. It needs no prior map and no settled built map: a person is recognized by the shape and motion of the hits.
-function agDetectLearned() {
-  const A = S.agents,
-    e = S.est,
-    R = S.scan,
-    M = MODELS.detector;
-  A.det = [];
-  A.dynPts = [];
-  A.beamP = null;
-  if (!R || !M) return;
-  const CH = M.input.channels,
-    v = S.odo ? S.odo.v : 0,
-    w = S.odo ? S.odo.w : 0,
-    prev = A.prevScan ? scanReproject(A.prevScan, v, w, S.t - (A.prevT || S.t)) : null,
+// The six numbers per beam the detector sees (the collector tools/collect-detector.mjs and the Train tab's data come
+// from this same function): range/8, the previous scan reprojected into this frame /8, their difference clipped to
+// ±1, the hit flag, and the odometry's v/1.5 and ω/2 broadcast over the beams. prev null: no previous scan yet.
+function detFeatures(R, prev, v, w) {
+  const CH = 6,
     f = new Float32Array(NBEAM * CH);
   for (let k = 0; k < NBEAM; k++) {
     const rk = Math.min(R[k], LMAX),
@@ -115,13 +104,33 @@ function agDetectLearned() {
     f[k * CH + 4] = v / 1.5;
     f[k * CH + 5] = w / 2;
   }
+  return f;
+}
+// The learned detector: a 1D convolution over the beams (the built-in MODELS.detector, trained in training/detector,
+// or one trained in the Train tab) gives each beam the probability that its hit lies on a person; beams above the
+// model's threshold (0.6) are clustered as agDetect clusters unexplained hits. It needs no prior map and no settled
+// built map: a person is recognized by the shape and motion of the hits.
+function agDetectLearned() {
+  const A = S.agents,
+    e = S.est,
+    R = S.scan,
+    M = nnModel('detector');
+  A.det = [];
+  A.dynPts = [];
+  A.beamP = null;
+  if (!R || !M) return;
+  const v = S.odo ? S.odo.v : 0,
+    w = S.odo ? S.odo.w : 0,
+    prev = A.prevScan ? scanReproject(A.prevScan, v, w, S.t - (A.prevT || S.t)) : null,
+    f = detFeatures(R, prev, v, w),
+    thr = M.threshold || 0.6;
   A.prevScan = Float32Array.from(R);
   A.prevT = S.t;
   const p = nnForward(M, f, NBEAM);
   A.beamP = p;
   const pts = new Array(NBEAM).fill(null);
   for (let k = 0; k < NBEAM; k++) {
-    if (R[k] >= LMAX - 1e-3 || p[k] < 0.6) continue;
+    if (R[k] >= LMAX - 1e-3 || p[k] < thr) continue;
     const a = e.th - Math.PI + (k * TAU) / NBEAM;
     pts[k] = [e.x + R[k] * Math.cos(a), e.y + R[k] * Math.sin(a), k];
   }

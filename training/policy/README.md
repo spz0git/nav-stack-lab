@@ -11,4 +11,6 @@ it and say plainly where it fails; this folder trains it.
 - Train: `python3 training/policy/train.py` uses every tagged dataset, holds the first one's last run out, reports the
   RMS error per waypoint in metres, and writes `src/models/policy.json` (105 744 parameters, 665 KB); rebuild with
   `./build.sh`. The features are built by `policyFeatures` in `src/core/planning-policy.js`, the same function the
-  collector calls, so the two cannot disagree.
+  collector calls (through `collectRun` in `src/core/dataset.js`), so the two cannot disagree.
+- The same training runs in the page: Tools → Train, where a DAgger round needs no rebuild (the policy picked in Plan
+  drives).

@@ -203,7 +203,9 @@ async def main():
             print(f"  L{lvl+1} {st.get('mpcDyn') and 'tyre model' or 'kinematic '} v {r['v0']:.1f}: {kv}, PM {r['PM'] or 0:.0f}°, ζ {r['zeta'] or 0:.2f} · injection vs model over {r['n']} freqs: {r['dB']:.2f} dB, {r['dph']:.1f}° · step overshoot {r['OSlin']:.1f} % model / {r['OSsim']:.1f} % sim · Nyquist N + P {r['N']+r['P']} vs {r['unst']}")
             if st.get('mpcDyn') and r['Kvy'] is None: fails.append('Analyze did not read the tyre-model gains')
             if r['n']<5 or r['dB']>0.5 or r['dph']>3 or abs(r['OSlin']-r['OSsim'])>0.5 or r['N']+r['P']!=r['unst']: fails.append(f"Analyze L{lvl+1} {st}: {r['dB']:.2f} dB / {r['dph']:.1f}°, overshoot {r['OSlin']:.1f} vs {r['OSsim']:.1f}")
-        job={'level':6,'overrides':{'mpcDyn':True},'seed':7,'secs':20}
+        # no real-time budget here: a solve cut at 15 ms depends on the machine (a fresh worker's first solves run before
+        # the JIT has warmed up), and this check asks for the same numbers from the page and the worker
+        job={'level':6,'overrides':{'mpcDyn':True,'mpcBudget':0},'seed':7,'secs':20}
         wk=await pg.evaluate(WK,job);pgr=await pg.evaluate(PG,job);ws=wk.get('summary',{})
         same={k:(ws.get(k),pgr[k]) for k in ['goalsDone','coll','cteRMS','dist']}
         print('  L7, tyre-model MPC: worker vs page',same,wk.get('error') or '')

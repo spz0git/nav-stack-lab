@@ -66,7 +66,7 @@ function buildLevels() {
   list.querySelectorAll('.lvl').forEach(
     b =>
       (b.onclick = () => {
-        loadLevel(+b.dataset.i);
+        levelPicked(+b.dataset.i);
         const nb = lvMenu.querySelector(`.lvl[data-i="${b.dataset.i}"]`);
         if (nb) nb.focus();
       })
@@ -100,6 +100,13 @@ function buildLevels() {
           tryGo(LV.tries[i].b[j][1]);
         })
     );
+}
+// A level picked in the menu or the search keeps the settings you changed (switchLevel in core/config.js)
+function levelPicked(i) {
+  const {kept} = switchLevel(i),
+    n = Object.keys(kept).length;
+  if (n) toast(`${LV.id}: kept the ${n} setting${n > 1 ? 's' : ''} you changed. Changed → Reset all gives this level's own.`, 4500);
+  renderAllPanes();
 }
 async function tryGo(cfg) {
   firstRunDone();
@@ -281,6 +288,7 @@ function renderAllPanes() {
   else if (t === 'view') html = layersPane();
   else if (t === 'sym') html = symPane();
   else if (t === 'exp') html = expPane();
+  else if (t === 'train') html = trainPane();
   else {
     if (t === 'mis') html += `<div id="fsm-wrap" class="fsm-wrap">${fsmSVG()}</div>`;
     for (const f of SCHEMA[t]) {
@@ -401,7 +409,9 @@ const TIPS = {
   mpcNp: 'Prediction horizon in steps of Δt.',
   mpcNc: 'Free input moves; later moves are held at the last one.',
   mpcDt: 'Prediction step.',
-  mpcIt: 'SQP iterations per 50 ms tick, within a 15 ms budget.',
+  mpcIt: 'SQP iterations per 50 ms tick, within the real-time budget below.',
+  mpcBudget:
+    'Wall-clock time a solve may take before it stops with the best iterate so far (a real controller has a deadline). It makes the result depend on the computer: on a slow or busy one a solve is cut sooner. 0: no limit, every iteration runs, the same on every computer.',
   mpcQlat: 'Penalty on lateral error.',
   mpcQlon: 'Penalty on along-track error.',
   mpcQth: 'Penalty on heading error.',
@@ -574,6 +584,7 @@ function wirePane(t) {
   pane.querySelectorAll('[data-source]').forEach(b => (b.onclick = () => showSource(b.dataset.source)));
   if (t === 'code') wireCode();
   if (t === 'exp') wireExp(pane);
+  if (t === 'train') wireTrain(pane);
   if (t === 'sym') wireSym(pane);
   if (t === 'view') {
     const g = $('#ghost-clear');

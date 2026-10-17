@@ -33,7 +33,9 @@ function kidnapTo(p) {
 }
 function loadLevel(i) {
   LV = LEVELS[i];
-  Object.assign(P, DEFAULTS, {seed: P.seed}, LV.cfg);
+  // every setting goes back to the level's, except the seed and the trained models picked in Perceive and Plan, so that
+  // a model trained in the page can be tried on every level (Agent tracking / Planner still follow the level)
+  Object.assign(P, DEFAULTS, {seed: P.seed, detModel: P.detModel, polModel: P.polModel}, LV.cfg);
   applyMap();
   LAYERS.cost = !!(LV.layers && LV.layers.cost);
   WPS = LV.wps.map(w => ({x: w[0], y: w[1], th: w.length > 2 ? w[2] : null, done: false}));
@@ -41,6 +43,51 @@ function loadLevel(i) {
   reset();
   UI.levelChanged();
   UI.invalidate();
+}
+// Picking another level yourself (the level menu, search) keeps every setting you changed from the current level's own
+// setup; the new level supplies the rest. Not carried: what belongs to the old level's geometry (the painted and erased
+// map, the beacons switched off), and a planner or tracker the new level's vehicle cannot use. Try buttons, lessons,
+// setup links and the tests call loadLevel, which starts from the level's own setup (the seed and the trained models
+// aside), so that the numbers quoted with them hold. Returns {kept, dropped}: the settings carried, and the ones not.
+const LEVEL_OWN = ['seed', 'map', 'mapAdd', 'mapDel', 'bOff'];
+function levelChanges() {
+  const out = {};
+  for (const k of Object.keys(DEFAULTS)) {
+    if (LEVEL_OWN.includes(k)) continue;
+    const d = k in LV.cfg ? LV.cfg[k] : DEFAULTS[k];
+    if (P[k] !== d) out[k] = P[k];
+  }
+  return out;
+}
+function switchLevel(i) {
+  const ch = levelChanges(),
+    kept = {},
+    dropped = {};
+  loadLevel(i);
+  // the vehicle first: whether a planner or tracker fits depends on it (the model's effect re-picks the planner)
+  const keys = ['model', 'carPhys'].filter(k => k in ch).concat(Object.keys(ch).filter(k => k !== 'model' && k !== 'carPhys'));
+  for (const k of keys) {
+    const v = ch[k],
+      unfit = isCar()
+        ? k === 'plan' && v === 'stastar'
+        : (k === 'plan' && (v === 'rs' || v === 'hybrid')) || (k === 'ctl' && v === 'stanley');
+    if (unfit) dropped[k] = v;
+    else {
+      setParam(k, v, false);
+      kept[k] = v;
+    }
+  }
+  const n = Object.keys(kept).length,
+    nd = Object.keys(dropped).length;
+  if (n) logE(`Kept ${n} setting${n > 1 ? 's' : ''} you changed: ${Object.keys(kept).join(', ')}`);
+  if (nd)
+    logE(
+      `Not kept (this level's vehicle cannot use it): ${Object.entries(dropped)
+        .map(([k, v]) => `${k} ${v}`)
+        .join(', ')}`,
+      'warn'
+    );
+  return {kept, dropped};
 }
 // The map as edited: the level's obstacles (all of them, none but the outer walls with map = 'empty', less the ones
 // erased in mapDel) plus the painted cells of mapAdd, a 0.4 m grid merged into one rectangle per run along a row. The
@@ -117,6 +164,17 @@ const PARAM_EFFECTS = [
     (k, v) => {
       S.agents = agInit();
       logE(`Agent tracking → ${{off: 'off', truth: 'ground truth', lidar: 'lidar', learned: 'learned detector'}[v]}`);
+    }
+  ],
+  [
+    ['detModel', 'polModel'],
+    (k, v) => {
+      const M = USER_MODELS[v],
+        what = k === 'detModel' ? 'Detector' : 'Policy';
+      if (v !== 'builtin' && !M) logE(`${what} model "${v}" is not in this browser (yet): the built-in one runs until it is`, 'warn');
+      else logE(`${what} model → ${M ? M.label || v : 'built-in'}`);
+      if (k === 'detModel') S.agents = agInit();
+      else if (P.plan === 'policy') requestReplan('policy model changed');
     }
   ],
   [

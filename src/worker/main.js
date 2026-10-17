@@ -1,7 +1,11 @@
 /* ============================================================
    Headless runner (Web Worker). The same simulation core as the page, no DOM.
-   Message in:  {cmd:'run', id, level, seed, overrides:{param:value}, secs, stopWhenDone}
+   Message in:  {cmd:'run', id, level, seed, overrides:{param:value}, secs, stopWhenDone, models}
    Messages out: {id, progress} … {id, done:true, summary, ms}
+   The Train tab (ui/train.js) also uses: {cmd:'collect', id, spec, models} → {id, done, data} (core/dataset.js);
+   {cmd:'tdata', id, X, Y, model, task} gives a worker its shard of the training set, then {cmd:'tgrad', id, w, idx}
+   → {id, done, g, loss, count}, the gradient summed over those samples; {cmd:'teval', id, model, X, Y, block} → {ev}.
+   models: {id: model} trained in the page that the run's detModel / polModel may name (core/models-data.js).
    ============================================================ */
 function runSummary() {
   const r = S.robot,
@@ -55,12 +59,24 @@ self.__core = {
   nnForward,
   mlpForward,
   policyFeatures,
+  detFeatures,
+  collectRun,
+  nnInit,
+  nnGrad,
+  nnFlat,
+  nnUnflat,
+  nnPredict,
+  nnEvaluate,
+  nnTrain,
+  NN_ARCH,
+  USER_MODELS,
   setGoals,
   randomFree,
   pointAt,
   project,
   LEVELS,
   loadLevel,
+  switchLevel,
   setParam,
   wrap,
   clamp,
@@ -78,9 +94,32 @@ self.__core = {
   GH,
   NC
 };
+const TR = {X: null, Y: null, model: null, task: null};
+async function trainMsg(m) {
+  if (m.cmd === 'collect') {
+    REC.on = false;
+    const d = await collectRun(m.spec, p => postMessage({id: m.id, progress: p}));
+    postMessage({id: m.id, done: true, data: d}, [d.x.buffer, d.y.buffer]);
+  } else if (m.cmd === 'tdata') {
+    Object.assign(TR, {X: m.X, Y: m.Y, model: m.model, task: m.task});
+    postMessage({id: m.id, done: true});
+  } else if (m.cmd === 'tgrad') {
+    const r = nnGrad(nnUnflat(TR.model, m.w), TR.X, TR.Y, m.idx, TR.task);
+    postMessage({id: m.id, done: true, g: r.g, loss: r.loss, count: r.count}, [r.g.buffer]);
+  } else if (m.cmd === 'teval')
+    postMessage({id: m.id, done: true, ev: nnEvaluate(m.w ? nnUnflat(m.model, m.w) : m.model, m.X, m.Y, m.block)});
+}
 self.onmessage = async e => {
   const m = e.data;
-  if (m.cmd !== 'run') return;
+  if (m.models) Object.assign(USER_MODELS, m.models);
+  if (m.cmd !== 'run') {
+    try {
+      await trainMsg(m);
+    } catch (err) {
+      postMessage({id: m.id, done: true, error: String((err && err.stack) || err)});
+    }
+    return;
+  }
   REC.on = false;
   try {
     if (m.seed) P.seed = m.seed;

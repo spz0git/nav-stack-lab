@@ -255,10 +255,19 @@ const SCHEMA = {
     },
     {
       type: 'info',
-      text: () =>
-        MODELS.detector
-          ? `A 1D convolution over the beams (${MODELS.detector.params} parameters, trained in training/detector on ${MODELS.detector.trained_on.scans} simulated scans) labels each beam "person" or "static" from the shape and motion of the hits: no prior map and no settled built map needed. Hits are coloured by the probability on the map.`
-          : 'No detector model in this build: train one with training/detector/train.py and rebuild.',
+      text: () => {
+        const M = nnModel('detector');
+        if (!M) return 'No detector model in this build: train one in Tools → Train, or with training/detector/train.py and rebuild.';
+        const mine = M !== MODELS.detector;
+        return `A 1D convolution over the beams (${M.params} parameters, ${mine ? `trained in this browser (Tools → Train) on ${M.trained_on ? M.trained_on.scans : '?'} scans` : `trained in training/detector on ${M.trained_on.scans} simulated scans`}) labels each beam "person" or "static" from the shape and motion of the hits: no prior map and no settled built map needed. Hits are coloured by the probability on the map. Retrain it, or train another shape, in Tools → Train.`;
+      },
+      show: () => P.agents === 'learned'
+    },
+    {
+      k: 'detModel',
+      type: 'seg',
+      label: 'Detector model',
+      opts: () => trnOpts('detector'),
       show: () => P.agents === 'learned'
     },
     {
@@ -369,10 +378,19 @@ const SCHEMA = {
     },
     {
       type: 'info',
-      text: () =>
-        MODELS.policy
-          ? `An end-to-end policy: the scan (with the nearest range per 30° sector), the odometry and the goal in the robot frame go into a multilayer perceptron (${MODELS.policy.params} parameters, behaviour-cloned in training/policy from ${MODELS.policy.trained_on.samples} moments of the classical stack's driving) and eight waypoints over the next 4 s come out, refreshed every 0.5 s; the tracker follows them. No map, no search.${S && (S.policySnap || S.policyBad) ? ` This run: ${S.policySnap || 0} waypoints moved out of an inflated obstacle, ${S.policyBad || 0} paths cut.` : ''}`
-          : 'No policy model in this build: train one with training/policy/train.py and rebuild.',
+      text: () => {
+        const M = nnModel('policy');
+        if (!M) return 'No policy model in this build: train one in Tools → Train, or with training/policy/train.py and rebuild.';
+        const mine = M !== MODELS.policy;
+        return `An end-to-end policy: the scan (with the nearest range per 30° sector), the odometry and the goal in the robot frame go into a multilayer perceptron (${M.params} parameters, ${mine ? `trained in this browser (Tools → Train) on ${M.trained_on ? M.trained_on.samples : '?'} samples` : `behaviour-cloned in training/policy from ${M.trained_on.samples} moments of the classical stack's driving`}) and eight waypoints over the next 4 s come out, refreshed every 0.5 s; the tracker follows them. No map, no search.${S && (S.policySnap || S.policyBad) ? ` This run: ${S.policySnap || 0} waypoints moved out of an inflated obstacle, ${S.policyBad || 0} paths cut.` : ''}`;
+      },
+      show: () => P.plan === 'policy'
+    },
+    {
+      k: 'polModel',
+      type: 'seg',
+      label: 'Policy model',
+      opts: () => trnOpts('policy'),
       show: () => P.plan === 'policy'
     },
     {
@@ -601,6 +619,7 @@ const SCHEMA = {
       show: mpc_
     },
     {k: 'mpcIt', label: 'SQP iterations per tick', min: 1, max: 10, step: 1, show: () => mpc_() && P.mpcMode === 'nmpc'},
+    {k: 'mpcBudget', label: 'Real-time budget per solve (0: none)', min: 0, max: 50, step: 1, unit: 'ms', show: mpc_},
     {k: 'mpcQlat', label: 'Weight: lateral error', min: 0, max: 100, step: 1, show: mpc_},
     {k: 'mpcQlon', label: 'Weight: along-track error', min: 0, max: 50, step: 0.5, show: mpc_},
     {k: 'mpcQth', label: 'Weight: heading error', min: 0, max: 50, step: 0.5, show: mpc_},

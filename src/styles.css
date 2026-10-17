@@ -4928,3 +4928,92 @@ article.chapter .notes-table td button.try {
   align-items: center;
   gap: 0.4em;
 }
+/* Train (Tools → Train): data sources, models, the training curve */
+.trn-src {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0 8px 10px;
+  border-top: 1px solid var(--line);
+  border-left: 3px solid var(--sys, var(--line));
+}
+.trn-src p {
+  margin: 0;
+}
+.trn-srchead {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.trn-srchead .sel {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.trn-ok {
+  font-size: var(--fs-small);
+  color: var(--ok);
+}
+.trn-models {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.trn-models li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+.trn-mname {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 220px;
+  font-size: var(--fs-ui);
+}
+.trn-use {
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: var(--ok);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.trn-file {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+.trn-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  background: var(--panel);
+}
+.trn-result h4 {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: var(--fs-value);
+}
+.trn-result .note {
+  margin: 0;
+}
+.trn-key span {
+  display: inline-block;
+  width: 14px;
+  height: 0;
+  vertical-align: middle;
+  border-top: 2px solid var(--accent);
+}
+.trn-key .trn-k2 {
+  border-top-color: var(--amber);
+}
+.trn-key .trn-k3 {
+  border-top: 1px dashed var(--muted);
+}

@@ -9,6 +9,7 @@ const TABS = [
   {id: 'ctl', n: '5', name: 'Control'},
   {id: 'veh', n: '', name: 'Vehicle'},
   {id: 'exp', n: '', name: 'Experiments'},
+  {id: 'train', n: '', name: 'Train'},
   {id: 'code', n: '', name: 'Code'},
   {id: 'view', n: '', name: 'Layers'},
   {id: 'sym', n: '', name: 'Symbols'}
@@ -17,7 +18,7 @@ const TABS = [
 const SYS = {loc: 1, per: 1, plan: 1, ctl: 1};
 const TAB_GROUPS = [
   {id: 'pipe', name: 'Pipeline', tabs: ['loc', 'per', 'mis', 'plan', 'ctl', 'veh']},
-  {id: 'tools', name: 'Tools', tabs: ['exp', 'code']},
+  {id: 'tools', name: 'Tools', tabs: ['exp', 'train', 'code']},
   {id: 'ref', name: 'Reference', tabs: ['view', 'sym']}
 ];
 // The Mission tab's line about the map: what is on the floor now and how to change it

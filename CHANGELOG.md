@@ -3,6 +3,21 @@
 The version label in the page header (`v40 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v45 · 2026-10-17
+
+- Training in the page (Tools → Train): retrain the people detector or the end-to-end policy from the GUI. Data from
+  headless runs on levels, the map on screen, saved maps or random obstacles, with the map's, placed or random goals and
+  any number of runs (DAgger rounds for the policy); four network shapes per block, from random or the built-in weights;
+  backpropagation and Adam in plain JavaScript over up to four workers; the result against the built-in model on a
+  held-out run; trained models kept in the browser, picked in Perceive → Detector model and Plan → Policy model,
+  variable in Experiments, saved and imported as JSON in the format of `src/models/`. The collectors share the page's
+  code (`core/dataset.js`, `detFeatures`) and write the same files as before. `tests/node/train.test.mjs`,
+  `tests/trtest.py`.
+- Changing level in the level menu or the search keeps the settings you changed (not the map edits, the beacons switched
+  off, or a planner or tracker the new vehicle cannot use); Try buttons, lessons and links still start from the level's
+  own setup. Control → Real-time budget per solve sets the MPC's 15 ms deadline (0: none); `dyntest.py` compares the
+  page and the worker without it, so the check no longer depends on the computer's speed.
+
 ## v40 · 2026-10-16
 
 Phase 4, the learning tracks, first blocks:

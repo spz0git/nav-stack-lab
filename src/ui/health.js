@@ -203,6 +203,15 @@ function neffAvg(t) {
   }
   return n ? a / n : S.pf ? S.pf.neff : null;
 }
+// One status row (UI review, step 3): the mission state, the figures, then the four lights; the phone keeps its own order
+{
+  const row = document.createElement('div'),
+    st = $('#status');
+  row.className = 'statusrow';
+  st.parentNode.insertBefore(row, st);
+  row.appendChild(st);
+  row.appendChild($('#health'));
+}
 function renderHealth() {
   const el = $('#health');
   if (!el || !S) return;

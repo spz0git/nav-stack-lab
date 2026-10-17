@@ -463,40 +463,45 @@ dialog:focus-visible {
   border-radius: var(--r-panel);
   padding: 2px 12px 2px 2px;
 }
+/* the mission state: a small pill with a coloured dot (UI review, step 3), not a filled block */
 .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--h-dense);
   font-family: var(--f-mono);
-  font-size: var(--fs-title);
+  font-size: var(--fs-small);
   font-weight: 600;
-  padding: 2px 12px;
-  border-radius: var(--r-ctl);
-  letter-spacing: 0.05em;
-  color: #fff;
-  background: var(--muted);
-  min-width: 7.2em;
-  text-align: center;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  background: var(--raise);
+  border: 1px solid var(--line);
+  white-space: nowrap;
 }
-.pill.plan {
+.pill::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.pill.plan::before {
   background: var(--amber);
 }
-.pill.drive {
+.pill.drive::before {
   background: var(--ok);
 }
-.pill.done {
+.pill.done::before {
   background: var(--accent);
 }
-.pill.bad {
+.pill.bad::before {
   background: var(--bad);
 }
-.status .pill {
-  color: #fff;
-} /* beats the global .bad text colour */
-:root[data-theme='dark'] .status .pill {
-  color: var(--bg);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .status .pill {
-    color: var(--bg);
-  }
+.status .pill.bad {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 45%, var(--line));
 }
 .status .kv {
   display: flex;
@@ -513,7 +518,7 @@ dialog:focus-visible {
 }
 .status .kv b {
   font-family: var(--f-mono);
-  font-size: var(--fs-title);
+  font-size: var(--fs-value);
   font-weight: 500;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -521,6 +526,52 @@ dialog:focus-visible {
 }
 .status .kv b.bad {
   color: var(--bad);
+}
+/* desktop: the status and the four lights on one row; a light is a dot and a name, the reason in its tooltip */
+@media (min-width: 761px) {
+  .statusrow {
+    order: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px 18px;
+    min-width: 0;
+  }
+  .statusrow > .status {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: none;
+    border: 0;
+    padding: 2px 0;
+    min-height: var(--h-ctl);
+  }
+  .statusrow > .health {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 2px;
+  }
+  .statusrow .hl {
+    border: 0;
+    background: none;
+    padding: 3px 7px;
+    font-size: var(--fs-small);
+  }
+  .statusrow .hl:hover,
+  .statusrow .hl[aria-expanded='true'] {
+    background: var(--track);
+  }
+  .statusrow .hl span {
+    display: none;
+  }
+  .statusrow .hl.warn,
+  .statusrow .hl.bad {
+    background: none;
+  }
+  .statusrow .hl.warn b {
+    color: var(--warn);
+  }
+  .statusrow .hl.bad b {
+    color: var(--bad);
+  }
 }
 .st-note {
   font-size: var(--fs-ui);
@@ -4330,6 +4381,9 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   .tab {
     padding: 8px 7px 7px;
     font-size: var(--fs-ui);
+  }
+  .statusrow {
+    display: contents;
   }
   #health {
     order: 6;

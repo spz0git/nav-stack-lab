@@ -297,6 +297,19 @@ function startMission() {
     `Mission: ${F.queue.length} goal${F.queue.length > 1 ? 's' : ''}, ${names[P.mis]}${r.cost != null ? ` · cost ${r.cost.toFixed(1)}` : ''}`
   );
 }
+// Repeat the goals (misLoop): once the list is finished it starts again, one lap at a time, as long as the lap reached
+// at least one goal (a lap of goals that were all skipped would only repeat the failures)
+function missionRepeat(msg) {
+  if (!P.misLoop || exploring() || !WPS.length || WPS.some(w => w.explore) || !WPS.some(w => w.done && !w.skipped)) return false;
+  S.lap = (S.lap || 1) + 1;
+  for (const w of WPS) {
+    w.done = false;
+    w.skipped = false;
+  }
+  logE(`${msg ? msg + '. ' : ''}Lap ${S.lap}: the goals again`, 'ok');
+  startMission();
+  return S.fsm.state === 'PLAN';
+}
 const POSE_PLANNERS = ['hybrid', 'rs', 'custom'],
   ALIGN_TOL = 0.035; // planners that take the goal heading; unicycle alignment tolerance [rad]
 const PLAN_NAMES = {
@@ -390,7 +403,7 @@ function applyPlanResult(res, name, reason, t0, agL) {
       WPS[F.queue[0]].skipped = true;
       F.queue.shift();
       F.fails = 0;
-      F.state = F.queue.length || exploreMore(fk) ? 'PLAN' : 'DONE';
+      F.state = F.queue.length || exploreMore(fk) || missionRepeat() ? 'PLAN' : 'DONE';
     }
   }
 }
@@ -516,6 +529,8 @@ function missionTick() {
     if (F.queue.length || exploreMore()) {
       F.state = 'PLAN';
       F.pendingReason = 'initial';
+    } else if (P.misLoop && !exploring() && missionRepeat(`Lap ${S.lap || 1} complete in ${S.t.toFixed(1)} s`)) {
+      F.pendingReason = 'initial';
     } else {
       F.state = 'DONE';
       S.track = null;
@@ -583,7 +598,7 @@ function missionTick() {
         WPS[F.queue[0]].skipped = true;
         F.queue.shift();
         F.stuckN = 0;
-        F.state = F.queue.length || exploreMore(fk) ? 'PLAN' : 'DONE';
+        F.state = F.queue.length || exploreMore(fk) || missionRepeat() ? 'PLAN' : 'DONE';
         F.pendingReason = 'initial';
         if (!F.queue.length) {
           S.track = null;

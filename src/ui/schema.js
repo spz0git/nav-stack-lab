@@ -322,7 +322,30 @@ const SCHEMA = {
     },
     {k: 'exploreMin', label: 'Smallest frontier worth a visit', min: 2, max: 30, step: 1, unit: 'cells', show: () => P.mis === 'explore'},
     {k: 'replan', label: 'Periodic replan (0 = event-driven only)', min: 0, max: 5, step: 0.5, unit: 's'},
-    {k: 'lostGuard', type: 'bool', label: 'Stop when position σ exceeds 1 m (diff-drive also turns in place)'}
+    {k: 'lostGuard', type: 'bool', label: 'Stop when position σ exceeds 1 m (diff-drive also turns in place)'},
+    {k: 'misLoop', type: 'bool', label: 'Repeat the goals: after the last one start again, lap after lap', show: () => P.mis !== 'explore'},
+    {type: 'head', label: 'Map'},
+    {
+      k: 'map',
+      type: 'seg',
+      label: 'Obstacles',
+      opts: [
+        ['level', "The level's"],
+        ['empty', 'Empty floor']
+      ]
+    },
+    {type: 'info', text: () => mapInfo()},
+    {
+      type: 'btn',
+      label: 'Clear painted and erased',
+      act: () => {
+        setParam('mapDel', '', false);
+        setParam('mapAdd', '', false);
+        logE('Map edits cleared');
+        renderAllPanes();
+      },
+      show: () => !!(P.mapAdd || P.mapDel)
+    }
   ],
   plan: [
     {

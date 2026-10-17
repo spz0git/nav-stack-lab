@@ -932,6 +932,10 @@ const DEFAULTS = {
   lmRange: 7,
   clutter: 0,
   bOff: '',
+  map: 'level', // the obstacles: the level's ('level') or none but the outer walls ('empty'); beacons and people stay
+  mapAdd: '', // obstacles painted on the map: cells of the 0.4 m paint grid (j·60 + i), comma-separated
+  mapDel: '', // the level's obstacles erased on the map: their indices in the level's shape list, comma-separated
+  misLoop: false, // after the last goal the mission starts again from the first, until stopped
   bOut: 0,
   bOutLen: 1,
   lidarSig: 0.02,
@@ -971,7 +975,8 @@ const PARAM_OPTS = {
   mpcMode: ['nmpc', 'ltv'],
   model: ['diff', 'car'],
   carPhys: ['kin', 'dyn'],
-  people: ['scripted', 'reactive']
+  people: ['scripted', 'reactive'],
+  map: ['level', 'empty']
 };
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
@@ -1311,7 +1316,8 @@ function reset() {
     customMark: null,
     agents: agInit(),
     collPedStill: 0,
-    minPed: Infinity
+    minPed: Infinity,
+    lap: 1 // the lap of the goal list (Repeat the goals)
   };
   for (const w of WPS) {
     w.done = false;
@@ -1420,12 +1426,61 @@ function kidnapTo(p) {
 function loadLevel(i) {
   LV = LEVELS[i];
   Object.assign(P, DEFAULTS, {seed: P.seed}, LV.cfg);
+  applyMap();
   LAYERS.cost = !!(LV.layers && LV.layers.cost);
   WPS = LV.wps.map(w => ({x: w[0], y: w[1], th: w.length > 2 ? w[2] : null, done: false}));
   running = false;
   reset();
   UI.levelChanged();
   UI.invalidate();
+}
+// The map as edited: the level's obstacles (all of them, none but the outer walls with map = 'empty', less the ones
+// erased in mapDel) plus the painted cells of mapAdd, a 0.4 m grid merged into one rectangle per run along a row. The
+// level keeps its designed list in shapes0; the occupancy and distance grids are rebuilt only when the edit changed.
+const PAINT = 0.4,
+  PGW = Math.round(W / PAINT),
+  PGH = Math.round(H / PAINT);
+const idList = s =>
+  String(s || '')
+    .split(',')
+    .filter(x => x !== '')
+    .map(Number)
+    .filter(n => Number.isInteger(n) && n >= 0);
+const paintCell = (x, y) => {
+  const i = Math.floor(x / PAINT),
+    j = Math.floor(y / PAINT);
+  return i < 0 || j < 0 || i >= PGW || j >= PGH ? -1 : j * PGW + i;
+};
+function applyMap() {
+  const L = LV;
+  if (!L.shapes0) L.shapes0 = L.shapes;
+  const key = `${P.map}|${P.mapAdd}|${P.mapDel}`;
+  if (L.mapKey === key) return false;
+  const del = new Set(idList(P.mapDel)),
+    out = L.shapes0.filter((s, i) => BORDER.includes(s) || (P.map !== 'empty' && !del.has(i)));
+  const cells = [...new Set(idList(P.mapAdd))].filter(c => c < PGW * PGH).sort((a, b) => a - b);
+  for (let k = 0; k < cells.length;) {
+    const j = Math.floor(cells[k] / PGW),
+      i0 = cells[k] % PGW;
+    let n = 1;
+    while (k + n < cells.length && cells[k + n] === cells[k] + n && (cells[k] % PGW) + n < PGW) n++;
+    out.push({t: 'r', x: i0 * PAINT, y: j * PAINT, w: n * PAINT, h: PAINT, painted: true});
+    k += n;
+  }
+  L.shapes = out;
+  L.mapKey = key;
+  L.truthOcc = null; // prepLevel rebuilds the grids from the new list
+  return true;
+}
+// A painted cell or an erased obstacle while the run goes on: the grids, the costmap and the plan follow at once
+function mapChanged() {
+  if (!applyMap() || !S) return;
+  prepLevel(LV);
+  S.shapes = LV.shapes;
+  S.dstar = null;
+  buildCostmap();
+  dirty.occ = dirty.cost = true;
+  requestReplan('map edited');
 }
 // What changing a parameter implies, as an ordered table: [the keys, the effect(k, v, old, live)]. Several keys may
 // share one effect; a key may appear in more than one entry (each runs, in this order). `live` is true while a slider
@@ -1540,6 +1595,21 @@ const PARAM_EFFECTS = [
         if (v) carsInit();
       }
       logE(k === 'people' ? `People → ${v}` : `Other vehicles → ${v ? 'on' : 'off'}`);
+    }
+  ],
+  [
+    ['map', 'mapAdd', 'mapDel'],
+    (k, v) => {
+      mapChanged();
+      if (k === 'map')
+        logE(v === 'empty' ? 'Map → empty floor: only the outer walls; beacons, people and goals stay' : "Map → the level's obstacles");
+    }
+  ],
+  [
+    ['misLoop'],
+    (k, v) => {
+      logE(v ? 'Repeat the goals: after the last goal the mission starts again' : 'Repeat the goals off');
+      if (v && S.fsm.state === 'DONE' && WPS.length) missionRepeat();
     }
   ],
   [
@@ -4868,6 +4938,19 @@ function startMission() {
     `Mission: ${F.queue.length} goal${F.queue.length > 1 ? 's' : ''}, ${names[P.mis]}${r.cost != null ? ` · cost ${r.cost.toFixed(1)}` : ''}`
   );
 }
+// Repeat the goals (misLoop): once the list is finished it starts again, one lap at a time, as long as the lap reached
+// at least one goal (a lap of goals that were all skipped would only repeat the failures)
+function missionRepeat(msg) {
+  if (!P.misLoop || exploring() || !WPS.length || WPS.some(w => w.explore) || !WPS.some(w => w.done && !w.skipped)) return false;
+  S.lap = (S.lap || 1) + 1;
+  for (const w of WPS) {
+    w.done = false;
+    w.skipped = false;
+  }
+  logE(`${msg ? msg + '. ' : ''}Lap ${S.lap}: the goals again`, 'ok');
+  startMission();
+  return S.fsm.state === 'PLAN';
+}
 const POSE_PLANNERS = ['hybrid', 'rs', 'custom'],
   ALIGN_TOL = 0.035; // planners that take the goal heading; unicycle alignment tolerance [rad]
 const PLAN_NAMES = {
@@ -4961,7 +5044,7 @@ function applyPlanResult(res, name, reason, t0, agL) {
       WPS[F.queue[0]].skipped = true;
       F.queue.shift();
       F.fails = 0;
-      F.state = F.queue.length || exploreMore(fk) ? 'PLAN' : 'DONE';
+      F.state = F.queue.length || exploreMore(fk) || missionRepeat() ? 'PLAN' : 'DONE';
     }
   }
 }
@@ -5087,6 +5170,8 @@ function missionTick() {
     if (F.queue.length || exploreMore()) {
       F.state = 'PLAN';
       F.pendingReason = 'initial';
+    } else if (P.misLoop && !exploring() && missionRepeat(`Lap ${S.lap || 1} complete in ${S.t.toFixed(1)} s`)) {
+      F.pendingReason = 'initial';
     } else {
       F.state = 'DONE';
       S.track = null;
@@ -5154,7 +5239,7 @@ function missionTick() {
         WPS[F.queue[0]].skipped = true;
         F.queue.shift();
         F.stuckN = 0;
-        F.state = F.queue.length || exploreMore(fk) ? 'PLAN' : 'DONE';
+        F.state = F.queue.length || exploreMore(fk) || missionRepeat() ? 'PLAN' : 'DONE';
         F.pendingReason = 'initial';
         if (!F.queue.length) {
           S.track = null;

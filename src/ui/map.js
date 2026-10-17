@@ -14,6 +14,7 @@ srchCv.width = GW;
 srchCv.height = GH;
 let TOK = {},
   tokKey = '';
+let paintStroke = null; // a Paint or Erase drag in progress (transport.js): drawn as a preview, applied on release
 function readTokens() {
   const cs = getComputedStyle(document.documentElement);
   const names = [
@@ -329,6 +330,7 @@ function drawMapLayer(dpr, k, px) {
       ctx.fill();
     }
   }
+  if (paintStroke) drawStroke(px);
   if (LAYERS.cost) {
     if (dirty.cost) {
       paintCost();
@@ -842,6 +844,27 @@ function slipArrow(g, px) {
   ctx.arc(g.cx, g.cy, px(2.5), 0, TAU);
   ctx.fill();
   ctx.restore();
+}
+// The Paint or Erase drag before it is applied: new blocks half filled, what will be erased outlined in red
+function drawStroke(px) {
+  const st = paintStroke,
+    cellR = c => ctx.rect((c % PGW) * PAINT, Math.floor(c / PGW) * PAINT, PAINT, PAINT);
+  ctx.beginPath();
+  for (const c of st.add) cellR(c);
+  ctx.fillStyle = rgba(TOK.obst, 0.55);
+  ctx.fill();
+  ctx.beginPath();
+  for (const c of st.rem) cellR(c);
+  for (const i of st.del) {
+    const q = LV.shapes0[i];
+    if (q.t === 'r') ctx.rect(q.x, q.y, q.w, q.h);
+    else (ctx.moveTo(q.x + q.r, q.y), ctx.arc(q.x, q.y, q.r, 0, TAU));
+  }
+  ctx.strokeStyle = TOK.bad;
+  ctx.lineWidth = px(2);
+  ctx.setLineDash([px(4), px(3)]);
+  ctx.stroke();
+  ctx.setLineDash([]);
 }
 function shapePath(s) {
   ctx.beginPath();

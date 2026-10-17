@@ -20,6 +20,16 @@ const TAB_GROUPS = [
   {id: 'tools', name: 'Tools', tabs: ['exp', 'code']},
   {id: 'ref', name: 'Reference', tabs: ['view', 'sym']}
 ];
+// The Mission tab's line about the map: what is on the floor now and how to change it
+function mapInfo() {
+  const add = idList(P.mapAdd).length,
+    del = idList(P.mapDel).length;
+  const now =
+    P.map === 'empty'
+      ? 'Empty floor: only the outer walls; the beacons, people and goals stay.'
+      : `The level's obstacles${del ? `, ${del} erased` : ''}.`;
+  return `${now}${add ? ` ${add} painted block${add > 1 ? 's' : ''}.` : ''} Paint obstacles with the brush on the map (W) and erase with the eraser (E); the plan follows at once, and a setup link carries the map.`;
+}
 const mpc_ = () => P.ctl === 'mpc',
   pf_ = () => P.loc === 'pf',
   filt = () => P.loc === 'ekf' || P.loc === 'pf';

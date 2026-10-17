@@ -19,7 +19,7 @@ src/
     params.js       DEFAULTS, P (live parameters), LAYERS
     record.js       replay frames, ghost of the previous run
     state.js        S (simulation state), reset(), people motion
-    config.js       loadLevel, setParam, kidnapTo, requestReplan
+    config.js       loadLevel, the map as edited (applyMap), setParam, kidnapTo, requestReplan
     vehicle.js      actuator chain + unicycle/bicycle integration
     sensors.js      lidar, beacons
     localization.js dead reckoning, EKF, particle filter

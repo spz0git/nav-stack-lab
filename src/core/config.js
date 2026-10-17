@@ -33,7 +33,9 @@ function kidnapTo(p) {
 }
 function loadLevel(i) {
   LV = LEVELS[i];
-  Object.assign(P, DEFAULTS, {seed: P.seed}, LV.cfg);
+  // every setting goes back to the level's, except the seed and the trained models picked in Perceive and Plan, so that
+  // a model trained in the page can be tried on every level (Agent tracking / Planner still follow the level)
+  Object.assign(P, DEFAULTS, {seed: P.seed, detModel: P.detModel, polModel: P.polModel}, LV.cfg);
   applyMap();
   LAYERS.cost = !!(LV.layers && LV.layers.cost);
   WPS = LV.wps.map(w => ({x: w[0], y: w[1], th: w.length > 2 ? w[2] : null, done: false}));
@@ -124,7 +126,7 @@ const PARAM_EFFECTS = [
     (k, v) => {
       const M = USER_MODELS[v],
         what = k === 'detModel' ? 'Detector' : 'Policy';
-      if (v !== 'builtin' && !M) logE(`${what} model "${v}" is not in this browser: the built-in one runs`, 'warn');
+      if (v !== 'builtin' && !M) logE(`${what} model "${v}" is not in this browser (yet): the built-in one runs until it is`, 'warn');
       else logE(`${what} model → ${M ? M.label || v : 'built-in'}`);
       if (k === 'detModel') S.agents = agInit();
       else if (P.plan === 'policy') requestReplan('policy model changed');

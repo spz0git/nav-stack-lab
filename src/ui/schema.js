@@ -619,6 +619,7 @@ const SCHEMA = {
       show: mpc_
     },
     {k: 'mpcIt', label: 'SQP iterations per tick', min: 1, max: 10, step: 1, show: () => mpc_() && P.mpcMode === 'nmpc'},
+    {k: 'mpcBudget', label: 'Real-time budget per solve (0: none)', min: 0, max: 50, step: 1, unit: 'ms', show: mpc_},
     {k: 'mpcQlat', label: 'Weight: lateral error', min: 0, max: 100, step: 1, show: mpc_},
     {k: 'mpcQlon', label: 'Weight: along-track error', min: 0, max: 50, step: 0.5, show: mpc_},
     {k: 'mpcQth', label: 'Weight: heading error', min: 0, max: 50, step: 0.5, show: mpc_},

@@ -157,7 +157,13 @@ function healthNow(f) {
       `${isCar() ? 'steering' : 'turn rate'} at its limit ${(sat * 100).toFixed(0)} % of the last 2 s`
     );
     if (P.ctl === 'mpc') {
-      C('ctl', 'MPC budget', mms != null && mms >= 13, 'warn', `MPC at its 15 ms budget (${mms != null ? mms.toFixed(1) : '—'} ms)`);
+      C(
+        'ctl',
+        'MPC budget',
+        mms != null && P.mpcBudget > 0 && mms >= 0.85 * P.mpcBudget,
+        'warn',
+        `MPC at its ${P.mpcBudget} ms budget (${mms != null ? mms.toFixed(1) : '—'} ms)`
+      );
       C(
         'ctl',
         'MPC constraints',

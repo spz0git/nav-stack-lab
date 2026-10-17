@@ -92,6 +92,7 @@ window.__nav = {
   P,
   LEVELS,
   loadLevel,
+  switchLevel,
   advance,
   exploredFrac,
   mapAgree,

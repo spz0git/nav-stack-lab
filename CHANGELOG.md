@@ -13,6 +13,10 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   variable in Experiments, saved and imported as JSON in the format of `src/models/`. The collectors share the page's
   code (`core/dataset.js`, `detFeatures`) and write the same files as before. `tests/node/train.test.mjs`,
   `tests/trtest.py`.
+- Changing level in the level menu or the search keeps the settings you changed (not the map edits, the beacons switched
+  off, or a planner or tracker the new vehicle cannot use); Try buttons, lessons and links still start from the level's
+  own setup. Control → Real-time budget per solve sets the MPC's 15 ms deadline (0: none); `dyntest.py` compares the
+  page and the worker without it, so the check no longer depends on the computer's speed.
 
 ## v40 · 2026-10-16
 

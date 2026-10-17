@@ -64,9 +64,10 @@ async def main():
         seg=pg.locator('.seg[data-k="detModel"] button[aria-pressed="true"]')
         check(await seg.count()==1 and await seg.get_attribute('data-v')=='det1','Perceive shows the trained detector picked')
         await pg.keyboard.press('Space'); await pg.wait_for_timeout(2500); await pg.keyboard.press('Space')
-        # the pick survives a level change: L6, the learned detector again, still det1
+        # a level picked in the menu keeps the settings changed (Use switched on the learned detector): L6, still det1
         await pg.click('#lvl-btn'); await pg.click('.lvl[data-i="5"]'); await pg.keyboard.press('Escape'); await pg.wait_for_timeout(300)
-        await pg.click('.seg[data-k="agents"] button[data-v="learned"]'); await pg.wait_for_timeout(200)
+        ag=pg.locator('.seg[data-k="agents"] button[aria-pressed="true"]')
+        check(await ag.get_attribute('data-v')=='learned','after a level change the learned detector is still on')
         seg=pg.locator('.seg[data-k="detModel"] button[aria-pressed="true"]')
         check(await seg.count()==1 and await seg.get_attribute('data-v')=='det1','after a level change the trained detector is still picked')
         # policy: one source, two runs, small network

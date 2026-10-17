@@ -76,6 +76,7 @@ self.__core = {
   project,
   LEVELS,
   loadLevel,
+  switchLevel,
   setParam,
   wrap,
   clamp,

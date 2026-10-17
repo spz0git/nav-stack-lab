@@ -868,6 +868,7 @@ const DEFAULTS = {
   mpcNc: 10,
   mpcDt: 0.1,
   mpcIt: 3,
+  mpcBudget: 15, // ms of real time per solve before the SQP stops with what it has; 0: no limit (deterministic, for tests)
   mpcQlat: 20,
   mpcQlon: 4,
   mpcQth: 6,
@@ -1437,6 +1438,51 @@ function loadLevel(i) {
   reset();
   UI.levelChanged();
   UI.invalidate();
+}
+// Picking another level yourself (the level menu, search) keeps every setting you changed from the current level's own
+// setup; the new level supplies the rest. Not carried: what belongs to the old level's geometry (the painted and erased
+// map, the beacons switched off), and a planner or tracker the new level's vehicle cannot use. Try buttons, lessons,
+// setup links and the tests call loadLevel, which starts from the level's own setup (the seed and the trained models
+// aside), so that the numbers quoted with them hold. Returns {kept, dropped}: the settings carried, and the ones not.
+const LEVEL_OWN = ['seed', 'map', 'mapAdd', 'mapDel', 'bOff'];
+function levelChanges() {
+  const out = {};
+  for (const k of Object.keys(DEFAULTS)) {
+    if (LEVEL_OWN.includes(k)) continue;
+    const d = k in LV.cfg ? LV.cfg[k] : DEFAULTS[k];
+    if (P[k] !== d) out[k] = P[k];
+  }
+  return out;
+}
+function switchLevel(i) {
+  const ch = levelChanges(),
+    kept = {},
+    dropped = {};
+  loadLevel(i);
+  // the vehicle first: whether a planner or tracker fits depends on it (the model's effect re-picks the planner)
+  const keys = ['model', 'carPhys'].filter(k => k in ch).concat(Object.keys(ch).filter(k => k !== 'model' && k !== 'carPhys'));
+  for (const k of keys) {
+    const v = ch[k],
+      unfit = isCar()
+        ? k === 'plan' && v === 'stastar'
+        : (k === 'plan' && (v === 'rs' || v === 'hybrid')) || (k === 'ctl' && v === 'stanley');
+    if (unfit) dropped[k] = v;
+    else {
+      setParam(k, v, false);
+      kept[k] = v;
+    }
+  }
+  const n = Object.keys(kept).length,
+    nd = Object.keys(dropped).length;
+  if (n) logE(`Kept ${n} setting${n > 1 ? 's' : ''} you changed: ${Object.keys(kept).join(', ')}`);
+  if (nd)
+    logE(
+      `Not kept (this level's vehicle cannot use it): ${Object.entries(dropped)
+        .map(([k, v]) => `${k} ${v}`)
+        .join(', ')}`,
+      'warn'
+    );
+  return {kept, dropped};
 }
 // The map as edited: the level's obstacles (all of them, none but the outer walls with map = 'empty', less the ones
 // erased in mapDel) plus the painted cells of mapAdd, a 0.4 m grid merged into one rectangle per run along a row. The
@@ -5894,7 +5940,7 @@ function ctlMPC() {
     it = 0;
   const iters = ltv ? 2 : Math.round(P.mpcIt);
   for (; it < iters; it++) {
-    if (performance.now() - t0 > 15) break; // real-time budget
+    if (P.mpcBudget > 0 && performance.now() - t0 > P.mpcBudget) break; // real-time budget (0: none, iterate to the end)
     const AB = ltv ? ABr : X.slice(0, Np).map((x, k) => mpcJac(M, x, uk(U, k), dt));
     // Gauss–Newton: H = JᵀJ, g = Jᵀr, with sensitivities S_k = ∂x_k/∂U (move blocking after Nc)
     const H = new Float64Array(nU * nU),
@@ -8726,6 +8772,7 @@ self.__core = {
   project,
   LEVELS,
   loadLevel,
+  switchLevel,
   setParam,
   wrap,
   clamp,

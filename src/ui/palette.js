@@ -121,7 +121,7 @@ function palItems() {
     act('loopout', 'Loop to here', () => loopSet('out'), 'O', "The loop region's out point at the shown moment");
     if (REPLAY.loop) act('loopclear', 'Clear the loop', () => loopSet('clear'));
   }
-  LEVELS.forEach((L, i) => add('lv:' + i, `${L.id} ${L.name}`, 'Level', '', () => loadLevel(i), plain(L.adds).slice(0, 90)));
+  LEVELS.forEach((L, i) => add('lv:' + i, `${L.id} ${L.name}`, 'Level', '', () => levelPicked(i), plain(L.adds).slice(0, 90)));
   MODES.forEach(([v, l]) => add('m:' + v, l, 'Mode', '', () => setUIMode(v), MODE_HINT[v]));
   TOOLS.forEach(([id, name, key, hint]) =>
     add(

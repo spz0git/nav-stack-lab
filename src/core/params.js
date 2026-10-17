@@ -29,6 +29,7 @@ const DEFAULTS = {
   mpcNc: 10,
   mpcDt: 0.1,
   mpcIt: 3,
+  mpcBudget: 15, // ms of real time per solve before the SQP stops with what it has; 0: no limit (deterministic, for tests)
   mpcQlat: 20,
   mpcQlon: 4,
   mpcQth: 6,

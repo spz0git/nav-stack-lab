@@ -362,7 +362,7 @@ function ctlMPC() {
     it = 0;
   const iters = ltv ? 2 : Math.round(P.mpcIt);
   for (; it < iters; it++) {
-    if (performance.now() - t0 > 15) break; // real-time budget
+    if (P.mpcBudget > 0 && performance.now() - t0 > P.mpcBudget) break; // real-time budget (0: none, iterate to the end)
     const AB = ltv ? ABr : X.slice(0, Np).map((x, k) => mpcJac(M, x, uk(U, k), dt));
     // Gauss–Newton: H = JᵀJ, g = Jᵀr, with sensitivities S_k = ∂x_k/∂U (move blocking after Nc)
     const H = new Float64Array(nU * nU),

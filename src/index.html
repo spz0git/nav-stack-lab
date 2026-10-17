@@ -21,8 +21,8 @@
         <h1 title="Tune localization, perception, planning and control on a simulated robot across six levels; analyze the loop; learn with guided lessons. Diff-drive or car-like robot · 24 × 16 m world · 20 Hz">Nav Stack Lab</h1>
         <span class="sub ver" id="appver" title="__VERSION_TITLE__">__VERSION__</span>
       </div>
-      <div class="modebar"><div class="seg" id="modesel" role="group" aria-label="Mode"></div><span class="lbl" id="modehint"></span></div>
-      <nav class="levels seg" id="levels" aria-label="Scenario level"></nav>
+      <div class="modebar"><div class="seg" id="modesel" role="group" aria-label="Mode"></div></div>
+      <nav class="levels" id="levels" aria-label="Scenario level"></nav>
       <div class="bartools" id="bartools">
         <button class="ibtn" id="tg-dock" type="button" aria-pressed="true" title="Show or hide the telemetry dock under the map">Telemetry dock</button>
         <button class="ibtn" id="tg-insp" type="button" aria-pressed="true" title="Show or hide the settings panel on the right">Settings panel</button>
@@ -47,7 +47,7 @@
       </div>
       </div>
       <div class="health" id="health" role="status" aria-label="Subsystem health"></div>
-      <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across six levels. <b>Press Run</b> to start the mission. Tap the map to add goals. Each level's <b>Try</b> list sets up an experiment with one click, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
+      <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across six levels. <b>Press Run</b> to start the mission. Tap the map to add goals. The level menu (<b>L1</b> to <b>L7</b>) holds each floor's quick experiments, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
       <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll or pinch to zoom; drag to pan."></canvas>
         <div class="legend" id="legend" hidden>
           <span><i class="disc" style="background:var(--ink)"></i>true pose</span>
@@ -116,9 +116,7 @@
 
     <div class="vsplit" id="insp-split" role="separator" aria-orientation="vertical" aria-label="Resize the panel" tabindex="0" title="Drag to resize · double-click to hide the panel"></div>
     <div class="right" id="inspector">
-      <section class="ctx">
-        <section class="brief" id="brief" aria-live="polite"></section>
-      </section>
+      <section class="ctx"></section>
       <aside class="console">
         <div class="box">
           <div class="tabhead"><div class="tabgroups" id="tabgroups" role="group" aria-label="Tab group"></div><div class="tabs" role="tablist" id="tabs"></div></div>

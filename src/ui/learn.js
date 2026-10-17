@@ -33,7 +33,7 @@ function syncModeUI() {
     .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === uiMode)));
   $('.layout').dataset.mode = uiMode;
   $('#learnview').hidden = uiMode !== 'learn';
-  $('#modehint').textContent = MODE_HINT[uiMode];
+  $('#modesel').title = MODE_HINT[uiMode];
 }
 $('#modesel').innerHTML = MODES.map(
   ([v, l, id]) => `<button type="button" id="${id}" data-v="${v}" aria-pressed="${v === uiMode}">${l}</button>`

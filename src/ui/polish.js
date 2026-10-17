@@ -309,7 +309,28 @@ document.addEventListener('keydown', e => {
   fab.setAttribute('aria-expanded', 'false');
   fab.setAttribute('aria-controls', 'inspector');
   fab.textContent = 'Settings';
-  document.body.appendChild(fab);
+  // phones: a bottom bar with Settings (the sheet), Telemetry (scrolls to the dock) and Learn (the lessons)
+  const bar = document.createElement('nav');
+  bar.className = 'bottombar';
+  bar.setAttribute('aria-label', 'Panels');
+  const tel = document.createElement('button'),
+    lrn = document.createElement('button');
+  tel.type = lrn.type = 'button';
+  tel.textContent = 'Telemetry';
+  tel.onclick = () => {
+    set(false);
+    if (uiMode === 'learn') setUIMode('sim');
+    $('#dock').scrollIntoView({block: 'start', behavior: 'smooth'});
+  };
+  lrn.id = 'bb-learn';
+  lrn.onclick = () => {
+    set(false);
+    setUIMode(uiMode === 'learn' ? 'sim' : 'learn');
+    lrn.textContent = uiMode === 'learn' ? 'Simulate' : 'Learn';
+  };
+  lrn.textContent = uiMode === 'learn' ? 'Simulate' : 'Learn';
+  bar.append(fab, tel, lrn);
+  document.body.appendChild(bar);
   const head = document.createElement('div');
   head.className = 'sheet-head';
   head.innerHTML =
@@ -320,6 +341,8 @@ document.addEventListener('keydown', e => {
     document.body.classList.toggle('sheet-open', on);
     fab.setAttribute('aria-expanded', String(on));
     fab.textContent = on ? 'Close' : 'Settings';
+    const lb = $('#bb-learn');
+    if (lb) lb.textContent = uiMode === 'learn' ? 'Simulate' : 'Learn';
     if (on) {
       consoleOpen = true;
       buildTabs();

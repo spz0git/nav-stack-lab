@@ -39,6 +39,7 @@ let toolBefore = 'wp',
 function setTool(id) {
   if (id !== 'kidnap') toolBefore = id;
   tapMode = id;
+  if ($('#maptools')) $('#maptools').classList.remove('open');
   $('#maptools')
     .querySelectorAll('[data-tool]')
     .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === id)));
@@ -75,6 +76,15 @@ function setTool(id) {
   const mw = $('.mapwrap');
   mw.insertBefore(hint, mw.firstChild);
   mw.insertBefore(bar, mw.firstChild);
+  // phones show the chosen tool only; this opens the rest
+  const fold = document.createElement('button');
+  fold.type = 'button';
+  fold.className = 'mt-fold';
+  fold.setAttribute('aria-label', 'Show all map tools');
+  fold.innerHTML =
+    '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4.5 6.5l3.5 3.5 3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  fold.onclick = () => bar.classList.toggle('open');
+  bar.appendChild(fold);
   bar
     .querySelectorAll('[data-tool]')
     .forEach(b => (b.onclick = () => setTool(b.dataset.tool === tapMode && b.dataset.tool !== 'wp' ? 'wp' : b.dataset.tool)));

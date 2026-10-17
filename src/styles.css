@@ -578,6 +578,10 @@ dialog:focus-visible {
   .statusrow .hl.bad b {
     color: var(--bad);
   }
+  /* beside a lesson the map column is narrower: the lights keep their dots, the names go to the tooltips */
+  .layout[data-mode='learn'] .statusrow .hl b {
+    display: none;
+  }
 }
 .st-note {
   font-size: var(--fs-ui);
@@ -708,6 +712,10 @@ dialog:focus-visible {
     top: 56px;
     right: 10px;
   }
+}
+.mt-fold,
+.bottombar {
+  display: none;
 }
 .mt-sep {
   width: 1px;
@@ -1206,6 +1214,67 @@ dialog:focus-visible {
 .lgroup[data-sys] .lesson summary::after {
   color: var(--sys);
 }
+.tabgroups:empty {
+  display: none;
+}
+.tab-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+@media (min-width: 761px) {
+  .console .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-inline: 4px;
+  }
+  .console .tab {
+    padding: 10px 7px 9px;
+    font-size: var(--fs-ui);
+    white-space: nowrap;
+  }
+}
+.tabmore {
+  position: fixed;
+  z-index: 40;
+  width: 220px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+}
+.tabmore[hidden] {
+  display: none;
+}
+.tm-h {
+  font-family: var(--f-mono);
+  font-size: var(--fs-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 10px 2px;
+}
+.tm-item {
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-ctl);
+  min-height: var(--h-ctl);
+  padding: 0 10px;
+  font-size: var(--fs-ui);
+}
+.tm-item:hover {
+  background: var(--track);
+}
+.tm-item[aria-current='true'] {
+  font-weight: 600;
+}
 .tabgroups {
   display: flex;
   flex-wrap: wrap;
@@ -1294,10 +1363,11 @@ dialog:focus-visible {
   content: none;
 }
 .learncol.reading .how-body {
-  font-size: var(--fs-value);
+  font-size: var(--fs-read);
+  line-height: 1.62;
 }
 .learncol.reading .how-body p {
-  max-width: none;
+  max-width: 70ch;
 }
 .learncol.reading .tries {
   margin-top: 6px;
@@ -2231,11 +2301,13 @@ canvas.an-drag:focus-visible {
 }
 .experiments li {
   counter-increment: exp;
-  border-left: 3px solid var(--sys, var(--line));
-  padding: 2px 0 2px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  background: var(--raise);
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 .experiments .exp-head {
   display: flex;
@@ -2243,7 +2315,8 @@ canvas.an-drag:focus-visible {
   align-items: center;
 }
 .experiments .exp-head::before {
-  content: counter(exp);
+  content: 'Experiment ' counter(exp);
+  white-space: nowrap;
   font-family: var(--f-mono);
   font-size: var(--fs-small);
   color: var(--sys, var(--muted));
@@ -4159,8 +4232,8 @@ details.see > p {
   display: none;
 }
 body:has(.layout[data-mode='learn']) .sheetbtn {
-  display: none !important;
-}
+  visibility: hidden;
+} /* Learn has no settings sheet; the bar keeps its three places */
 /* Desktop: the whole lab is one screen. Left: the map, filling what the controls and the dock leave (what you watch).
    Right: the level brief and the parameter tabs, or the lessons (what you change), scrolling on its own. */
 @media (min-width: 961px) and (min-height: 600px) {
@@ -4180,6 +4253,12 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   }
   .layout.insp-off {
     grid-template-columns: minmax(0, 1fr) 0 0;
+  }
+  .layout[data-mode='learn']:not(.insp-off) {
+    grid-template-columns: minmax(0, 1fr) 14px minmax(520px, 0.85fr);
+  }
+  .layout[data-mode='learn'] .learncol.reading {
+    padding: 16px 24px 20px;
   }
   .layout.insp-off > .right,
   .layout.insp-off > .vsplit {
@@ -4467,19 +4546,62 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     order: 6;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .bottombar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    padding: 6px max(12px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px));
+    gap: 6px;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+  }
+  .bottombar button {
+    min-height: 44px;
+    border: 0;
+    border-radius: var(--r-ctl);
+    background: transparent;
+    color: var(--ink);
+    font-weight: 600;
+    font-size: var(--fs-ui);
+  }
+  .bottombar button[aria-expanded='true'] {
+    background: var(--track);
+  }
   .sheetbtn {
     display: block;
-    position: fixed;
-    right: 16px;
-    bottom: 16px;
-    z-index: 45;
-    border: 0;
-    border-radius: 999px;
-    padding: 11px 18px;
-    background: var(--ink);
-    color: var(--panel);
-    font-weight: 600;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  }
+  body {
+    padding-bottom: 76px;
+  }
+  .mapwrap {
+    margin-left: -16px;
+    margin-right: 0;
+    width: 100vw;
+    max-width: none;
+    border-radius: 0;
+    border-inline: 0;
+  }
+  .maptools .mt-fold {
+    display: grid;
+    place-items: center;
+  }
+  .maptools:not(.open) button[data-tool]:not([aria-pressed='true']),
+  .maptools:not(.open) .mt-sep,
+  .maptools:not(.open) #clearwp {
+    display: none;
+  }
+  .status .kv > span {
+    display: none;
+  }
+  .timeline > .controls .btn,
+  .timeline > .controls .sel {
+    min-height: 44px;
+    height: 44px;
   }
   body.sheet-open .right {
     display: flex;
@@ -4553,20 +4675,20 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     height: auto;
   }
   .maptools {
-    position: static;
-    border: 0;
-    border-bottom: 1px solid var(--line);
-    border-radius: 0;
-    box-shadow: none;
-    padding: 3px 4px;
-    gap: 4px;
+    left: 8px;
+    top: 8px;
+    flex-wrap: wrap;
+    max-width: calc(100% - 64px);
+    padding: 3px;
+    gap: 2px;
+    background: var(--raise);
   }
   .maptools button {
     width: 40px;
     height: 34px;
   }
   .mapview {
-    top: 50px;
+    top: 8px;
   }
   .mapview.mv-top {
     top: auto;
@@ -4574,12 +4696,12 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     flex-direction: row;
   }
   .toolhint {
-    top: 50px;
+    top: 52px;
     max-width: calc(100% - 64px);
   }
   .layerpop {
-    top: 50px;
-    right: 44px;
+    top: 8px;
+    right: 52px;
     max-height: calc(100% - 58px);
   }
   .console.collapsed #panes {

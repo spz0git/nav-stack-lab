@@ -34,12 +34,61 @@ function kidnapTo(p) {
 function loadLevel(i) {
   LV = LEVELS[i];
   Object.assign(P, DEFAULTS, {seed: P.seed}, LV.cfg);
+  applyMap();
   LAYERS.cost = !!(LV.layers && LV.layers.cost);
   WPS = LV.wps.map(w => ({x: w[0], y: w[1], th: w.length > 2 ? w[2] : null, done: false}));
   running = false;
   reset();
   UI.levelChanged();
   UI.invalidate();
+}
+// The map as edited: the level's obstacles (all of them, none but the outer walls with map = 'empty', less the ones
+// erased in mapDel) plus the painted cells of mapAdd, a 0.4 m grid merged into one rectangle per run along a row. The
+// level keeps its designed list in shapes0; the occupancy and distance grids are rebuilt only when the edit changed.
+const PAINT = 0.4,
+  PGW = Math.round(W / PAINT),
+  PGH = Math.round(H / PAINT);
+const idList = s =>
+  String(s || '')
+    .split(',')
+    .filter(x => x !== '')
+    .map(Number)
+    .filter(n => Number.isInteger(n) && n >= 0);
+const paintCell = (x, y) => {
+  const i = Math.floor(x / PAINT),
+    j = Math.floor(y / PAINT);
+  return i < 0 || j < 0 || i >= PGW || j >= PGH ? -1 : j * PGW + i;
+};
+function applyMap() {
+  const L = LV;
+  if (!L.shapes0) L.shapes0 = L.shapes;
+  const key = `${P.map}|${P.mapAdd}|${P.mapDel}`;
+  if (L.mapKey === key) return false;
+  const del = new Set(idList(P.mapDel)),
+    out = L.shapes0.filter((s, i) => BORDER.includes(s) || (P.map !== 'empty' && !del.has(i)));
+  const cells = [...new Set(idList(P.mapAdd))].filter(c => c < PGW * PGH).sort((a, b) => a - b);
+  for (let k = 0; k < cells.length;) {
+    const j = Math.floor(cells[k] / PGW),
+      i0 = cells[k] % PGW;
+    let n = 1;
+    while (k + n < cells.length && cells[k + n] === cells[k] + n && (cells[k] % PGW) + n < PGW) n++;
+    out.push({t: 'r', x: i0 * PAINT, y: j * PAINT, w: n * PAINT, h: PAINT, painted: true});
+    k += n;
+  }
+  L.shapes = out;
+  L.mapKey = key;
+  L.truthOcc = null; // prepLevel rebuilds the grids from the new list
+  return true;
+}
+// A painted cell or an erased obstacle while the run goes on: the grids, the costmap and the plan follow at once
+function mapChanged() {
+  if (!applyMap() || !S) return;
+  prepLevel(LV);
+  S.shapes = LV.shapes;
+  S.dstar = null;
+  buildCostmap();
+  dirty.occ = dirty.cost = true;
+  requestReplan('map edited');
 }
 // What changing a parameter implies, as an ordered table: [the keys, the effect(k, v, old, live)]. Several keys may
 // share one effect; a key may appear in more than one entry (each runs, in this order). `live` is true while a slider
@@ -154,6 +203,21 @@ const PARAM_EFFECTS = [
         if (v) carsInit();
       }
       logE(k === 'people' ? `People → ${v}` : `Other vehicles → ${v ? 'on' : 'off'}`);
+    }
+  ],
+  [
+    ['map', 'mapAdd', 'mapDel'],
+    (k, v) => {
+      mapChanged();
+      if (k === 'map')
+        logE(v === 'empty' ? 'Map → empty floor: only the outer walls; beacons, people and goals stay' : "Map → the level's obstacles");
+    }
+  ],
+  [
+    ['misLoop'],
+    (k, v) => {
+      logE(v ? 'Repeat the goals: after the last goal the mission starts again' : 'Repeat the goals off');
+      if (v && S.fsm.state === 'DONE' && WPS.length) missionRepeat();
     }
   ],
   [

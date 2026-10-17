@@ -5,11 +5,12 @@ from _browser import launch, page_url
 # particle-filter N_eff and injections over time. A case: {name, lvl, set, secs, every, act, dense}.
 # act 'kidnap' or 'scatter' happens after 8 s (as tryGo does); dense = seconds sampled every second after the act;
 # tour: the level's goals and then back to its start (a loop for pose-graph SLAM to close); 'back': out along the goals and
-# back along them to the first (the lesson's tour).
+# back along them to the first (the lesson's tour); goals: a Try's own goal list (set up as the Try button does).
 RUN=r'''
-async ({lvl, overrides, secs, every, act, dense, tour}) => {
+async ({lvl, overrides, secs, every, act, dense, tour, goals}) => {
   const N=window.__nav;
-  if(tour){const L=N.LEVELS[lvl]; await N.tryGo({sim:true, level:lvl, set:overrides, goals:tour==='back'?L.wps.map(w=>[w[0],w[1]]).concat(L.wps.slice(0,-1).reverse().map(w=>[w[0],w[1]])):L.wps.map(w=>[w[0],w[1]]).concat([[L.start[0],L.start[1]]]), hold:true});}
+  if(goals) await N.tryGo({sim:true, level:lvl, set:overrides, goals, hold:true});
+  else if(tour){const L=N.LEVELS[lvl]; await N.tryGo({sim:true, level:lvl, set:overrides, goals:tour==='back'?L.wps.map(w=>[w[0],w[1]]).concat(L.wps.slice(0,-1).reverse().map(w=>[w[0],w[1]])):L.wps.map(w=>[w[0],w[1]]).concat([[L.start[0],L.start[1]]]), hold:true});}
   else{N.loadLevel(lvl); for(const [k,v] of Object.entries(overrides)) N.setParam(k,v,false);}
   document.querySelector('#run').click(); document.querySelector('#run').click();
   const S=N.S, rows=[]; let inside=0,n=0,t0=0;
@@ -41,7 +42,7 @@ async def main():
         await pg.goto(page_url())
         await pg.wait_for_timeout(800)
         for c in cases:
-            r=await pg.evaluate(RUN,{'lvl':c['lvl'],'overrides':c.get('set',{}),'secs':c.get('secs',150),'every':c.get('every',10),'act':c.get('act'),'dense':c.get('dense'),'tour':c.get('tour')})
+            r=await pg.evaluate(RUN,{'lvl':c['lvl'],'overrides':c.get('set',{}),'secs':c.get('secs',150),'every':c.get('every',10),'act':c.get('act'),'dense':c.get('dense'),'tour':c.get('tour'),'goals':c.get('goals')})
             print('==',c.get('name',''),'L%d'%(c['lvl']+1),c.get('set',{}),c.get('act',''),'inside2σ',r['inside2s'],'poseRMS',r['poseRMS'],'errMax',r['errMax'])
             for row in r['rows']: print('   ',row)
             for l in r['log']: print('      ',l)

@@ -340,6 +340,15 @@ cv.addEventListener('pointermove', e => {
     }
     return;
   }
+  if (paintStroke) {
+    const [x, y] = toWorld(e),
+      [x0, y0] = paintStroke.last,
+      n = Math.ceil(hyp(x - x0, y - y0) / 0.1);
+    for (let i = 1; i <= n; i++) strokeAt(x0 + ((x - x0) * i) / n, y0 + ((y - y0) * i) / n);
+    paintStroke.last = [x, y];
+    draw();
+    return;
+  }
   if (poseDrag) {
     const [x, y] = toWorld(e);
     poseDrag.x2 = x;
@@ -357,6 +366,7 @@ cv.addEventListener('pointerup', e => {
     if (!d.moved) tapAt(d.wx, d.wy);
     return;
   }
+  if (paintStroke) return strokeEnd();
   if (!poseDrag) return;
   const d = poseDrag;
   poseDrag = null;
@@ -365,6 +375,7 @@ cv.addEventListener('pointerup', e => {
   addPosed(d.x, d.y, hyp(dx, dy) > 0.3 ? Math.atan2(dy, dx) : null);
 });
 cv.addEventListener('pointercancel', () => {
+  paintStroke = null;
   poseDrag = null;
   panDrag = null;
   draw();
@@ -372,7 +383,7 @@ cv.addEventListener('pointercancel', () => {
 cv.addEventListener('pointerdown', e => {
   hideTip();
   const [x, y] = toWorld(e);
-  if (tapMode !== 'pose' || e.button === 1 || e.shiftKey) {
+  if ((tapMode !== 'pose' && !drawTool()) || e.button === 1 || e.shiftKey) {
     const [sx, sy] = toCanvas(e);
     panDrag = {sx, sy, cx: VIEW.cx, cy: VIEW.cy, wx: x, wy: y, moved: false};
     try {
@@ -382,7 +393,68 @@ cv.addEventListener('pointerdown', e => {
   }
   tapAt(x, y, e);
 });
+// Paint and Erase: a drag collects cells (and, erasing, the level's obstacles it touches) and applies them on release as
+// one change of mapAdd / mapDel, so the grids, the costmap and the plan are rebuilt once per stroke
+function strokeStart(x, y, e) {
+  paintStroke = {mode: tapMode, add: new Set(), rem: new Set(), del: new Set(), last: [x, y], blocked: false};
+  try {
+    if (e) cv.setPointerCapture(e.pointerId);
+  } catch (_) {}
+  strokeAt(x, y);
+  draw();
+}
+function strokeAt(x, y) {
+  const st = paintStroke,
+    c = paintCell(x, y);
+  if (st.mode === 'paint') {
+    if (c < 0 || st.add.has(c)) return;
+    const r = S.robot,
+      cell = {t: 'r', x: (c % PGW) * PAINT, y: Math.floor(c / PGW) * PAINT, w: PAINT, h: PAINT};
+    if (circleHits(r.x, r.y, (isCar() ? carLen() * 0.7 : RR) + 0.05, [cell])) {
+      st.blocked = true; // not on top of the robot
+      return;
+    }
+    st.add.add(c);
+    return;
+  }
+  if (c >= 0 && idList(P.mapAdd).includes(c)) st.rem.add(c);
+  if (P.map === 'empty') return;
+  const del = idList(P.mapDel);
+  LV.shapes0.forEach((q, i) => {
+    if (!BORDER.includes(q) && !del.includes(i) && !st.del.has(i) && circleHits(x, y, 0.1, [q])) st.del.add(i);
+  });
+}
+function strokeEnd() {
+  const st = paintStroke;
+  paintStroke = null;
+  const cells = new Set(idList(P.mapAdd));
+  if (st.mode === 'paint') {
+    const n = [...st.add].filter(c => !cells.has(c)).length;
+    if (n) {
+      st.add.forEach(c => cells.add(c));
+      setParam('mapAdd', [...cells].sort((a, b) => a - b).join(','), false);
+      logE(`Painted ${n} block${n > 1 ? 's' : ''} (0.4 m); ${cells.size} painted in all`);
+    }
+    if (st.blocked) logE('Not painted on top of the robot', 'warn');
+  } else {
+    if (st.del.size) setParam('mapDel', [...new Set([...idList(P.mapDel), ...st.del])].sort((a, b) => a - b).join(','), false);
+    if (st.rem.size) {
+      st.rem.forEach(c => cells.delete(c));
+      setParam('mapAdd', [...cells].sort((a, b) => a - b).join(','), false);
+    }
+    const n = st.del.size + st.rem.size;
+    if (n)
+      logE(
+        `Erased ${st.del.size ? `${st.del.size} of the level's obstacles` : ''}${st.del.size && st.rem.size ? ' and ' : ''}${st.rem.size ? `${st.rem.size} painted block${st.rem.size > 1 ? 's' : ''}` : ''}`
+      );
+    else logE('Nothing to erase there: the outer walls stay', 'warn');
+  }
+  renderAllPanes();
+  draw();
+  refreshAll();
+}
 function tapAt(x, y, e) {
+  if (drawTool()) return strokeStart(x, y, e);
   if (tapMode === 'select') {
     mapSelectAt(x, y);
     return;

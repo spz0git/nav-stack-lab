@@ -183,7 +183,8 @@ function reset() {
     customMark: null,
     agents: agInit(),
     collPedStill: 0,
-    minPed: Infinity
+    minPed: Infinity,
+    lap: 1 // the lap of the goal list (Repeat the goals)
   };
   for (const w of WPS) {
     w.done = false;

@@ -93,6 +93,10 @@ const DEFAULTS = {
   lmRange: 7,
   clutter: 0,
   bOff: '',
+  map: 'level', // the obstacles: the level's ('level') or none but the outer walls ('empty'); beacons and people stay
+  mapAdd: '', // obstacles painted on the map: cells of the 0.4 m paint grid (j·60 + i), comma-separated
+  mapDel: '', // the level's obstacles erased on the map: their indices in the level's shape list, comma-separated
+  misLoop: false, // after the last goal the mission starts again from the first, until stopped
   bOut: 0,
   bOutLen: 1,
   lidarSig: 0.02,
@@ -132,7 +136,8 @@ const PARAM_OPTS = {
   mpcMode: ['nmpc', 'ltv'],
   model: ['diff', 'car'],
   carPhys: ['kin', 'dyn'],
-  people: ['scripted', 'reactive']
+  people: ['scripted', 'reactive'],
+  map: ['level', 'empty']
 };
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own

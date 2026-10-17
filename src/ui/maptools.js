@@ -11,6 +11,9 @@ const ICON = {
   kidnap:
     '<circle cx="4.2" cy="11.8" r="2.2" fill="currentColor" stroke="none"/><path d="M6 10l4.6-4.6" stroke-dasharray="1.8 1.6"/><circle cx="12" cy="4" r="2.2"/>',
   beacon: '<path d="M8 2.2l5.2 5.8L8 13.8 2.8 8z"/><path d="M4.4 4.4l7.2 7.2"/>',
+  paint:
+    '<rect x="2.5" y="9" width="4.5" height="4.5" fill="currentColor" stroke="none"/><path d="M8.5 9.5l4.8-4.8a1.3 1.3 0 0 0-1.8-1.8L6.7 7.7z"/>',
+  erase: '<path d="M6.2 13.5h7.3M2.8 10.1l6.4-6.4 3.6 3.6-6.2 6.2H5.4z"/><path d="M5.9 7l3.6 3.6"/>',
   clear: '<path d="M3 4.6h10M6.4 4.6V3h3.2v1.6M4.6 4.6l.7 8.6h5.4l.7-8.6"/>',
   layers: '<path d="M8 2.4l5.8 2.9L8 8.2 2.2 5.3z"/><path d="M2.2 8.2L8 11.1l5.8-2.9M2.2 11L8 13.9l5.8-2.9"/>'
 };
@@ -21,8 +24,16 @@ const TOOLS = [
   ['wp', 'Goal', 'G', 'Goal: tap the map to add a goal (up to 8 open)'],
   ['pose', 'Goal with heading', 'H', 'Goal with heading: press and drag the way the robot should face'],
   ['kidnap', 'Kidnap', 'K', 'Kidnap: tap where to put the robot. The estimator is not told'],
-  ['beacon', 'Beacon on/off', 'B', 'Beacon: tap a diamond to switch it off or on']
+  ['beacon', 'Beacon on/off', 'B', 'Beacon: tap a diamond to switch it off or on'],
+  [
+    'paint',
+    'Paint obstacles',
+    'W',
+    'Paint: press and drag to paint obstacles in 0.4 m blocks; the plan follows at once. Mission tab: an empty floor, clear what you painted'
+  ],
+  ['erase', 'Erase obstacles', 'E', "Erase: press and drag over obstacles to remove them (the level's too); the outer walls stay"]
 ];
+const drawTool = () => tapMode === 'paint' || tapMode === 'erase';
 let toolBefore = 'wp',
   toolHintT = 0;
 function setTool(id) {
@@ -31,7 +42,7 @@ function setTool(id) {
   $('#maptools')
     .querySelectorAll('[data-tool]')
     .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === id)));
-  cv.style.touchAction = id === 'pose' ? 'none' : 'manipulation';
+  cv.style.touchAction = id === 'pose' || id === 'paint' || id === 'erase' ? 'none' : 'manipulation';
   cv.dataset.tool = id;
   const h = $('#toolhint'),
     T = TOOLS.find(t => t[0] === id);

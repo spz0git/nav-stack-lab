@@ -13,7 +13,6 @@ loadCore();
 const C = globalThis.__core,
   SECS = +(process.argv[2] || 120),
   SEEDS = (process.argv[3] || '1,2,3,4,5,6,7,8').split(',').map(Number),
-  LMAX = 8,
   NB = 120,
   CH = 6;
 const X = [],
@@ -23,57 +22,15 @@ let positives = 0;
 for (let L = 0; L < C.LEVELS.length; L++) {
   if (!C.LEVELS[L].peds || !C.LEVELS[L].peds.length) continue;
   for (const seed of SEEDS) {
-    C.P.seed = seed;
-    C.loadLevel(L);
-    for (const [k, v] of Object.entries({agents: 'truth', per: 'oracle', spd: 'st', people: seed % 2 ? 'scripted' : 'reactive'}))
-      C.setParam(k, v, false);
-    C.startMission();
-    const S = C.S,
-      N = Math.round(SECS / 0.05);
-    let prev = null,
-      prevT = 0,
-      n = 0;
-    for (let i = 0; i < N; i++) {
-      await C.advance(1);
-      if (S.scanTick !== S.tick || !S.scan) continue;
-      const r = S.scan,
-        rb = S.robot,
-        v = S.odo ? S.odo.v : 0,
-        w = S.odo ? S.odo.w : 0;
-      const rp0 = prev ? C.scanReproject(prev, v, w, S.t - prevT) : null,
-        f = new Float32Array(NB * CH),
-        y = new Uint8Array(NB);
-      for (let k = 0; k < NB; k++) {
-        const rk = Math.min(r[k], LMAX),
-          rp = rp0 ? rp0[k] : rk,
-          hit = r[k] < LMAX - 1e-3 ? 1 : 0;
-        f[k * CH] = rk / LMAX;
-        f[k * CH + 1] = rp / LMAX;
-        f[k * CH + 2] = Math.max(-1, Math.min(1, rk - rp));
-        f[k * CH + 3] = hit;
-        f[k * CH + 4] = v / 1.5;
-        f[k * CH + 5] = w / 2;
-        if (hit) {
-          const a = rb.th - Math.PI + (k * 2 * Math.PI) / NB,
-            hx = rb.x + r[k] * Math.cos(a),
-            hy = rb.y + r[k] * Math.sin(a);
-          for (const p of S.peds)
-            if (Math.hypot(p.x - hx, p.y - hy) <= p.r + 0.12) {
-              y[k] = 1;
-              positives++;
-              break;
-            }
-        }
-      }
-      X.push(f);
-      Y.push(y);
-      prev = Float32Array.from(r);
-      prevT = S.t;
-      n++;
-      if (S.fsm.state === 'DONE') break;
+    // the run itself is the core's (core/dataset.js), the same code the page's Train tab collects with
+    const d = await C.collectRun({block: 'detector', level: L, seed, secs: SECS, goals: 'level', people: 'alt'});
+    for (let i = 0; i < d.n; i++) {
+      X.push(d.x.subarray(i * NB * CH, (i + 1) * NB * CH));
+      Y.push(d.y.subarray(i * NB, (i + 1) * NB));
     }
-    runs.push({level: C.LEVELS[L].id, seed, scans: n});
-    console.log(`${C.LEVELS[L].id} seed ${seed}: ${n} scans`);
+    positives += d.positives;
+    runs.push({level: C.LEVELS[L].id, seed, scans: d.n});
+    console.log(`${C.LEVELS[L].id} seed ${seed}: ${d.n} scans`);
   }
 }
 const dir = path.join(ROOT, 'training', 'data');

@@ -86,6 +86,8 @@ const DEFAULTS = {
   alpha: 3.0,
   lag: 0,
   actNoise: 0, // random perturbation of the executed command (σ in rad/s on the turn rate, relative on speed): the collectors use it
+  detModel: 'builtin', // which detector the learned tracker runs: the built-in one or the id of a model trained in the Train tab
+  polModel: 'builtin', // which end-to-end policy Plan → Learned policy runs (the same)
   policyGoal: 'final', // what the learned policy is pointed at: the mission goal, or a subgoal 3 m along the A* route
   odoK: 0,
   odoB: 0,

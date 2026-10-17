@@ -476,6 +476,7 @@ async function expRun() {
         cfg: c,
         secs: EXP.secs,
         stopWhenDone: EXP.stopDone,
+        models: USER_MODELS, // the models trained in the page (Train tab), for a detModel / polModel that names one
         codes: {
           ctl: P.ctl === 'custom' ? SLOTS.ctl.code : null,
           plan: P.plan === 'custom' ? SLOTS.plan.code : null,

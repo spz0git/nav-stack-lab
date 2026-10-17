@@ -5,7 +5,7 @@ hit flag, and the odometry's v and ω broadcast); output: one logit per beam. Tr
 tools/collect-detector.mjs, with the last run held out, class-weighted BCE for the 3 % of positive beams.
 Writes src/models/detector.json: the layers as flat weight lists the page's nn.js runs.
 
-    python3 training/detector/train.py [--epochs 30]
+    python3 training/detector/train.py [--epochs 40]
 """
 import json, sys, time
 from pathlib import Path

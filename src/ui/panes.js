@@ -281,6 +281,7 @@ function renderAllPanes() {
   else if (t === 'view') html = layersPane();
   else if (t === 'sym') html = symPane();
   else if (t === 'exp') html = expPane();
+  else if (t === 'train') html = trainPane();
   else {
     if (t === 'mis') html += `<div id="fsm-wrap" class="fsm-wrap">${fsmSVG()}</div>`;
     for (const f of SCHEMA[t]) {
@@ -574,6 +575,7 @@ function wirePane(t) {
   pane.querySelectorAll('[data-source]').forEach(b => (b.onclick = () => showSource(b.dataset.source)));
   if (t === 'code') wireCode();
   if (t === 'exp') wireExp(pane);
+  if (t === 'train') wireTrain(pane);
   if (t === 'sym') wireSym(pane);
   if (t === 'view') {
     const g = $('#ghost-clear');

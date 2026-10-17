@@ -120,6 +120,17 @@ const PARAM_EFFECTS = [
     }
   ],
   [
+    ['detModel', 'polModel'],
+    (k, v) => {
+      const M = USER_MODELS[v],
+        what = k === 'detModel' ? 'Detector' : 'Policy';
+      if (v !== 'builtin' && !M) logE(`${what} model "${v}" is not in this browser: the built-in one runs`, 'warn');
+      else logE(`${what} model → ${M ? M.label || v : 'built-in'}`);
+      if (k === 'detModel') S.agents = agInit();
+      else if (P.plan === 'policy') requestReplan('policy model changed');
+    }
+  ],
+  [
     ['spd'],
     (k, v) => logE(`Response to agents → ${{none: 'ignore', stop: 'reactive stop', st: 'speed planning', vo: 'velocity obstacles'}[v]}`)
   ],

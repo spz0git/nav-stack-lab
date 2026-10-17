@@ -9,5 +9,7 @@ Lesson 7 of the perception group and chapter 3 §9 explain it; this folder train
   precision and recall at the page's threshold of 0.6 are printed) writes `src/models/detector.json` (8 017 parameters,
   66 KB), which `./build.sh` inlines; the page runs it with `nnForward` in `src/core/nn.js`.
 - Inputs per beam: range/8, the previous scan reprojected through the odometry into the current frame /8, their
-  difference clipped to ±1, the hit flag, v/1.5 and ω/2. Changing the features means changing both the collector and
-  `agDetectLearned` in `src/core/agents.js`.
+  difference clipped to ±1, the hit flag, v/1.5 and ω/2, built by `detFeatures` in `src/core/agents.js`, which the
+  page, the collector (through `collectRun` in `src/core/dataset.js`) and the Train tab all call, so they cannot
+  disagree.
+- The same training runs in the page: Tools → Train (see `training/README.md`).

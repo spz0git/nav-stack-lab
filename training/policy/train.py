@@ -4,7 +4,7 @@
 behaviour cloning on training/data/ from tools/collect-policy.mjs: the expert's path ahead while the executed
 commands were perturbed (noise injection), so the policy also learns to come back to the path. The last run is held out and the waypoint error reported in metres. Writes src/models/policy.json.
 
-    python3 training/policy/train.py [--epochs 60]
+    python3 training/policy/train.py [--epochs 100]
 """
 import json, sys, time
 from pathlib import Path

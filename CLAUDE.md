@@ -35,6 +35,9 @@
   loops, no dependency; keep each model under about 1 MB). Training is Python under `training/` (PyTorch in `.venv`; see
   `training/README.md`); data from `tools/collect-*.mjs` over the headless core into `training/data/`, which is not
   committed. Changing a model's input features means changing the collector, the trainer and the page's feature code.
+  The page can train too (Tools → Train, `src/ui/train.js`): data from `collectRun` (`src/core/dataset.js`, which the
+  collectors also call), backprop and Adam in `src/core/nn-train.js`, models kept in the browser's IndexedDB and picked
+  by `P.detModel` / `P.polModel`; `tests/trtest.py` drives it.
 - Lessons are markdown in `docs/lessons/<group>/*.md` (format in the header of `tools/lessons.mjs`; the build inlines them as
   `LESSON_DATA`): a `## Try: Label` section per experiment with `cfg:`, `Setup:`, `See:`, `Shows:`, `Predict:` + options + `Answer:`;
   `## Think about` Q:/A: pairs; `## Check yourself`. Their terms stay in `LESSON_TERMS` (`src/analysis/glossary.js`), keyed by title. Numbers in a lesson's "What you will see" are measured headless first
@@ -42,6 +45,7 @@
 - Before committing: `./build.sh`, then from `tests/`: `python3 test.py` (L1–L5 regression summary must not change unless
   intended), `python3 p5test.py` (all Try buttons, ERRORS must be []), `python3 tles.py` (lessons), `python3 chtest.py` (companion notes),
   `python3 dyntest.py` (the car with tyre slip against chapter 1's theory, Analyze against the simulator; FAILS must be []),
-  `python3 extest.py` (every slot example against its built-in; FAILS must be []). `python3 tests/run_all.py` runs all six.
+  `python3 extest.py` (every slot example against its built-in; FAILS must be []), `python3 trtest.py` (the Train tab: collect,
+  train, save, use; ERRORS must be []). `python3 tests/run_all.py` runs all seven.
 - Design notes, known limits and next steps live in `docs/roadmap.md`. The GitHub repo is the only reference: there are
   no copies elsewhere (Claude projects, docs) to keep in sync.

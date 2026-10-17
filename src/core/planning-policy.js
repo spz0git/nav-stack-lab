@@ -2,7 +2,8 @@
    The end-to-end policy (Track C): from the lidar scan, the odometry and the goal in the robot frame straight to a
    short path, eight waypoints about 0.4 m apart (3 m ahead), which the path tracker follows; replanned every half
    second. A multilayer perceptron whose weights the build inlines (MODELS.policy), trained by behaviour cloning in
-   training/policy from what the classical stack drove. No map, no search: what the policy knows is in its weights.
+   training/policy from what the classical stack drove, or one trained in the Train tab (nnModel). No map, no
+   search: what the policy knows is in its weights.
    ============================================================ */
 const POLICY_N = 8; // waypoints, about 0.4 m apart (the expert path it was cloned from)
 // @code policy | policyPlan: the scan and the goal in, a trajectory out
@@ -38,7 +39,7 @@ function policyFeatures(scan, e, wp, odo) {
   return f;
 }
 function policyPlan(e, wp) {
-  const M = MODELS.policy;
+  const M = nnModel('policy');
   if (!M) return {ok: false, reason: 'no policy model in this build (training/policy)'};
   // the hybrid: a global planner's route, and the policy is pointed at the point 3 m along it instead of the goal
   let target = wp;

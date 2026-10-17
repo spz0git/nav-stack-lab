@@ -16,8 +16,8 @@ What a maintainer does that a contributor does not: cut a release, keep the demo
 
 ## Releasing (every change that lands on `main`)
 
-1. On the branch: `./build.sh`, then from `tests/` run `test.py`, `p5test.py`, `tles.py`, `chtest.py` and
-   `dyntest.py`, or `python3 tests/run_all.py` for all five; `npm test` runs the Node golden test (10 s) and `npm run test:all` both. The L1–L5 summary of
+1. On the branch: `./build.sh`, then from `tests/` run `test.py`, `p5test.py`, `tles.py`, `chtest.py`,
+   `dyntest.py`, `extest.py` and `trtest.py`, or `python3 tests/run_all.py` for all seven; `npm test` runs the Node golden test (10 s) and `npm run test:all` both. The L1–L5 summary of
    `test.py` must not change unless the change intends it; `p5test`, `chtest` and `dyntest` must report no errors.
 2. Commit the rebuilt `dist/` with the source change so page and commit match. Open a PR; CI
    (`.github/workflows/ci.yml`) builds, checks that the committed `dist/` equals a fresh build, and runs the Node

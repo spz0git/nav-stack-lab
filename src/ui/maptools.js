@@ -414,6 +414,11 @@ function toggleLayerPop(on) {
   b.innerHTML = svgI('layers');
   const vb = $('.mapview');
   vb.insertBefore(b, $('#mv-key'));
+  const top = document.createElement('div');
+  top.className = 'mapview mv-top';
+  vb.parentNode.insertBefore(top, vb);
+  top.appendChild(b);
+  top.appendChild($('#mv-key'));
   b.onclick = () => toggleLayerPop();
   const p = document.createElement('div');
   p.className = 'layerpop';

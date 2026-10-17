@@ -32,6 +32,8 @@ function readTokens() {
     'bad',
     'map-bg',
     'obst',
+    'obst-edge',
+    'occ',
     'unknown',
     'grid'
   ];
@@ -62,7 +64,7 @@ function paintOcc() {
     d = im.data,
     U = rgb(TOK.unknown),
     F = rgb(TOK['map-bg']),
-    O = rgb(TOK.obst);
+    O = rgb(TOK.occ || TOK.obst);
   for (let k = 0; k < NC; k++) {
     const l = S.lo[k];
     let c, t;
@@ -325,9 +327,12 @@ function drawMapLayer(dpr, k, px) {
     }
   } else {
     ctx.fillStyle = TOK.obst;
+    ctx.strokeStyle = TOK['obst-edge'] || TOK.obst;
+    ctx.lineWidth = px(1);
     for (const s of S.shapes) {
       shapePath(s);
       ctx.fill();
+      ctx.stroke();
     }
   }
   if (paintStroke) drawStroke(px);

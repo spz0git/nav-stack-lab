@@ -3,7 +3,7 @@
 The version label in the page header (`v40 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v45 · 2026-10-17
 
 - Training in the page (Tools → Train): retrain the people detector or the end-to-end policy from the GUI. Data from
   headless runs on levels, the map on screen, saved maps or random obstacles, with the map's, placed or random goals and

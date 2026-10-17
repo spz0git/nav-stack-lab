@@ -1,1 +1,1 @@
-{"version": 44, "date": "2026-10-17", "note": "The UI review: tokens and quiet selection, the level menu, one status row, the map's tool rail and quiet floor, one telemetry toolbar, one tab row, a reading column, the phone layout (PRs #91–#96)"}
+{"version": 45, "date": "2026-10-17", "note": "Training in the page: retrain the people detector and the end-to-end policy (Tools → Train), maps of your own and random obstacles as data, trained models picked in Perceive and Plan; settings kept across a level change; MPC real-time budget as a setting (PR #97)"}

@@ -183,34 +183,76 @@ function showSym(id) {
   } else el.scrollIntoView({block: 'start'});
 }
 // Simulate's tabs come in three groups; only the chosen group's tabs show. Each group remembers its last tab.
-const groupTab = {};
+// One tab row (UI review, step 6): the pipeline's tabs, then More, a menu of the tools and the reference. While one of
+// those is open, More carries its name.
+const tabMore = (() => {
+  const m = document.createElement('div');
+  m.className = 'tabmore';
+  m.id = 'tabmore';
+  m.hidden = true;
+  m.setAttribute('role', 'menu');
+  document.body.appendChild(m);
+  return m;
+})();
+function tabMoreOpen(on) {
+  const b = $('#tab-more');
+  tabMore.hidden = !on;
+  if (b) b.setAttribute('aria-expanded', String(on));
+  if (!on || !b) return;
+  const r = b.getBoundingClientRect(),
+    w = 220;
+  tabMore.style.top = r.bottom + 4 + 'px';
+  tabMore.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + 'px';
+}
+document.addEventListener(
+  'pointerdown',
+  e => {
+    if (!tabMore.hidden && !tabMore.contains(e.target) && !e.target.closest('#tab-more')) tabMoreOpen(false);
+  },
+  true
+);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !tabMore.hidden) tabMoreOpen(false);
+});
 function buildTabs() {
-  const G = TAB_GROUPS.find(g => g.tabs.includes(activeTab)) || TAB_GROUPS[0];
-  groupTab[G.id] = activeTab;
-  $('#tabgroups').innerHTML = TAB_GROUPS.map(
-    g => `<button id="tg-${g.id}" type="button" aria-pressed="${g === G}">${g.name}</button>`
-  ).join('');
-  $('#tabgroups')
-    .querySelectorAll('button')
-    .forEach(
-      b =>
-        (b.onclick = () => {
-          const g = TAB_GROUPS.find(x => 'tg-' + x.id === b.id);
-          if (g === G && consoleOpen) return;
-          activeTab = groupTab[g.id] || g.tabs[0];
-          consoleOpen = true;
-          buildTabs();
-          renderAllPanes();
-        })
-    );
-  $('#tabs').innerHTML = TABS.filter(t => G.tabs.includes(t.id))
+  const pipe = TAB_GROUPS[0].tabs,
+    more = TAB_GROUPS.slice(1),
+    inMore = !pipe.includes(activeTab),
+    cur = TABS.find(t => t.id === activeTab);
+  $('#tabgroups').innerHTML = '';
+  $('#tabs').innerHTML =
+    TABS.filter(t => pipe.includes(t.id))
+      .map(
+        t =>
+          `<button class="tab" role="tab" id="tab-${t.id}"${SYS[t.id] ? ` data-sys="${t.id}"` : ''} aria-selected="${t.id === activeTab}" aria-controls="pane">${t.n ? `<small>${t.n}</small>` : ''}${t.name}</button>`
+      )
+      .join('') +
+    `<button class="tab tab-more" type="button" id="tab-more" aria-haspopup="menu" aria-expanded="false" aria-selected="${inMore}">${inMore && cur ? cur.name : 'More'}<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+  tabMore.innerHTML = more
     .map(
-      t =>
-        `<button class="tab" role="tab" id="tab-${t.id}"${SYS[t.id] ? ` data-sys="${t.id}"` : ''} aria-selected="${t.id === activeTab}" aria-controls="pane">${t.n ? `<small>${t.n}</small>` : ''}${t.name}</button>`
+      g =>
+        `<p class="tm-h">${g.name}</p>` +
+        TABS.filter(t => g.tabs.includes(t.id))
+          .map(
+            t =>
+              `<button type="button" role="menuitem" class="tm-item" id="tab-${t.id}" aria-current="${t.id === activeTab}">${t.name}</button>`
+          )
+          .join('')
     )
     .join('');
+  tabMore.querySelectorAll('.tm-item').forEach(
+    b =>
+      (b.onclick = () => {
+        tabMoreOpen(false);
+        activeTab = b.id.slice(4);
+        consoleOpen = true;
+        buildTabs();
+        renderAllPanes();
+      })
+  );
+  $('#tab-more').onclick = () => tabMoreOpen(tabMore.hidden);
   $('#tabs')
-    .querySelectorAll('.tab')
+    .querySelectorAll('.tab[role="tab"]')
     .forEach(
       b =>
         (b.onclick = () => {

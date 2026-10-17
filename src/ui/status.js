@@ -15,8 +15,7 @@ function renderStatus() {
     contact = r.contact || r.pedContact;
   const st = contact ? 'CONTACT' : ready ? 'READY' : F.state.replace('_', ' '),
     cls = contact ? 'bad' : ready ? 'ready' : STATE_CLS[F.state];
-  const cell = (k, v, c = '', tip = '') =>
-    `<span class="kv"${tip ? ` title="${tip}"` : ''}><span>${k}</span><b class="${c}">${v}</b></span>`;
+  const cell = (k, v, c = '', tip = '') => `<span class="kv" title="${tip || k}"><span>${k}</span><b class="${c}">${v}</b></span>`;
   $('#status').innerHTML =
     `<span class="pill ${cls}">${st}</span>${F.state === 'IDLE' && WPS.length === 0 ? `<span class="st-note">tap the map to add goals</span>` : ''}` +
     cell('t', `${V.t.toFixed(1)} s`, f ? 'replay' : '', f ? 'Replaying a recorded moment; Live or Run returns to the live state' : '') +

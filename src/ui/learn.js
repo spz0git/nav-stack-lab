@@ -34,6 +34,8 @@ function syncModeUI() {
   $('.layout').dataset.mode = uiMode;
   $('#learnview').hidden = uiMode !== 'learn';
   $('#modesel').title = MODE_HINT[uiMode];
+  const lb = $('#bb-learn');
+  if (lb) lb.textContent = uiMode === 'learn' ? 'Simulate' : 'Learn';
 }
 $('#modesel').innerHTML = MODES.map(
   ([v, l, id]) => `<button type="button" id="${id}" data-v="${v}" aria-pressed="${v === uiMode}">${l}</button>`

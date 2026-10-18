@@ -1,1 +1,1 @@
-{"version": 49, "date": "2026-10-18", "note": "What's new: the version label opens the release log, with releases since your last visit marked new (PR #102)"}
+{"version": 50, "date": "2026-10-18", "note": "The page is unchanged; the GitHub demo deploy is skipped until Pages is turned on instead of failing on every update (PR #103)"}

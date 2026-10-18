@@ -1,8 +1,13 @@
 # Changelog
 
-The version label in the page header (`v49 · 2026-10-18`) is the number used here; `src/version.json` holds it.
+The version label in the page header (`v50 · 2026-10-18`) is the number used here; `src/version.json` holds it.
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
+
+## v50 · 2026-10-18
+
+- Nothing changes in the page. Behind it, the demo deploy to GitHub Pages waits until Pages is turned on, instead of
+  reporting a failure on every update. (PR #103)
 
 ## v49 · 2026-10-18
 

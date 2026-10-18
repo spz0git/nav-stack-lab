@@ -2561,6 +2561,10 @@ details.see > p {
 .progress .pkey .linkbtn {
   margin-left: 4px;
 }
+.progress .pkey .linkbtn[data-armed] {
+  color: var(--bad);
+  font-weight: 600;
+}
 .pkey .ldot,
 .lprog .ldot {
   display: inline-block;
@@ -29712,9 +29716,20 @@ function renderLearn() {
     (cur ? '' : chaptersListHTML());
   wireStartHere(v);
   const rs = v.querySelector('#learn-reset');
+  // Confirmed in the page, by a second click: a sandboxed frame (the published artifact) blocks confirm(), which then
+  // returns false without asking, so the reset never ran
   if (rs)
     rs.onclick = () => {
-      if (!confirm('Clear the progress of every lesson in this browser (experiments run, predictions, self-checks)?')) return;
+      if (!rs.dataset.armed) {
+        rs.dataset.armed = '1';
+        rs.textContent = 'Click again to clear every lesson’s progress';
+        setTimeout(() => {
+          if (!rs.isConnected) return;
+          delete rs.dataset.armed;
+          rs.textContent = 'Reset all progress';
+        }, 4000);
+        return;
+      }
       learnReset(null);
       renderLearn();
     };

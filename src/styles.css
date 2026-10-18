@@ -2541,6 +2541,10 @@ details.see > p {
 .progress .pkey .linkbtn {
   margin-left: 4px;
 }
+.progress .pkey .linkbtn[data-armed] {
+  color: var(--bad);
+  font-weight: 600;
+}
 .pkey .ldot,
 .lprog .ldot {
   display: inline-block;

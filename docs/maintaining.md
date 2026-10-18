@@ -5,10 +5,14 @@ What a maintainer does that a contributor does not: cut a release, keep the demo
 
 ## Where the page is served
 
-- **GitHub Pages**, https://spz0git.github.io/nav-stack-lab/, is the public demo. A workflow deploys `dist/` from
+- **GitHub Pages**, https://spz0git.github.io/nav-stack-lab/, is the public demo once it is turned on; it is off
+  while the repository is private (on a free plan Pages needs a public repository). A workflow deploys `dist/` from
   `main` on every push (`.github/workflows/pages.yml`: `nav-stack-lab.html` is served as `index.html` and under its
-  own name, with `core-worker.js` beside it), so merging a PR updates the demo; nothing to do by hand. One-time
-  setup: Settings → Pages → Source: GitHub Actions. Pages needs a public repository on a free plan.
+  own name, with `core-worker.js` beside it), so merging a PR updates the demo; nothing to do by hand. The job is
+  opt-in: it runs only when the repository variable `PAGES_ENABLED` is `true`, and is skipped otherwise. To turn the
+  demo on: make the repository public (or use a plan with private Pages), set Settings → Pages → Source: GitHub
+  Actions, add the variable (Settings → Secrets and variables → Actions → Variables), then run Deploy demo once from
+  the Actions tab.
 - **The claude.ai artifact**, https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7, is the page the owner opens on
   desktop and phone. It is republished by hand (below). The artifact host wraps the page in its own document
   skeleton, so inside it the Content-Security-Policy meta is ignored (one console notice) and `lang` is merged onto
@@ -23,7 +27,7 @@ What a maintainer does that a contributor does not: cut a release, keep the demo
    (`.github/workflows/ci.yml`) builds, checks that the committed `dist/` equals a fresh build, and runs the Node
    golden tests. The browser gate runs nightly and on demand (`.github/workflows/browser-tests.yml`, Actions → Browser
    tests → Run workflow); run it locally before merging anything that touches the page.
-3. Merge. Pages deploys on its own.
+3. Merge. Pages deploys on its own when it is turned on (`PAGES_ENABLED`, above).
 4. Bump the version label: set `version`, `date` and a short `note` in `src/version.json`, rebuild, commit. The label
    in the header (`v30 · 2026-10-15`) is the one users quote in bug reports. When the live artifact is republished the
    number should equal the artifact version the publish creates (the previous publish's version + 1), so the label

@@ -3,10 +3,11 @@ title: An end-to-end policy: from the scan to a path, and why it is hard
 
 <p><b>Why this matters.</b> Everything in the planning group so far is a search over a map. The other idea, the one a lot of current robotics runs on, is to skip the map and the search and learn the whole thing: a network that takes the raw scan, the odometry and where the goal is, and outputs where to drive. This lesson builds that policy the honest way, by imitation of the classical stack on the lab's own levels, runs it in the page as a planner the ordinary tracker follows, and measures it. It works where the demonstrations were easy and fails where they were not, and the three standard remedies, noise injection, DAgger and a classical subgoal, each move the result a little. The point is not that end-to-end does not work; it is to see with numbers what it costs to make it work, next to a learned detector that took an afternoon.</p>
 <p><b>The idea.</b> Behaviour cloning: run the expert, record what it sees and what it does, fit a function from the one to the other. What it sees is 139 numbers: the 120 ranges, the nearest range in each of 12 sectors of 30°, the goal in the robot frame, the speed and the turn rate. What it does is the route ahead: eight points 0.4 m apart along the A* path, in the robot frame. The function is a multilayer perceptron with two hidden layers of 256, 106 000 parameters, trained by least squares. In the page the policy is a planner: every half second its eight points become the path the tracker follows, and a safety layer moves any point that lands in an inflated obstacle to the nearest free cell. Compounding error is the catch: a 10 cm mistake takes the robot to a state the expert never showed, where the next mistake is larger. Noise injection widens the demonstrations around the expert's path; DAgger lets the policy drive and asks the expert what it should have done there; a subgoal from a classical global planner takes the long-range part of the problem away.</p>
-<div class="eq">x = [r₁…r₁₂₀/8, min r per sector /8, g_x/10, g_y/10, |g|/10, cos β, sin β, v/1.5, ω/2]        139 inputs
-y = [(p_k)_x, (p_k)_y]_{k=1..8} / 4 m   the A* route ahead at 0.4 m steps, robot frame        f: 139 → 256 → 256 → 16, ReLU
-loss = mean |f(x) − y|²  over 36 500 expert moments (16 runs, commands perturbed) + 23 400 DAgger moments (the policy's own states, expert-labelled)
-in the loop: pts = e ⊕ 4·f(x),  lethal points snapped to the nearest free cell,  replanned every 0.5 s,  the tracker follows</div>
+$$x = \Bigl[\frac{r_1 \ldots r_{120}}{8},\ \frac{\min r \text{ per sector}}{8},\ \frac{g_x}{10},\ \frac{g_y}{10},\ \frac{|g|}{10},\ \cos\beta,\ \sin\beta,\ \frac{v}{1.5},\ \frac{\omega}{2}\Bigr] \qquad \text{139 inputs}$$
+$$y = \bigl[(p_k)_x,\ (p_k)_y\bigr]_{k = 1 \ldots 8} \,/\, 4\ \text{m} \qquad\qquad f: 139 \to 256 \to 256 \to 16,\ \text{ReLU}$$
+<p>with $y$ the A* route ahead at 0.4 m steps, in the robot frame. The loss is</p>
+$$\text{loss} = \operatorname{mean} |f(x) - y|^2$$
+<p>over 36 500 expert moments (16 runs, commands perturbed) and 23 400 DAgger moments (the policy's own states, expert-labelled). In the loop the points are $\text{pts} = e \oplus 4\,f(x)$, with $e$ the estimate; lethal points are snapped to the nearest free cell, the policy is replanned every 0.5 s, and the tracker follows.</p>
 <p><b>Where it comes from.</b> Pomerleau's ALVINN (1989) is the first of these; the compounding-error argument and DAgger are Ross, Gordon and Bagnell (2011); noise injection as DART is Laskey et al. (2017). The data pipeline is the lab's: a Node collector over the headless core, PyTorch, weights as JSON, a forward pass in plain JavaScript. <a class="chref" href="#notes=ch4/10-an-end-to-end-policy">The features, the three remedies, the safety layer and the measured table: chapter 4 §10</a></p>
 <p><b>What the lab does.</b> Plan → Learned policy (end-to-end). The Plan tab says what the policy is, counts the waypoints the safety layer moved and the paths it cut, and offers the subgoal mode, where the policy is pointed at a point 3 m along the A* route instead of the goal. The policy ships trained on L1, L2 and L4 with random goals, scripted and perturbed; L3 and L5 it never saw. Tools → Train trains another in the page, on the levels, maps of your own or random obstacles, with DAgger rounds where the policy drives; Policy model in this tab picks it. All numbers below are at seed 7 against A* on the same run.</p>
 
@@ -16,16 +17,16 @@ Setup: L1, the open floor the policy was trained on, with the level's four goals
 See: All four goals in 44.9 m, the same as A*, no collision, and a path on the map that bends around the pillars the way A*'s did. The safety layer never has to move a waypoint on this floor, so the Plan tab shows no count.
 Shows: Where the demonstrations cover the situations, imitation works, and the map is a learned function of the scan: no grid, no search, a tenth of a millisecond per plan. Watch the eight points refresh every half second.
 Predict: The busy floor, L5, which the policy never saw, with the speed planner handling the people. Goals?
-- Four of five: open aisles look like the training levels, and the people are not its problem
+- Most of them, clipping a shelf now and then: open aisles look like the training levels, and the people are not its problem
 - None: a level it has not seen is out of the question
-- All five, faster than A*: it learned to cut corners
+- All five, every time, as cleanly as A*
 Answer: 0
 
 ## Try: A floor it never saw
 cfg: {"sim":true,"level":4,"set":{"plan":"policy","spd":"st"},"tab":"plan"}
 Setup: L5 with the speed planner, the policy as the global planner.
 See: Four of five goals, 79 m, no contact with a person and two brushes with shelves; A* with the same speed planner reaches five with one contact. The fourth goal is given up after the policy pins the robot against a shelf end.
-Shows: Generalization to a new floor of the same kind. The scan features are local, and wide aisles with shelves look like what it learned from, so it mostly drives; the failure is the one it has everywhere, a corner clipped by 30 or 50 cm. The people it leaves to the speed planner, which is the modular design: the learned block does one job.
+Shows: Generalization to a new floor of the same kind. The scan features are local, and wide aisles with shelves look like what it learned from, so it mostly drives; the failure is the one it has everywhere, a corner clipped by 30 or 50 cm. The people it leaves to the speed planner, which is the modular design: the learned block does one job. The count varies from run to run: on seeds 2 to 5 the same experiment reaches 4, 4, 3 and 5 goals with zero to three collisions, and on seed 1 the particle filter loses the robot and the run gets nowhere, a localization failure that slows A* on that seed too.
 Predict: L2, the warehouse aisles it was trained on. Goals out of four?
 - Four: it was trained there
 - None or one: the narrow aisles are where a corner clipped is a collision
@@ -38,7 +39,7 @@ Setup: L2, a training level, the policy as the planner.
 See: At 4 s the robot collides with the first shelf's end: the policy's path cuts the corner the expert went around, the safety layer moves the points out of the inflation but the robot is already pinned, and the tracker pushes forward against the shelf until the goal is given up as stuck at 20 s. No goal of four, three collisions; A* takes all four in 59 m.
 Shows: Compounding error in one picture. The policy's open-loop error on held-out expert moments is 9 cm at the first point and 66 cm at the eighth; at an aisle's entrance 9 cm is enough to touch, and after the touch the robot is in a state no demonstration showed, where the policy keeps asking for forward. The expert never collided, so the data has no example of backing out.
 Predict: Point the policy at a subgoal 3 m along the A* route instead of the goal. Does it get through the aisles?
-- Hardly: one goal instead of none; the failure is the first metre of each corner, not the long-range direction
+- Hardly: one goal at most; the failure is the first metre of each corner, not the long-range direction
 - Yes, all four: with the global part taken away the policy only has to avoid
 - Worse: two planners fight
 Answer: 0
@@ -47,7 +48,7 @@ Answer: 0
 cfg: {"sim":true,"level":1,"set":{"plan":"policy","policyGoal":"subgoal"},"tab":"plan"}
 Setup: L2 with the hybrid: A* finds the route, the policy is pointed at the point 3 m along it and drives.
 See: One goal of four, two collisions. The first corner goes better this time and the first goal is reached at 12 s, but at 16 s, on the way to the second, the robot is pinned against a shelf again: the subgoal lies around the shelf end, and the policy still cuts the corner on the way to it.
-Shows: The hybrid fixes a different failure, the long-range one, where a reactive policy drives at a goal behind a wall. The failure here is local: the imprecision of an imitated path at a corner, and that needs more data near corners, a better network, or a safety layer that understands recovery, not a better goal.
+Shows: The hybrid fixes a different failure, the long-range one, where a reactive policy drives at a goal behind a wall. The failure here is local: the imprecision of an imitated path at a corner, and that needs more data near corners, a better network, or a safety layer that understands recovery, not a better goal. The one goal is within what changes from run to run: on seeds 1 to 3 the policy without the subgoal also reaches one.
 Predict: L4, the building with rooms and doors, with the policy pointed at the goal. Goals?
 - One or none: doors are corners twice over, and a goal behind a wall points the policy at the wall
 - Three or four: doors are wider than aisles
@@ -80,4 +81,4 @@ Q: The policy's two hidden layers have 256 units, the input 139 numbers and the 
 Answer: 105744
 Tolerance: 0
 Unit: parameters
-How: 139 × 256 + 256 = 35 840; 256 × 256 + 256 = 65 792; 256 × 16 + 16 = 4 112; in all 105 744
+How: $139 \times 256 + 256 = 35\,840$; $256 \times 256 + 256 = 65\,792$; $256 \times 16 + 16 = 4\,112$; in all $105\,744$

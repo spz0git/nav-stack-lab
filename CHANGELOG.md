@@ -3,6 +3,20 @@
 The version label in the page header (`v40 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- Lesson math is typeset: the lessons take TeX like the companion notes (`$…$` inline, `$$…$$` display), turned into
+  MathML at build time (`tools/tex.mjs`, shared with the notes; the page keeps zero runtime dependencies). All 41 lessons
+  converted: matrices, aligned systems, fractions and subscripts instead of plain-text `G = [1 0 −vΔt sin θ; …]`. The
+  build refuses a lesson with an old `<div class="eq">` block.
+- Every lesson's Try text checked against headless runs of the button (seed 7, and seeds 1–5 or more wherever a
+  prediction compares runs). Fixed: numbers that no longer matched, Predict questions whose answer flipped with the seed
+  or rested on a figure the page does not show (an RMS, a precision, a clearance), and three lessons (Localization 6 and
+  8, Control 18) whose Predict questions each asked about the next Try. Dead reckoning's "Noise ×3" now asks what
+  reliably triples (the 2σ band), since the error itself was 2–9× the ×1 run's at different moments of seed 7 and 0.5–2.9×
+  in RMS over seeds 1–8.
+- The what-if caption in Analyze says "would turn" / "would steer" (it said "would turns").
+
 ## v46 · 2026-10-18
 
 - The level menu scrolls: its grid row grew with the content past the menu's capped height, so on L3–L7 the last

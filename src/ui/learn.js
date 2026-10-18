@@ -289,7 +289,7 @@ function predPick(div, k) {
     b.classList.toggle('ok', kk === pr.a);
     b.classList.toggle('no', kk === k && k !== pr.a);
   });
-  div.querySelector('.pred-res').textContent = predResText(pr, k);
+  div.querySelector('.pred-res').innerHTML = predResText(pr, k); // the options are the lesson's own HTML (MathML from its TeX)
   const d = div.nextElementSibling;
   if (d && d.classList.contains('see')) d.open = true;
 }
@@ -314,7 +314,7 @@ function selfCheck(div) {
   }
   if (Math.abs(x - c.a) <= c.tol) {
     res.className = 'sc-res ok';
-    res.textContent = `Right. ${c.how}`;
+    res.innerHTML = `Right. ${c.how}`; // c.how is the lesson's own HTML (MathML from its TeX)
     LEARN.check[id] = true;
     learnSave();
     lessonProgRefresh(id);
@@ -322,7 +322,7 @@ function selfCheck(div) {
   }
   scTries[id] = (scTries[id] || 0) + 1;
   res.className = 'sc-res no';
-  res.textContent = scTries[id] < 2 ? 'Not quite. Check the units and try once more.' : `Not quite. ${c.how}`;
+  res.innerHTML = scTries[id] < 2 ? 'Not quite. Check the units and try once more.' : `Not quite. ${c.how}`;
 }
 // Renders the Learn column: the list (Start here, progress, the groups, the chapters) or the open lesson, and wires every control.
 function renderLearn() {

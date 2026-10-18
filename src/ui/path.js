@@ -101,6 +101,7 @@ const LEARN_PATH = [
 // Minutes to read a lesson's text (the experiments run for one to three minutes each on top)
 function lessonMinutes(L) {
   const words = L.b
+    .replace(/<math[\s\S]*?<\/math>/g, ' formula ')
     .replace(/<[^>]+>/g, ' ')
     .split(/\s+/)
     .filter(Boolean).length;

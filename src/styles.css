@@ -328,6 +328,8 @@ dialog:focus-visible {
   z-index: 40;
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
+  /* the row may shrink below its content, so the list and the brief scroll inside the capped height */
+  grid-template-rows: minmax(0, 1fr);
   max-height: min(640px, calc(100vh - 80px));
   background: var(--raise);
   border: 1px solid var(--line);

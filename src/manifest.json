@@ -58,6 +58,7 @@
  "ui/health.js",
  "ui/runs.js",
  "ui/polish.js",
+ "ui/whatsnew.js",
  "ui/loop.js",
  "ui/workspace.js",
  "ui/urlstate.js",

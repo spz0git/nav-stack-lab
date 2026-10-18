@@ -1,51 +1,86 @@
 # Changelog
 
-The version label in the page header (`v40 · 2026-10-16`) is the number used here; `src/version.json` holds it.
+The version label in the page header (`v48 · 2026-10-18`) is the number used here; `src/version.json` holds it.
+The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
+
+## Unreleased
+
+- What's new: the version label in the header opens this log. Hover over it, or tap it on a phone, to see what
+  changed in the current version and in the ones before it; versions released since your last visit are marked new,
+  and the label carries a dot until you have looked.
+- The log has entries again for v41 to v44, which were missing.
 
 ## v48 · 2026-10-18
 
-- The Simulate tabs' "How it works" panels are typeset too, and so are the two formulas in Analyze's derivations
-  (with today's numbers in them). In JS source, a template literal tagged `TEX` holds TeX; the build rewrites it into
-  MathML (`texSource` in `tools/tex.mjs`), so the page still never sees TeX. The state machine in Mission's panel is now
-  a list of transitions. Fixed for all math: the columns of aligned equations were centred (temml's alignment classes
-  had no CSS), so `=` signs did not line up in lessons, chapters or panels. (PR #101)
+- The "How it works" panels on the Simulate tabs show their formulas typeset, as the lessons do, and so do the two
+  formulas in Analyze's derivations. Mission's state machine is now a list of transitions.
+- Equations written one under another line up on their = signs, in lessons, chapters and panels (they were centred).
+  (PR #101)
 
 ## v47 · 2026-10-18
 
-- Lesson math is typeset: the lessons take TeX like the companion notes (`$…$` inline, `$$…$$` display), turned into
-  MathML at build time (`tools/tex.mjs`, shared with the notes; the page keeps zero runtime dependencies). All 41 lessons
-  converted: matrices, aligned systems, fractions and subscripts instead of plain-text `G = [1 0 −vΔt sin θ; …]`. The
-  build refuses a lesson with an old `<div class="eq">` block.
-- Every lesson's Try text checked against headless runs of the button (seed 7, and seeds 1–5 or more wherever a
-  prediction compares runs). Fixed: numbers that no longer matched, Predict questions whose answer flipped with the seed
-  or rested on a figure the page does not show (an RMS, a precision, a clearance), and three lessons (Localization 6 and
-  8, Control 18) whose Predict questions each asked about the next Try. Dead reckoning's "Noise ×3" now asks what
-  reliably triples (the 2σ band), since the error itself was 2–9× the ×1 run's at different moments of seed 7 and 0.5–2.9×
-  in RMS over seeds 1–8.
-- The what-if caption in Analyze says "would turn" / "would steer" (it said "would turns"). (PR #100)
+- Lesson math is typeset: matrices, fractions, subscripts and aligned equations instead of plain text such as
+  `G = [1 0 −vΔt sin θ; …]`, in all 41 lessons.
+- Every lesson experiment was rerun and its text checked against what the simulator does, at the button's seed and at
+  other seeds wherever a prediction compares two runs. Numbers that no longer matched are corrected. Predictions whose
+  answer changed with the seed, or that relied on a figure the page does not show, now ask about something you can see
+  and that holds on every run. In Localization 6 and 8 and Control 18 each prediction had asked about the next
+  experiment; they are now with the right one. Dead reckoning's "Noise ×3" asks what reliably triples (the 2σ band):
+  the error itself was between 2 and 9 times the ×1 run's, depending on when you looked.
+- Analyze's what-if caption says "would turn" and "would steer" (it said "would turns"). (PR #100)
 
 ## v46 · 2026-10-18
 
-- The level menu scrolls: its grid row grew with the content past the menu's capped height, so on L3–L7 the last
-  quick experiments were cut off with no scrollbar.
-- Reset all progress works in the published artifact: it asked with `confirm()`, which the artifact's sandboxed frame
-  blocks (it returned false without asking). It now asks for a second click within 4 s. (PR #99)
+- The level menu scrolls: on L3 to L7 the last quick experiments were cut off.
+- Reset all progress (Learn) works in the published page: it now asks for a second click instead of a confirmation box,
+  which the page's frame blocked. (PR #99)
 
 ## v45 · 2026-10-17
 
-- Training in the page (Tools → Train): retrain the people detector or the end-to-end policy from the GUI. Data from
-  headless runs on levels, the map on screen, saved maps or random obstacles, with the map's, placed or random goals and
-  any number of runs (DAgger rounds for the policy); four network shapes per block, from random or the built-in weights;
-  backpropagation and Adam in plain JavaScript over up to four workers; the result against the built-in model on a
-  held-out run; trained models kept in the browser, picked in Perceive → Detector model and Plan → Policy model,
-  variable in Experiments, saved and imported as JSON in the format of `src/models/`. The collectors share the page's
-  code (`core/dataset.js`, `detFeatures`) and write the same files as before. `tests/node/train.test.mjs`,
-  `tests/trtest.py`.
-- Changing level in the level menu or the search keeps the settings you changed (not the map edits, the beacons switched
-  off, or a planner or tracker the new vehicle cannot use); Try buttons, lessons and links still start from the level's
-  own setup. Control → Real-time budget per solve sets the MPC's 15 ms deadline (0: none); `dyntest.py` compares the
-  page and the worker without it, so the check no longer depends on the computer's speed.
+- Training in the page (Tools → Train): retrain the people detector or the end-to-end policy yourself. Collect data
+  from runs on the levels, the map on screen, saved maps or random obstacles; pick a network size; train in the browser;
+  compare the result with the built-in model on a run it did not see. Trained models stay in this browser, can be
+  picked in Perceive → Detector model and Plan → Policy model, and can be saved and loaded as files.
+- Changing level keeps the settings you changed (except map edits, beacons switched off, and a planner or tracker the
+  new vehicle cannot use). Try buttons, lessons and links still start from the level's own setup.
+- Control → Real-time budget per solve sets how long MPC may think each step (15 ms by default; 0 for no limit).
+  (PR #97)
+
+## v44 · 2026-10-17
+
+The UI review, in six steps (PRs #91–#96):
+
+- Tokens and components: retuned neutrals in both themes, seven type sizes, two radii, three control heights, and a
+  quiet selection (a segmented control is a grey groove, the chosen option raised).
+- One level button in the header, "L5 · Busy floor ▾", whose menu lists the floors and the current floor's quick
+  experiments; Changed, Runs and View are ghost buttons.
+- One status row: the mission state as a small pill with a coloured dot, the four subsystems as a dot and a name each
+  (the reason in the tooltip, a click for every check).
+- The map's tools as a rail on its left edge, zoom and follow in one cluster, a quieter floor palette.
+- One telemetry toolbar (channel, Compare and a "⋯" menu with + Plot, Whole run, CSV and PNG) and frameless plots.
+- One inspector tab row with More ▾; in Learn a reading column (16 px text, 70 characters a line) with each
+  experiment as a card; on phones the map edge to edge, the tools folded, and a bottom bar.
+
+## v43 · 2026-10-17
+
+- Every lesson checked against the simulator: all 41 lessons, the levels' quick experiments and the chapter sentences
+  that quote them replayed at seed 7, and text, numbers and predictions corrected where they disagreed.
+- Hybrid A* honours Allow reversing in its final analytic shot (L6 "No reversing" reversed into the bay anyway); the
+  turn-rate message and the step menu fixed. (PR #90)
+
+## v42 · 2026-10-17
+
+- Lessons on the empty floor where the obstacles only got in the way: localization 6 (A gyro in the loop) runs lesson
+  1's lap, control 14 (When the wheels don't go where they point) L1's goals with no box in the way. (PR #89)
+
+## v41 · 2026-10-17
+
+- Lesson progress you can read: a key to what fills the circle in front of each lesson, a strip under an open lesson
+  with a ✓ per experiment and for Check yourself, Reset for one lesson and Reset all progress. (PR #87)
+- An editable map: Map → Empty floor (only the outer walls), Paint and Erase obstacles on the map toolbar, and Repeat the
+  goals on the Mission tab; the map is a setting, so links, Copy setup and Try buttons carry it. Lesson 1 laps the empty
+  floor. (PR #88)
 
 ## v40 · 2026-10-16
 

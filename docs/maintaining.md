@@ -32,7 +32,9 @@ What a maintainer does that a contributor does not: cut a release, keep the demo
    is open the live artifact is not touched; a "preview" is a separate, new artifact of the branch's `dist/`.
 6. Delete the previous "Nav Stack Lab" page artifacts (PR previews and older builds), never the live one and never
    artifacts with other titles.
-7. Add a line to `CHANGELOG.md` and, for a feature, a section to `docs/roadmap.md`. The repository is the only
+7. Add a line to `CHANGELOG.md` (in the PR, under `## Unreleased`; at release, rename it `## vNN · date`) and, for a
+   feature, a section to `docs/roadmap.md`. The page shows the changelog under the version label (What's new), so
+   write each entry for someone who uses the page. The repository is the only
    reference: there are no copies of the roadmap elsewhere to keep in sync.
 
 ## The regression baseline

@@ -299,6 +299,120 @@ output {
 .ver {
   white-space: nowrap;
 }
+/* the version label opens What's new (ui/whatsnew.js): a text button, with a dot while a release is unseen */
+button.ver {
+  position: relative;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  color: var(--muted);
+  font: inherit;
+  font-family: var(--f-mono);
+  font-size: var(--fs-ui);
+  text-decoration: underline dotted transparent;
+  text-underline-offset: 3px;
+}
+button.ver:hover,
+button.ver[aria-expanded='true'] {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+button.ver.has-new::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.verpop {
+  position: fixed;
+  z-index: 60;
+  width: min(460px, calc(100vw - 16px));
+  max-height: min(72vh, 600px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  padding: 10px 14px 12px;
+  font-size: var(--fs-ui);
+  line-height: 1.5;
+}
+.verpop[hidden] {
+  display: none;
+}
+.wn-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.wn-head b {
+  font-family: var(--f-display);
+  font-size: var(--fs-read);
+}
+.wn-head .lbl {
+  flex: 1 1 auto;
+}
+.wn-head .wn-x {
+  padding: 0 8px;
+  font-size: var(--fs-read);
+}
+.wn-note {
+  margin: 8px 0 0;
+}
+.wn-since,
+.wn-new {
+  color: var(--accent);
+  font-weight: 600;
+}
+.wn-new {
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.wn-txt p,
+.wn-txt ul {
+  margin: 8px 0 0;
+}
+.wn-txt ul {
+  padding-left: 18px;
+}
+.wn-txt li + li {
+  margin-top: 4px;
+}
+.wn-txt code {
+  font-size: 0.92em;
+}
+.wn-h {
+  margin: 14px 0 4px;
+  font-size: var(--fs-small);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.wn-rel {
+  border-top: 1px solid var(--line);
+  padding: 5px 0;
+}
+.wn-rel summary {
+  cursor: pointer;
+}
+.wn-rel .wn-txt {
+  padding-bottom: 4px;
+}
+.wn-foot {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
 h1[title] {
   cursor: help;
 }
@@ -5085,7 +5199,7 @@ article.chapter .notes-table td button.try {
     <header class="appbar" id="appbar">
       <div class="brand top">
         <h1 title="Tune localization, perception, planning and control on a simulated robot across six levels; analyze the loop; learn with guided lessons. Diff-drive or car-like robot · 24 × 16 m world · 20 Hz">Nav Stack Lab</h1>
-        <span class="sub ver" id="appver" title="Nav Stack Lab v48, released 2026-10-18: The How it works panels and Analyze's derivation formulas typeset (TeX → MathML at build time); aligned equations line up in lessons, chapters and panels (PR #101)">v48 · 2026-10-18</span>
+        <button type="button" class="sub ver" id="appver" aria-haspopup="dialog" aria-expanded="false" aria-controls="verpop">v48 · 2026-10-18</button>
       </div>
       <div class="modebar"><div class="seg" id="modesel" role="group" aria-label="Mode"></div></div>
       <nav class="levels" id="levels" aria-label="Scenario level"></nav>
@@ -37752,6 +37866,121 @@ document.addEventListener('keydown', e => {
     if (!e.matches) set(false);
   });
 }
+
+/* ---- ui/whatsnew.js ---- */
+/* ---------- What's new: the release log under the version label ---------- */
+// CHANGES is CHANGELOG.md, one entry per release, newest first ({v, date, html}; tools/changelog.mjs at build time).
+// The label in the header opens it: hovering with a mouse shows it while the pointer is on the label or the popover,
+// a click or a tap pins it open, Esc or a click outside closes it. Releases newer than the one this browser last
+// opened the popover on are marked new (and the label carries a dot until then); a first visit marks nothing.
+const CHANGES = [{"v":48,"date":"2026-10-18","html":"<ul><li>The \"How it works\" panels on the Simulate tabs show their formulas typeset, as the lessons do, and so do the two formulas in Analyze's derivations. Mission's state machine is now a list of transitions.</li><li>Equations written one under another line up on their = signs, in lessons, chapters and panels (they were centred). (PR <a href=\"https://github.com/spz0git/nav-stack-lab/pull/101\" target=\"_blank\" rel=\"noopener\">#101</a>)</li></ul>"},{"v":47,"date":"2026-10-18","html":"<ul><li>Lesson math is typeset: matrices, fractions, subscripts and aligned equations instead of plain text such as <code>G = [1 0 −vΔt sin θ; …]</code>, in all 41 lessons.</li><li>Every lesson experiment was rerun and its text checked against what the simulator does, at the button's seed and at other seeds wherever a prediction compares two runs. Numbers that no longer matched are corrected. Predictions whose answer changed with the seed, or that relied on a figure the page does not show, now ask about something you can see and that holds on every run. In Localization 6 and 8 and Control 18 each prediction had asked about the next experiment; they are now with the right one. Dead reckoning's \"Noise ×3\" asks what reliably triples (the 2σ band): the error itself was between 2 and 9 times the ×1 run's, depending on when you looked.</li><li>Analyze's what-if caption says \"would turn\" and \"would steer\" (it said \"would turns\"). (PR <a href=\"https://github.com/spz0git/nav-stack-lab/pull/100\" target=\"_blank\" rel=\"noopener\">#100</a>)</li></ul>"},{"v":46,"date":"2026-10-18","html":"<ul><li>The level menu scrolls: on L3 to L7 the last quick experiments were cut off.</li><li>Reset all progress (Learn) works in the published page: it now asks for a second click instead of a confirmation box, which the page's frame blocked. (PR <a href=\"https://github.com/spz0git/nav-stack-lab/pull/99\" target=\"_blank\" rel=\"noopener\">#99</a>)</li></ul>"},{"v":45,"date":"2026-10-17","html":"<ul><li>Training in the page (Tools → Train): retrain the people detector or the end-to-end policy yourself. Collect data from runs on the levels, the map on screen, saved maps or random obstacles; pick a network size; train in the browser; compare the result with the built-in model on a run it did not see. Trained models stay in this browser, can be picked in Perceive → Detector model and Plan → Policy model, and can be saved and loaded as files.</li><li>Changing level keeps the settings you changed (except map edits, beacons switched off, and a planner or tracker the new vehicle cannot use). Try buttons, lessons and links still start from the level's own setup.</li><li>Control → Real-time budget per solve sets how long MPC may think each step (15 ms by default; 0 for no limit). (PR <a href=\"https://github.com/spz0git/nav-stack-lab/pull/97\" target=\"_blank\" rel=\"noopener\">#97</a>)</li></ul>"},{"v":44,"date":"2026-10-17","html":"<p>The UI review, in six steps (PRs <a href=\"https://github.com/spz0git/nav-stack-lab/pull/91\" target=\"_blank\" rel=\"noopener\">#91</a>–<a href=\"https://github.com/spz0git/nav-stack-lab/pull/96\" target=\"_blank\" rel=\"noopener\">#96</a>):</p><ul><li>Tokens and components: retuned neutrals in both themes, seven type sizes, two radii, three control heights, and a quiet selection (a segmented control is a grey groove, the chosen option raised).</li><li>One level button in the header, \"L5 · Busy floor ▾\", whose menu lists the floors and the current floor's quick experiments; Changed, Runs and View are ghost buttons.</li><li>One status row: the mission state as a small pill with a coloured dot, the four subsystems as a dot and a name each (the reason in the tooltip, a click for every check).</li><li>The map's tools as a rail on its left edge, zoom and follow in one cluster, a quieter floor palette.</li><li>One telemetry toolbar (channel, Compare and a \"⋯\" menu with + Plot, Whole run, CSV and PNG) and frameless plots.</li><li>One inspector tab row with More ▾; in Learn a reading column (16 px text, 70 characters a line) with each experiment as a card; on phones the map edge to edge, the tools folded, and a bottom bar.</li></ul>"},{"v":43,"date":"2026-10-17","html":"<ul><li>Every lesson checked against the simulator: all 41 lessons, the levels' quick experiments and the chapter sentences that quote them replayed at seed 7, and text, numbers and predictions corrected where they disagreed.</li><li>Hybrid A* honours Allow reversing in its final analytic shot (L6 \"No reversing\" reversed into the bay anyway); the turn-rate message and the step menu fixed. (PR <a href=\"https://github.com/spz0git/nav-stack-lab/pull/90\" target=\"_blank\" rel=\"noopener\">#90</a>)</li></ul>"},{"v":42,"date":"2026-10-17","html":"<ul><li>Lessons on the empty floor where the obstacles only got in the way: localization 6 (A gyro in the loop) runs lesson 1's lap, control 14 (When the wheels don't go where they point) L1's goals with no box in the way. (PR <a href=\"https://github.com/spz0git/nav-stack-lab/pull/89\" target=\"_blank\" rel=\"noopener\">#89</a>)</li></ul>"},{"v":41,"date":"2026-10-17","html":"<ul><li>Lesson progress you can read: a key to what fills the circle in front of each lesson, a strip under an open lesson with a ✓ per experiment and for Check yourself, Reset for one lesson and Reset all progress. (PR <a href=\"https://github.com/spz0git/nav-stack-lab/pull/87\" target=\"_blank\" rel=\"noopener\">#87</a>)</li><li>An editable map: Map → Empty floor (only the outer walls), Paint and Erase obstacles on the map toolbar, and Repeat the goals on the Mission tab; the map is a setting, so links, Copy setup and Try buttons carry it. Lesson 1 laps the empty floor. (PR <a href=\"https://github.com/spz0git/nav-stack-lab/pull/88\" target=\"_blank\" rel=\"noopener\">#88</a>)</li></ul>"},{"v":40,"date":"2026-10-16","html":"<p>Phase 4, the learning tracks, first blocks:</p><ul><li>An end-to-end policy (Plan → Learned policy): a multilayer perceptron (139 → 256 → 256 → 16, 105 744 parameters, 665 KB inlined) from the scan with sector minima, the odometry and the goal in the robot frame to eight waypoints along the route, run as a planner the tracker follows, replanned every 0.5 s, with a safety layer that moves a waypoint out of an inflated obstacle; a subgoal mode points it 3 m along the A* route. Trained by behaviour cloning (<code>tools/collect-policy.mjs</code>: random goals, actuation noise on the expert's commands, A* labels; DAgger rounds with the policy driving; <code>training/policy/train.py</code>). Measured and told plainly in planning lesson 8 and chapter 4 §10: all goals on the open floor, four of five on the busy floor it never saw, a collision at the first shelf corner of the aisles and the building's doors beyond it, through noise injection, DAgger and the subgoal. <code>actNoise</code> on the vehicle for the collectors, <code>setGoals</code> for goal lists, a Node test of the perceptron.</li></ul><ul><li>A learned people detector (Perceive → Agent tracking → Learned detector + Kalman): a 1D convolutional network over the 120 beams (circular padding, 8 017 parameters, 66 KB inlined) that labels each beam \"person\" or \"static\" from six features, among them the previous scan reprojected through the odometry so that the robot's own motion is taken out; beams above 0.6 are clustered as the rule's unexplained hits are and handed to the tracker. Trained in PyTorch (<code>training/detector/train.py</code>) on 19 200 scans collected by <code>tools/collect-detector.mjs</code> over the headless core; the forward pass runs in <code>src/core/nn.js</code> with no dependency. The lidar layer colours hits by the probability. Measured on L5: precision 0.66 under lidar mapping against 0.07 for the rule without a settled map; 0.73 against the rule's 0.92 with a prior map. Per-target scan matching (Perceive → Agent tracking) aligns a track's hits from one scan to the next by ICP and fuses the displacement as a velocity measurement (0.40 to 0.25 m/s RMS). Perception lesson 7, chapter 3 §9, <code>tests/measure_det.py</code>, a Node test of the forward pass, <code>training/README.md</code>.</li></ul>"},{"v":39,"date":"2026-10-16","html":"<ul><li>Velocity obstacles (Control → Response to agents → Velocity obstacles, for the path trackers): one cone per tracked person (the ray-disc quadratic within a horizon τ), the tracker's command tested against them and, when inside, replaced by the nearest of 76 sampled velocities outside all cones (speeds down to a quarter, headings to 90°, a slow reverse), realized as a speed and a turn; stop when none is free. A Velocity obstacles map layer (the cones in world coordinates scaled by τ, the command and the chosen velocity), horizon and clearance sliders, a Control info line with the interventions and stops. Perception lesson 6, <i>Velocity obstacles: steering around people in velocity space</i>, five measured experiments on the busy floor (scripted people who walk through the robot, reacting people, the shelf the cones do not know), chapter 4 §9.</li><li>D* Lite (Plan → D* Lite, <code>core/planning-dstar.js</code>): the grid search kept between plans, run from the goal, with g and rhs per cell, the two-part key packed into one number, k_m for the robot's motion, a costmap diff (lethal flips and penalty moves over 0.1) that repairs only the touched vertices; the same cost model as A*, so the same paths; the search is dropped when the goal, the planner or ε changes. Each plan logs its vertex updates and the cells changed; the mission keeps plan totals (count, expansions, ms). Planning lesson 7, <i>D</i> Lite: repairing the plan instead of starting over*, five measured experiments with the honest reading (six-fold fewer expansions on a static map with a periodic replan, more work than A* when lidar mapping or agent stamps change thousands of cells), chapter 4 §8.</li><li>Pose-graph SLAM (Localize → Pose-graph SLAM, lidar only): keyframes every 0.5 m with their scans, each first aligned to the hit map of the earlier keyframes and fused with the odometry (the edge carries the matched motion), loop closures by scan-to-scan ICP against keyframes at least ten back within a reach that grows with the uncertainty, Gauss–Newton over all poses with the first fixed (dense Cholesky, one optimization per second), the current pose's covariance from the marginal, the hit map and the planning grid rebuilt from every kept scan at the new poses. A Pose graph layer, a Localize info line, the \"Loop closures\" and \"Map agreement\" signals, switches for the two levels and the keyframe spacing, <code>goals</code> in a Try cfg (the mission restarts on them). Localization lesson 8, <i>Pose-graph SLAM: the map that closes the loop</i>, six experiments on an out-and-back tour of L4 (with the honest finding that scan-to-map matching does most of the work and closures need a gyro-grade odometry to be found), chapter 2 §11, Node tests for the pose algebra, ICP and the optimizer.</li></ul>"},{"v":38,"date":"2026-10-16","html":"<ul><li>Scan matching (Localize → Lidar scan matching, with the EKF and a prior map): every fourth tick the scan is aligned to the map's distance field by Gauss–Newton from the current estimate and fused as a pose measurement with the covariance of the fit (inflated, floored at 5 cm), gated, fused only after the robot has moved, dropped when the fit is poor. The lidar becomes a position sensor: 4 cm RMS on L3 with every beacon off. A Localize info line reports each match; Signals has the residual; <code>bOff: \"all\"</code> in a Try switches every beacon off. Localization lesson 7, <i>Scan matching: the lidar as a position sensor</i>, five measured experiments including the kidnap that scan matching cannot see (perceptual aliasing), chapter 2 §10, the loc slot gets the map's distance field once (<code>obs.field</code>) and a scan-matching example.</li><li>The code behind every lesson. Each of the 35 lessons shows the page's own function for what it teaches (cut from the page's source at runtime by <code>// @code</code> markers, so it cannot drift), with the lesson's lines marked, a note on what to look at and change, and \"Edit and run\", which puts a plain slot version of the algorithm into the Code tab as \"Your code\" on the lesson's level. Twelve slot examples (<code>src/examples/</code>): dead reckoning, EKF, particle filter; A*, Dijkstra, RRT*; pure pursuit, Stanley, PID, rear-wheel feedback; constant velocity, standing still. The Code tab gets an examples menu and a \"How this fits in\" panel per slot (where it runs in the tick, what it gets and returns, what happens when it fails); the \"Your code\" choice in Localize, Plan, Control and Perceive explains itself with a button into the Code tab. <code>tests/extest.py</code> runs every example against its built-in.</li></ul>"},{"v":37,"date":"2026-10-16","html":"<p>Phase 4, content (from the assessment of 2026-10-15 and the owner's direction):</p><ul><li>A yaw-rate gyro for every vehicle (Vehicle → Yaw-rate gyro): the turn rate comes from the gyro instead of the wheels, with its own noise σ and a bias the filter is not told, and a zero-velocity update that holds the robot still for 2 s at the start of a run, averages the gyro into a bias estimate and subtracts it. The filters' assumed turn-rate noise follows. Lesson 6 of the localization group, <i>A gyro in the loop: heading is the expensive error</i>, with six measured experiments, and chapter 2 §9 with the random walk, the bias integrals and the update.</li><li>Analyze: a design row under the pole plot. Pole placement by damping and natural frequency, and LQR from three weights with the closed-form gains, both shown as a what-if where the pair really lands with the delays in the loop; a lesson Try can ask for either (<code>place</code>, <code>lqr</code>). Control lesson 18, <i>Placing the poles on purpose: pole placement and LQR</i>, and chapter 6 §8 with the Riccati equation solved in closed form.</li><li>Frontier exploration (Mission → Goal order → Explore) on any level with lidar mapping: the robot picks its own goals, the largest nearby frontier (known free next to unknown, at least N cells), drops a goal once nothing behind it is unknown any more, retries the ones that failed once nothing else is left, and stops when the map has no frontier. A Frontiers layer, a \"Floor seen\" signal and status metric, L4 gets an Explore button. Lesson 6 of the planning group, <i>Frontier exploration: the robot picks its own goals</i>, with five measured experiments, and chapter 4 §7.</li></ul>"},{"v":36,"date":"2026-10-16","html":"<p>Phase 3, code health (from the assessment of 2026-10-15):</p><ul><li><code>npm run lint</code>: ESLint with the shared scope's names generated from the manifest, so a misspelled cross-module reference fails statically instead of at runtime on that path; CI runs it. ESLint is a dev dependency only (<code>npm install</code>); the build and the page still need nothing.</li><li>The source is formatted with Prettier at 140 columns (<code>npm run fmt</code>, checked in CI); one reformat commit, listed in <code>.git-blame-ignore-revs</code>. The lines go from 6,277 to 19,610 with no change in behaviour (the golden tests and the browser gate are identical).</li><li>The three biggest functions are split: <code>draw</code> (477 lines) into eighteen layer functions in drawing order, <code>ctlMPC</code> (349) into the controller plus six helpers (agent predictions, agent constraints, warm start, linearization, rollout, the constraint set) with explicit parameters, <code>renderAnalysis</code> into the view plus four section helpers. The lint found the two locals the first cuts had missed. Every remaining function over 100 lines has a header that says what it does.</li><li>Fix: switching to DWA (or your code) while the step test was playing threw in the response plot's playback; the playback now stops when the tracker has no linear model.</li><li><code>setParam</code> validates: a choice parameter must be one of its values (<code>PARAM_OPTS</code> in <code>core/params.js</code>) and a numeric one a finite number; anything else is ignored with a log line instead of falling into a default branch (a mistyped setup link <code>plan=foo</code> used to run RRT*). Its if-chain of side effects is an ordered table, <code>PARAM_EFFECTS</code>.</li><li>Unit tests for the closed-form numerics (<code>tests/node/numerics.test.mjs</code>, in <code>npm test</code>): the 3 × 3 inverse, the Cholesky solve, the box QP, the distance transform, Reeds–Shepp lengths and samples, A* on a free line and round obstacles, and the textbook properties of one EKF update. The worker exposes them to Node as <code>self.__core</code>.</li><li><code>ui/st-plot.js</code> moves after the core in the manifest, so the core/ui split in the concatenation order is exact. Running the live simulation in the worker was assessed and deferred (a week of its own; <code>docs/roadmap.md</code>).</li></ul>"},{"v":35,"date":"2026-10-16","html":"<p>Phase 2, workspace polish (from the assessment of 2026-10-15):</p><ul><li>The preset plot follows the level until you pick one: cross-track where the pose is known (L1, L2, L6, L7), position error where there is an estimate to judge. With ground truth the status strip says \"pose known\" and the metrics show one line instead of a zero pose error, a zero RMS and an empty NEES.</li><li>Phone: the level selector is a row again (the app bar's 380 px flex basis had become its height), the world is fitted left of the view buttons so the east wall's beacons can be tapped, and in the stacked layouts a plain wheel scrolls the page past the map while Ctrl or ⌘ + wheel (a pinch) zooms it.</li><li>The address bar always says what the page shows: the setup link in Simulate (<code>#l=L3&amp;seed=7&amp;loc=ekf…</code>), with <code>mode=an</code> in Analyze and <code>t=12.3</code> while a recorded moment is replayed; <code>#learn</code>, <code>#lesson=…</code> or <code>#notes=…</code> in Learn. A pasted link applies while the page is open, and a link with <code>t=</code> runs the setup to that moment and shows it paused (<code>ui/urlstate.js</code>).</li><li>The event log has a search box (matching lines are marked on the timeline), a severity filter (All, Warnings, Errors), an order toggle (oldest first) and follows the replayed moment.</li><li>The recording plays: ▶ next to the timeline (or P) plays it at the speed setting from the shown moment; I and O set a loop region's in and out points (handles on the track drag them, × clears), playback wraps inside it, and \"Whole run\" in the plots and the CSV export are trimmed to it.</li><li>A health light is the worst of its subsystem's checks; a click opens the list: every check with its state, the subsystem's recent events (a click seeks the timeline) and the button to its tab.</li><li>Settings applied from a link re-render the tabs at once (the Localize tab could still show the level's default estimator while the link's one ran).</li><li>Experiments land in the workspace: the runs' paths are drawn on the map (a layer, coloured by configuration); when one numeric parameter is varied the chart is the metric against its value, a dot per run with the mean as a line; hovering a dot (or a bar) makes that run's path bold on the map and names it, and a click runs that setup live with its seed.</li><li>The telemetry dock takes the height that leaves the map at the world's 3:2 aspect (between 150 and 320 px) until the splitter is dragged, so the map no longer sits letterboxed between empty margins on the wide layout.</li><li>The Code tab's editor highlights comments, strings, numbers, keywords and the slot API's names, tints the line an error names, shows the line count, and says what the sandbox allows.</li></ul>"},{"v":34,"date":"2026-10-16","html":"<p>Phase 1, the learning path (from the assessment of 2026-10-15):</p><ul><li>Learn opens with a \"Start here\" card: who the lessons are for, what they assume, how lessons, chapters, levels and the Symbols tab relate, and a first pass of eight lessons with a reading time each (<code>src/ui/path.js</code>).</li><li>Opening a lesson sets the stage up as its first experiment would, without running it: the simulator on the lesson's level with its settings, tab and plot, or the Analyze view for a control lesson (<code>hold</code> in <code>tryGo</code>). Back from a chapter and the Try buttons leave the stage as it is.</li><li>Predict first: an experiment can carry a question with three answers, asked before its button; \"What you will see\" stays folded until the learner has picked one, then the pick and the measured answer are marked. Every lesson ends with a numeric self-check (type a number, Check; the working appears after a second miss). Picks and passed checks are remembered in this browser.</li><li>Progress: a dot per lesson (started, done), a bar per group and a count above the list, ticks on the first pass, \"Continue with lesson n\" on the Start here card; Next follows the first pass while the open lesson is on it.</li><li>The level panel's Try list is now \"Quick experiments\", with a line that names the lessons whose experiments run on this floor (a click opens the lesson), so the two experiment systems stop competing.</li><li>Chapter 8, Notation and references: the conventions (frames, truth and estimate, the three noise covariances M, Q and R, bearing b), the letters that mean two things, one symbol table by area, and the sixteen references the material draws on. Control lesson 1 names its chips in one line each before the later lessons use them; the longest sentences of chapters 1 and 6 are split.</li><li>The lessons move out of JavaScript: <code>docs/lessons/&lt;group&gt;/*.md</code>, one file per lesson, read by <code>tools/lessons.mjs</code> at build time and inlined as <code>LESSON_DATA</code>; the lesson objects the page sees are byte-identical (round-tripped). A content contributor never opens a <code>.js</code> file for a lesson now; the terms list stays in <code>glossary.js</code>.</li></ul>"},{"v":33,"date":"2026-10-16","html":"<p>README rewritten in plain language; the module map and the lesson/chapter format move to <code>src/README.md</code>; the learning tracks (classical, modular learning, end-to-end) join Phase 4 of the assessment and the roadmap (PR <a href=\"https://github.com/spz0git/nav-stack-lab/pull/54\" target=\"_blank\" rel=\"noopener\">#54</a>).</p>"},{"v":32,"date":"2026-10-16","html":"<p>Release series (open-source readiness, from the assessment of 2026-10-15):</p><ul><li>The built page is a complete standalone HTML document (doctype, charset, viewport, <code>lang</code>, CSP); it renders from any static host, not only inside the claude.ai artifact. <code>tests/wrap.py</code> is gone.</li><li>The four typefaces are embedded (<code>src/fonts/</code>, SIL OFL); the page makes no network request at runtime.</li><li>A public README with the GitHub Pages demo; maintainer rules in <code>docs/maintaining.md</code>.</li><li>Portable tests (<code>tests/_browser.py</code>, <code>tests/run_all.py</code>, <code>package.json</code>); Node golden tests over <code>dist/core-worker.js</code> with a committed baseline (<code>tests/node/golden.json</code>); GitHub Actions for CI, the nightly browser gate and the Pages deploy.</li><li>Lessons: the seed is pinned when a Try names a level, the order-dependent control Trys are self-contained, two numeric slips fixed, one notation (Q measurement, M odometry, R process noise, b bearing), the PID row and the kinematic sideslip number corrected.</li><li>Accessibility: light-mode amber darkened and the dimmed log lines and tab numbers made readable (WCAG AA), group labels on the status strip and the transport bar.</li><li>Removed from the tree: <code>legacy/</code> (the v1–v7 patch scripts; in the history up to this commit) and <code>docs/screenshots/</code> (40 MB of phase screenshots; kept on the <code>archive/screenshots</code> branch).</li></ul>"},{"v":31,"date":"2026-10-16","html":"<p>L7, the moose test: a road with a box in the lane for the car with tyre slip; the MPC with the tyre model in its prediction (<code>mpcDyn</code>); a lidar safety stop (PR <a href=\"https://github.com/spz0git/nav-stack-lab/pull/42\" target=\"_blank\" rel=\"noopener\">#42</a>).</p>"},{"v":30,"date":"2026-10-15","html":"<p>v29 feedback: sensor settings on Localize and Perceive, the previous run on every tab, Analyze lateral derivations with the step test played back, Analyze legends, the planner's search step by step (PRs <a href=\"https://github.com/spz0git/nav-stack-lab/pull/38\" target=\"_blank\" rel=\"noopener\">#38</a>–<a href=\"https://github.com/spz0git/nav-stack-lab/pull/41\" target=\"_blank\" rel=\"noopener\">#41</a>).</p>"},{"v":29,"date":"2026-10-15","html":"<p>Car with tyre slip: a third vehicle (dynamic bicycle model, linear tyres with a friction limit) with Grippy and Slippery floor presets, sideslip on the map, slip signals and a grip-limit health light, Analyze with the tyres in the plant, three control lessons, chapter 1 with the lab's car (PRs <a href=\"https://github.com/spz0git/nav-stack-lab/pull/33\" target=\"_blank\" rel=\"noopener\">#33</a>–<a href=\"https://github.com/spz0git/nav-stack-lab/pull/37\" target=\"_blank\" rel=\"noopener\">#37</a>).</p>"}];
+const WN = {pinned: false, timer: 0, seen: null, cur: 0};
+const WN_KEY = 'nav-stack-lab.seenVersion',
+  WN_REPO = 'https://github.com/spz0git/nav-stack-lab';
+function wnInit() {
+  const btn = $('#appver');
+  if (!btn || !CHANGES.length) return;
+  WN.cur = +((/v(\d+)/.exec(btn.textContent) || [])[1] || CHANGES[0].v);
+  try {
+    const s = localStorage.getItem(WN_KEY);
+    WN.seen = s == null ? null : +s;
+    if (WN.seen == null) localStorage.setItem(WN_KEY, String(WN.cur));
+  } catch (_) {}
+  const fresh = WN.seen != null && WN.seen < WN.cur;
+  btn.classList.toggle('has-new', fresh);
+  btn.setAttribute('aria-label', `Version ${WN.cur}${fresh ? ', updated since your last visit' : ''}: what's new`);
+  const pop = document.createElement('div');
+  pop.id = 'verpop';
+  pop.className = 'verpop';
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', "What's new");
+  pop.hidden = true;
+  document.body.appendChild(pop);
+  const later = () => {
+    clearTimeout(WN.timer);
+    WN.timer = setTimeout(() => !WN.pinned && wnShow(false), 250);
+  };
+  btn.addEventListener('pointerenter', e => {
+    if (e.pointerType !== 'mouse') return;
+    clearTimeout(WN.timer);
+    if (pop.hidden) WN.timer = setTimeout(() => wnShow(true), 120);
+  });
+  btn.addEventListener('pointerleave', e => e.pointerType === 'mouse' && later());
+  pop.addEventListener('pointerenter', () => clearTimeout(WN.timer));
+  pop.addEventListener('pointerleave', e => e.pointerType === 'mouse' && later());
+  btn.addEventListener('click', () => {
+    clearTimeout(WN.timer);
+    if (!pop.hidden && WN.pinned) wnShow(false);
+    else {
+      WN.pinned = true;
+      wnShow(true);
+      $('#verpop .wn-x').focus({preventScroll: true});
+    }
+  });
+  document.addEventListener(
+    'pointerdown',
+    e => {
+      if (!pop.hidden && !pop.contains(e.target) && !btn.contains(e.target)) wnShow(false);
+    },
+    true
+  );
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !pop.hidden) {
+      wnShow(false);
+      btn.focus();
+    }
+  });
+  addEventListener('resize', () => !pop.hidden && wnPlace());
+}
+// Opens (filled and placed under the label) or closes the popover; opening it counts as having seen this version
+function wnShow(on) {
+  const pop = $('#verpop'),
+    btn = $('#appver');
+  if (!on) {
+    pop.hidden = true;
+    WN.pinned = false;
+    btn.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  if (pop.hidden) pop.innerHTML = wnHTML();
+  pop.hidden = false;
+  btn.setAttribute('aria-expanded', 'true');
+  wnPlace();
+  pop.querySelector('.wn-x').onclick = () => {
+    wnShow(false);
+    btn.focus();
+  };
+  if (WN.seen == null || WN.seen < WN.cur) {
+    try {
+      localStorage.setItem(WN_KEY, String(WN.cur));
+    } catch (_) {}
+    btn.classList.remove('has-new');
+    btn.setAttribute('aria-label', `Version ${WN.cur}: what's new`);
+  }
+}
+function wnPlace() {
+  const pop = $('#verpop'),
+    r = $('#appver').getBoundingClientRect(),
+    w = Math.min(460, innerWidth - 16);
+  pop.style.left = Math.max(8, Math.min(r.left - 12, innerWidth - w - 8)) + 'px';
+  pop.style.top = r.bottom + 8 + 'px';
+}
+function wnHTML() {
+  const [now, ...before] = CHANGES,
+    seen = WN.seen,
+    isNew = c => seen != null && c.v > seen,
+    since = seen != null && seen < WN.cur ? ` <span class="wn-since">new since v${seen}, the version you last saw</span>` : '';
+  const rel = c =>
+    `<details class="wn-rel"${isNew(c) ? ' open' : ''}><summary><b>v${c.v}</b> <span class="lbl">${c.date}</span>${isNew(c) ? ' <span class="wn-new">new</span>' : ''}</summary><div class="wn-txt">${c.html}</div></details>`;
+  return (
+    `<div class="wn-head"><b>What's new in v${now.v}</b><span class="lbl">${now.date}</span><button type="button" class="ibtn wn-x" aria-label="Close">×</button></div>` +
+    (since ? `<p class="wn-note">${since}</p>` : '') +
+    `<div class="wn-txt">${now.html}</div>` +
+    (before.length ? `<h4 class="wn-h">Earlier versions</h4>${before.map(rel).join('')}` : '') +
+    `<p class="wn-foot">The full log, and what came before v${CHANGES[CHANGES.length - 1].v}: <a href="${WN_REPO}/blob/main/CHANGELOG.md" target="_blank" rel="noopener">CHANGELOG.md on GitHub</a></p>`
+  );
+}
+wnInit();
 
 /* ---- ui/loop.js ---- */
 /* ---------- main loop ---------- */

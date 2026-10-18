@@ -3,15 +3,15 @@ title: RRT*: sampling, rewiring, and luck
 
 <p><b>Why this matters.</b> Grids stop working when the state has more than a few dimensions: a 7-joint arm, a car with heading and speed, a drone. Sampling-based planners replaced them there, and RRT* is the one with a proof: it is asymptotically optimal, meaning that as the number of samples grows without limit its path converges to the optimum. What the proof does not say, and what this lesson shows, is how far from the optimum a finite budget leaves you, and how much of the answer is luck.</p>
 <p><b>The idea.</b> Grow a tree from the start. Each iteration draws a random point (the goal itself one time in ten), steps 0.6 m from the nearest tree node toward it, and, if the step is collision-free, connects the new node to the cheapest nearby parent rather than simply the nearest. Then it rewires: any neighbour that would be cheaper to reach through the new node is re-parented to it. The neighbourhood shrinks as the tree grows, so the work per iteration stays logarithmic while the tree keeps improving. After the budget is spent, the best node within a metre of the goal is connected to it and the path is read back through the parents.</p>
-<div class="eq">r = min(8 √(log n / n), 1.5 m)</div>
-<p><b>Where it comes from.</b> The proof of asymptotic optimality needs the neighbourhood radius to shrink no faster than γ√(log <i>n</i>/<i>n</i>) with γ above a constant set by the free area; then the expected number of neighbours grows like log <i>n</i>, enough for rewiring to keep finding improvements, and the cost converges to the optimum with probability one. The lab's γ = 8 is below the theoretical constant for this floor (about 22), which is common practice: the condition is sufficient, not necessary, and a theoretical γ would make every iteration examine most of the tree. <a class="chref" href="#notes=ch4/3-rrt-planning-by-sampling">Derivation: chapter 4 §3</a></p>
+$$r = \min\Bigl(8\sqrt{\frac{\log n}{n}},\ 1.5\ \text{m}\Bigr)$$
+<p><b>Where it comes from.</b> The proof of asymptotic optimality needs the neighbourhood radius to shrink no faster than $\gamma\sqrt{\log n / n}$ with $\gamma$ above a constant set by the free area; then the expected number of neighbours grows like $\log n$, enough for rewiring to keep finding improvements, and the cost converges to the optimum with probability one. The lab's $\gamma = 8$ is below the theoretical constant for this floor (about 22), which is common practice: the condition is sufficient, not necessary, and a theoretical $\gamma$ would make every iteration examine most of the tree. <a class="chref" href="#notes=ch4/3-rrt-planning-by-sampling">Derivation: chapter 4 §3</a></p>
 <p><b>What the lab does.</b> The sample budget is the Plan tab's RRT* samples slider (300 to 4000, 1500 by default). Segments are checked against the costmap at 0.45 m clearance (lethal plus 0.05). The search layer draws the tree; the event log reports the path length, the number of nodes that made it into the tree (rejected samples do not), and the time. The random stream is seeded, so the same seed gives the same tree, and the Next seed button advances it.</p>
 <p><b>Step through it.</b> Each Try below loads the level, plans, and pauses: the chip under the map plays the search one expansion at a time (◀ ▶ step, ▷ plays, the slider scrubs), with the newest node in red and its way back to the start in blue. Press <b>Run</b> (or Done) to drive.</p>
 
 ## Try: RRT*
 cfg: {"sim":true,"level":1,"set":{"plan":"rrtstar"},"tab":"plan","layers":{"search":true},"searchStep":true}
 Setup: L2 with RRT* at 1500 samples and the default seed; search layer on.
-See: A tree of about 870 nodes fans out over the floor in 10 to 20 ms, and the first leg comes out at 8.3 m, next to A*'s 8.6 m. The later legs are 12.7, 17.7 and 25.5 m against A*'s 13.0, 12.9 and 26.1; the third leg is 37 % longer because the tree committed to the far aisle. The mission completes in 81 s against 78 s for A*.
+See: A tree of about 870 nodes fans out over the floor in about 10 ms or less, and the first leg comes out at 8.3 m, next to A*'s 8.6 m. The later legs are 12.7, 17.7 and 25.5 m against A*'s 13.0, 12.9 and 26.1; the third leg is 37 % longer because the tree committed to the far aisle. The mission completes in 81 s against 78 s for A*.
 Shows: Sampling found the near-optimal route three times out of four and a clearly worse one once, in the same run, with the same settings. The path through the tree is only as good as the samples that happened to fall in the right aisle early; rewiring improves connections inside the radius, but it cannot move a subtree to a different aisle once the tree has grown past it.
 Predict: RRT* with 1500 samples on the warehouse: how will its four legs compare with A*'s?
 - All four within a few percent of A*
@@ -46,19 +46,19 @@ snippet: rrtstar
 focus: rad = Math.min(gam * Math.sqrt(Math.log(n + 1) / (n + 1)), 1.5), … r2 = rad * rad;
 focus: for (const i of near) { … Pa[i] = n;
 example: plan/rrtstar
-Note: The radius shrinks as the tree grows (the log n / n of the paper); the first loop over the near nodes picks the cheapest parent, the second rewires them through the new node. Edit and run: the RRT* example; delete the rewiring loop and you have plain RRT, and the path length shows it.
+Note: The radius shrinks as the tree grows (the $\log n / n$ of the paper); the first loop over the near nodes picks the cheapest parent, the second rewires them through the new node. Edit and run: the RRT* example; delete the rewiring loop and you have plain RRT, and the path length shows it.
 
 ## Think about
 Q: Why does the planner choose the cheapest parent in a radius rather than the nearest node?
 A: Connecting to the nearest node is RRT, which converges to a feasible path but not to the optimal one; its paths wander. Choosing the parent that gives the lowest cost-to-come, and then rewiring the neighbours, is what makes RRT* improve the tree as it grows. Without the rewiring step the tree never corrects an early bad connection.
 Q: The radius formula shrinks with n. What goes wrong if it is held fixed at 1.5 m?
-A: Nothing in the limit, but every iteration then has to examine every node within 1.5 m, which grows linearly with the tree, so the cost per iteration grows with n instead of with log n. The shrinking radius is the compromise that keeps enough neighbours to converge and few enough to stay fast.
+A: Nothing in the limit, but every iteration then has to examine every node within 1.5 m, which grows linearly with the tree, so the cost per iteration grows with $n$ instead of with $\log n$. The shrinking radius is the compromise that keeps enough neighbours to converge and few enough to stay fast.
 Q: Ten seeds give first legs between 8.3 and 15.3 m. What single number would you report?
 A: Not the mean. The median and the fraction of seeds within 10 % of the grid optimum say what a user will experience; the worst case says what a safety argument needs. Any one of them is better than the number from the seed you happened to run.
 
 ## Check yourself
-Q: The tree holds n = 800 nodes. What is the rewiring radius r = min(8 √(ln n / n), 1.5 m)?
+Q: The tree holds $n = 800$ nodes. What is the rewiring radius $r = \min\bigl(8\sqrt{\ln n / n},\ 1.5\ \text{m}\bigr)$?
 Answer: 0.731
 Tolerance: 0.015
 Unit: m
-How: ln 800 = 6.685; 6.685/800 = 0.008356; √ = 0.0914; × 8 = 0.73 m, below the 1.5 m cap
+How: $\ln 800 = 6.685$; $6.685/800 = 0.008356$; $\sqrt{0.008356} = 0.0914$; $\times\, 8 = 0.73$ m, below the 1.5 m cap

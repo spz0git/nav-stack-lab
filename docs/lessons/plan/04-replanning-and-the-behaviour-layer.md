@@ -3,8 +3,7 @@ title: Replanning and the behaviour layer
 
 <p><b>Why this matters.</b> A plan is a promise built on assumptions: the map is right, the estimate is right, the people will be where they were predicted, the robot will make progress. Every one of those breaks, routinely. The behaviour layer is the small piece of logic that notices and decides what to do: plan again, wait, give up on this goal. It is tiny compared with the planners it supervises and it determines most of what a user sees the robot do. The Mission tab draws it live because it is the part of the stack most worth watching.</p>
 <p><b>The idea.</b> Plans are cheap, milliseconds on this grid, so the policy is to replan whenever an assumption behind the current plan breaks rather than to make the plan robust to everything. The machine has a handful of states, PLAN, DRIVE, NO_PATH, LOST and DONE, and a set of triggers that move between them: a lethal cell on the path ahead, the estimate too far from the path, no progress in five seconds, a timer, a report from the speed planner that a person cannot be got past by slowing. Each trigger carries a reason, which the event log prints, so the log is a trace of which assumptions broke and when.</p>
-<div class="eq">DRIVE → PLAN on: path blocked · off path · stuck · periodic · agent blocking
-PLAN → NO_PATH → (2 s) PLAN, skip after 3</div>
+$$\begin{aligned} \text{DRIVE} &\to \text{PLAN} && \text{on: path blocked} \cdot \text{off path} \cdot \text{stuck} \cdot \text{periodic} \cdot \text{agent blocking} \\ \text{PLAN} &\to \text{NO\_PATH} \xrightarrow{\ 2\ \text{s}\ } \text{PLAN} && \text{skip after 3} \end{aligned}$$
 <p><b>Where it comes from.</b> There is nothing to derive; it is a design, and the design choices are the thresholds: a 6 m look-ahead on the path checked every 0.5 s, 1 m off the path, 0.15 m of progress in 5 s, three failures. The one trigger with a mechanism behind it is "agent blocking": for that single plan, the people's predicted discs over the next 2 s are stamped into the costmap as lethal, so the new route avoids where they will be, and the costmap is rebuilt clean afterwards. <a class="chref" href="#notes=ch4/5-the-mission-layer">The machine, the thresholds and goal ordering: chapter 4 §5</a></p>
 <p><b>What the lab does.</b> The Mission tab draws the state machine with the current state lit and the last transition highlighted; the event log carries each transition's reason. Goal ordering (in order, greedy, optimal) is decided once at mission start from costmap distances. The periodic replan slider adds a timer trigger; its replans are not logged, to keep the log readable, and they pre-empt the other triggers. A reached goal gets a tick on the map; a skipped one stays greyed without it, and its hover card says skipped.</p>
 
@@ -22,12 +21,12 @@ Answer: 1
 ## Try: Periodic replan every 1 s
 cfg: {"sim":true,"level":3,"set":{"replan":1},"tab":"mis"}
 Setup: The same level with a 1 s periodic replan.
-See: The log shows no "path blocked" replans at all, because the periodic plan, which is silent, always arrives first; about seventy plans run during the mission. The route is the same and the mission takes 70 s instead of 67: the plan is rebuilt from the current estimate every second, and each rebuild restarts the path slightly differently under the tracker.
-Shows: Replanning on a timer is the simple way to keep a plan fresh and it is almost free here, about 5 % of the mission time. On a real vehicle the cost is different: each new plan can differ from the last by a lane's width, and a tracker following a path that keeps moving oscillates. Event-triggered replanning changes the plan only when something changed; periodic replanning changes it whether or not anything did.
-Predict: Add a 1 s periodic replan. What happens to the "path blocked" replans in the log?
-- They disappear: the silent timer plan always arrives first
-- They double: each wall is caught by both triggers
-- Unchanged: the timer only adds plans between them
+See: About seventy plans run during the mission, and the log shows four of them, the fresh plans at the goals: no "path blocked" replan this time, because each time a wall appeared across the route a periodic plan, which is silent, came before the next half-second path check and had already gone around it. The route is the same and the mission takes 70 s instead of 67: the plan is rebuilt from the current estimate every second, and each rebuild restarts the path slightly differently under the tracker.
+Shows: Replanning on a timer is the simple way to keep a plan fresh and it is almost free here, about 5 % of the mission time. On a real vehicle the cost is different: each new plan can differ from the last by a lane's width, and a tracker following a path that keeps moving oscillates. Event-triggered replanning changes the plan only when something changed; periodic replanning changes it whether or not anything did. Which trigger catches a new wall is a race between the timer and the path check: on this seed the timer wins every time, on others one or two "path blocked" lines still appear (seeds 1 and 2 have two each). The number of plans, about seventy, is the same on every seed.
+Predict: Add a 1 s periodic replan. How many plans will the mission run, and how many will the log show?
+- About seventy, one a second, but the log shows only a handful: periodic plans are not logged
+- About seven, as before: the timer only fires when no other trigger has
+- About seventy, each with its own line in the log
 Answer: 0
 
 ## Try: Agent-blocking replans
@@ -38,7 +37,7 @@ Shows: The layered design: the trajectory layer (speed) handles most people by s
 Predict: On the busy floor, how often will the speed planner escalate from slowing to an "agent blocking" replan?
 - At every encounter with a person
 - Never: slowing always resolves a conflict in a wide aisle
-- A couple of times in the whole run
+- Two or three times in the whole run
 Answer: 2
 
 ## Code: missionTick, the replan triggers
@@ -61,4 +60,4 @@ Q: The path-blocked check looks 6 m ahead along the path. At the cruise speed of
 Answer: 7.5
 Tolerance: 0.15
 Unit: s
-How: 6 m / 0.8 m/s = 7.5 s of warning for a wall that appears at the far end of the look-ahead
+How: $6\ \text{m} / 0.8\ \text{m/s} = 7.5$ s of warning for a wall that appears at the far end of the look-ahead

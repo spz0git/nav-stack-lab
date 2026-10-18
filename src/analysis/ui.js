@@ -1206,10 +1206,10 @@ $('#an-wi-x').onclick = () => {
 
 /* ---------- the loop in plain words, with the gains in physical units ---------- */
 const d10 = (10 * Math.PI) / 180;
-function gainWords(M, Ke, Kth) {
-  // what the controller does for a 10 cm offset and a 10° heading error
+function gainWords(M, Ke, Kth, bare) {
+  // what the controller does for a 10 cm offset and a 10° heading error; bare: the verb after "would" (steer, turn)
   const car = M.car,
-    u = car ? 'steers' : 'turns';
+    u = (car ? 'steer' : 'turn') + (bare ? '' : 's');
   const f = v => `${fmt((Math.abs(v) * 180) / Math.PI, 1)}°${car ? '' : '/s'}`;
   return `<b>${u} ${f(Ke * 0.1)}</b> back toward the path for every <b>10 cm</b> of sideways offset, and <b>${f(Kth * d10)}</b> for every <b>10°</b> the heading points away from the path`;
 }
@@ -1327,7 +1327,7 @@ function anPzCaption(R) {
     const ap = wi.set,
       neg = wi.Kth < 0;
     h +=
-      `<p><b>What-if:</b> ${wi.unstable ? `<b class="bad">unstable</b>: the slowest pair ${modeTxt(wi.dom)}` : modeTxt(wi.dom)}${wi.unstable ? '' : `, overshoot ${fmt(wi.sm.overshoot, 0)} %, back within 2 % after ${fmt(wi.sm.settle * v, 1)} m`}. ${wi.beyond ? `${CTL_NAMES[R.M.ctl]}'s knob cannot leave its curve, so this is the two-gain form u = −(K<sub>e</sub>e + K<sub>θ</sub>θₑ) with K<sub>e</sub> ${fmt(wi.Ke)} and K<sub>θ</sub> ${fmt(wi.Kth)}. ` : ''}${wi.knob ? '' : neg ? `It needs a <b>negative heading gain</b> (K<sub>θ</sub> = ${fmt(wi.Kth)}): the controller would turn further away the more the heading points away, which pumps energy into the swing.` : `The controller would ${gainWords(R.M, wi.Ke, wi.Kth)}.`}${wi.err != null && wi.err > 0.05 * Math.hypot(wi.tg[0], wi.tg[1]) ? ' The delay keeps the pole from landing exactly where you dragged it.' : ''}</p>` +
+      `<p><b>What-if:</b> ${wi.unstable ? `<b class="bad">unstable</b>: the slowest pair ${modeTxt(wi.dom)}` : modeTxt(wi.dom)}${wi.unstable ? '' : `, overshoot ${fmt(wi.sm.overshoot, 0)} %, back within 2 % after ${fmt(wi.sm.settle * v, 1)} m`}. ${wi.beyond ? `${CTL_NAMES[R.M.ctl]}'s knob cannot leave its curve, so this is the two-gain form u = −(K<sub>e</sub>e + K<sub>θ</sub>θₑ) with K<sub>e</sub> ${fmt(wi.Ke)} and K<sub>θ</sub> ${fmt(wi.Kth)}. ` : ''}${wi.knob ? '' : neg ? `It needs a <b>negative heading gain</b> (K<sub>θ</sub> = ${fmt(wi.Kth)}): the controller would turn further away the more the heading points away, which pumps energy into the swing.` : `The controller would ${gainWords(R.M, wi.Ke, wi.Kth, true)}.`}${wi.err != null && wi.err > 0.05 * Math.hypot(wi.tg[0], wi.tg[1]) ? ' The delay keeps the pole from landing exactly where you dragged it.' : ''}</p>` +
       (wi.knob || wi.applicable
         ? `<p><button type="button" class="btn small" id="an-wi-apply">${ap.ctl && ap.ctl !== P.ctl ? 'Switch to rear-wheel feedback with ' : 'Apply '}${wi.setTxt.replace('k_e', 'k<sub>e</sub>').replace('k_θ', 'k<sub>θ</sub>')}</button>${wi.clamped ? ' <span class="note">(clamped to the slider range)</span>' : ''}</p>`
         : `<p class="note">Not applicable: rear-wheel feedback would need k<sub>e</sub> = ${fmt(wi.need.ke, 1)}, k<sub>θ</sub> = ${fmt(wi.need.kth, 1)}, and its settings stop at 0. It is here to show what an unstable loop does.</p>`);

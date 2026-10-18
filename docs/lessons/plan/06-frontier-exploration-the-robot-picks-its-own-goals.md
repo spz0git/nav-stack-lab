@@ -3,10 +3,9 @@ title: Frontier exploration: the robot picks its own goals
 
 <p><b>Why this matters.</b> Every mission so far was given its goals. A robot that has to map a building it has never seen cannot be: nobody knows yet where the rooms are. Exploration is the mission layer choosing goals for itself, and the classic way to do it, frontier exploration, is almost embarrassingly simple: drive to the edge of what you know. It is what a vacuum robot does on its first run and what a survey robot does in a mine, and it is the first time in these lessons that the goal is a means and not an end.</p>
 <p><b>The idea.</b> A frontier cell is a known-free cell with an unknown neighbour: standing there, the lidar would see something new. Group the frontier cells into connected clusters, drop the tiny ones, and you have a short list of candidate goals. Pick one, drive there, let the map grow, pick again, and stop when the list is empty: the building is mapped. The only decisions are which frontier to go to (the lab scores each by its size divided by its distance, so a big one nearby wins over a bigger one far away) and when to give up on a goal (the moment none of its cells borders unknown space any more, which usually happens before the robot arrives, because the way there reveals what was behind it).</p>
-<div class="eq">frontier cell:  known free (l < −0.05) with an unknown 4-neighbour (|l| < 0.05), no seen wall within the lethal radius
-frontier:  an 8-connected cluster of ≥ N_min cells,  goal = the known-free cell nearest its centroid, a margin beyond the inflation
-score = size / (1 + d)        d = distance from the estimate; the highest score is the next goal
-done:  no frontier left, or none that has not failed</div>
+<p>In the map's log-odds $l$, a frontier cell is known free ($l < -0.05$) with an unknown 4-neighbour ($|l| < 0.05$) and no seen wall within the lethal radius. A frontier is an 8-connected cluster of at least $N_{\min}$ cells, and its goal is the known-free cell nearest its centroid, a margin beyond the inflation. Each frontier is scored</p>
+$$\text{score} = \frac{\text{size}}{1 + d}, \qquad d = \text{distance from the estimate}$$
+<p>and the highest score is the next goal. Exploration is done when no frontier is left, or none that has not failed.</p>
 <p><b>Where it comes from.</b> Yamauchi's 1997 paper, which named the method; the score is one of the simplest utility functions, and the derivation of a better one, expected information gain per metre, is where the research went next. <a class="chref" href="#notes=ch4/7-frontier-exploration-the-robot-picks-its-own-goals">The definitions, the goal cell and the measured runs: chapter 4 §7</a></p>
 <p><b>What the lab does.</b> Mission → Goal order → Explore turns it on, on any level with lidar mapping (Perceive → Map source). The level's goals are ignored; the Frontiers layer paints every frontier amber and the chosen one brighter; the status strip and the Mission tab show the floor seen, the share of the true free floor whose cells are known. The event log carries each pick with its size, the number of frontiers and the floor seen, and every goal dropped as "seen on the way". All numbers below are from L4 at seed 7.</p>
 
@@ -36,22 +35,22 @@ Answer: 1
 cfg: {"sim":true,"level":3,"set":{"mis":"explore","exploreMin":20},"tab":"mis"}
 Setup: Explore with the smallest frontier worth a visit raised from 6 to 20 cells.
 See: 99 % seen in 102 s and 78 m, 13 goals: the run skips a 14-cell frontier near (11.6, 1.3) that the default run drove 20 s to look at last. With the threshold at 2 cells it is 141 s and 107 m for the same 100 %.
-Shows: The threshold is a budget. Small frontiers are slivers seen through doorways and gaps between cells the lidar grazed; most of them are seen on the way to something else, and the few that are not cost a trip each for a few square decimetres of floor. A survey wants them; a vacuum does not.
+Shows: The threshold is a budget. Small frontiers are slivers seen through doorways and gaps between cells the lidar grazed; most of them are seen on the way to something else, and the few that are not cost a trip each for a few square decimetres of floor. A survey wants them; a vacuum does not. How much the threshold saves varies from run to run: here 21 s, on seeds 1 to 5 from nothing (seeds 4 and 5, where no small frontier was left over for the end) to half a minute. It never made a run slower or the coverage larger.
 Predict: Ignore every frontier under 20 cells. What happens to the time and the coverage?
-- Faster, and a little less of the floor seen
+- Faster, or the same when no small frontier is left over; at most a sliver less of the floor seen
 - Slower: the small frontiers were the near ones
-- The same: small frontiers are seen on the way anyway
+- More of the floor seen: the trips go to the big frontiers instead
 Answer: 0
 
 ## Try: Explore with unknown as lethal
 cfg: {"sim":true,"level":3,"set":{"mis":"explore","unknownAs":"lethal"},"tab":"per"}
 Setup: Explore under the cautious policy, Perceive → Unknown cells → lethal, where the planners refuse to plan through unseen space. Perceive tab.
-See: The robot explores, 100 % in 158 s and 112 m against 123 s and 94 m with unknown as free. The first pick waits for the first scan (0.5 s) and every goal sits a lethal radius back from the frontier, on seen floor; the plans go through seen space only, so each leg is a little longer and each room is entered more carefully, with one brush against a shelf on the way.
-Shows: Under the cautious policy a goal in the unknown is forbidden, which is why a hand-placed goal in an unseen room stalls the mission (chapter 4 §5), but a frontier goal is by construction on seen floor, so exploration is the one mission that the policy does not block. The price is a plan that never cuts through a room it has not looked into, which is exactly what the policy is for.
+See: The robot explores, 100 % in 158 s and 112 m against 123 s and 94 m with unknown as free. The first pick waits for the first scan (0.5 s) and every goal sits a lethal radius back from the frontier, on seen floor; the plans go through seen space only, so each leg is a little longer. There is one collision, at 123 s, on the way to the last frontier.
+Shows: Under the cautious policy a goal in the unknown is forbidden, which is why a hand-placed goal in an unseen room stalls the mission (chapter 4 §5), but a frontier goal is by construction on seen floor, so exploration is the one mission that the policy does not block. The price is a plan that never cuts through a room it has not looked into, which is exactly what the policy is for. How much it costs varies from run to run: on seeds 1 to 5 the cautious run is from 5 s faster to a minute slower than with unknown as free, with one to four collisions where the free run has at most one, and on seed 3 it gives up at 99 % with four frontiers it cannot reach.
 Predict: Treat unknown space as lethal. Can the robot explore at all?
 - No: every frontier is next to the unknown, which is forbidden
-- Yes, a little slower: the goals stay on seen floor and the plans go only through it
-- Yes, and faster: fewer dead ends
+- Yes: the goals stay on seen floor and the plans go only through it
+- Only the first room: every door leads into unknown space
 Answer: 1
 
 ## Try: Explore with DWA
@@ -80,8 +79,8 @@ Q: With RRT* the exploration stalls at 86 % with seven frontiers that cannot be 
 A: Separate the cause. If the goal is unreachable, mark it and move on, as here; if the planner is unreliable, change the planner, since a sampling planner that fails in doorways is the wrong tool for a building; and if the robot is physically wedged, recovery behaviours (back up, rotate, clear the costmap) come before any of this. Exploration only chooses where to go; everything below it still has to work.
 
 ## Check yourself
-Q: A frontier of 300 cells lies 5 m away and scores 300 / (1 + 5) = 50. At most how far away may a frontier of 80 cells be to beat it?
+Q: A frontier of 300 cells lies 5 m away and scores $300 / (1 + 5) = 50$. At most how far away may a frontier of 80 cells be to beat it?
 Answer: 0.6
 Tolerance: 0.02
 Unit: m
-How: 80 / (1 + d) > 50 → 1 + d < 1.6 → d < 0.6 m: the small one wins only when it is almost at the robot's feet
+How: $80 / (1 + d) > 50 \Rightarrow 1 + d < 1.6 \Rightarrow d < 0.6$ m: the small one wins only when it is almost at the robot's feet

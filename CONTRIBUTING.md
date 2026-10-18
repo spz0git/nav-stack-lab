@@ -55,7 +55,8 @@ Every pull request:
 Lessons are markdown files in `docs/lessons/<group>/*.md`: front matter (group, title), the body, then one
 `## Try: Label` section per experiment (`cfg:` as JSON, `Setup:`, `See:`, `Shows:`, a `Predict:` question with its
 `- options` and the `Answer:` index), `## Think about` (Q:/A: pairs) and `## Check yourself` (Q:, Answer:, Tolerance:,
-Unit:, How:); the header of `tools/lessons.mjs` documents the format and the build inlines them. Chapters are
+Unit:, How:); math is TeX as in the chapters (`$…$` inline, `$$…$$` display, turned into MathML at build time by
+`tools/tex.mjs`); the header of `tools/lessons.mjs` documents the format and the build inlines them. Chapters are
 `docs/notes/*.md` (markdown + TeX, `{{live:key}}` values from `src/ui/chapters.js`, `[try: Label | {cfg}]` buttons;
 the header of `tools/notes.mjs` documents both). A new lesson's terms go in `LESSON_TERMS` in
 `src/analysis/glossary.js`, keyed by its title.

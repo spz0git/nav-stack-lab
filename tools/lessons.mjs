@@ -13,10 +13,13 @@
 //     Note: …                  what to look at, what to change
 //   ## Think about           "Q: …" and "A: …" pairs
 //   ## Check yourself        Q: … / Answer: <number> / Tolerance: <number> / Unit: … / How: …
+// Math is TeX, as in the companion notes: $ … $ inline, $$ … $$ display (in the body it may span lines; in a one-line
+// field it stays on that line). The build turns it into MathML (tools/tex.mjs); the page never sees the TeX.
 // The output has the same shape as the objects the JS files used to hold: {t, b, tries:[[label, cfg, {setup, see,
 // shows, predict:{q, opts, a}}]], q:[[question, answer]], check:{q, a, tol, unit, how}}.
 import fs from 'node:fs';
 import path from 'node:path';
+import {texText} from './tex.mjs';
 const GROUPS = ['loc', 'per', 'plan', 'ctl'];
 export function parseLesson(md, file) {
   const lines = md.split('\n');
@@ -116,7 +119,26 @@ export function parseLesson(md, file) {
       L.check = {q: c.q, a: c.a, tol: c.tol, unit: c.unit || '', how: c.how};
     } else throw new Error(`${file}: unknown section "${sec}"`);
   }
+  if (/class="eq"/.test(L.b)) throw new Error(`${file}: a <div class="eq"> block: write the formula in TeX ($$ … $$)`);
+  texLesson(L, file);
   return {group: meta.group, extra: meta.extra === 'true', L};
+}
+// Every text field of a parsed lesson: TeX → MathML
+function texLesson(L, file) {
+  const t = s => texText(s, file);
+  L.b = t(L.b);
+  for (const tr of L.tries) {
+    const x = tr[2];
+    if (!x) continue;
+    for (const k of ['setup', 'see', 'shows']) if (x[k]) x[k] = t(x[k]);
+    if (x.predict) {
+      x.predict.q = t(x.predict.q);
+      x.predict.opts = x.predict.opts.map(t);
+    }
+  }
+  if (L.code && L.code.note) L.code.note = t(L.code.note);
+  if (L.q) L.q = L.q.map(([q, a]) => [t(q), t(a)]);
+  if (L.check) for (const k of ['q', 'how']) if (L.check[k]) L.check[k] = t(L.check[k]);
 }
 export function buildLessons(dir = 'docs/lessons') {
   const out = {};

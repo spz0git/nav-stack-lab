@@ -968,7 +968,8 @@ const LESSON_TERMS = {
     'opoint findiff thdot gpl uc u0 edot v0c the pp rwf curv feedforward stanley pid offset steptest steerrate'
 };
 const lessonTerms = L => (LESSON_TERMS[L.t] || '').split(' ').filter(id => GLOSS[id]);
-// Wrap the first occurrence of each listed term in the lesson HTML (prose and equations) in a focusable .term span.
+// Wrap the first occurrence of each listed term in the lesson HTML (prose and the plain-text equations; not inside
+// MathML) in a focusable .term span.
 // Tags are copied through; a match must not continue a word or an index (θ̇ₑ is not θ, w_i is not w).
 function glossMark(html, ids) {
   const pats = [];
@@ -1006,6 +1007,13 @@ function glossMark(html, ids) {
       out += done.has(id) ? s : `<span class="term" tabindex="0" data-g="${id}">${s}</span>`;
       done.add(id);
       i += s.length;
+      continue;
+    }
+    if (html.startsWith('<math', i)) {
+      // a formula (MathML from the lesson's TeX) is copied whole: a span inside it would not render
+      const j = html.indexOf('</math>', i) + 7;
+      out += html.slice(i, j);
+      i = j;
       continue;
     }
     if (html[i] === '<' && /[A-Za-z\/!]/.test(html[i + 1] || '')) {

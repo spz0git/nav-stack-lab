@@ -8,17 +8,8 @@
 // Front matter (first lines "key: value" before the title) gives id, sys and summary.
 import fs from 'node:fs';
 import path from 'node:path';
-import {createRequire} from 'node:module';
-const temml = createRequire(import.meta.url)('./vendor/temml/temml.cjs');
+import {tex} from './tex.mjs';
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-function tex(src, display) {
-  try {
-    return temml.renderToString(src, {displayMode: display, throwOnError: true, strict: false});
-  } catch (e) {
-    console.error('TeX error in notes:', e.message, '\n  ' + src);
-    process.exit(1);
-  }
-}
 function inline(s) {
   const out = [];
   let i = 0;

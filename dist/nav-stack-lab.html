@@ -348,6 +348,7 @@ dialog:focus-visible {
   z-index: 40;
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr); /* the row is held to the menu's height, so the level list and the brief scroll */
   max-height: min(640px, calc(100vh - 80px));
   background: var(--raise);
   border: 1px solid var(--line);

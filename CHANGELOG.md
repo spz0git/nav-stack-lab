@@ -3,6 +3,11 @@
 The version label in the page header (`v40 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- Level menu on desktop: a floor with many quick experiments (L3–L7) cut the last ones off with no way to scroll; the
+  menu's row is now held to its height, so the list scrolls. `p5test.py` checks every level at 1440 × 900 and 1280 × 720.
+
 ## v45 · 2026-10-17
 
 - Training in the page (Tools → Train): retrain the people detector or the end-to-end policy from the GUI. Data from

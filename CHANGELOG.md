@@ -5,6 +5,14 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 ## Unreleased
 
+- The Simulate tabs' "How it works" panels are typeset too, and so are the two formulas in Analyze's derivations
+  (with today's numbers in them). In JS source, a template literal tagged `TEX` holds TeX; the build rewrites it into
+  MathML (`texSource` in `tools/tex.mjs`), so the page still never sees TeX. The state machine in Mission's panel is now
+  a list of transitions. Fixed for all math: the columns of aligned equations were centred (temml's alignment classes
+  had no CSS), so `=` signs did not line up in lessons, chapters or panels.
+
+## v47 · 2026-10-18
+
 - Lesson math is typeset: the lessons take TeX like the companion notes (`$…$` inline, `$$…$$` display), turned into
   MathML at build time (`tools/tex.mjs`, shared with the notes; the page keeps zero runtime dependencies). All 41 lessons
   converted: matrices, aligned systems, fractions and subscripts instead of plain-text `G = [1 0 −vΔt sin θ; …]`. The
@@ -15,12 +23,7 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   8, Control 18) whose Predict questions each asked about the next Try. Dead reckoning's "Noise ×3" now asks what
   reliably triples (the 2σ band), since the error itself was 2–9× the ×1 run's at different moments of seed 7 and 0.5–2.9×
   in RMS over seeds 1–8.
-- The Simulate tabs' "How it works" panels are typeset too, and so are the two formulas in Analyze's derivations
-  (with today's numbers in them). In JS source, a template literal tagged `TEX` holds TeX; the build rewrites it into
-  MathML (`texSource` in `tools/tex.mjs`), so the page still never sees TeX. The state machine in Mission's panel is now
-  a list of transitions. Fixed for all math: the columns of aligned equations were centred (temml's alignment classes
-  had no CSS), so `=` signs did not line up in lessons, chapters or panels.
-- The what-if caption in Analyze says "would turn" / "would steer" (it said "would turns").
+- The what-if caption in Analyze says "would turn" / "would steer" (it said "would turns"). (PR #100)
 
 ## v46 · 2026-10-18
 

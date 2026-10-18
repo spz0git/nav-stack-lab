@@ -1,1 +1,1 @@
-{"version": 48, "date": "2026-10-18", "note": "The How it works panels and Analyze's derivation formulas typeset (TeX → MathML at build time); aligned equations line up in lessons, chapters and panels (PR #101)"}
+{"version": 49, "date": "2026-10-18", "note": "What's new: the version label opens the release log, with releases since your last visit marked new (PR #102)"}

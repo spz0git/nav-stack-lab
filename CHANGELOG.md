@@ -1,15 +1,15 @@
 # Changelog
 
-The version label in the page header (`v48 · 2026-10-18`) is the number used here; `src/version.json` holds it.
+The version label in the page header (`v49 · 2026-10-18`) is the number used here; `src/version.json` holds it.
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v49 · 2026-10-18
 
 - What's new: the version label in the header opens this log. Hover over it, or tap it on a phone, to see what
   changed in the current version and in the ones before it; versions released since your last visit are marked new,
   and the label carries a dot until you have looked.
-- The log has entries again for v41 to v44, which were missing.
+- The log has entries again for v41 to v44, which were missing. (PR #102)
 
 ## v48 · 2026-10-18
 

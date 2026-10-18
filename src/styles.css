@@ -1754,13 +1754,39 @@ details.how summary {
 .how-body p {
   max-width: 65ch;
 }
-/* lesson math: MathML from the lessons' TeX (tools/tex.mjs), set like the companion notes' */
-.how-body math {
+/* the classes temml puts on its MathML (its own stylesheet is not shipped): the columns of aligned, which otherwise
+   centre; the extra row space of aligned; the italic correction before a superscript. Chromium needs -webkit-left. */
+math .tml-left {
+  text-align: left;
+  text-align: -webkit-left;
+}
+math .tml-right {
+  text-align: right;
+  text-align: -webkit-right;
+}
+math .tml-jot > mtr > mtd {
+  padding-top: 0.25em;
+  padding-bottom: 0.25em;
+}
+math .tml-sml-pad {
+  padding-left: 0.05em;
+}
+math .tml-med-pad {
+  padding-left: 0.1em;
+}
+math .tml-lrg-pad {
+  padding-left: 0.15em;
+}
+/* math in the lessons, the How it works panels and the Analyze derivations: MathML from TeX (tools/tex.mjs), set like
+   the companion notes' */
+.how-body math,
+.an-tf math {
   font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', 'Noto Sans Math', math;
   font-size: 1.08em;
   color: var(--ink);
 }
-.how-body .math {
+.how-body .math,
+.an-tf .math {
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
@@ -1769,7 +1795,8 @@ details.how summary {
   border: 1px solid var(--line);
   border-radius: var(--r-ctl);
 }
-.how-body .math math {
+.how-body .math math,
+.an-tf .math math {
   font-size: 1.12em;
 }
 .bs-list {
@@ -1805,17 +1832,6 @@ details.how summary {
 }
 .bs-muted {
   color: var(--muted);
-}
-.eq {
-  font-family: var(--f-mono);
-  font-size: var(--fs-small);
-  background: var(--raise);
-  border: 1px solid var(--line);
-  border-radius: var(--r-ctl);
-  padding: 8px 10px;
-  overflow-x: auto;
-  white-space: pre;
-  line-height: 1.55;
 }
 textarea {
   width: 100%;
@@ -2288,7 +2304,7 @@ canvas.an-drag:focus-visible {
   margin: 0 0 4px;
   max-width: 95ch;
 }
-.an-tf .eq {
+.an-tf .math {
   margin: 4px 0;
 }
 .btn.small {

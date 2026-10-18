@@ -1,1 +1,1 @@
-{"version": 45, "date": "2026-10-17", "note": "Training in the page: retrain the people detector and the end-to-end policy (Tools → Train), maps of your own and random obstacles as data, trained models picked in Perceive and Plan; settings kept across a level change; MPC real-time budget as a setting (PR #97)"}
+{"version": 46, "date": "2026-10-18", "note": "The level menu scrolls when a level's quick experiments are longer than the menu (L3–L7 were cut off); Reset all progress asks for a second click instead of confirm(), which the artifact's frame blocked (PR #99)"}

@@ -3,6 +3,13 @@
 The version label in the page header (`v40 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v46 · 2026-10-18
+
+- The level menu scrolls: its grid row grew with the content past the menu's capped height, so on L3–L7 the last
+  quick experiments were cut off with no scrollbar.
+- Reset all progress works in the published artifact: it asked with `confirm()`, which the artifact's sandboxed frame
+  blocks (it returned false without asking). It now asks for a second click within 4 s. (PR #99)
+
 ## v45 · 2026-10-17
 
 - Training in the page (Tools → Train): retrain the people detector or the end-to-end policy from the GUI. Data from

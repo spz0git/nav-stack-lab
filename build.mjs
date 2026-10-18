@@ -4,6 +4,7 @@ import path from 'node:path';
 import {execSync} from 'node:child_process';
 import {buildNotes} from './tools/notes.mjs';
 import {buildLessons} from './tools/lessons.mjs';
+import {buildChangelog} from './tools/changelog.mjs';
 import {buildCode, buildExamples, buildModels} from './tools/code.mjs';
 import {texSource} from './tools/tex.mjs';
 const src = p => fs.readFileSync(path.join('src', p), 'utf8');
@@ -12,6 +13,7 @@ const mod = f => texSource(src(f), 'src/' + f);
 const manifest = JSON.parse(src('manifest.json'));
 const notes = buildNotes(); // docs/notes/*.md → the Learn column's companion chapters
 const lessons = buildLessons(); // docs/lessons/<group>/*.md → the lessons
+const changes = buildChangelog(); // CHANGELOG.md → What's new under the version label
 const code = buildCode(), // the "// @code" snippets the lessons show
   examples = buildExamples(), // src/examples → the Code tab's slot examples
   models = buildModels(); // src/models → the learned blocks' weights
@@ -32,7 +34,8 @@ const inlineData = s =>
 const js = inlineData(manifest.map(f => `/* ---- ${f} ---- */\n` + mod(f)).join('\n'))
   // the placeholders are a comment plus an empty literal, matched loosely so that a formatter cannot break them
   .replace(/\/\*__CHAPTERS__\*\/\s*\[\s*\]/, () => JSON.stringify(notes).replace(/<\/script/g, '<\\/script'))
-  .replace(/\/\*__LESSONS__\*\/\s*\{[^}]*\}/, () => JSON.stringify(lessons).replace(/<\/script/g, '<\\/script'));
+  .replace(/\/\*__LESSONS__\*\/\s*\{[^}]*\}/, () => JSON.stringify(lessons).replace(/<\/script/g, '<\\/script'))
+  .replace(/\/\*__CHANGES__\*\/\s*\[\s*\]/, () => JSON.stringify(changes).replace(/<\/script/g, '<\\/script'));
 // Version label: src/version.json is bumped with every release (no build time or commit hash, so dist/ stays reproducible)
 const ver = JSON.parse(src('version.json')),
   verText = `v${ver.version} · ${ver.date}`;
@@ -45,7 +48,6 @@ const fonts = JSON.parse(src('fonts/fonts.json'))
   .join('\n');
 const page = src('index.html')
   .replace('/*__FONTS__*/', () => fonts)
-  .replace('__VERSION_TITLE__', () => `Nav Stack Lab v${ver.version}, released ${ver.date}${ver.note ? ': ' + ver.note : ''}`)
   .replace('__VERSION__', () => verText)
   .replace('/*__CSS__*/', () => src('styles.css').trimEnd())
   .replace('/*__JS__*/', () => "(()=>{\n'use strict';\n" + js + '\n})();');
@@ -71,11 +73,11 @@ const page2 = page.replace('/*__WORKER__*/', () => worker.replace(/<\/script/g, 
 if (
   !/"id":"ch1"/.test(page2) ||
   !/"t":"Dead reckoning drifts/.test(page2) ||
-  /__EXAMPLES__|__CODE__|__MODELS__/.test(page2) ||
+  /__EXAMPLES__|__CODE__|__MODELS__|__CHANGES__/.test(page2) ||
   /\bTEX`/.test(page2)
 ) {
   console.error(
-    'BUILD FAILED: the chapters, the lessons, the examples, the code snippets or a TEX`…` literal did not get inlined (placeholder mismatch)'
+    'BUILD FAILED: the chapters, the lessons, the changelog, the examples, the code snippets or a TEX`…` literal did not get inlined (placeholder mismatch)'
   );
   process.exit(1);
 }

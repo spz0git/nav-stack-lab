@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {tex} from './tex.mjs';
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-function inline(s) {
+export function inline(s) {
   const out = [];
   let i = 0;
   // protect inline math and code from the other substitutions

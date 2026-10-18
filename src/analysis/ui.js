@@ -1384,7 +1384,11 @@ function anTFkin(R) {
       b = g * v * M.Ke,
       wn = Math.sqrt(Math.max(0, b)),
       z = wn > 0 ? a / (2 * wn) : 0;
-    h += `Open loop from the ${M.car ? 'steering' : 'turn-rate'} command around to itself: L(s) = (g K<sub>θ</sub> s + g v₀ K<sub>e</sub>) / s² · e<sup>−sT<sub>d</sub></sup>${M.tau > 0 ? ' · 1/(τs+1)' : ''}, with g = ${M.car ? `v₀/L = ${fmt(g, 2)} 1/s` : '1'}, K<sub>e</sub> = ${fmt(M.Ke, 2)}, K<sub>θ</sub> = ${fmt(M.Kth, 2)}:</p><div class="eq">L(s) = (${fmt(a, 2)} s + ${fmt(b, 2)}) / s² · ${dl}${lag}</div>
+    h += `Open loop from the ${M.car ? 'steering' : 'turn-rate'} command around to itself: L(s) = (g K<sub>θ</sub> s + g v₀ K<sub>e</sub>) / s² · e<sup>−sT<sub>d</sub></sup>${M.tau > 0 ? ' · 1/(τs+1)' : ''}, with g = ${M.car ? `v₀/L = ${fmt(g, 2)} 1/s` : '1'}, K<sub>e</sub> = ${fmt(M.Ke, 2)}, K<sub>θ</sub> = ${fmt(M.Kth, 2)}:</p>${
+      M.tau > 0
+        ? TEX`$$L(s) = \frac{${fmt(a, 2)}\,s + ${fmt(b, 2)}}{s^2}\, e^{-${fmt(M.Td, 3)}\,s} \cdot \frac{1}{${fmt(M.tau, 2)}\,s + 1}$$`
+        : TEX`$$L(s) = \frac{${fmt(a, 2)}\,s + ${fmt(b, 2)}}{s^2}\, e^{-${fmt(M.Td, 3)}\,s}$$`
+    }
       <p>Without the delay the closed loop is s² + ${fmt(a, 2)} s + ${fmt(b, 2)} = 0, so ω<sub>n</sub> = √(g v₀ K<sub>e</sub>) = ${fmt(wn, 2)} rad/s and ζ = g K<sub>θ</sub> / (2ω<sub>n</sub>) = ${fmt(z, 2)}; the exact 20 Hz loop with the delay gives ω<sub>n</sub> ${fmt(R.wn, 2)}, ζ ${fmt(R.zeta, 2)}. Units: s in 1/s, K<sub>e</sub> in ${M.car ? 'rad' : 'rad/s'} per m, K<sub>θ</sub> in ${M.car ? 'rad' : 'rad/s'} per rad.</p>`;
   } else if (M.kind === 'pid')
     h += `L(s) = C(z) · (g v₀/L<sub>d</sub> + g s) / s² · ${dl}${lag}, with the 20 Hz PID C(z) = K<sub>p</sub> + K<sub>i</sub>T/(1 − z⁻¹) + K<sub>d</sub>(1 − z⁻¹)/T, z = e<sup>sT</sup>, L<sub>d</sub> = ${fmt(M.Ld, 2)} m.</p>`;
@@ -1448,8 +1452,10 @@ function anWhy(R) {
       wn = Math.sqrt(Math.max(0, b)),
       z = wn > 0 ? a / (2 * wn) : 0;
     h += `<p><b>2. The controller near the path.</b> For small errors every tracker acts like u = −(K<sub>e</sub>·e + K<sub>θ</sub>·θₑ). ${f ? `Here ${f.txt}: K<sub>e</sub> = ${fmt(f.Ke)}, K<sub>θ</sub> = ${fmt(f.Kth)}. ` : ''}The app does not trust the formula: it reads both gains off ${ctlN}'s own code, by moving the ${car ? 'car' : 'robot'} ±1 mm sideways and turning it ±1 mrad in a copy of the simulator and dividing the change in the command (a central difference): <b>K<sub>e</sub> = ${fmt(M.Ke)} ${unit} per m, K<sub>θ</sub> = ${fmt(M.Kth)} ${unit} per rad</b>. ${chLink('2-pure-pursuit-is-a-pd-controller-in-disguise', 'chapter 6 §2')}</p>`;
-    h += `<div class="eq">ë + g K_θ ė + g v₀ K_e e = 0      (substitute u into θ̇ₑ = g u, ė = v₀ θₑ)
-ω_n = √(g v₀ K_e) = √(${fmt(b, 3)}) = ${fmt(wn)} rad/s        ζ = g K_θ / (2 ω_n) = ${fmt(a, 3)} / ${fmt(2 * wn, 3)} = ${fmt(z)}</div>`;
+    h += TEX`$$\begin{aligned}
+&\ddot e + g K_\theta\,\dot e + g v_0 K_e\,e = 0 && \text{(substitute } u \text{ into } \dot\theta_e = g\,u,\ \dot e = v_0\,\theta_e\text{)} \\
+&\omega_n = \sqrt{g v_0 K_e} = \sqrt{${fmt(b, 3)}} = ${fmt(wn)}\ \text{rad/s} && \zeta = \frac{g K_\theta}{2\,\omega_n} = \frac{${fmt(a, 3)}}{${fmt(2 * wn, 3)}} = ${fmt(z)}
+\end{aligned}$$`;
     if (z < 1 && wn > 0) {
       const sq = Math.sqrt(1 - z * z),
         os = 100 * Math.exp((-Math.PI * z) / sq),

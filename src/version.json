@@ -1,1 +1,1 @@
-{"version": 47, "date": "2026-10-18", "note": "Lesson math typeset (TeX → MathML at build time) in all 41 lessons; every lesson's Try text checked against the simulator: numbers corrected, Predict questions made checkable on screen and robust across seeds, three lessons' Predicts moved to the right Try (PR #100)"}
+{"version": 48, "date": "2026-10-18", "note": "The How it works panels and Analyze's derivation formulas typeset (TeX → MathML at build time); aligned equations line up in lessons, chapters and panels (PR #101)"}

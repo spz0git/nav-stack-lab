@@ -3,13 +3,13 @@
 The version label in the page header (`v40 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v48 · 2026-10-18
 
 - The Simulate tabs' "How it works" panels are typeset too, and so are the two formulas in Analyze's derivations
   (with today's numbers in them). In JS source, a template literal tagged `TEX` holds TeX; the build rewrites it into
   MathML (`texSource` in `tools/tex.mjs`), so the page still never sees TeX. The state machine in Mission's panel is now
   a list of transitions. Fixed for all math: the columns of aligned equations were centred (temml's alignment classes
-  had no CSS), so `=` signs did not line up in lessons, chapters or panels.
+  had no CSS), so `=` signs did not line up in lessons, chapters or panels. (PR #101)
 
 ## v47 · 2026-10-18
 

@@ -1,6 +1,8 @@
 # Deploys the committed dist/ to GitHub Pages on every push to main (and on demand), so the demo at
-# https://spz0git.github.io/nav-stack-lab/ is always the page at the head of main. The repository's Pages setting
-# must be "GitHub Actions" (Settings → Pages → Source).
+# https://spz0git.github.io/nav-stack-lab/ is always the page at the head of main.
+# Opt-in: the job runs only when the repository variable PAGES_ENABLED is "true" (Settings → Secrets and variables →
+# Actions → Variables). Set it once Pages is turned on (Settings → Pages → Source: GitHub Actions), which on a free plan
+# needs a public repository; until then every push to main skips the job instead of failing it.
 name: Deploy demo
 on:
   push:
@@ -15,6 +17,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   deploy:
+    if: vars.PAGES_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:

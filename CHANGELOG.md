@@ -3,7 +3,7 @@
 The version label in the page header (`v40 · 2026-10-16`) is the number used here; `src/version.json` holds it.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v47 · 2026-10-18
 
 - Lesson math is typeset: the lessons take TeX like the companion notes (`$…$` inline, `$$…$$` display), turned into
   MathML at build time (`tools/tex.mjs`, shared with the notes; the page keeps zero runtime dependencies). All 41 lessons
@@ -15,7 +15,7 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   8, Control 18) whose Predict questions each asked about the next Try. Dead reckoning's "Noise ×3" now asks what
   reliably triples (the 2σ band), since the error itself was 2–9× the ×1 run's at different moments of seed 7 and 0.5–2.9×
   in RMS over seeds 1–8.
-- The what-if caption in Analyze says "would turn" / "would steer" (it said "would turns").
+- The what-if caption in Analyze says "would turn" / "would steer" (it said "would turns"). (PR #100)
 
 ## v46 · 2026-10-18
 

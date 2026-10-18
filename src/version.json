@@ -1,1 +1,1 @@
-{"version": 46, "date": "2026-10-18", "note": "The level menu scrolls when a level's quick experiments are longer than the menu (L3–L7 were cut off); Reset all progress asks for a second click instead of confirm(), which the artifact's frame blocked (PR #99)"}
+{"version": 47, "date": "2026-10-18", "note": "Lesson math typeset (TeX → MathML at build time) in all 41 lessons; every lesson's Try text checked against the simulator: numbers corrected, Predict questions made checkable on screen and robust across seeds, three lessons' Predicts moved to the right Try (PR #100)"}

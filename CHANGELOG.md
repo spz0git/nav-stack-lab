@@ -1,10 +1,10 @@
 # Changelog
 
-The version label in the page header (`v50 · 2026-10-18`) is the number used here; `src/version.json` holds it.
+The version label in the page header (`v51 · 2026-10-20`) is the number used here; `src/version.json` holds it.
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v51 · 2026-10-20
 
 - The learned people detector (Perceive → Agent tracking → Learned detector) now also weighs how well the map
   explains each lidar hit, alongside the shape and motion of the hits, and was retrained on runs where the map is
@@ -16,7 +16,7 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   filter that slips on its own (seed 12), and chapter 3 §9 has the measured table. Detector models you trained
   earlier in Tools → Train still run; models trained now use the map too.
 - Detection precision and recall in the lessons are now scored in the robot's own frame, so a wrong pose estimate
-  is not counted against a detector.
+  is not counted against a detector. (PR #104)
 
 ## v50 · 2026-10-18
 

@@ -1,1 +1,1 @@
-{"version": 50, "date": "2026-10-18", "note": "The page is unchanged; the GitHub demo deploy is skipped until Pages is turned on instead of failing on every update (PR #103)"}
+{"version": 51, "date": "2026-10-20", "note": "The learned people detector weighs the map's evidence and was retrained on built and drifting maps: no phantom people on walls; lesson 7 shows where it beats the rule (PR #104)"}

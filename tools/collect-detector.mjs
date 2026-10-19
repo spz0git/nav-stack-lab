@@ -1,20 +1,22 @@
 // Training data for the learned people detector (training/detector/train.py): every lidar scan of headless runs on
 // the levels that have people, with one label per beam, 1 when the beam's hit lies on a person. Written as raw
 // float32 (features) and uint8 (labels) with a JSON side file into training/data/, which is not committed.
-//   node tools/collect-detector.mjs [seconds per run = 120] [seeds = 1..8]
-// Features per beam, 6 channels: range/8, the previous scan reprojected through the odometry into this frame /8 (so a
-// static wall reads the same range twice and a person does not), the change clipped to ±1, hit
-// flag, and the odometry's v/1.5 and ω/2 broadcast over the beams. Labels come from the true pose and the people's
-// true discs; the ranges are the noisy ones the page sees.
+//   node tools/collect-detector.mjs [seconds per run = 120] [seeds = 21..38]
+// Features per beam, 7 channels: range/8, the previous scan reprojected through the odometry into this frame /8 (so a
+// static wall reads the same range twice and a person does not), the change clipped to ±1, hit flag, the odometry's
+// v/1.5 and ω/2 broadcast over the beams, and the map's evidence that the hit is static. The runs take the three map
+// conditions in turn (prior map; built by lidar; prior map with dead-reckoning drift; core/dataset.js). Labels come
+// from the true pose and the people's true discs; the ranges are the noisy ones the page sees. The seeds start at 21
+// so that the lessons' seeds (7 and 1–20) are runs the built-in model has not seen.
 import fs from 'node:fs';
 import path from 'node:path';
 import {loadCore, ROOT} from '../tests/node/core.mjs';
 loadCore();
 const C = globalThis.__core,
   SECS = +(process.argv[2] || 120),
-  SEEDS = (process.argv[3] || '1,2,3,4,5,6,7,8').split(',').map(Number),
+  SEEDS = (process.argv[3] || Array.from({length: 18}, (_, i) => 21 + i).join(',')).split(',').map(Number),
   NB = 120,
-  CH = 6;
+  CH = 7;
 const X = [],
   Y = [],
   runs = [];
@@ -29,8 +31,8 @@ for (let L = 0; L < C.LEVELS.length; L++) {
       Y.push(d.y.subarray(i * NB, (i + 1) * NB));
     }
     positives += d.positives;
-    runs.push({level: C.LEVELS[L].id, seed, scans: d.n});
-    console.log(`${C.LEVELS[L].id} seed ${seed}: ${d.n} scans`);
+    runs.push({level: C.LEVELS[L].id, seed, cond: d.cond, scans: d.n});
+    console.log(`${C.LEVELS[L].id} seed ${seed} ${d.cond}: ${d.n} scans`);
   }
 }
 const dir = path.join(ROOT, 'training', 'data');

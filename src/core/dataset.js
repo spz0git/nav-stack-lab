@@ -1,13 +1,15 @@
 /* ============================================================
    Training data for the learned blocks: one headless run of the core, recorded at every lidar scan. The same code
    writes the Python trainers' data (tools/collect-*.mjs) and the Train tab's (in a worker, ui/train.js).
-     detector: the six features per beam (detFeatures) and one label per beam, 1 when the beam's hit lies on a person
-               (from the true pose and the people's true discs; the ranges are the noisy ones the page sees)
+     detector: the seven features per beam (detFeatures, with the map evidence detStatic) and one label per beam, 1
+               when the beam's hit lies on a person (from the true pose and the people's true discs; the ranges are the
+               noisy ones the page sees); the map condition (cond) alternates so the network sees the map right,
+               unsettled and misplaced
      policy:   the policy's 139 inputs (policyFeatures) and the expert's answer from that state: the A* route to the
                goal, resampled to eight points 0.4 m apart in the robot frame, in units of 4 m
    A run is described by a spec: {block, level (index), seed, secs, map: {map, mapAdd, mapDel} or null, randomMap:
    number of random obstacles or 0, goals: 'level' | {random: n} | [[x, y, θ or null], …], people: 'alt' | 'scripted'
-   | 'reactive', noise (σ of the executed command's perturbation), driver: 'expert' | 'policy' (DAgger), polModel}.
+   | 'reactive', cond: the detector's map condition (detCond), noise (σ of the executed command's perturbation), driver: 'expert' | 'policy' (DAgger), polModel}.
    ============================================================ */
 const DS_STEP = 0.4; // the policy's waypoint spacing, m
 // the expert's route from (x, y) to the goal, as POLICY_N points DS_STEP apart in the robot frame at heading th
@@ -63,6 +65,12 @@ function randomMapCells(u, n, keep) {
   }
   return [...cells].sort((a, b) => a - b).join(',');
 }
+// The detector's map condition for a run: 'oracle' (the prior map, the level's localization), 'mapping' (the robot
+// builds its map) or 'drift' (the prior map, dead reckoning with noisy, biased odometry: the map is right and the pose
+// is not). 'alt' or none: the three in turn by seed, which with the people's alternation by seed covers all six pairs
+// in six seeds.
+const DET_CONDS = ['oracle', 'mapping', 'drift'];
+const detCond = sp => (DET_CONDS.includes(sp.cond) ? sp.cond : DET_CONDS[sp.seed % 3]);
 // Sets the core up for one run of a spec: the level and its seed, the map, the people, the driver, the goals
 function dsSetup(sp) {
   P.seed = sp.seed;
@@ -74,15 +82,17 @@ function dsSetup(sp) {
     setParam('map', 'empty', false);
     setParam('mapAdd', randomMapCells(u, sp.randomMap, [LV.start, ...fixed]), false);
   }
-  if (sp.block === 'detector')
+  if (sp.block === 'detector') {
+    const cond = detCond(sp);
     for (const [k, v] of Object.entries({
       agents: 'truth',
-      per: 'oracle',
+      per: cond === 'mapping' ? 'mapping' : 'oracle',
       spd: 'st',
-      people: sp.people === 'alt' || !sp.people ? (sp.seed % 2 ? 'scripted' : 'reactive') : sp.people
+      people: sp.people === 'alt' || !sp.people ? (sp.seed % 2 ? 'scripted' : 'reactive') : sp.people,
+      ...(cond === 'drift' ? {loc: 'dr', odoK: Math.max(P.odoK, 1), odoB: Math.max(P.odoB, 1)} : {})
     }))
       setParam(k, v, false);
-  else {
+  } else {
     setParam('spd', 'st', false);
     setParam('actNoise', sp.noise == null ? 0.3 : sp.noise, false);
     if (sp.people && sp.people !== 'alt') setParam('people', sp.people, false);
@@ -107,7 +117,7 @@ async function collectRun(sp, onProgress) {
   dsSetup(sp);
   const det = sp.block === 'detector',
     N = Math.round((sp.secs || 120) / DT),
-    NF = det ? NBEAM * 6 : NBEAM + 19,
+    NF = det ? NBEAM * DET_CH : NBEAM + 19,
     NY = det ? NBEAM : 2 * POLICY_N,
     xs = [],
     ys = [];
@@ -125,7 +135,7 @@ async function collectRun(sp, onProgress) {
         v = S.odo ? S.odo.v : 0,
         w = S.odo ? S.odo.w : 0,
         y = new Uint8Array(NBEAM);
-      xs.push(detFeatures(r, prev ? scanReproject(prev, v, w, S.t - prevT) : null, v, w));
+      xs.push(detFeatures(r, prev ? scanReproject(prev, v, w, S.t - prevT) : null, v, w, detStatic(r, S.est)));
       for (let k = 0; k < NBEAM; k++) {
         if (r[k] >= LMAX - 1e-3) continue;
         const a = rb.th - Math.PI + (k * TAU) / NBEAM,
@@ -155,6 +165,15 @@ async function collectRun(sp, onProgress) {
     y = det ? new Uint8Array(ys.length * NY) : new Float32Array(ys.length * NY);
   xs.forEach((f, i) => x.set(f, i * NF));
   ys.forEach((f, i) => y.set(f, i * NY));
-  return {x, y, n: xs.length, positives, goalsDone: WPS.filter(g => g.done && !g.skipped).length, goals: WPS.length, t: +S.t.toFixed(1)};
+  return {
+    x,
+    y,
+    n: xs.length,
+    positives,
+    ...(det ? {cond: detCond(sp)} : {}),
+    goalsDone: WPS.filter(g => g.done && !g.skipped).length,
+    goals: WPS.length,
+    t: +S.t.toFixed(1)
+  };
 }
 // @end

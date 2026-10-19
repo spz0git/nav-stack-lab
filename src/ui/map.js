@@ -491,7 +491,7 @@ function drawLidar(dpr, k, px) {
     const bp = P.agents === 'learned' && S.agents && S.agents.beamP;
     ctx.fillStyle = TOK.amber;
     S.scanPts.forEach((p, i) => {
-      if (bp) ctx.fillStyle = bp[p[2] != null ? p[2] : i] > 0.5 ? TOK.rose : TOK.amber;
+      if (bp) ctx.fillStyle = bp[p[2] != null ? p[2] : i] > S.agents.beamThr ? TOK.rose : TOK.amber;
       ctx.fillRect(p[0] - px(1.5), p[1] - px(1.5), px(3), px(3));
     });
   }

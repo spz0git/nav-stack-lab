@@ -59,7 +59,7 @@ const NN_ARCH = {
   ]
 };
 const NN_IN = {
-  detector: {beams: NBEAM, channels: 6, order: ['range/8', 'previous range/8', 'change (±1)', 'hit', 'v/1.5', 'w/2']},
+  detector: {beams: NBEAM, channels: DET_CH, order: ['range/8', 'previous range/8', 'change (±1)', 'hit', 'v/1.5', 'w/2', 'map evidence']},
   policy: {
     features: NBEAM + 19,
     order: ['120 ranges/8', '12 sector minima/8', 'goal dx/10', 'goal dy/10', 'distance/10', 'cos bearing', 'sin bearing', 'v/1.5', 'w/2']
@@ -434,7 +434,7 @@ function nnEvaluate(model, X, Y, block) {
   if (block === 'detector') {
     const n = NBEAM,
       ns = Y.length / n,
-      thr = model.threshold || 0.6,
+      thr = model.threshold || DET_THR,
       p = nnPredict(model, X, ns, n);
     let tp = 0,
       fp = 0,

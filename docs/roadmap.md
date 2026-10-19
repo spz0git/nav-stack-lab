@@ -168,11 +168,18 @@ Owner request: retrain the learned blocks from the GUI, with the built-in model 
   complete; what the four items showed about the lab is in their lessons.
 - Track B, first block (B1, the owner's revised order: detection before occupancy): the learned people detector,
   `training/detector/`, `src/models/detector.json`, `src/core/nn.js`, `agDetectLearned`. Design notes: the decisive
-  feature is the previous scan reprojected through the odometry (without it precision was 0.20; with it 0.73); the
-  class weight is the square root of the ratio (the full ratio buys recall with false beams); a 0.6 threshold and a
-  two-beam minimum per detection; both levels with people are in the training set, so the only shift the lab can
-  show is a new seed, which the lesson says. Per-target scan matching is a Kalman velocity measurement from ICP of
-  a track's hits (ICP got a minimum-pairs parameter for that).
+  motion feature is the previous scan reprojected through the odometry (without it precision was 0.20; with it
+  0.73); the class weight is the square root of the ratio (the full ratio buys recall with false beams). The first
+  version saw no map and lost to the rule wherever a map existed (0.73 against 0.92 on L5), with its false positives
+  on walls: the frame-to-frame change is noisy on walls (re-binning at grazing angles, occlusion edges), so shape and
+  motion alone cannot match a map. The second version (v51) adds a seventh channel, the map evidence (`detStatic`:
+  the rule's test kept as a number, from the prior map or the built one), and trains on three conditions in turn
+  (prior map, built map, prior map with dead-reckoning drift) so it learns how far to trust it; threshold 0.8, one
+  beam per detection, both stored in the model. It beats the rule on F1 in all three, and by far where the rule's
+  premise breaks (an unsettled map, a drifting pose). Old six-channel models still run (features follow the
+  model's first layer). Detection scoring moved to the robot's frame (`tests/measure_det.py`), so a pose error is
+  not counted against a detector. Per-target scan matching is a Kalman velocity measurement from ICP of a track's
+  hits (ICP got a minimum-pairs parameter for that).
 - Track C, first block (C1): the end-to-end policy, `training/policy/`, `src/models/policy.json`, `policyPlan`. What
   was tried, in order, each measured (chapter 4 §10): driven trajectories as labels (compounding error, 2 of 4 on
   L1); noise injection with expert-route labels (L1 solved, the busy floor mostly); sector-minimum features, a wider

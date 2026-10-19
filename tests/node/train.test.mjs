@@ -31,7 +31,7 @@ test('nnGrad: the gradient equals central differences (conv detector and MLP pol
         [4, 5]
       ],
       120,
-      6,
+      7,
       1,
       'bce'
     ],
@@ -62,10 +62,10 @@ test('nnGrad: the gradient equals central differences (conv detector and MLP pol
 test('nnPredict reproduces nnForward and mlpForward on the built-in models', () => {
   const det = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/models/detector.json'), 'utf8')),
     pol = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/models/policy.json'), 'utf8')),
-    X = Float32Array.from({length: 4 * 720}, (_, i) => (Math.sin(i * 0.37) + 1) / 2),
+    X = Float32Array.from({length: 4 * 840}, (_, i) => (Math.sin(i * 0.37) + 1) / 2),
     p = C.nnPredict(det, X, 4, 120);
   for (let s = 0; s < 4; s++) {
-    const q = C.nnForward(det, X.subarray(s * 720, (s + 1) * 720), 120);
+    const q = C.nnForward(det, X.subarray(s * 840, (s + 1) * 840), 120);
     for (let k = 0; k < 120; k++) assert.ok(Math.abs(q[k] - p[s * 120 + k]) < 1e-5, `detector scan ${s} beam ${k}`);
   }
   const Xp = Float32Array.from({length: 40 * 139}, (_, i) => Math.cos(i * 0.11)),
@@ -79,9 +79,22 @@ test('nnPredict reproduces nnForward and mlpForward on the built-in models', () 
 test('collectRun: a detector run labels person beams; a policy run on random obstacles records the expert route', async () => {
   const d = await C.collectRun({block: 'detector', level: 4, seed: 1, secs: 20, goals: 'level', people: 'alt'});
   assert.ok(d.n > 100, `scans: ${d.n}`);
-  assert.equal(d.x.length, d.n * 720);
+  assert.equal(d.x.length, d.n * 840);
   assert.equal(d.y.length, d.n * 120);
   assert.ok(d.positives > 0, 'some beams on a person');
+  // the map condition follows the seed (prior map, built map, drift) and shows in the map-evidence channel
+  assert.equal(d.cond, 'mapping');
+  const evidence = x => {
+    let e = 0;
+    for (let i = 6; i < 840; i += 7) e += x[i] / 120;
+    return e;
+  };
+  const evM = evidence(d.x);
+  assert.ok(evM < 0.3, `the first scan of a map being built is barely explained: ${evM}`);
+  const o = await C.collectRun({block: 'detector', level: 4, seed: 3, secs: 5, goals: 'level', people: 'alt'});
+  assert.equal(o.cond, 'oracle');
+  const evO = evidence(o.x);
+  assert.ok(evO > evM + 0.3, `on the prior map the hits are explained from the first scan: ${evO} against ${evM}`);
   const p = await C.collectRun({block: 'policy', level: 0, seed: 3, secs: 30, randomMap: 10, goals: {random: 4}, noise: 0.3});
   assert.ok(C.P.map === 'empty' && C.P.mapAdd.split(',').length > 10, 'random obstacles painted on an empty floor');
   assert.ok(p.n > 50, `samples: ${p.n}`);

@@ -4,6 +4,20 @@ The version label in the page header (`v50 · 2026-10-18`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- The learned people detector (Perceive → Agent tracking → Learned detector) now also weighs how well the map
+  explains each lidar hit, alongside the shape and motion of the hits, and was retrained on runs where the map is
+  right, still being built, or misplaced by a drifting pose. It no longer sees phantom people on walls: with a
+  good map it matches the classical detector, and where the classical one fails it keeps working. On the busy floor,
+  while the map is being built, or with the pose drifting on dead reckoning, the classical detector carries a dozen
+  or more phantom tracks and the learned one about one; precision is ten times higher.
+- Lesson 7 of Perceive is rewritten around those cases, with new experiments for a drifting pose and for a particle
+  filter that slips on its own (seed 12), and chapter 3 §9 has the measured table. Detector models you trained
+  earlier in Tools → Train still run; models trained now use the map too.
+- Detection precision and recall in the lessons are now scored in the robot's own frame, so a wrong pose estimate
+  is not counted against a detector.
+
 ## v50 · 2026-10-18
 
 - Nothing changes in the page. Behind it, the demo deploy to GitHub Pages waits until Pages is turned on, instead of

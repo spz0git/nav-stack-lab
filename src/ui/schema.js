@@ -259,7 +259,7 @@ const SCHEMA = {
         const M = nnModel('detector');
         if (!M) return 'No detector model in this build: train one in Tools → Train, or with training/detector/train.py and rebuild.';
         const mine = M !== MODELS.detector;
-        return `A 1D convolution over the beams (${M.params} parameters, ${mine ? `trained in this browser (Tools → Train) on ${M.trained_on ? M.trained_on.scans : '?'} scans` : `trained in training/detector on ${M.trained_on.scans} simulated scans`}) labels each beam "person" or "static" from the shape and motion of the hits: no prior map and no settled built map needed. Hits are coloured by the probability on the map. Retrain it, or train another shape, in Tools → Train.`;
+        return `A 1D convolution over the beams (${M.params} parameters, ${mine ? `trained in this browser (Tools → Train) on ${M.trained_on ? M.trained_on.scans : '?'} scans` : `trained in training/detector on ${M.trained_on.scans} simulated scans`}) labels each beam "person" or "static" from the shape and motion of the hits${M.layers[0].cin > 6 ? ', weighed against how well the map explains each hit: it learned how far to trust the map, so it keeps working while the map is being built or the pose estimate drifts' : ' alone: it never reads the map'}. Hits are coloured rose above its threshold (${M.threshold || (M.layers[0].cin > 6 ? DET_THR : 0.6)}). Retrain it, or train another shape, in Tools → Train.`;
       },
       show: () => P.agents === 'learned'
     },

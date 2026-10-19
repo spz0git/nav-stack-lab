@@ -88,11 +88,12 @@ function scanReproject(prev, v, w, dt) {
   return out;
 }
 // @code ag-learned | agDetectLearned: the learned per-beam detector, its clusters and the hit points it hands on
-// The six numbers per beam the detector sees (the collector tools/collect-detector.mjs and the Train tab's data come
+// The seven numbers per beam the detector sees (the collector tools/collect-detector.mjs and the Train tab's data come
 // from this same function): range/8, the previous scan reprojected into this frame /8, their difference clipped to
-// ±1, the hit flag, and the odometry's v/1.5 and ω/2 broadcast over the beams. prev null: no previous scan yet.
-function detFeatures(R, prev, v, w) {
-  const CH = 6,
+// ±1, the hit flag, the odometry's v/1.5 and ω/2 broadcast over the beams, and how well the robot's map explains the
+// hit (detStatic). prev null: no previous scan yet; st null: the six numbers of a model trained without the map.
+function detFeatures(R, prev, v, w, st) {
+  const CH = st ? 7 : 6,
     f = new Float32Array(NBEAM * CH);
   for (let k = 0; k < NBEAM; k++) {
     const rk = Math.min(R[k], LMAX),
@@ -103,13 +104,46 @@ function detFeatures(R, prev, v, w) {
     f[k * CH + 3] = R[k] < LMAX - 1e-3 ? 1 : 0;
     f[k * CH + 4] = v / 1.5;
     f[k * CH + 5] = w / 2;
+    if (st) f[k * CH + 6] = st[k];
   }
   return f;
 }
+// How well the map the robot has explains each beam's hit, 0 to 1, placed from the estimated pose: the evidence the
+// rule (agExplained) thresholds, kept as a number. Prior map: 1 on an obstacle, falling with the distance to the
+// nearest one, 0.5 at the rule's 0.25 m and 0 from 0.5 m; built map: the highest log-odds around the cell / 4, 0.5 at
+// the rule's 2. Outside the map: 1. The network learns how far to trust it.
+function detStatic(R, e) {
+  const st = new Float32Array(NBEAM);
+  for (let k = 0; k < NBEAM; k++) {
+    if (R[k] >= LMAX - 1e-3) continue;
+    const a = e.th - Math.PI + (k * TAU) / NBEAM,
+      c = cellIdx(e.x + R[k] * Math.cos(a), e.y + R[k] * Math.sin(a));
+    if (c < 0) {
+      st[k] = 1;
+      continue;
+    }
+    if (P.per === 'oracle') {
+      st[k] = clamp(1 - S.cm.dist[c] / 0.5, 0, 1);
+      continue;
+    }
+    const i = c % GW,
+      j = (c / GW) | 0;
+    let lo = -Infinity;
+    for (let dj = -1; dj <= 1; dj++)
+      for (let di = -1; di <= 1; di++) {
+        const ii = i + di,
+          jj = j + dj;
+        if (ii >= 0 && jj >= 0 && ii < GW && jj < GH) lo = Math.max(lo, S.lo[jj * GW + ii]);
+      }
+    st[k] = clamp(lo / 4, 0, 1);
+  }
+  return st;
+}
 // The learned detector: a 1D convolution over the beams (the built-in MODELS.detector, trained in training/detector,
-// or one trained in the Train tab) gives each beam the probability that its hit lies on a person; beams above the
-// model's threshold (0.6) are clustered as agDetect clusters unexplained hits. It needs no prior map and no settled
-// built map: a person is recognized by the shape and motion of the hits.
+// or one trained in the Train tab) gives each beam the probability that its hit lies on a person, from the shape and
+// motion of the hits and the map's evidence; beams above the model's threshold are clustered as agDetect clusters
+// unexplained hits. Where the map is missing or wrong (not built yet, the pose estimate off) the evidence is weak or
+// misleading, and the shape and motion carry the decision.
 function agDetectLearned() {
   const A = S.agents,
     e = S.est,
@@ -122,24 +156,26 @@ function agDetectLearned() {
   const v = S.odo ? S.odo.v : 0,
     w = S.odo ? S.odo.w : 0,
     prev = A.prevScan ? scanReproject(A.prevScan, v, w, S.t - (A.prevT || S.t)) : null,
-    f = detFeatures(R, prev, v, w),
-    thr = M.threshold || 0.6;
+    f = detFeatures(R, prev, v, w, M.layers[0].cin > 6 ? detStatic(R, e) : null),
+    thr = M.threshold || (M.layers[0].cin > 6 ? DET_THR : 0.6);
   A.prevScan = Float32Array.from(R);
   A.prevT = S.t;
   const p = nnForward(M, f, NBEAM);
   A.beamP = p;
+  A.beamThr = thr;
   const pts = new Array(NBEAM).fill(null);
   for (let k = 0; k < NBEAM; k++) {
     if (R[k] >= LMAX - 1e-3 || p[k] < thr) continue;
     const a = e.th - Math.PI + (k * TAU) / NBEAM;
     pts[k] = [e.x + R[k] * Math.cos(a), e.y + R[k] * Math.sin(a), k];
   }
-  agCluster(pts, true);
+  agCluster(pts, M.minBeams || (M.layers[0].cin > 6 ? DET_MIN : 2));
 }
 // @end
 // Consecutive hit points (one gap allowed) become clusters; a cluster of a person's size becomes a detection,
 // its centre pushed to the far side of the hits (which lie on the near side of the person)
 function agCluster(pts, learned) {
+  // learned: false for the rule, or the fewest beams a learned detection has
   const A = S.agents,
     e = S.est,
     cl = [];
@@ -184,13 +220,13 @@ function agCluster(pts, learned) {
     for (const p of c) ext = Math.max(ext, hyp(p[0] - mx, p[1] - my));
     ext *= 2;
     if (ext > (S.peds.some(p => p.car) ? 2.2 : 1.2)) continue;
-    if (learned && c.length < 2) continue; // one lone beam is not a person
+    if (learned && c.length < learned) continue;
     const dx = mx - e.x,
       dy = my - e.y,
       d = hyp(dx, dy) || 1,
       r = clamp(0.5 * ext + 0.1, 0.3, S.peds.some(p => p.car) ? 0.9 : 0.55),
       sh = 0.6 * r; // hits lie on the near side
-    A.det.push({x: mx + (dx / d) * sh, y: my + (dy / d) * sh, r, n: c.length, pts: c.map(p => [p[0], p[1]]), learned});
+    A.det.push({x: mx + (dx / d) * sh, y: my + (dy / d) * sh, r, n: c.length, pts: c.map(p => [p[0], p[1]]), learned: !!learned});
   }
   for (const p of pts) if (p) A.dynPts.push(p);
 }

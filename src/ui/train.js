@@ -186,7 +186,7 @@ function trnSpecs(r, block) {
 // every collected run in source order; the held-out run is the last run of the first source that has data
 function trnAssemble(block) {
   const rows = (TRN.rows[block] || []).filter(r => r.data),
-    NF = block === 'detector' ? NBEAM * 6 : NBEAM + 19,
+    NF = block === 'detector' ? NBEAM * DET_CH : NBEAM + 19,
     NY = block === 'detector' ? NBEAM : 2 * POLICY_N;
   if (!rows.length) return null;
   const runs = rows.flatMap((r, ri) => r.data.runs.map(d => ({...d, ri, label: r.label}))),
@@ -415,7 +415,7 @@ async function trnTrain() {
       hp: {...hp},
       label: `${A[1]} · ${ds.n} ${TRN_BLOCKS[block].unit} · ${new Date().toLocaleDateString(undefined, {day: 'numeric', month: 'short'})}`
     };
-    if (block === 'detector') TRN.result.threshold = 0.6;
+    if (block === 'detector') Object.assign(TRN.result, {threshold: DET_THR, minBeams: DET_MIN});
     logE(
       `Train: ${TRN_BLOCKS[block].name.toLowerCase()} trained for ${last.epoch} epoch${last.epoch === 1 ? '' : 's'}${stopped ? ' (stopped)' : ''}: ${trnEvText(block, last.ev)}`,
       'ok'
@@ -462,6 +462,7 @@ function trnJSON(m) {
     output: m.output,
     params: m.params,
     ...(m.threshold ? {threshold: m.threshold} : {}),
+    ...(m.minBeams ? {minBeams: m.minBeams} : {}),
     trained_on: m.trained_on,
     held_out: m.held_out,
     trained_in: 'Nav Stack Lab, Tools → Train',
@@ -582,7 +583,7 @@ function trnResultHTML(block) {
       : `<td>${ev.rms.toFixed(3)} m</td>${[0, 3, 7].map(k => `<td>${ev.perWp[k].toFixed(2)} m</td>`).join('')}`;
   return `<div class="trn-result"><h4>The new model, on the held-out run</h4>
   <div class="exptab"><table><tr><th></th>${cols}</tr>${rows.map(([l, ev]) => `<tr><td>${l}</td>${cells(ev)}</tr>`).join('')}</table></div>
-  <p class="note">${sb == null ? '' : better(s, sb) ? `Better than the built-in model on this run (${block === 'detector' ? 'F1' : 'RMS error'} ${s.toFixed(3)} against ${sb.toFixed(3)}).` : `Not better than the built-in model on this run (${block === 'detector' ? 'F1' : 'RMS error'} ${s.toFixed(3)} against ${sb.toFixed(3)}): more data, more epochs or another network may help.`} ${R.held_out.separate ? `Held out: ${esc(R.held_out.map)}, seed ${R.held_out.seed}, which the network did not see.` : 'Tested on its training data (one run only).'}${R.held_out.builtinSaw ? ' <b>The built-in model was trained on this very run</b>, so it has the advantage here: for a fair test, start the first source at a seed above 16.' : ''} ${block === 'detector' ? 'Per beam at the threshold 0.6.' : 'The error of each predicted waypoint against the expert route, in metres.'}</p>
+  <p class="note">${sb == null ? '' : better(s, sb) ? `Better than the built-in model on this run (${block === 'detector' ? 'F1' : 'RMS error'} ${s.toFixed(3)} against ${sb.toFixed(3)}).` : `Not better than the built-in model on this run (${block === 'detector' ? 'F1' : 'RMS error'} ${s.toFixed(3)} against ${sb.toFixed(3)}): more data, more epochs or another network may help.`} ${R.held_out.separate ? `Held out: ${esc(R.held_out.map)}, seed ${R.held_out.seed}, which the network did not see.` : 'Tested on its training data (one run only).'}${R.held_out.builtinSaw ? ' <b>The built-in model was trained on this very run</b>, so it has the advantage here: for a fair test, start the first source at another seed.' : ''} ${block === 'detector' ? `Per beam at the threshold ${DET_THR}.` : 'The error of each predicted waypoint against the expert route, in metres.'}</p>
   <form class="chg-save" id="trn-save"><input type="text" id="trn-name" maxlength="60" value="${esc(R.label)}" aria-label="Model name"><button type="submit" class="btn small">Save</button><button type="button" class="btn small primary" id="trn-saveuse">Save and use</button></form></div>`;
 }
 function trainPane() {
@@ -613,7 +614,7 @@ function trainPane() {
     .join('')}</div></div>
   <h3 class="fhead">Models</h3>${trnModelsHTML(block)}
   <h3 class="fhead">1 · Data</h3>
-  <p class="note">${block === 'detector' ? 'Every lidar scan of a run, each beam labelled person or static from the true positions. The robot drives the map’s goals with ground-truth tracking; people walk on the levels that have them.' : 'Every scan of a run where the robot drives to a goal, labelled with the expert’s A* route ahead (eight points 0.4 m apart). The classical stack drives with its commands perturbed (noise) so the data also shows how to come back to the route; DAgger lets the policy drive and labels where it went.'}</p>
+  <p class="note">${block === 'detector' ? 'Every lidar scan of a run, each beam labelled person or static from the true positions. The robot drives the map’s goals with ground-truth tracking; people walk on the levels that have them. The map changes with the seed, in turn: the prior map, the map the robot builds, and the prior map with the pose drifting on dead reckoning, so the network learns how far to trust it.' : 'Every scan of a run where the robot drives to a goal, labelled with the expert’s A* route ahead (eight points 0.4 m apart). The classical stack drives with its commands perturbed (noise) so the data also shows how to come back to the route; DAgger lets the policy drive and labels where it went.'}</p>
   ${rows.map((r, i) => trnRowHTML(r, i, block)).join('')}
   <div class="controls"><button type="button" class="btn small" id="trn-add">Add a source</button><button type="button" class="btn small" id="trn-recipe" title="The sources the built-in model was trained on (training/${block}/README.md)">The built-in recipe</button>${ds ? '<button type="button" class="btn small" id="trn-clear">Clear the data</button>' : ''}</div>
   <div class="controls"><button type="button" class="btn primary" id="trn-collect" ${J || !todo || daggerNoModel ? 'disabled' : ''}>${todo ? `Collect ${todo} run${todo === 1 ? '' : 's'}` : 'All collected'}</button><span class="lbl">${daggerNoModel ? 'DAgger needs the policy picked in Plan, which is not in this browser.' : ''}</span></div>

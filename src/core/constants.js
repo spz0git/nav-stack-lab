@@ -15,6 +15,12 @@ const W = 24,
   PENW = 3,
   SQ2 = Math.SQRT2,
   TAU = Math.PI * 2;
+// the learned people detector (core/agents.js): the channels per beam a detector trained now sees, the probability
+// above which a beam is a person's and the fewest beams of a detection, for a model that does not carry its own (a
+// model of six channels, trained without the map, keeps its old 0.6 and two beams)
+const DET_CH = 7,
+  DET_THR = 0.8,
+  DET_MIN = 1;
 const ARRIVE = 0.25,
   OFFPATH = 1.0; // arrival radius; replan when the estimate is this far from the path [m]
 const $ = s => (typeof document !== 'undefined' ? document.querySelector(s) : null);

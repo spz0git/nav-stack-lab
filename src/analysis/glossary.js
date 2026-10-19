@@ -930,7 +930,7 @@ const LESSON_TERMS = {
     'cluster lidar cvkf track mahal confirm coast xag pxy vxy Fcv Qproc siga d2 pt pag vag t rt rag ggrow groundtruth',
   'Sensor latency: stale readings, moving prediction': 'latency tick lidar beacon nu Ts v nees ekf pf inject timestamp lagged biased',
   'A learned detector: people from the shape and motion of the hits':
-    'conv1d precision recall distshift track cvkf cluster lidar logodds agent icp speedplanner odometry',
+    'conv1d precision recall distshift track cvkf cluster lidar logodds agent icp speedplanner odometry deadreck pf',
   'Velocity obstacles: steering around people in velocity space':
     'vo rvo track cvkf agent speedplanner socialforce contacts closest lidar costmap tracker',
   'People who react': 'socialforce Fsf v0p edir vp tausf sumO Asf rij dpp Bsf ndir contacts closest',

@@ -15,10 +15,10 @@ cfg: {"sim":true,"level":4,"set":{"agents":"lidar","spd":"st"},"tab":"per"}
 Setup: L5 with the prior map, the clustering detector of lesson 3 (hits the map cannot explain), the speed planner. Perceive tab.
 See: 1 034 detections over the run, precision 0.92, recall 1.00; the tracks' velocity error 0.26 m/s RMS; one contact, four goals by 120 s. Agent tracks in the metrics shows one confirmed track most of the time and six at most, since the shelves hide most people.
 Shows: With a good map and a good pose the rule is nearly perfect: a hit either lies on a wall or it does not. This is the standard the learned detector has to be measured against, and it is a high one.
-Predict: Switch to lidar mapping, so the robot builds the map as it drives. What does the rule do?
-- It drowns: phantom people on the walls the map has not settled yet, for the whole run
-- Nothing changes: the walls are seen before any person
-- It stops detecting: unknown space explains everything
+Predict: The rule with the prior map and a good pose, four people on the floor. How many confirmed tracks will Agent tracks in the metrics show most of the time?
+- One, a few at most: the shelves hide most of the people, and the map explains every wall hit
+- Four, one per person, all the time: the lidar sees across the aisles
+- A dozen or more: every shelf end looks like a person
 Answer: 0
 
 ## Try: The rule, building its own map
@@ -26,10 +26,10 @@ cfg: {"sim":true,"level":4,"set":{"agents":"lidar","spd":"st","per":"mapping"},"
 Setup: The same, with lidar mapping.
 See: 8 214 detections, precision 0.07: almost every one is a wall cell the map has not settled yet (a cell counts as static only after enough hits). Recall stays 1.00 because the people are among the detections, but the tracker carries phantom tracks: Agent tracks reads about a dozen confirmed most of the time and up to 36, for four people, and the log's yields name agents numbered in the hundreds. The velocity error rises to 0.35 m/s and the speed planner yields to walls: three goals by 120 s instead of four.
 Shows: The rule's weakness is its premise. "Unexplained by the map" means "not yet in the map" while the map is being built, and on a level the robot explores for the first time that is most of the level. No tuning of the settling threshold fixes this; it only moves the phantoms in time.
-Predict: Now the learned detector, same run, lidar mapping. How many confirmed tracks will Agent tracks show most of the time?
-- One or none, as with the rule and a good map: an unsettled cell is weak evidence, and the network falls back on the shape and motion of the hits
-- About a dozen, as with the rule here: it reads the same unsettled map
-- None: without a settled map it cannot call anything a person
+Predict: Switch to lidar mapping, so the robot builds the map as it drives. What does the rule do?
+- It drowns: phantom people on the walls the map has not settled yet, for the whole run
+- Nothing changes: the walls are seen before any person
+- It stops detecting: unknown space explains everything
 Answer: 0
 
 ## Try: The learned detector, building its own map
@@ -37,10 +37,10 @@ cfg: {"sim":true,"level":4,"set":{"agents":"learned","spd":"st","per":"mapping"}
 Setup: Perceive → Agent tracking → Learned detector, lidar mapping on. Lidar layer on: hits in rose are beams the network calls a person.
 See: 966 detections, precision 0.74, recall 0.88, velocity error 0.31 m/s, four goals by 120 s, no contact; Agent tracks reads one confirmed most of the time, nine at most. Over seeds 2 to 5 precision is 0.51 to 0.82 and recall 0.88 to 0.93, against the rule's 0.04 to 0.07. Watch the colours: a person's arc of hits turns rose as they walk, a shelf end stays amber even before the map knows it; the misses are people seen edge-on at the far end of an aisle, a beam or two.
 Shows: Ten times the precision of the rule on the same unsettled map. The network was trained on runs where the map was still being built, so it learned that a low evidence value means "not known yet", not "not a wall", and that the shape and motion decide then.
-Predict: Back to the prior map, but the robot now localizes by dead reckoning: the wheels' noisy, biased odometry alone, so its pose estimate drifts by half a metre and more within a minute or two. What does the rule show?
-- A crowd of phantom people on the walls, more than a dozen confirmed tracks, growing as the pose drifts
-- The same as with a good pose: the map is still correct
-- Fewer detections: a drifting robot drives more slowly
+Predict: Now the learned detector, same run, lidar mapping. How many confirmed tracks will Agent tracks show most of the time?
+- One or none, as with the rule and a good map: an unsettled cell is weak evidence, and the network falls back on the shape and motion of the hits
+- About a dozen, as with the rule here: it reads the same unsettled map
+- None: without a settled map it cannot call anything a person
 Answer: 0
 
 ## Try: The rule, the pose drifting
@@ -48,10 +48,10 @@ cfg: {"sim":true,"level":4,"set":{"agents":"lidar","spd":"st","loc":"dr"},"tab":
 Setup: L5 with the prior map and the rule, localization by dead reckoning (Localize → Dead reckoning).
 See: 10 026 detections, precision 0.06, recall 1.00; Agent tracks reads 13 confirmed most of the time and 21 at most, for four people, and the speed planner keeps yielding to them. Over seeds 2 to 5 it is 15 to 18 confirmed most of the time, up to 32, precision 0.05 to 0.07. (No goal is reached by 120 s with either detector: dead reckoning loses the goals themselves; this Try is about what the detector sees.)
 Shows: The map is perfect and the rule still drowns. The test "is there a wall within 0.25 m of this hit" is done at the estimated pose, and once that is off by more than 0.25 m every wall the lidar sees is beside the wall the map has. The rule cannot tell a person from a wall seen from the wrong place, because it never looks at the hits themselves.
-Predict: The learned detector, the same drifting pose. How many confirmed tracks most of the time?
-- One or none: a long straight run of hits that does not move is a wall wherever the map puts it
-- More than a dozen, as with the rule: it reads the same misplaced map
-- None at all, people included
+Predict: Back to the prior map, but the robot now localizes by dead reckoning: the wheels' noisy, biased odometry alone, so its pose estimate drifts by half a metre and more within a minute or two. What does the rule show?
+- A crowd of phantom people on the walls, more than a dozen confirmed tracks, growing as the pose drifts
+- The same as with a good pose: the map is still correct
+- Fewer detections: a drifting robot drives more slowly
 Answer: 0
 
 ## Try: The learned detector, the pose drifting
@@ -59,10 +59,10 @@ cfg: {"sim":true,"level":4,"set":{"agents":"learned","spd":"st","loc":"dr"},"tab
 Setup: The same drift, the learned detector. Lidar layer on.
 See: 563 detections, precision 0.71, recall 0.65; Agent tracks reads none confirmed most of the time and three at most. Over seeds 2 to 5: precision 0.50 to 0.83, recall 0.82 to 0.86, one confirmed track most of the time and five at most, against the rule's 15 to 18. The walls stay amber while the robot's estimate slides away from them on the map.
 Shows: Over ten times the precision of the rule. The map evidence says "unexplained" along every wall; the shape (long, straight, wider than a person) and the motion (none, once the robot's own is taken out) say "wall", and the network learned in the drift runs that the second pair wins when they disagree. That is the case for learned perception in one picture: the rule has one cue and fails when it fails; the network weighs several and degrades gently.
-Predict: Back to the good pose, seed 12: the same level and settings as the first Try, at another seed. In this run the particle filter's estimate jumps by one to three metres for a few scans at a time (unlabelled beacons and clutter mislead it), and then recovers. What does the rule do during the jumps?
-- Flashes of phantom tracks along the walls, a dozen or more at the worst moments
-- Nothing: a few scans are too short to matter
-- It loses the real people, but adds no phantoms
+Predict: The learned detector, the same drifting pose. How many confirmed tracks most of the time?
+- One or none: a long straight run of hits that does not move is a wall wherever the map puts it
+- More than a dozen, as with the rule: it reads the same misplaced map
+- None at all, people included
 Answer: 0
 
 ## Try: The rule, when the particle filter slips
@@ -70,10 +70,10 @@ cfg: {"sim":true,"level":4,"seed":12,"set":{"agents":"lidar","spd":"st"},"tab":"
 Setup: L5 at seed 12, the level's own localization (a particle filter with unlabelled beacons), the prior map, the rule. Nothing is switched off: this is a natural failure.
 See: 1 948 detections, precision 0.33, recall 0.99, velocity error 0.40 m/s; Agent tracks reads one confirmed most of the time but up to 18 during the jumps. Four goals by 120 s, all five at 161 s.
 Shows: A localization glitch of a second is enough. This is the failure the rule meets on real robots more often than a missing map: the map is right, the estimate is briefly wrong, and every wall becomes a person for as long as it is wrong.
-Predict: The learned detector on the same run. What changes?
-- Far fewer phantoms: at most a handful of confirmed tracks during the jumps
-- Nothing: both use the same pose and map
-- It misses everyone during the jumps
+Predict: Back to the good pose, seed 12: the same level and settings as the first Try, at another seed. In this run the particle filter's estimate jumps by one to three metres for a few scans at a time (unlabelled beacons and clutter mislead it), and then recovers. What does the rule do during the jumps?
+- Flashes of phantom tracks along the walls, a dozen or more at the worst moments
+- Nothing: a few scans are too short to matter
+- It loses the real people, but adds no phantoms
 Answer: 0
 
 ## Try: The learned detector, when the particle filter slips
@@ -81,10 +81,10 @@ cfg: {"sim":true,"level":4,"seed":12,"set":{"agents":"learned","spd":"st"},"tab"
 Setup: The same run, the learned detector.
 See: 614 detections, precision 0.81, recall 0.85, velocity error 0.43 m/s; Agent tracks reads none confirmed most of the time and four at most. Four goals by 120 s, all five at 155 s.
 Shows: The same robustness as under drift, now on a failure nobody staged. The network never saw seed 12; it saw drift and unsettled maps in training, and a jumping estimate looks to it like a short drift.
-Predict: Back to seed 7, with a good map and a good pose, where the rule had precision 0.92 and recall 1.00. How does the learned detector compare there?
-- About level: both are close to perfect when the rule's premise holds
-- Far better: ten times the precision, as under mapping
-- Far worse: it has to learn what the rule knows for free
+Predict: The learned detector on the same run. What changes?
+- Far fewer phantoms: at most a handful of confirmed tracks during the jumps
+- Nothing: both use the same pose and map
+- It misses everyone during the jumps
 Answer: 0
 
 ## Try: The learned detector, with the prior map
@@ -92,10 +92,10 @@ cfg: {"sim":true,"level":4,"set":{"agents":"learned","spd":"st"},"tab":"per","la
 Setup: The learned detector with the prior map and the level's localization, seed 7.
 See: 907 detections, precision 0.96, recall 0.96, velocity error 0.27 m/s; one confirmed track most of the time, five at most; one contact, four goals by 120 s. Over seeds 2 to 5 the two are level: precision 0.87 to 0.97 against the rule's 0.93 to 0.96, recall 0.95 to 0.97 against 1.00.
 Shows: Where the map and the pose are right the rule is already nearly perfect and the network matches it, a little more precise at some seeds and a little less complete; there is nothing left to win. The gain is all in the conditions above, which are the everyday ones on a real robot: maps that are being built or are out of date, and estimates that drift or slip.
-Predict: Turn per-target scan matching on under lidar mapping. What does it give each track's Kalman filter that it did not have?
-- A velocity measurement: the displacement of the person's hits from one scan to the next
-- A second position measurement, from the aligned hits
-- Nothing: the Kalman filter already estimates velocity
+Predict: Back to seed 7, with a good map and a good pose, where the rule had precision 0.92 and recall 1.00. How does the learned detector compare there?
+- About level: both are close to perfect when the rule's premise holds
+- Far better: ten times the precision, as under mapping
+- Far worse: it has to learn what the rule knows for free
 Answer: 0
 
 ## Try: Per-target scan matching
@@ -103,6 +103,11 @@ cfg: {"sim":true,"level":4,"set":{"agents":"learned","spd":"st","per":"mapping",
 Setup: The learned detector under lidar mapping, with each track's hits aligned to its previous hits by ICP every scan.
 See: Velocity error 0.30 m/s against 0.31 without; precision 0.84, recall 0.89, all five goals at 118 s. Over seeds 2 to 5 matching gives 0.28 to 0.34 m/s against 0.29 to 0.41 without: lower on two seeds, higher on two, and the mean over the five seeds 0.31 against 0.34. With the rule and the prior map the same switch brings 0.26 to 0.25 m/s here.
 Shows: The tracker of lesson 3 infers velocity from positions, which takes about a second of consistent detections; the match measures the displacement between two scans directly and the filter fuses it with its own gain. The gain is small and lost in the run-to-run variation: a person is a handful of points, and ICP on a handful of points is only trusted when most of them pair within 30 cm and the residual is small.
+Predict: Turn per-target scan matching on under lidar mapping. What does it give each track's Kalman filter that it did not have?
+- A velocity measurement: the displacement of the person's hits from one scan to the next
+- A second position measurement, from the aligned hits
+- Nothing: the Kalman filter already estimates velocity
+Answer: 0
 
 ## Code: agDetectLearned, the beams to detections
 snippet: ag-learned

@@ -16,10 +16,10 @@ cfg: {"sim":true,"level":0,"set":{"plan":"policy"},"tab":"plan"}
 Setup: L1, the open floor the policy was trained on, with the level's four goals. Plan tab.
 See: All four goals in 44.9 m, the same as A*, no collision, and a path on the map that bends around the pillars the way A*'s did. The safety layer never has to move a waypoint on this floor, so the Plan tab shows no count.
 Shows: Where the demonstrations cover the situations, imitation works, and the map is a learned function of the scan: no grid, no search, a tenth of a millisecond per plan. Watch the eight points refresh every half second.
-Predict: The busy floor, L5, which the policy never saw, with the speed planner handling the people. Goals?
-- All five or nearly, with the safety layer at work: open aisles look like the training levels, and the people are not its problem
-- None: a level it has not seen is out of the question
-- One or two: every shelf end is a corner it never saw
+Predict: The policy on the open floor it was trained on, four goals among the pillars. Goals out of four?
+- All four, no collision, in about the distance A* drives
+- Two or three: it cuts a pillar now and then
+- None: a function of the scan, with no map and no search, cannot find its way to a goal
 Answer: 0
 
 ## Try: A floor it never saw
@@ -27,39 +27,44 @@ cfg: {"sim":true,"level":4,"set":{"plan":"policy","spd":"st"},"tab":"plan"}
 Setup: L5 with the speed planner, the policy as the global planner.
 See: All five goals in 120 s and 83 m, no shelf touched, and three contacts with people while moving; A* with the same speed planner takes all five in 121 s and 84 m with one. The Plan tab counts 41 waypoints moved, 15 segments rerouted and 5 paths cut.
 Shows: Generalization to a new floor of the same kind. The scan features are local, and wide aisles with shelves look like what it learned from, so it mostly drives; the failure it has everywhere, a corner cut by 30 or 50 cm, is what the counts show the safety layer catching. The people it leaves to the speed planner, which is the modular design: the learned block does one job; it does it less smoothly than A*, and the speed planner has more to do around a path that keeps changing. The count varies from run to run: on seeds 2 to 5 the same experiment reaches 4, 4, 5 and 5 goals with at most one shelf touched, and on seed 1 the particle filter loses the robot and the run gets nowhere, a localization failure that slows A* on that seed too.
-Predict: L2, the warehouse aisles it was trained on. Goals out of four?
-- Four, as cleanly as A*: it was trained there
-- None or one: the narrow aisles are where a corner clipped is a collision
-- Three, with the Plan tab's counts climbing: the safety layer catches most of the corners the policy cuts, not every one
-Answer: 2
+Predict: The busy floor, L5, which the policy never saw, with the speed planner handling the people. Goals?
+- All five or nearly, with the safety layer at work: open aisles look like the training levels, and the people are not its problem
+- None: a level it has not seen is out of the question
+- One or two: every shelf end is a corner it never saw
+Answer: 0
 
 ## Try: The warehouse aisles, where the safety layer works hardest
 cfg: {"sim":true,"level":1,"set":{"plan":"policy"},"tab":"plan"}
 Setup: L2, a training level, the policy as the planner.
 See: Goals 1 and 2 by 28 s. On the way to goal 3 the robot turns into the side of a shelf at 56 s and the goal is given up as stuck at 74 s; goal 4 at 106 s. Three of four, one collision, 58 m; A* takes all four in 60 m and 78 s. Watch the Plan tab: 157 waypoints moved, 33 segments rerouted, 46 paths cut and 35 fallbacks to A* by the end.
 Shows: Compounding error, and what it costs to contain. The policy's open-loop error on held-out expert moments is 9 cm at the first point and 66 cm at the eighth; at an aisle's entrance its path cuts the shelf end the expert went around, and after a touch the robot is in a state no demonstration showed, where the policy keeps asking for forward (the expert never collided, so the data has no example of backing out). With only its points checked the robot hit the first shelf at 4 s and stayed there: no goal, three collisions. Checking the lines between the points, 10 cm clear, turns the cut corner into an A* detour, and 1.5 m of A* gets a pinned robot free. The counts are the honest part: 35 times the network had nothing drivable to offer.
-Predict: Point the policy at a subgoal 3 m along the A* route instead of the goal. Does it get through the aisles?
-- Hardly: one goal at most; the failure is the first metre of each corner, not the long-range direction
-- Yes, all four: the safety layer guards the corners, and the subgoal supplies the long-range direction
-- Worse: two planners fight
-Answer: 1
+Predict: L2, the warehouse aisles it was trained on. Goals out of four?
+- Four, as cleanly as A*: it was trained there
+- None or one: the narrow aisles are where a corner clipped is a collision
+- Three, with the Plan tab's counts climbing: the safety layer catches most of the corners the policy cuts, not every one
+Answer: 2
 
 ## Try: A classical subgoal
 cfg: {"sim":true,"level":1,"set":{"plan":"policy","policyGoal":"subgoal"},"tab":"plan"}
 Setup: L2 with the hybrid: A* finds the route, the policy is pointed at the point 3 m along it and drives.
 See: All four goals in 82 s and 57 m, no collision, and the counts fall: 41 waypoints moved, 27 segments rerouted, one path cut, two fallbacks to A*. Seeds 1 to 3 give the same.
 Shows: The two failures are separate, and each has its fix. The subgoal fixes the long-range one, a reactive policy driving at a goal it cannot reach in a straight line; the safety layer contains the local one, the imprecision of an imitated path at a corner. Before the segment check the same experiment reached one goal: the subgoal cleared the first corner and the robot pinned at the next, a local failure no goal could fix. Together they drive the aisles like A*, and the counts say how much of that is A*.
-Predict: L4, the building with rooms and doors, with the policy pointed at the goal. Goals?
-- One or none: doors are corners twice over, and a goal behind a wall points the policy at the wall
-- Three or four: doors are wider than aisles
-- All four: it was trained there
-Answer: 0
+Predict: Point the policy at a subgoal 3 m along the A* route instead of the goal. Does it get through the aisles?
+- Hardly: one goal at most; the failure is the first metre of each corner, not the long-range direction
+- Yes, all four: the safety layer guards the corners, and the subgoal supplies the long-range direction
+- Worse: two planners fight
+Answer: 1
 
 ## Try: The building
 cfg: {"sim":true,"level":3,"set":{"plan":"policy"},"tab":"plan"}
 Setup: L4 with lidar mapping, the policy as the planner.
 See: One goal of four, at 17 s; the other three given up as stuck at doorways, the last at 163 s, without touching a wall. A* takes four in 50 m. With Plan → What the policy is pointed at → A subgoal: all four in 71 s, no collision.
 Shows: Rooms are the hardest case for a local policy: the goal is behind a wall, the way out is a door not visible in the goal direction, and the demonstrations through doors are a small share of the data. The safety layer keeps it off the walls but cannot find the door; the subgoal, which sits in the door, can. This is where the field adds memory (recurrent policies, maps as inputs), far more data, and reinforcement learning on top of imitation; the lab stops here and says so.
+Predict: L4, the building with rooms and doors, with the policy pointed at the goal. Goals?
+- One or none: doors are corners twice over, and a goal behind a wall points the policy at the wall
+- Three or four: doors are wider than aisles
+- All four: it was trained there
+Answer: 0
 
 ## Code: policyPlan, the forward pass and the safety layer
 snippet: policy

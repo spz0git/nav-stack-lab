@@ -36,7 +36,7 @@ Every pull request:
 2. Passes the Node tests: `npm test` (10 s): the golden L1–L5 summary and the unit tests of the numerics
    (`tests/node/numerics.test.mjs`; add a case there when you touch a formula). If your change intends to move the L1–L5 numbers, regenerate the
    baseline with `npm run golden` in the same PR and say why.
-3. Passes the browser gate: `python3 tests/run_all.py` (about three minutes with Playwright's Chromium;
+3. Passes the browser gate, run once when the PR is ready to merge: `python3 tests/run_all.py` (about three minutes with Playwright's Chromium;
    `pip install playwright && playwright install chromium` once). `test.py`'s summary must not change,
    `p5test.py`, `chtest.py` and `dyntest.py` must report no errors.
 4. For a UI change: screenshots at 1440 × 900 and 390 × 844, light and dark, in the PR description

@@ -871,7 +871,7 @@ const SCHEMA = {
     {k: 'alpha', label: 'Angular accel', min: 0.2, max: 8, step: 0.1, unit: 'rad/s²', show: () => P.accel && !isCar()},
     {k: 'lag', label: 'Actuator lag τ', min: 0, max: 0.6, step: 0.01, unit: 's'},
     {k: 'latency', label: 'Control latency (whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
-    {k: 'sensLat', label: 'Sensor latency (lidar and beacons, whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
+    {k: 'sensLat', label: 'Sensor latency (lidar, beacons, sonar and GNSS, whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
     {
       k: 'people',
       type: 'seg',
@@ -888,3 +888,149 @@ const SCHEMA = {
     {k: 'seed', label: 'Random seed (applies on Reset)', min: 1, max: 99, step: 1}
   ]
 };
+
+// The ultrasonic ring's settings (core/sensors.js; P.sonar is off by default), kept in one block and placed into the
+// tabs: the ring at the end of Perceive and what builds the map under its Map source, the cone likelihood under the
+// particle filter's lidar switch (Localize), the safety stop's source under the safety stop (Control).
+function sonarInfo() {
+  const N = clamp(Math.round(P.sonN), 4, 16),
+    gap = 360 / N - P.sonBeam;
+  return `${N} cones of ${P.sonBeam}° ${gap > 0 ? `leave ${gap.toFixed(0)}° blind between neighbours (${((100 * N * P.sonBeam) / 360).toFixed(0)} % of the circle covered)` : 'overlap: the whole circle is covered'}. The ring fires in turn, one ping every ${(1000 * P.sonPing).toFixed(0)} ms, so each sonar reads every ${sonCycle().toFixed(2)} s (the lidar every 0.1 s). A reading is one number: the nearest echo somewhere in the cone, ±${(P.sonBeam / 2).toFixed(0)}° about its axis, ${P.sonMin} to ${P.sonMax} m from the hull; a surface met at more than ${P.sonSpec}° from square-on sends the echo away and the sonar reads its maximum. <b>Good for:</b> cheap, short range, and on real robots glass and dark surfaces that a lidar can miss (the lab models no materials: here every surface reflects alike). <b>Fails:</b> the bearing within the cone, oblique walls, anything in the dead zone, crosstalk, and the slow ring. Perceive lesson 9 tries each.`;
+}
+(() => {
+  const after = (k, items) => {
+    for (const tab of Object.values(SCHEMA)) {
+      const i = tab.findIndex(f => f.k === k);
+      if (i >= 0) return tab.splice(i + 1, 0, ...items);
+    }
+    throw new Error(`schema: no setting ${k} to place the sonar's after`);
+  };
+  const on = () => P.sonar;
+  after('per', [
+    {
+      k: 'mapSrc',
+      type: 'seg',
+      label: 'What builds the map',
+      opts: [
+        ['lidar', 'Lidar'],
+        ['sonar', 'Sonar ring'],
+        ['both', 'Both']
+      ],
+      show: () => on() && P.per === 'mapping'
+    }
+  ]);
+  SCHEMA.per.push(
+    {type: 'head', label: 'Ultrasonic ring'},
+    {k: 'sonar', type: 'bool', label: 'Ultrasonic ring: sonars round the hull, each reporting the nearest echo in its cone'},
+    {k: 'sonN', label: 'Sonars', min: 4, max: 16, step: 1, show: on},
+    {k: 'sonBeam', label: 'Beam width of each cone', min: 5, max: 60, step: 1, unit: '°', show: on},
+    {k: 'sonMax', label: 'Reach', min: 1, max: 6, step: 0.25, unit: 'm', show: on},
+    {k: 'sonMin', label: 'Dead zone (ring-down)', min: 0, max: 0.5, step: 0.05, unit: 'm', show: on},
+    {k: 'sonSig', label: 'Sonar range noise σ', min: 0, max: 0.1, step: 0.005, unit: 'm', show: on},
+    {k: 'sonSpec', label: 'Specular beyond incidence', min: 5, max: 90, step: 5, unit: '°', show: on},
+    {k: 'sonXt', label: "Crosstalk (readings that are a neighbour's echo)", min: 0, max: 50, step: 1, unit: '%', show: on},
+    {k: 'sonPing', label: 'Time per ping (the ring fires in turn)', min: 0.025, max: 0.2, step: 0.025, unit: 's', show: on},
+    {type: 'info', text: sonarInfo, show: on}
+  );
+  after('pfLidar', [
+    {
+      k: 'pfSonar',
+      type: 'bool',
+      label: 'Also weight particles by the sonar ring against the prior map (cone likelihood)',
+      show: () => pf_() && P.per === 'oracle' && on()
+    }
+  ]);
+  after('guard', [
+    {
+      k: 'guardSrc',
+      type: 'seg',
+      label: 'The safety stop reads',
+      opts: [
+        ['lidar', 'Lidar'],
+        ['sonar', 'Sonar'],
+        ['both', 'Both']
+      ],
+      show: () => GUARD_CTL.includes(P.ctl) && P.guard && on()
+    }
+  ]);
+})();
+
+const upFirst = t => t.charAt(0).toUpperCase() + t.slice(1);
+/* ---------- The Sensors switchboard and GNSS in the settings (appended: spliced into the tabs, not reorganizing them) ---------- */
+// what the switched-off sensors take from the estimator and the stack now, in words: the same checks the health
+// lights run (ui/health.js), so the tab and the lights never disagree
+function sensorsNote() {
+  if (!S || !sensorsOff().length) return '';
+  const H = healthNow(),
+    msgs = [];
+  for (const k of ['loc', 'per', 'plan', 'ctl'])
+    for (const c of H.all[k] || [])
+      if (c.on && ['Blind', 'Odometry', 'Beacons', 'Lidar', 'GNSS'].includes(c.name) && !msgs.includes(c.msg)) msgs.push(c.msg);
+  return msgs.length ? `Now: ${msgs.map(upFirst).join('. ')}.` : '';
+}
+// the GNSS state in words: the last fix, how far off it was, what the filter did with it, the bias
+function gnssInfo() {
+  const G = S && S.gnss;
+  if (!G || !G.last) return G && G.down ? 'In an outage: no fix.' : 'No fix yet.';
+  const L = G.last,
+    r = S.robot,
+    err = hyp(L.x - r.x, L.y - r.y),
+    st = {
+      ok: 'fused',
+      gate: `rejected by the gate (d² ${L.d2 != null ? L.d2.toFixed(0) : '—'} > 9.2)`,
+      still: 'not fused (the robot has not moved since the last fix)',
+      unused: `not fused (${segName(P.loc)} takes no GNSS)`,
+      slot: 'passed to your localizer',
+      new: 'waiting (sensor latency)',
+      reset: `taken as the position: every fix had been rejected for ${GNSS_LOCKOUT} s, so the filter restarted from the fixes`
+    }[L.st];
+  const bias = S.gb
+    ? ` Bias in the EKF state: estimated (${S.gb.b[0].toFixed(2)}, ${S.gb.b[1].toFixed(2)}) m ± ${Math.sqrt(Math.max(0, S.gb.B[0][0])).toFixed(2)} m; the receiver's true bias (${G.bx.toFixed(2)}, ${G.by.toFixed(2)}) m.`
+    : '';
+  return `Last fix ${(S.t - L.t).toFixed(1)} s ago: ${err.toFixed(2)} m from the true position${L.mp ? ' (multipath: within 1.5 m of a wall or parked car)' : ''}, reported σ ${L.sig.toFixed(2)} m, ${st}.${G.down ? ' In an outage now.' : ''} ${G.n} fixes, ${G.used} fused, ${G.gated} gated${G.resets ? `, ${G.resets} reset${G.resets === 1 ? '' : 's'}` : ''}.${bias}`;
+}
+{
+  const at = SCHEMA.loc.findIndex(f => f.type === 'head' && /^Odometry/.test(f.label));
+  SCHEMA.loc.splice(at < 0 ? SCHEMA.loc.length : at, 0, {type: 'sensors'}, {type: 'info', text: sensorsNote, show: () => !!sensorsNote()});
+  SCHEMA.per.splice(1, 0, {
+    type: 'info',
+    text: () =>
+      `The lidar is off (Localize → Sensors): ${P.per === 'mapping' ? 'the map stops growing and the planners use what was seen before; ' : ''}no people are detected${P.agents === 'truth' ? ' (ground-truth tracking still runs)' : ''}, and the costmap gets nothing from the scan.`,
+    show: () => !P.lidar
+  });
+  SCHEMA.loc.push(
+    {type: 'head', label: 'GNSS', show: () => P.gnss},
+    {
+      type: 'info',
+      text: () =>
+        `Position fixes with white noise, a bias that wanders over about ${P.gnssTau.toFixed(0)} s (σ ${P.gnssBias.toFixed(1)} m), multipath within 1.5 m of walls and parked cars, and outages. The receiver reports σ ${gnssRep().toFixed(2)} m: honest for one fix in the open, silent about the correlation between fixes and about multipath. ${['ekf', 'pf', 'custom'].includes(P.loc) ? `${upFirst(segName(P.loc))} fuses them as position measurements (H = [I 0]), gated at χ²(2) 99 %.` : `${upFirst(segName(P.loc))} does not fuse them: pick the EKF or the particle filter.`}`,
+      show: () => P.gnss
+    },
+    {
+      type: 'info',
+      text: () =>
+        'Indoors a real receiver gets no fix at all, or a wild one off the walls: a 2D world has no roof, so here GNSS works as if outdoors. The parking lot (L6) and the road (L7) are where it belongs.',
+      show: () => P.gnss && !['L6', 'L7'].includes(LV.id)
+    },
+    {k: 'gnssHz', label: 'Fix rate', min: 1, max: 5, step: 1, unit: 'Hz', show: () => P.gnss},
+    {k: 'gnssSig', label: 'White noise σ per fix', min: 0, max: 1, step: 0.05, unit: 'm', show: () => P.gnss},
+    {k: 'gnssBias', label: 'Wandering bias σ (Gauss–Markov)', min: 0, max: 3, step: 0.1, unit: 'm', show: () => P.gnss},
+    {k: 'gnssTau', label: 'Bias time constant τ', min: 5, max: 300, step: 5, unit: 's', show: () => P.gnss},
+    {k: 'gnssMp', type: 'bool', label: 'Multipath within 1.5 m of walls and parked cars (a jump and extra noise)', show: () => P.gnss},
+    {k: 'gnssOut', label: 'GNSS outages (share of time without a fix)', min: 0, max: 90, step: 5, unit: '%', show: () => P.gnss},
+    {k: 'gnssOutLen', label: 'Mean outage length', min: 1, max: 30, step: 1, unit: 's', show: () => P.gnss && P.gnssOut > 0},
+    {
+      k: 'gnssAug',
+      type: 'bool',
+      label: 'Estimate the GNSS bias in the EKF (two more states, a random walk)',
+      show: () => P.gnss && P.loc === 'ekf'
+    },
+    {type: 'info', text: gnssInfo, show: () => P.gnss},
+    {
+      type: 'info',
+      text: () =>
+        "<b>Left out.</b> Satellite geometry (the DOP that makes a fix worse when the satellites bunch), the sky view itself, the receiver clock, the atmosphere, carrier phase and RTK (centimetres with a base station), and the receiver's own filter, which makes real fixes smoother and more correlated still. <b>When GNSS still beats beacons:</b> it needs no infrastructure and works everywhere under open sky, its error does not grow with distance from a beacon or with time, and it cannot be lost: a filter that drifted for a minute is back within a few metres at the next fix.",
+      show: () => P.gnss
+    }
+  );
+}

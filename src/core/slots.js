@@ -208,6 +208,8 @@ async function customLocalize() {
     beacons: z,
     map: S.beacons.map(b => ({id: b.id, x: b.x, y: b.y})),
     scan: S.deliv && S.deliv.scan ? Array.from(S.deliv.scan) : null,
+    sonar: P.sonar && S.deliv ? sonarObs(S.deliv.sonar) : null, // the ultrasonic readings delivered this tick
+    gnss: S.deliv && S.deliv.gnss ? {x: S.deliv.gnss.x, y: S.deliv.gnss.y, sigma: S.deliv.gnss.sig, t: S.deliv.gnss.t} : null, // a fix, when one arrived
     field: first && P.per === 'oracle' ? {w: GW, h: GH, res: RES, dist: Array.from(LV.truthDist)} : null, // the prior map, once
     t: S.t
   };
@@ -241,7 +243,14 @@ async function customPredict() {
       horizon: P.agT,
       dt,
       grid: {w: GW, h: GH, res: RES},
-      lethal: LV.truthOcc
+      lethal: LV.truthOcc,
+      // the ultrasonic ring's latest arc per sonar, placed with the estimate (world frame), and how old it is
+      sonar:
+        P.sonar && S.sonArcs
+          ? S.sonArcs
+              .filter(Boolean)
+              .map(A => ({i: A.i, r: A.r, max: A.max, x: A.x, y: A.y, th: A.th, width: A.w, age: +(S.t - A.t).toFixed(2)}))
+          : null
     };
   const r = await w.call(obs);
   if (!r.ok) {

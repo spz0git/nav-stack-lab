@@ -1,7 +1,7 @@
 id: ch3
 num: 3
 sys: per
-summary: The derivations behind the Perception lessons: the binary Bayes filter behind log-odds mapping, the distance transform and inflation cost, lidar clustering, the constant-velocity Kalman tracker and its gains, prediction with growing uncertainty, what sensor latency does to each estimator, the social-force model of people, and a radar's measurement model fused into the tracker.
+summary: The derivations behind the Perception lessons: the binary Bayes filter behind log-odds mapping, the distance transform and inflation cost, lidar clustering, the constant-velocity Kalman tracker and its gains, prediction with growing uncertainty, what sensor latency does to each estimator, the social-force model of people, the sonar ring's arc inverse sensor model and cone likelihood, and a radar's measurement model fused into the tracker.
 
 # Perception: maps, costs and people
 
@@ -248,7 +248,68 @@ The learned error at 2 s is lower than constant velocity's on every seed with li
 
 [try: Learned, scripted people | {"sim":true,"level":4,"set":{"agPred":"learned"},"tab":"per","layers":{"agents":true}}] [try: Where the network is wrong: perfect tracks | {"sim":true,"level":4,"set":{"agPred":"learned","agents":"truth"},"tab":"per","layers":{"agents":true}}]
 
-## 11. Radar: range, bearing and Doppler
+## 11. Sonar: one range for a whole cone
+
+**The sensor.** An ultrasonic transducer sends a ping and times the first echo; half the time of flight at the speed of sound is the range. The ring in the lab has {{live:sonN}} of them round the hull (Perceive → Ultrasonic ring, off by default), each a cone {{live:sonBeam}}° wide that reports *one number*: the range of the nearest surface anywhere in the cone that sends the echo back, from {{live:sonMin}} m to {{live:sonMax}} m, with σ = {{live:sonSig}} m of noise. The cone is simulated as a fan of rays 2° apart. A ray's echo comes back only if three things hold:
+
+- *The surface faces the sensor.* A smooth surface reflects sound like a mirror: met at an incidence beyond {{live:sonSpec}}° from square-on, the echo goes elsewhere and the sonar hears nothing (a specular miss). With the cone's half-width added, a sonar hears a flat wall only when its axis is within about $15° + 30° = 45°$ of the wall's normal.
+- *It is beyond the dead zone.* The transducer rings for a moment after its own ping; an echo from closer than {{live:sonMin}} m arrives during the ringing and is lost.
+- *It is within reach.* No echo at all reads as the maximum range, {{live:sonMax}} m.
+
+The sonars fire in turn, one ping every 50 ms (so that one's echoes have died before the next listens), and the ring's cycle is {{live:sonN}} × 50 ms = {{live:sonCycle}} s against the lidar's 0.1 s. With {{live:sonN}} cones of {{live:sonBeam}}°, {{live:sonGap}}° between neighbours are seen by no sonar at all. A share of readings (Crosstalk, {{live:sonXt}} %) are a neighbour's echo, reported as this sonar's own range; this is a phenomenological model, not a simulation of the sound field.
+
+**What it is good for, and what the lab leaves out.** A sonar costs a fraction of a lidar, needs no moving parts, and on a real robot it hears glass doors, mirrors, and dark or shiny surfaces that a laser can pass through or fail to see. The lab does not model materials: every surface reflects the laser and the sound alike. So everything below is the sonar's failure modes on the lab's surfaces, and none of its strengths over a lidar. A ring is the cheap proximity sensor under a robot's bumper, not a mapping sensor, and the numbers below say why.
+
+**The arc inverse sensor model.** A lidar beam (§2) says "free along the line, occupied at its end". A sonar reading $z = r$ says less: *something on the arc of radius $r$ inside the cone echoed, and nothing inside the cone before it did*, with no bearing for the echo. Write $A$ for the $n$ cells of that arc which could have echoed, and $h_c$ for "the echo came from cell $c$". With nothing to prefer one cell over another, $p(h_c) = 1/n$. Cell $c$ is occupied if the echo came from it, or otherwise with the prior one half:
+
+$$
+p(m_c \mid z) = \frac{1}{n} + \Big(1 - \frac{1}{n}\Big)\frac{1}{2} = \frac{n + 1}{2n}, \qquad l_\text{arc}(n) = \ln\frac{p(m_c \mid z)}{1 - p(m_c \mid z)} = \ln\frac{n + 1}{n - 1} \approx \frac{2}{n}
+$$
+
+capped at the lidar's $l_\text{hit} = 0.85$ (for $n \le 2$). The arc is a band 1.4 cells thick (cell centres within 0.07 m of $r$), so $n \approx 1.4\, r \beta / 0.1$ m for a beam of $\beta$ radians: at 2 m about {{live:sonArcN2}} cells, each getting $l_\text{arc} \approx$ {{live:sonLarc2}}. One lidar hit makes a cell occupied ($l > 0.5$); at 2 m it takes four sonar readings that put the same cell on their arcs. That is the whole difference between the two maps in one number: the sonar's evidence is spread over the arc it cannot resolve.
+
+The cells *inside* the cone before the arc get $l_\text{free} = -0.2$ ($p = 0.45$), half the lidar's: a surface met too obliquely to echo can sit inside a cone that read farther, so "nothing closer echoed" is weaker than "the beam went through". A reading at the maximum range updates nothing: an empty cone and a cone full of specular walls read the same.
+
+**Which cells could have echoed.** The $n$ in $l_\text{arc}$ counts only the arc's cells that the map does not already know to be free ($l > -0.5$). A cell that other cones have seen through cannot be the echo, so as the robot drives, the arc's evidence gathers on the cells that are left, which is where the wall is. This is the usual refinement of the model, and it is not an independent-evidence update: it uses the map to interpret the reading that then updates the map, so the map can talk itself into a wall. Measured on the rough-wall run of the table below, counting every arc cell instead costs a goal and doubles the collisions (3 goals of 4 with 4 collisions, against 4 with 2; at seeds 3 and 11, 6 and 5 collisions against 3 each).
+
+**What it predicts.** For a flat wall at perpendicular distance $d$ with the normal inside the cone, $r = d$. The arc's points at angle $\varphi$ off the normal lie $d(1 - \cos\varphi)$ in front of the wall, up to $d(1 - \cos 15°) = 0.034\,d$ (one cell at 3 m), and its ends lie $d \sin 15° = 0.26\,d$ to either side. So the wall is drawn smeared along itself: past a wall's end (a door jamb, the end of a shelf) by up to a quarter of the range, which narrows doorways until a cone sees through them and the free cells take them back. Blind spots come from the physics, not the noise: walls passed at a slant are never heard (the specular rule), and the wall the robot is pressed against is never heard either (the dead zone).
+
+**The cone likelihood.** The particle filter can weight particles by the ring against the prior map (Localize → Also weight particles by the sonar ring), as it does with the lidar's likelihood field (chapter 2 §7). For a particle at pose $x$, the expected reading $\hat z(x)$ is the range of the nearest obstacle of the map inside that sonar's cone, beyond the dead zone and within reach: seven rays 5° apart marched on the map's distance field, the shortest one kept. Then
+
+$$
+p(z \mid x) = \begin{cases} 0.85\, \exp\!\big(-\tfrac{1}{2}(z - \hat z)^2/\sigma^2\big) + 0.05, & z < z_\text{max} \\ 0.9, & z = z_\text{max},\ \hat z \ge z_\text{max} \\ 0.3, & z = z_\text{max},\ \hat z < z_\text{max} \end{cases} \qquad \sigma = 0.15\ \text{m}
+$$
+
+The floor 0.05 is for readings the map cannot explain: people, crosstalk. The 0.3 is the chance of a specular miss when the map has a wall in reach; about a third of the ring's readings in the warehouse are exactly that (measured on L5). The log-likelihood of each reading is tempered by 0.5, since successive readings of the same wall are not independent, and nothing is weighted while the robot stands still. The expectation ignores the specular rule (the grid stores no surface normals), so the max-range term carries all of it; that and the dependence between readings are why the filter is overconfident.
+
+**How much it tells.** The lidar's likelihood uses 24 beams at 5 Hz, each with a bearing: 120 numbers a second. The ring gives {{live:sonN}} numbers every {{live:sonCycle}} s, about 20 a second, each blurred over its cone, and a reading at maximum range is nearly no evidence. Measured, the error is about twice the lidar's, not six times: a cone's nearest range still pins the distance to a wall.
+
+**Measured** (Perceive lesson 9; seed 7, checked at seeds 3 and 11):
+
+| Experiment | Seed 7 | Seeds 3 and 11 |
+|---|---|---|
+| Map the building (L4), lidar | 4 of 4 goals, no collision; floor seen 96 %; precision 1.00, recall 0.96 | 4 of 4, 1 collision each |
+| Sonar only, smooth walls (30°) | 0 of 4, 2 collisions (first at 8.6 s); floor seen 14 %; precision 0.73, recall 0.36 | 0 of 4; 5 and 2 collisions |
+| Sonar only, rough walls (50°) | 4 of 4 by 89 s, 2 collisions, 15 replans; floor seen 67 %; precision 0.88, recall 0.75 | 1 of 4; 3 collisions each; precision 0.93 and 0.95 |
+| Rough walls, crosstalk 30 % | 0 of 4, 2 collisions; precision 0.42 | 1 of 4; precision 0.76 both |
+| Map the aisles (L2), lidar | 4 of 4, no collision; precision 1.00, recall 0.88 | 4 of 4, no collision; recall 0.85 and 0.87 |
+| Aisles, sonar only | 1 of 4, a shelf hit at 3.6 s; floor seen 28 %; precision 0.83, recall 0.68 | 1 of 4; precision 0.81 and 0.82 |
+| Safety stop (L5, people who react), none | 2 contacts | 2 and 2 |
+| Safety stop on the lidar | no contact, closest 0.03 m | none; 0.04 and 0.03 m |
+| Safety stop on the sonar ring | 2 contacts, both with the person ahead in the dead zone | 2 and 2 |
+| Sonar safety stop, no dead zone | no contact | 1 and 0 |
+| Particle filter (L3), beacons only | pose RMS 0.04 m | — |
+| Lidar only, every beacon off | RMS 0.06 m, inside 2σ 91 % | 0.06 m both; 99 % and 92 % |
+| Sonar only, every beacon off | 5 of 5 goals; RMS 0.13 m, inside 2σ 77 % | 5 of 5 (a shelf brushed at seed 3); RMS 0.13 and 0.07 m |
+| Sonar only, crosstalk 30 % | 5 of 5; RMS 0.13 m, inside 2σ 94 % | 5 of 5; 0.12 and 0.10 m |
+
+Precision is the share of the cells the map calls occupied that have a real obstacle within a cell, recall the share of the seen obstacle cells the map has (lesson 1's measures). The safety-stop runs drive the cross aisle at x = 12 m, where all three walkers cross or meet the robot, with agent tracking off so that the stop is the only thing between them.
+
+**Reading the table.** *Mapping:* with smooth walls the robot hits the first wall it meets at a slant, because no cone hears it; the map it builds is a few fragments. Rougher walls give the map its walls back, blurred, and the mission succeeds at one seed of three: the robot still finds the walls it is pressed against by hitting them. *The safety stop:* the lidar stop keeps the reacting walkers off the robot; the sonar stop does not, and the cause is the dead zone. As the person comes within 0.2 m of the hull, the front sonar's next reading is a miss, it replaces the echo that was there, and the stop forgets the person at the moment it matters. Without the dead zone the sonar stop holds. A real ring keeps the last close echo for a while; the lab's does not, so that the failure shows. *Localization:* sonar alone against the map is enough to localize on L3 (five goals of five), with about twice the lidar's error and a band about twice as wide, and crosstalk costs it almost nothing, since the floor in the likelihood absorbs readings the map cannot explain.
+
+[try: Sonar only, the building | {"sim":true,"level":3,"set":{"sonar":true,"mapSrc":"sonar"},"tab":"per"}] [try: Sonar safety stop | {"sim":true,"level":4,"set":{"agents":"off","spd":"none","people":"reactive","guard":true,"sonar":true,"guardSrc":"sonar"},"goals":[[12,1.6],[12,15],[12,1.6]],"tab":"ctl"}] [try: Sonar-only particle filter | {"sim":true,"level":2,"set":{"loc":"pf","pfLidar":false,"sonar":true,"pfSonar":true,"bOff":"all"},"tab":"loc","plot":"pos"}]
+
+## 12. Radar: range, bearing and Doppler
 
 **The sensor.** A radar sends a radio wave and listens for echoes. The delay gives the range, the phase across its receiving antennas the bearing, and the Doppler shift of the echo's frequency, $f_D = 2 v_r / \lambda$, the *radial velocity* $v_r$: the rate at which the range changes, the part of the relative velocity along the line of sight. The lab's radar looks forward, {{live:radFov}}° wide and {{live:radRange}} m deep, at 10 Hz, and each detection is
 
@@ -322,6 +383,6 @@ The radar sees about four static echoes a scan on this floor, half a false one, 
 
 [try: Lidar + radar | {"sim":true,"level":4,"set":{"radar":true,"trkIn":"both"},"tab":"per","layers":{"agents":true,"radar":true}}] [try: Fog, lidar only | {"sim":true,"level":4,"set":{"radar":true,"weather":"fog"},"tab":"per","layers":{"agents":true,"radar":true,"lidar":true}}] [try: Fog, lidar + radar | {"sim":true,"level":4,"set":{"radar":true,"trkIn":"both","weather":"fog"},"tab":"per","layers":{"agents":true,"radar":true,"lidar":true}}]
 
-## 12. What to carry into the next chapters
+## 13. What to carry into the next chapters
 
 The log-odds map and the costmap are what the planners of chapter 4 search; the inflation penalty is the term that makes A* prefer the middle of an aisle, and the unknown-cell policy decides whether an unexplored room is a route or a wall. The tracks and their growing radii are what the space-time planner blocks cells with and what the speed planner slows down for, and everything in §7 is why those planners work on timestamps rather than on "now". The pattern from chapter 2 holds throughout: the covariance, or its stand-in, is consumed downstream, and a tracker that reports a velocity it does not really know yet is as dangerous to the speed planner as an overconfident EKF is to the costmap.

@@ -347,14 +347,7 @@ function kfUpdate(t, H, y, R, I) {
     }
   t.C = N;
 }
-function inv2(M) {
-  const d = M[0][0] * M[1][1] - M[0][1] * M[1][0];
-  if (Math.abs(d) < 1e-15) return null;
-  return [
-    [M[1][1] / d, -M[0][1] / d],
-    [-M[1][0] / d, M[0][0] / d]
-  ];
-}
+// inv2 (a 2 × 2 inverse, null when singular) is shared with core/localization.js
 function inv3(M) {
   const [a, b, c] = M[0],
     [d, e, f] = M[1],

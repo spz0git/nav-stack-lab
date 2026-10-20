@@ -51,11 +51,11 @@ function wireSym(pane) {
 if (!('look' in LAYERS)) LAYERS.look = true;
 if (!('slip' in LAYERS)) LAYERS.slip = true; // the sideslip arrow of the car with tyre slip, also UI-only
 const TAB_LAYERS = {
-  loc: ['belief', 'beam', 'trail', 'ghost', 'ghostrun', 'slip', 'graph'],
-  per: ['lidar', 'cost', 'ghost', 'ghostrun', 'slip', 'frontier'],
+  loc: ['belief', 'beam', 'gnss', 'trail', 'ghost', 'ghostrun', 'slip', 'graph', 'sonar'],
+  per: ['lidar', 'cost', 'ghost', 'ghostrun', 'slip', 'frontier', 'sonar'],
   mis: ['ghostrun', 'slip', 'frontier', 'lidar'],
   plan: ['search', 'ghostrun', 'slip', 'frontier'],
-  ctl: ['dwa', 'look', 'trail', 'ghostrun', 'slip', 'vo', 'agents']
+  ctl: ['dwa', 'look', 'trail', 'ghostrun', 'slip', 'vo', 'agents', 'sonar']
 };
 let layersEdited = false,
   layersKey = '';
@@ -86,6 +86,7 @@ function layersPane() {
     ['lidar', 'Lidar hits (as perceived)'],
     ['radar', 'Radar: field of view and detections with their radial velocity'],
     ['beam', 'Beacon measurements (from the estimate)'],
+    ['gnss', 'GNSS fixes: fused (dots), gated (crosses), not fused (hollow); the newest with its reported 2σ'],
     ['belief', 'Particles / 95% covariance ellipse'],
     ['trail', 'Trails (solid = truth, dashed = estimate)'],
     ['dwa', 'Local planner: DWA rollouts, MPC prediction and reference'],
@@ -244,7 +245,7 @@ function wireCode() {
 const CODE_HOW = {
   loc: {
     when: 'every 50 ms tick, right after the sensors deliver and before the mission, the planner and the controller read the estimate',
-    gets: 'obs.odom (v, ω), obs.beacons (range and bearing per beacon seen, or null), obs.map, obs.scan, obs.init on the first call, obs.dt; mem, an object that survives between calls',
+    gets: 'obs.odom (v, ω), obs.beacons (range and bearing per beacon seen, or null), obs.map, obs.scan, obs.gnss (a GNSS fix {x, y, sigma} when one arrived, or null), obs.sonar (with the ultrasonic ring on: the readings that arrived, each with the bearing, width and mount of its sonar in the body frame; null otherwise), obs.init on the first call, obs.dt; mem, an object that survives between calls',
     returns: '{x, y, th}, and cov (3×3, nine numbers) for the ellipse: the pose the whole stack uses from then on',
     fails:
       'an error, or a call over 200 ms, stops the slot: the status line names the line, the estimate stays where it was until Load and use again'
@@ -265,7 +266,7 @@ const CODE_HOW = {
   },
   pred: {
     when: 'at 10 Hz with the confirmed tracks, before the speed planner, DWA and MPC plan around them',
-    gets: "obs.tracks (position, velocity, radius, age), obs.radar (this scan's radar detections, when the radar is on: range r, bearing b, radial velocity v, and x, y placed from the pose estimate), obs.horizon, obs.dt, obs.lethal and obs.grid",
+    gets: "obs.tracks (position, velocity, radius, age), obs.radar (this scan's radar detections, when the radar is on: range r, bearing b, radial velocity v, and x, y placed from the pose estimate), obs.horizon, obs.dt, obs.lethal and obs.grid; obs.sonar with the ultrasonic ring on (each sonar's latest arc on the map, and its age)",
     returns: '{trajectories: {id: [[x, y, r], …]}}, one sample per step out to the horizon',
     fails: 'an error, or a call over 200 ms, leaves the planners without predictions: they see nobody coming'
   }

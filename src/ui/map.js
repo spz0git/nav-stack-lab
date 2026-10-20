@@ -220,7 +220,9 @@ function draw() {
   drawGhostRun(dpr, k, px);
   drawTrails(dpr, k, px);
   drawBeam(dpr, k, px);
+  drawGnss(dpr, k, px);
   drawLidar(dpr, k, px);
+  drawSonar(dpr, k, px);
   drawRadar(dpr, k, px);
   drawPath(dpr, k, px);
   drawRollouts(dpr, k, px);
@@ -507,6 +509,46 @@ function drawBeam(dpr, k, px) {
     }
   }
 }
+// GNSS fixes (live only): the last minute of them, fused ones filled, gated ones crossed, the rest hollow, fading with
+// age; the newest with the 2σ ring the receiver reports
+function drawGnss(dpr, k, px) {
+  if (!LAYERS.gnss || !P.gnss || !S.gnss || replayFrame()) return;
+  const F = S.gnss.fixes,
+    n = F.length;
+  ctx.lineWidth = px(1.2);
+  F.forEach((f, i) => {
+    const a = 0.25 + (0.75 * (i + 1)) / n,
+      rr = px(2.6);
+    if (f.st === 'gate') {
+      ctx.strokeStyle = rgba(TOK.bad, a);
+      ctx.beginPath();
+      ctx.moveTo(f.x - rr, f.y - rr);
+      ctx.lineTo(f.x + rr, f.y + rr);
+      ctx.moveTo(f.x - rr, f.y + rr);
+      ctx.lineTo(f.x + rr, f.y - rr);
+      ctx.stroke();
+    } else if (f.st === 'ok' || f.st === 'reset') {
+      ctx.fillStyle = rgba(TOK.rose, a);
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, rr, 0, TAU);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = rgba(TOK.rose, a);
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, rr, 0, TAU);
+      ctx.stroke();
+    }
+  });
+  const L = F[n - 1];
+  if (L && S.t - L.t < 2) {
+    ctx.strokeStyle = rgba(TOK.rose, 0.5);
+    ctx.setLineDash([px(3), px(3)]);
+    ctx.beginPath();
+    ctx.arc(L.x, L.y, 2 * L.sig, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
 function drawLidar(dpr, k, px) {
   // lidar (perceived points)
   if (LAYERS.lidar) {
@@ -517,6 +559,42 @@ function drawLidar(dpr, k, px) {
       if (bp) ctx.fillStyle = bp[p[2] != null ? p[2] : i] > S.agents.beamThr ? TOK.rose : TOK.amber;
       ctx.fillRect(p[0] - px(1.5), p[1] - px(1.5), px(3), px(3));
     });
+  }
+}
+// The ultrasonic ring: each sonar's cone where it was measured, out to its reading (to the reach when no echo came
+// back: dashed, in the warning colour for a specular miss, in the bad colour for a dead-zone miss), and the returned
+// arc, rose when it was a neighbour's echo
+function drawSonar(dpr, k, px) {
+  if (!LAYERS.sonar || !P.sonar || !S.sonArcs) return;
+  const old = S.t - 2 * sonCycle() - 1e-6;
+  for (const A of S.sonArcs) {
+    if (!A || A.t < old) continue;
+    const R = A.max ? P.sonMax : A.r,
+      a0 = A.th - A.w / 2,
+      a1 = A.th + A.w / 2;
+    ctx.beginPath();
+    ctx.moveTo(A.x, A.y);
+    ctx.arc(A.x, A.y, R, a0, a1);
+    ctx.closePath();
+    ctx.fillStyle = rgba(TOK.ok, A.max ? 0.04 : 0.1);
+    ctx.fill();
+    ctx.lineWidth = px(0.8);
+    ctx.strokeStyle = !A.max
+      ? rgba(TOK.ok, 0.45)
+      : A.why === 'spec'
+        ? rgba(TOK.warn, 0.6)
+        : A.why === 'dead'
+          ? rgba(TOK.bad, 0.7)
+          : rgba(TOK.ok, 0.25);
+    if (A.max) ctx.setLineDash([px(3), px(3)]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (A.max) continue;
+    ctx.beginPath();
+    ctx.arc(A.x, A.y, A.r, a0, a1);
+    ctx.lineWidth = px(2.6);
+    ctx.strokeStyle = A.why === 'xt' ? TOK.rose : TOK.ok;
+    ctx.stroke();
   }
 }
 // The radar's field of view from the estimated pose, and its detections: a diamond each, with an arrow along the line of

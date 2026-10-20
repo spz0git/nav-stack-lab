@@ -551,6 +551,7 @@ function fieldHTML(f) {
       c = chgMark({k: 'bOff'});
     return `<div class="field${c ? ' chg' : ''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b => `<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="linkbtn" data-beacon="all">All on</button><button class="linkbtn" data-beacon="none">All off</button></div></div>`;
   }
+  if (f.type === 'sensors') return sensorsHTML();
   if (f.type === 'bsensor')
     return `<details class="how bsens" id="bsens" ${bsOpen ? 'open' : ''}><summary>Beacon sensor: rate, range, noise, what blocks it</summary><div class="how-body" id="bsens-body">${beaconSensorHTML()}</div></details>`;
   if (f.type === 'btns')
@@ -622,6 +623,13 @@ function wirePane(t) {
         renderAllPanes();
       })
   );
+  pane.querySelectorAll('input[data-sensor]').forEach(
+    cb =>
+      (cb.onchange = () => {
+        setSensor(cb.dataset.sensor, cb.checked, false);
+        renderAllPanes();
+      })
+  );
   pane.querySelectorAll('[data-act]').forEach(b => (b.onclick = () => btnActs[+b.dataset.act]()));
   const bs = $('#bsens');
   if (bs)
@@ -671,3 +679,28 @@ let replanDebounce = null;
 
 // Nomenclature, IEEE style: symbol — definition [unit], grouped by subsystem
 const I = s => `<i>${s}</i>`;
+// The Sensors switches (Localize): one per registered modality (SENSORS in core/sensors.js), each with what it gives
+function sensorsHTML() {
+  const rows = SENSORS.map(s => {
+    const on = sensorOn(s),
+      av = !s.avail || s.avail(),
+      d = s.val ? (lvlDefault(s.flag) === 'all' ? false : true) : lvlDefault(s.flag),
+      chg = d !== undefined && on !== !!d,
+      rst = chg ? `<button class="rst" data-reset="${s.flag}" title="Back to this level's default (${d ? 'on' : 'off'})">↺</button>` : '';
+    return `<div class="sens-row${av ? '' : ' na'}"><label class="check${chg ? ' chg' : ''}"><input type="checkbox" data-sensor="${s.key}" ${on ? 'checked' : ''} ${av ? '' : 'disabled'}><span><b>${esc(s.label)}</b>${rst}</span></label><p class="note">${esc(s.gives)}${av ? '' : ' This level has none.'}</p></div>`;
+  }).join('');
+  return `<h3 class="fhead" id="sens-head">Sensors</h3><div class="sens-sw">${rows}</div>`;
+}
+Object.assign(TIPS, {
+  odom: 'Wheel encoders. Off: the filters predict with the commanded velocity instead of a measured one.',
+  lidar: 'The 360° lidar. Off: no mapping, scan matching, people detection, lidar safety stop or lidar layers.',
+  gnss: 'GNSS position fixes: white noise, a wandering bias, multipath near large shapes, outages.',
+  gnssHz: 'Fixes per second.',
+  gnssSig: 'White noise per fix, each axis: new at every fix.',
+  gnssBias: 'Spread of the slowly wandering bias (first-order Gauss–Markov), each axis.',
+  gnssTau: 'How long the bias takes to forget itself: correlated over about this many seconds.',
+  gnssMp: 'Within 1.5 m of a wall or a parked car the fix jumps 2 to 4 m and gets noisier; the reported σ does not change.',
+  gnssOut: 'Share of the time the receiver has no fix.',
+  gnssOutLen: 'Average length of one GNSS outage.',
+  gnssAug: 'The EKF estimates the GNSS bias as two more states (a random walk), so correlated error is modelled instead of averaged.'
+});

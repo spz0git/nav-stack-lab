@@ -5190,3 +5190,66 @@ article.chapter .notes-table td button.try {
 .trn-key .trn-k3 {
   border-top: 1px dashed var(--muted);
 }
+/* the sensor dots beside the health lights: what the robot senses with (core/sensors.js SENSORS) */
+.sensdots {
+  order: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--r-ctl);
+}
+.sensdots:hover {
+  background: var(--track);
+}
+.sd {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.sd i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+.sd.off {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.sd.off i {
+  background: none;
+  border: 1px solid var(--muted);
+  box-sizing: border-box;
+}
+.sd.blind {
+  color: var(--bad);
+  font-weight: 600;
+}
+@media (min-width: 761px) {
+  .statusrow > .sensdots {
+    flex: 0 0 auto;
+  }
+  .layout[data-mode='learn'] .sensdots .sd {
+    font-size: 0;
+    gap: 0;
+  }
+  .layout[data-mode='learn'] .sensdots .sd.blind {
+    font-size: var(--fs-small);
+  }
+}
+/* the Sensors switches (Localize): one per modality with what it gives */
+.sens-row {
+  margin: 2px 0 6px;
+}
+.sens-row .note {
+  margin: 0 0 0 24px;
+}
+.sens-row.na {
+  opacity: 0.6;
+}

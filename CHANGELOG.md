@@ -6,6 +6,41 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 ## Unreleased
 
+- An ultrasonic ring: Perceive → Ultrasonic ring (off by default) puts 8 sonars round the robot, each a 30° cone that
+  reports one number, the range of the nearest echo in the cone. It has a sonar's real failures: walls met at a slant
+  send the echo away, anything closer than 0.2 m is lost in the dead zone, a sonar sometimes hears its neighbour, and
+  the ring fires in turn, so each sonar reads only every 0.4 s. Sonars, beam width, reach, dead zone, noise, how
+  oblique a surface may be, crosstalk and the ping time are all settings. The Sonar ring layer draws each cone and the
+  arc it returned, and marks the misses.
+- What the ring can be used for: building the map (Perceive → What builds the map: lidar, sonar ring or both), the
+  safety stop (Control → The safety stop reads), and the particle filter against the prior map (Localize → Also weight
+  particles by the sonar ring), so a sonar-only localizer can be tried. Your localizer and predictor in the Code tab
+  receive the readings as obs.sonar.
+- A new Perceive lesson, Sonar: one number for a whole cone, with nine experiments on the unknown building, the
+  warehouse aisles, the busy floor and the noisy-odometry floor: the robot driving into a wall no sonar heard, the
+  blurred map of rougher walls, a sonar safety stop that loses a person in its dead zone, and a particle filter that
+  localizes on the sonars alone with about twice the lidar's error. Chapter 3 has a new section deriving the arc
+  update and the cone likelihood, with the measured table. The lab models no materials, so the sonar's real strength,
+  hearing glass and dark surfaces a lidar can miss, does not show here; the lesson says so.
+
+- Localize → Sensors: one switch per sensor (wheel odometry, the yaw-rate gyro, the lidar, the beacons, GNSS, the ultrasonic ring and the radar),
+  each with a line on what it gives the robot, and a row of dots beside the four health lights showing what the
+  robot is sensing with (a click opens the switches). Turn any of them off and the rest of the stack carries on and
+  says what it lost: with the lidar off there is no mapping, people detection, scan matching or lidar safety stop,
+  and the planners use the map they have; with the beacons off the EKF coasts on odometry; with the wheel odometry
+  off the filters predict with the commanded speed and turn rate; with every sensor of the world off the health
+  lights say the robot is blind. Setup links and Try buttons can switch any sensor.
+- GNSS, a new sensor (off by default; it belongs on the parking lot and the road, and works anywhere else as if the
+  world had a sky): position fixes 1 to 5 times a second, about a metre off, with an error that wanders slowly over
+  a minute, jumps of a few metres next to walls and parked cars (multipath), and outages. The fixes are drawn on the
+  map: filled when the filter used them, crossed out when the gate rejected them. The EKF and the particle filter
+  fuse them, your localizer in the Code tab receives them, and the EKF can estimate the receiver's bias as two more
+  states. A filter rejecting every fix for 10 s restarts from them.
+- Localization lesson 9, "GNSS: the noise is not white", on the parking lot: dead reckoning, GNSS alone, GNSS with
+  odometry, the bias in the state, multipath along the parked cars and an outage, with the consistency plot under
+  the error. Chapter 2 §12 derives the slowly wandering error, what it does to a Kalman filter that takes the fixes
+  as independent, and the filter that carries the bias, with the measured table and what the model leaves out.
+
 - A radar (Perceive → Radar): it looks ahead 120° and 20 m and reports, for each echo, the range, the bearing and
   how fast the thing closes or opens (its radial velocity, from the Doppler shift). The map draws each detection as a
   diamond with an arrow for that speed, false detections and ghosts (echoes that bounced off a wall) included, since

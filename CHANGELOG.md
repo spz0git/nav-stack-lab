@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v57 · 2026-10-20
 
 - Custom levels: the level menu has a new entry, Custom level. Import a level from a JSON file, export the one on
   screen as JSON (with what you painted and erased, and the goals you placed), copy a link that carries the level
@@ -19,7 +19,7 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   can collect training data on many different floors in one go, or the custom level on screen.
 - Something to try: a 48 × 32 m generated warehouse with the busy floor's settings. With unlabeled beacons in rows of
   identical aisles the particle filter can lock onto the wrong aisle; switch Localize → Beacon association to Known
-  IDs and it holds.
+  IDs and it holds. (PR #114)
 
 ## v56 · 2026-10-20
 

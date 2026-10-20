@@ -49,7 +49,7 @@ Note: The three marked lines are three of the triggers of the lesson; each sets 
 
 ## Think about
 Q: Why skip a goal after three failures instead of trying forever?
-A: A goal that cannot be reached, because it is walled off, in unknown space treated as lethal, or occupied by someone who will not move, would otherwise stall the whole mission. Three attempts over about 6 s is enough to tell a transient blockage from a permanent one on this floor; the right number depends on how often the world changes.
+A: A goal that cannot be reached, because it is walled off, in unknown space treated as lethal with no seen floor leading toward it, or occupied by someone who will not move, would otherwise stall the whole mission. Three attempts over about 6 s is enough to tell a transient blockage from a permanent one on this floor; the right number depends on how often the world changes.
 Q: The "off path" trigger fires when the estimate is 1 m from the path. What happens if the estimate is wrong?
 A: The robot replans from a pose it is not at, drives the new path from where it actually is, and fires the trigger again, which is what the kidnapped-EKF run in the localization lessons shows: a loop of off-path replans around a phantom pose. The behaviour layer can only act on the estimate; recovering the estimate is the estimator's job, and the lost guard is the hook that lets it ask for time.
 Q: Optimal goal ordering is solved exactly here. Why can that not scale?

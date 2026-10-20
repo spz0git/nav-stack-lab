@@ -155,16 +155,16 @@
  },
  "L4 {\"unknownAs\":\"lethal\"} 200s": {
   "state": "DONE",
-  "goalsDone": 0,
+  "goalsDone": 4,
   "goals": 4,
-  "skipped": 4,
-  "coll": 0,
+  "skipped": 0,
+  "coll": 1,
   "ped": 0,
-  "replans": 0,
+  "replans": 2,
   "t": 200,
-  "dist": 0,
-  "poseRMS": 0.0117,
-  "cteRMS": null,
+  "dist": 50.78,
+  "poseRMS": 0.0226,
+  "cteRMS": 0.0814,
   "nees": 1.32
  },
  "L5 {} 200s": {

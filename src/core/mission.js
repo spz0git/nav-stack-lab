@@ -73,7 +73,7 @@ const exploring = () => P.mis === 'explore' && P.per === 'mapping';
 function frontiers() {
   const lo = S.lo,
     isF = new Uint8Array(NC),
-    unk = i => Math.abs(lo[i]) < 0.05,
+    unk = i => unseen(lo[i]),
     n = Math.ceil(LETHAL / RES);
   // a seen obstacle within the lethal radius (not the unknown: that would rule out every frontier under the cautious policy)
   const nearWall = (i, j) => {
@@ -89,7 +89,7 @@ function frontiers() {
   for (let j = 1; j < GH - 1; j++)
     for (let i = 1; i < GW - 1; i++) {
       const k = j * GW + i;
-      if (lo[k] < -0.05 && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW)) && !nearWall(i, j)) isF[k] = 1;
+      if (lo[k] < -0.05 && !unk(k) && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW)) && !nearWall(i, j)) isF[k] = 1;
     }
   const seen = new Uint8Array(NC),
     out = [];
@@ -154,7 +154,7 @@ function nearestKnownFree(s) {
   for (let h = 0; h < q.length; h++) {
     const u = q[h];
     if (!S.cm.lethal[u]) {
-      if (S.lo[u] < -0.05) {
+      if (S.lo[u] < -0.05 && !unseen(S.lo[u])) {
         if (S.cm.dist[u] >= LETHAL + 0.2) return u;
         if (fallback < 0) fallback = u;
       } else if (last < 0) last = u;
@@ -229,15 +229,15 @@ function exploredFrac() {
   for (let i = 0; i < NC; i++) {
     if (tr[i]) continue;
     n++;
-    if (Math.abs(lo[i]) >= 0.05) k++;
+    if (!unseen(lo[i])) k++;
   }
   return n ? k / n : 0;
 }
 // a frontier goal is pointless once none of its cells borders unknown space any more (seen on the way there)
 function frontierGone(wp) {
   const lo = S.lo,
-    unk = i => Math.abs(lo[i]) < 0.05;
-  for (const k of wp.cells) if (lo[k] < -0.05 && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW))) return false;
+    unk = i => unseen(lo[i]);
+  for (const k of wp.cells) if (lo[k] < -0.05 && !unk(k) && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW))) return false;
   return true;
 }
 // how much of the built map agrees with the truth: among the known cells, the share whose class (occupied above
@@ -249,7 +249,7 @@ function mapAgree() {
   let n = 0,
     ok = 0;
   for (let i = 0; i < NC; i++) {
-    if (Math.abs(lo[i]) < 0.05) continue;
+    if (unseen(lo[i])) continue;
     n++;
     if ((lo[i] > 0.5 ? 1 : 0) === (tr[i] ? 1 : 0)) ok++;
   }
@@ -310,6 +310,69 @@ function missionRepeat(msg) {
   startMission();
   return S.fsm.state === 'PLAN';
 }
+// Goal-directed exploration under the cautious policy (unknown = lethal): a goal in unseen space has no plan, and a
+// robot that does not move sees nothing new. So the planner gets a stand-in, the edge of the floor it can plan through
+// where only the unknown stops it (not a wall it has seen), the edge cell with the least route cost to it plus the
+// straight line from there on to the goal (the unknown beyond taken as free, optimistically). The plan is refreshed
+// every second while the map grows, until the goal itself can be planned to; an edge under the robot is no progress,
+// and then there is no plan, as before.
+const towardUnseen = () => P.per === 'mapping' && P.unknownAs === 'lethal' && !exploring();
+// @code unseen-goal | unseenGoalProxy: the edge of the seen floor to drive to when the goal is in unseen space
+function unseenGoalProxy(wp) {
+  const g = cellIdx(wp.x, wp.y),
+    lethal = S.cm.lethal;
+  if (g < 0 || !lethal[g]) return null;
+  // the distance to the obstacles seen so far: a cell lethal while farther than LETHAL from all of them is lethal
+  // because of the unknown alone
+  const occ = new Uint8Array(NC);
+  for (let i = 0; i < NC; i++) occ[i] = S.lo[i] > 0.5 ? 1 : 0;
+  const dSeen = distanceTransform(occ);
+  if (dSeen[g] < LETHAL) return null; // a seen obstacle is in the way, not the unknown
+  const e = S.est;
+  let s = cellIdx(e.x, e.y);
+  if (s >= 0 && lethal[s]) s = nearestFree(s);
+  if (s < 0) return null;
+  // the edge: reachable cells in a band 0.2 to 0.35 m beyond the lethal radius (the margin a frontier goal keeps:
+  // whatever the unknown hides appears no closer than that), where the nearest obstruction is the unknown
+  const R = gridSearch(s, -1, 1),
+    d = S.cm.dist;
+  let best = -1,
+    bc = Infinity;
+  for (let j = 1; j < GH - 1; j++)
+    for (let i = 1; i < GW - 1; i++) {
+      const k = j * GW + i;
+      if (!isFinite(R.gs[k]) || d[k] < LETHAL + 0.2 || d[k] >= LETHAL + 0.35 || dSeen[k] < d[k] + 0.2) continue;
+      const c = R.gs[k] + hyp((i + 0.5) * RES - wp.x, (j + 0.5) * RES - wp.y);
+      if (c < bc) {
+        bc = c;
+        best = k;
+      }
+    }
+  if (best < 0) return null;
+  const x = ((best % GW) + 0.5) * RES,
+    y = (((best / GW) | 0) + 0.5) * RES;
+  return hyp(x - e.x, y - e.y) < ARRIVE + 0.25 ? null : {x, y, th: null};
+}
+// @end
+// Stuck against an obstacle: a replan from there starts at the nearest free cell, a few centimetres away at the
+// edge of the lethal band, so the tracker looks past it along the wall and pushes the robot back into it, and the
+// goal is given up after three tries. First the robot backs off, straight to the nearest cell 0.2 m clear of the band
+// (turning in place first if it faces the wall; contact allows turning), then it replans. Not for the car, whose
+// planners manoeuvre with reverse legs of their own, nor for the straight line, which ignores the map, or the
+// learned policy, which has a fallback of its own (policyShield): replanned, either drives back into the obstacle.
+function startRecovery() {
+  const F = S.fsm,
+    e = S.est,
+    k = cellIdx(e.x, e.y);
+  if (isCar() || P.plan === 'straight' || P.plan === 'policy' || k < 0 || S.cm.dist[k] >= LETHAL + 0.1) return false;
+  const f = nearestFree(k, LETHAL + 0.2);
+  if (f < 0) return false;
+  const to = [((f % GW) + 0.5) * RES, (((f / GW) | 0) + 0.5) * RES];
+  setPlan([{pts: [[e.x, e.y], to], dir: 1}]);
+  F.recover = {t: S.t, to};
+  logE(`Stuck against an obstacle: backing off to (${to[0].toFixed(1)}, ${to[1].toFixed(1)}), then replanning`, 'warn');
+  return true;
+}
 const POSE_PLANNERS = ['hybrid', 'rs', 'custom'],
   ALIGN_TOL = 0.035; // planners that take the goal heading; unicycle alignment tolerance [rad]
 const PLAN_NAMES = {
@@ -332,9 +395,22 @@ function doPlan(reason) {
     return;
   }
   const agL = reason === 'agent blocking' && P.plan !== 'stastar' && agCostLayer(); // predicted agents enter the costmap for this plan only
-  const wp = WPS[F.queue[0]],
-    e = S.est,
+  const e = S.est,
     t0 = performance.now();
+  let wp = WPS[F.queue[0]];
+  F.proxy = towardUnseen() ? unseenGoalProxy(wp) : null;
+  if (F.proxy) {
+    if (F.proxyFor !== F.queue[0])
+      logE(
+        `Goal ${wpLabel(F.queue[0])} is in unseen space: heading for the edge of the seen floor nearest it, (${F.proxy.x.toFixed(1)}, ${F.proxy.y.toFixed(1)})`
+      );
+    F.proxyFor = F.queue[0];
+    wp = F.proxy;
+  } else if (F.proxyFor === F.queue[0]) {
+    F.proxyFor = null;
+    const g = cellIdx(wp.x, wp.y);
+    if (g >= 0 && !S.cm.lethal[g]) logE(`Goal ${wpLabel(F.queue[0])} is on seen floor now: planning to it`, 'ok');
+  }
   let res;
   S.searchTrace = null;
   if (P.plan === 'custom') {
@@ -370,6 +446,7 @@ function applyPlanResult(res, name, reason, t0, agL) {
     e = S.est,
     ms = performance.now() - t0;
   F.lastPlanT = S.t;
+  F.recover = null;
   if (agL) buildCostmap();
   if (!F.queue.length) return;
   if (res.ok) {
@@ -458,6 +535,22 @@ function missionTick() {
   }
   const wp = WPS[F.queue[0]],
     e = S.est;
+  if (F.recover) {
+    // backing off (startRecovery): until the clear cell is reached, or 3 s, then a fresh plan from there
+    const end = F.recover.to;
+    if (hyp(end[0] - e.x, end[1] - e.y) < 0.12 || S.t - F.recover.t > 3) {
+      F.recover = null;
+      F.state = 'PLAN';
+      F.pendingReason = 'stuck';
+    }
+    return;
+  }
+  // heading for the edge of the seen floor (unseenGoalProxy): a fresh plan every second as the map grows
+  if (F.proxy && S.t - F.lastPlanT >= 1) {
+    F.state = 'PLAN';
+    F.pendingReason = 'periodic';
+    return;
+  }
   if (wp.explore && S.t - (F.frontierT || 0) >= 1) {
     F.frontierT = S.t;
     if (frontierGone(wp)) {
@@ -604,7 +697,7 @@ function missionTick() {
           S.track = null;
           S.plan = null;
         }
-      } else {
+      } else if (!startRecovery()) {
         F.state = 'PLAN';
         F.pendingReason = 'stuck';
       }

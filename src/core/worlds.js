@@ -257,7 +257,7 @@ const LEVELS = [
         b: [['Explore', {set: {mis: 'explore'}, tab: 'mis', plot: 'pos'}]]
       },
       {
-        t: '<b>Perceive:</b> set unknown space to lethal. Goals in unexplored rooms become unreachable, which is the gap frontier-based exploration fills.',
+        t: '<b>Perceive:</b> set unknown space to lethal. The planners refuse unseen space, so the robot heads for the edge of the seen floor nearest each goal and replans as the map grows: the same goals, more slowly.',
         b: [['Unknown = lethal', {set: {unknownAs: 'lethal'}, tab: 'per'}]]
       },
       {

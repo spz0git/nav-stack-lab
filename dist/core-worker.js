@@ -467,7 +467,7 @@ const LEVELS = [
         b: [['Explore', {set: {mis: 'explore'}, tab: 'mis', plot: 'pos'}]]
       },
       {
-        t: '<b>Perceive:</b> set unknown space to lethal. Goals in unexplored rooms become unreachable, which is the gap frontier-based exploration fills.',
+        t: '<b>Perceive:</b> set unknown space to lethal. The planners refuse unseen space, so the robot heads for the edge of the seen floor nearest each goal and replans as the map grows: the same goals, more slowly.',
         b: [['Unknown = lethal', {set: {unknownAs: 'lethal'}, tab: 'per'}]]
       },
       {
@@ -3395,7 +3395,13 @@ function pgRebuildMap() {
    ============================================================ */
 const L_FREE = -0.4,
   L_OCC = 0.85,
-  L_CLAMP = 4;
+  L_CLAMP = 4,
+  SUBRAYS = 5, // virtual rays per gap between beams, one every 0.6°: about 8 cm apart at the lidar's 8 m
+  L_GAP = Math.fround(-0.06); // what a virtual ray leaves in an unseen cell (a value no beam produces; see below)
+// A cell no beam has crossed: untouched, or only reached by the virtual rays between beams. Those count as free for the
+// costmap, so the cautious policy can plan through them, and as unseen for everything that asks whether the robot has
+// looked (frontiers, the floor seen, the map's agreement), which therefore sees the same map as without them.
+const unseen = l => Math.abs(l) < 0.05 || l === L_GAP;
 // @code logodds | integrateScan: a lidar scan into the log-odds grid
 // the same, from hit points in the body frame (a keyframe's scan): each point is a beam that hit at its range
 function integrateScanPts(pts) {
@@ -3415,30 +3421,50 @@ function integrateScan(ranges) {
     const hit = ranges[k] < LMAX - 1e-3,
       a = e.th - Math.PI + (k * TAU) / NBEAM,
       r = Math.min(ranges[k], LMAX);
-    const i1 = cellI(e.x + r * Math.cos(a)),
-      j1 = cellI(e.y + r * Math.sin(a));
-    let x = i0,
-      y = j0;
-    const dx = Math.abs(i1 - i0),
-      dy = -Math.abs(j1 - j0),
-      sx = i0 < i1 ? 1 : -1,
-      sy = j0 < j1 ? 1 : -1;
-    let err = dx + dy;
-    for (let guard = 0; guard < 200; guard++) {
-      if (x < 0 || y < 0 || x >= GW || y >= GH) break;
-      const idx = y * GW + x,
-        last = x === i1 && y === j1;
+    rayCells(i0, j0, cellI(e.x + r * Math.cos(a)), cellI(e.y + r * Math.sin(a)), (idx, last) => {
+      if (lo[idx] === L_GAP) lo[idx] = 0; // a real beam starts from unknown, whatever a virtual ray left
       lo[idx] = clamp(lo[idx] + (last && hit ? L_OCC : L_FREE), -L_CLAMP, L_CLAMP);
-      if (last) break;
-      const e2 = 2 * err;
-      if (e2 >= dy) {
-        err += dy;
-        x += sx;
-      }
-      if (e2 <= dx) {
-        err += dx;
-        y += sy;
-      }
+    });
+  }
+  // The gaps between beams: 3° apart, the beams leave unseen cells beyond about 2 m, which the cautious policy
+  // (unknown = lethal) inflates into a wall about 3 m out. Virtual rays between neighbouring beams reach the cells
+  // closer than both hits, one cell short, and mark an untouched one L_GAP: free for the costmap, still unseen for the
+  // rest (unseen above). A cell a beam has crossed keeps its value, and a ray stops at one seen occupied; an obstacle
+  // corner between two beams can be marked, and the first beam that hits it makes it occupied as if never marked.
+  for (let k = 0; k < NBEAM; k++) {
+    const r = Math.min(ranges[k], ranges[(k + 1) % NBEAM], LMAX) - RES;
+    if (r <= RES) continue;
+    for (let m = 1; m < SUBRAYS; m++) {
+      const a = e.th - Math.PI + ((k + m / SUBRAYS) * TAU) / NBEAM;
+      rayCells(i0, j0, cellI(e.x + r * Math.cos(a)), cellI(e.y + r * Math.sin(a)), idx => {
+        if (lo[idx] > 0) return false;
+        if (Math.abs(lo[idx]) < 0.05) lo[idx] = L_GAP;
+      });
+    }
+  }
+}
+// Bresenham's walk from cell (i0, j0) to (i1, j1), calling f(idx, last) on each cell in the grid; f returns false to stop
+function rayCells(i0, j0, i1, j1, f) {
+  let x = i0,
+    y = j0;
+  const dx = Math.abs(i1 - i0),
+    dy = -Math.abs(j1 - j0),
+    sx = i0 < i1 ? 1 : -1,
+    sy = j0 < j1 ? 1 : -1;
+  let err = dx + dy;
+  for (let guard = 0; guard < 200; guard++) {
+    if (x < 0 || y < 0 || x >= GW || y >= GH) return;
+    const idx = y * GW + x,
+      last = x === i1 && y === j1;
+    if (f(idx, last) === false || last) return;
+    const e2 = 2 * err;
+    if (e2 >= dy) {
+      err += dy;
+      x += sx;
+    }
+    if (e2 <= dx) {
+      err += dx;
+      y += sy;
     }
   }
 }
@@ -3477,18 +3503,19 @@ function goalBlocked(gx, gy) {
       for (let i = i0 - n; i <= i0 + n; i++) {
         if (i < 0 || j < 0 || i >= GW || j >= GH) continue;
         if (Math.abs(S.lo[j * GW + i]) < 0.05)
-          return 'goal is in unexplored space, and unknown space is lethal (Perceive): the robot stays where it can see; Mission → Explore picks goals it can reach';
+          return 'goal is in unexplored space, and unknown space is lethal (Perceive): no edge of the seen floor the robot can reach leads closer to it';
       }
   }
   return null;
 }
-function nearestFree(s) {
+// the nearest cell that is not lethal, or with a clearance given, the nearest at least that far from an obstacle
+function nearestFree(s, clear) {
   const seen = new Uint8Array(NC);
   const q = [s];
   seen[s] = 1;
   for (let h = 0; h < q.length && h < 6000; h++) {
     const u = q[h];
-    if (!S.cm.lethal[u]) return u;
+    if (clear ? S.cm.dist[u] >= clear : !S.cm.lethal[u]) return u;
     const ui = u % GW,
       uj = (u / GW) | 0;
     for (const [di, dj] of [
@@ -4223,7 +4250,8 @@ function dstarPlan(sx, sy, gx, gy) {
    training/policy from what the classical stack drove, or one trained in the Train tab (nnModel). No map, no
    search: what the policy knows is in its weights.
    ============================================================ */
-const POLICY_N = 8; // waypoints, about 0.4 m apart (the expert path it was cloned from)
+const POLICY_N = 8, // waypoints, about 0.4 m apart (the expert path it was cloned from)
+  POLICY_CLEAR = LETHAL + 0.1; // the distance from obstacles the safety layer keeps the path at
 // @code policy | policyPlan: the scan and the goal in, a trajectory out
 function policyFeatures(scan, e, wp, odo) {
   // 120 ranges/8, the nearest range in each of 12 sectors of 30° (an obstacle signal a flat network reads more easily
@@ -4301,12 +4329,13 @@ function policyPlan(e, wp) {
   }
   S.policyOut = pts.slice(1);
   // the safety layer every learned planner needs: a waypoint inside an inflated obstacle (the policy's error is about
-  // 20 cm, the expert's clearance 40) is moved to the nearest free cell, counted; the path is cut only where no free
-  // cell is near
+  // 20 cm, the expert's clearance 40), or less than 10 cm outside one, is moved to the nearest cell that clear,
+  // counted; the path is cut only where no such cell is near. The 10 cm are the margin A*'s smoothing keeps: the
+  // costmap's cells put an obstacle up to half a cell farther than it is, so the lethal edge itself is touching.
   for (let i = 1; i < pts.length; i++) {
     const k = cellIdx(pts[i][0], pts[i][1]);
-    if (k >= 0 && !S.cm.lethal[k]) continue;
-    const f = k >= 0 ? nearestFree(k) : -1;
+    if (k >= 0 && S.cm.dist[k] >= POLICY_CLEAR) continue;
+    const f = k >= 0 ? nearestFree(k, POLICY_CLEAR) : -1;
     if (f >= 0 && hyp(((f % GW) + 0.5) * RES - pts[i][0], (((f / GW) | 0) + 0.5) * RES - pts[i][1]) < 0.6) {
       pts[i] = [((f % GW) + 0.5) * RES, (((f / GW) | 0) + 0.5) * RES];
       S.policySnap = (S.policySnap || 0) + 1;
@@ -4316,8 +4345,49 @@ function policyPlan(e, wp) {
       break;
     }
   }
+  policyShield(pts, e, target);
   if (pathLen(pts) < 0.05) return {ok: false, reason: 'the policy proposes no motion'};
   return {ok: true, pts, exp: 0, cost: pathLen(pts)};
+}
+// The rest of the safety layer. Points alone are not enough: two free waypoints 0.4 m apart can have a shelf end
+// between them, and a policy that averages "left of it" and "right of it" draws exactly that line. Each segment is
+// checked against the inflated obstacles; one that comes too close is replaced by A* between its two ends, if that detour is
+// short, and the path is cut before it otherwise. What is left can be too short to drive: pinned against a shelf,
+// the policy keeps asking for forward (the demonstrations never show backing out), every point lands in the shelf,
+// and the same scan gives the same answer at every refresh. Then the robot gets 1.5 m of the A* route instead, which
+// takes it to a state where the policy can drive again.
+function policyShield(pts, e, target) {
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1],
+      [bx, by] = pts[i],
+      L = hyp(bx - ax, by - ay);
+    // the first segment may start inside the margin, on its way out
+    if (segClear(ax, ay, bx, by, POLICY_CLEAR, i === 1)) continue;
+    const R = astar(ax, ay, bx, by);
+    S.searchTrace = null;
+    if (R.ok && pathLen(R.pts) < 3 * L + 1) {
+      pts.splice(i, 1, ...R.pts.slice(1));
+      i += R.pts.length - 2;
+      S.policyRepair = (S.policyRepair || 0) + 1;
+    } else {
+      S.policyBad = (S.policyBad || 0) + 1;
+      pts.length = i;
+      break;
+    }
+  }
+  if (pathLen(pts) >= 0.3) return;
+  const R = astar(e.x, e.y, target.x, target.y);
+  S.searchTrace = null;
+  if (!R.ok) return;
+  pts.length = 1;
+  for (let i = 1, acc = 0; i < R.pts.length && acc < 1.5; i++) {
+    const [ax, ay] = R.pts[i - 1],
+      d = hyp(R.pts[i][0] - ax, R.pts[i][1] - ay),
+      f = Math.min(1, (1.5 - acc) / d);
+    pts.push([ax + f * (R.pts[i][0] - ax), ay + f * (R.pts[i][1] - ay)]);
+    acc += d;
+  }
+  S.policyFallback = (S.policyFallback || 0) + 1;
 }
 // @end
 
@@ -4796,7 +4866,7 @@ const exploring = () => P.mis === 'explore' && P.per === 'mapping';
 function frontiers() {
   const lo = S.lo,
     isF = new Uint8Array(NC),
-    unk = i => Math.abs(lo[i]) < 0.05,
+    unk = i => unseen(lo[i]),
     n = Math.ceil(LETHAL / RES);
   // a seen obstacle within the lethal radius (not the unknown: that would rule out every frontier under the cautious policy)
   const nearWall = (i, j) => {
@@ -4812,7 +4882,7 @@ function frontiers() {
   for (let j = 1; j < GH - 1; j++)
     for (let i = 1; i < GW - 1; i++) {
       const k = j * GW + i;
-      if (lo[k] < -0.05 && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW)) && !nearWall(i, j)) isF[k] = 1;
+      if (lo[k] < -0.05 && !unk(k) && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW)) && !nearWall(i, j)) isF[k] = 1;
     }
   const seen = new Uint8Array(NC),
     out = [];
@@ -4877,7 +4947,7 @@ function nearestKnownFree(s) {
   for (let h = 0; h < q.length; h++) {
     const u = q[h];
     if (!S.cm.lethal[u]) {
-      if (S.lo[u] < -0.05) {
+      if (S.lo[u] < -0.05 && !unseen(S.lo[u])) {
         if (S.cm.dist[u] >= LETHAL + 0.2) return u;
         if (fallback < 0) fallback = u;
       } else if (last < 0) last = u;
@@ -4952,15 +5022,15 @@ function exploredFrac() {
   for (let i = 0; i < NC; i++) {
     if (tr[i]) continue;
     n++;
-    if (Math.abs(lo[i]) >= 0.05) k++;
+    if (!unseen(lo[i])) k++;
   }
   return n ? k / n : 0;
 }
 // a frontier goal is pointless once none of its cells borders unknown space any more (seen on the way there)
 function frontierGone(wp) {
   const lo = S.lo,
-    unk = i => Math.abs(lo[i]) < 0.05;
-  for (const k of wp.cells) if (lo[k] < -0.05 && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW))) return false;
+    unk = i => unseen(lo[i]);
+  for (const k of wp.cells) if (lo[k] < -0.05 && !unk(k) && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW))) return false;
   return true;
 }
 // how much of the built map agrees with the truth: among the known cells, the share whose class (occupied above
@@ -4972,7 +5042,7 @@ function mapAgree() {
   let n = 0,
     ok = 0;
   for (let i = 0; i < NC; i++) {
-    if (Math.abs(lo[i]) < 0.05) continue;
+    if (unseen(lo[i])) continue;
     n++;
     if ((lo[i] > 0.5 ? 1 : 0) === (tr[i] ? 1 : 0)) ok++;
   }
@@ -5033,6 +5103,69 @@ function missionRepeat(msg) {
   startMission();
   return S.fsm.state === 'PLAN';
 }
+// Goal-directed exploration under the cautious policy (unknown = lethal): a goal in unseen space has no plan, and a
+// robot that does not move sees nothing new. So the planner gets a stand-in, the edge of the floor it can plan through
+// where only the unknown stops it (not a wall it has seen), the edge cell with the least route cost to it plus the
+// straight line from there on to the goal (the unknown beyond taken as free, optimistically). The plan is refreshed
+// every second while the map grows, until the goal itself can be planned to; an edge under the robot is no progress,
+// and then there is no plan, as before.
+const towardUnseen = () => P.per === 'mapping' && P.unknownAs === 'lethal' && !exploring();
+// @code unseen-goal | unseenGoalProxy: the edge of the seen floor to drive to when the goal is in unseen space
+function unseenGoalProxy(wp) {
+  const g = cellIdx(wp.x, wp.y),
+    lethal = S.cm.lethal;
+  if (g < 0 || !lethal[g]) return null;
+  // the distance to the obstacles seen so far: a cell lethal while farther than LETHAL from all of them is lethal
+  // because of the unknown alone
+  const occ = new Uint8Array(NC);
+  for (let i = 0; i < NC; i++) occ[i] = S.lo[i] > 0.5 ? 1 : 0;
+  const dSeen = distanceTransform(occ);
+  if (dSeen[g] < LETHAL) return null; // a seen obstacle is in the way, not the unknown
+  const e = S.est;
+  let s = cellIdx(e.x, e.y);
+  if (s >= 0 && lethal[s]) s = nearestFree(s);
+  if (s < 0) return null;
+  // the edge: reachable cells in a band 0.2 to 0.35 m beyond the lethal radius (the margin a frontier goal keeps:
+  // whatever the unknown hides appears no closer than that), where the nearest obstruction is the unknown
+  const R = gridSearch(s, -1, 1),
+    d = S.cm.dist;
+  let best = -1,
+    bc = Infinity;
+  for (let j = 1; j < GH - 1; j++)
+    for (let i = 1; i < GW - 1; i++) {
+      const k = j * GW + i;
+      if (!isFinite(R.gs[k]) || d[k] < LETHAL + 0.2 || d[k] >= LETHAL + 0.35 || dSeen[k] < d[k] + 0.2) continue;
+      const c = R.gs[k] + hyp((i + 0.5) * RES - wp.x, (j + 0.5) * RES - wp.y);
+      if (c < bc) {
+        bc = c;
+        best = k;
+      }
+    }
+  if (best < 0) return null;
+  const x = ((best % GW) + 0.5) * RES,
+    y = (((best / GW) | 0) + 0.5) * RES;
+  return hyp(x - e.x, y - e.y) < ARRIVE + 0.25 ? null : {x, y, th: null};
+}
+// @end
+// Stuck against an obstacle: a replan from there starts at the nearest free cell, a few centimetres away at the
+// edge of the lethal band, so the tracker looks past it along the wall and pushes the robot back into it, and the
+// goal is given up after three tries. First the robot backs off, straight to the nearest cell 0.2 m clear of the band
+// (turning in place first if it faces the wall; contact allows turning), then it replans. Not for the car, whose
+// planners manoeuvre with reverse legs of their own, nor for the straight line, which ignores the map, or the
+// learned policy, which has a fallback of its own (policyShield): replanned, either drives back into the obstacle.
+function startRecovery() {
+  const F = S.fsm,
+    e = S.est,
+    k = cellIdx(e.x, e.y);
+  if (isCar() || P.plan === 'straight' || P.plan === 'policy' || k < 0 || S.cm.dist[k] >= LETHAL + 0.1) return false;
+  const f = nearestFree(k, LETHAL + 0.2);
+  if (f < 0) return false;
+  const to = [((f % GW) + 0.5) * RES, (((f / GW) | 0) + 0.5) * RES];
+  setPlan([{pts: [[e.x, e.y], to], dir: 1}]);
+  F.recover = {t: S.t, to};
+  logE(`Stuck against an obstacle: backing off to (${to[0].toFixed(1)}, ${to[1].toFixed(1)}), then replanning`, 'warn');
+  return true;
+}
 const POSE_PLANNERS = ['hybrid', 'rs', 'custom'],
   ALIGN_TOL = 0.035; // planners that take the goal heading; unicycle alignment tolerance [rad]
 const PLAN_NAMES = {
@@ -5055,9 +5188,22 @@ function doPlan(reason) {
     return;
   }
   const agL = reason === 'agent blocking' && P.plan !== 'stastar' && agCostLayer(); // predicted agents enter the costmap for this plan only
-  const wp = WPS[F.queue[0]],
-    e = S.est,
+  const e = S.est,
     t0 = performance.now();
+  let wp = WPS[F.queue[0]];
+  F.proxy = towardUnseen() ? unseenGoalProxy(wp) : null;
+  if (F.proxy) {
+    if (F.proxyFor !== F.queue[0])
+      logE(
+        `Goal ${wpLabel(F.queue[0])} is in unseen space: heading for the edge of the seen floor nearest it, (${F.proxy.x.toFixed(1)}, ${F.proxy.y.toFixed(1)})`
+      );
+    F.proxyFor = F.queue[0];
+    wp = F.proxy;
+  } else if (F.proxyFor === F.queue[0]) {
+    F.proxyFor = null;
+    const g = cellIdx(wp.x, wp.y);
+    if (g >= 0 && !S.cm.lethal[g]) logE(`Goal ${wpLabel(F.queue[0])} is on seen floor now: planning to it`, 'ok');
+  }
   let res;
   S.searchTrace = null;
   if (P.plan === 'custom') {
@@ -5093,6 +5239,7 @@ function applyPlanResult(res, name, reason, t0, agL) {
     e = S.est,
     ms = performance.now() - t0;
   F.lastPlanT = S.t;
+  F.recover = null;
   if (agL) buildCostmap();
   if (!F.queue.length) return;
   if (res.ok) {
@@ -5181,6 +5328,22 @@ function missionTick() {
   }
   const wp = WPS[F.queue[0]],
     e = S.est;
+  if (F.recover) {
+    // backing off (startRecovery): until the clear cell is reached, or 3 s, then a fresh plan from there
+    const end = F.recover.to;
+    if (hyp(end[0] - e.x, end[1] - e.y) < 0.12 || S.t - F.recover.t > 3) {
+      F.recover = null;
+      F.state = 'PLAN';
+      F.pendingReason = 'stuck';
+    }
+    return;
+  }
+  // heading for the edge of the seen floor (unseenGoalProxy): a fresh plan every second as the map grows
+  if (F.proxy && S.t - F.lastPlanT >= 1) {
+    F.state = 'PLAN';
+    F.pendingReason = 'periodic';
+    return;
+  }
   if (wp.explore && S.t - (F.frontierT || 0) >= 1) {
     F.frontierT = S.t;
     if (frontierGone(wp)) {
@@ -5327,7 +5490,7 @@ function missionTick() {
           S.track = null;
           S.plan = null;
         }
-      } else {
+      } else if (!startRecovery()) {
         F.state = 'PLAN';
         F.pendingReason = 'stuck';
       }

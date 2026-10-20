@@ -219,6 +219,7 @@ function draw() {
   drawGhostRun(dpr, k, px);
   drawTrails(dpr, k, px);
   drawBeam(dpr, k, px);
+  drawGnss(dpr, k, px);
   drawLidar(dpr, k, px);
   drawSonar(dpr, k, px);
   drawPath(dpr, k, px);
@@ -504,6 +505,46 @@ function drawBeam(dpr, k, px) {
       ctx.arc(x, y, px(2.5), 0, TAU);
       ctx.fill();
     }
+  }
+}
+// GNSS fixes (live only): the last minute of them, fused ones filled, gated ones crossed, the rest hollow, fading with
+// age; the newest with the 2σ ring the receiver reports
+function drawGnss(dpr, k, px) {
+  if (!LAYERS.gnss || !P.gnss || !S.gnss || replayFrame()) return;
+  const F = S.gnss.fixes,
+    n = F.length;
+  ctx.lineWidth = px(1.2);
+  F.forEach((f, i) => {
+    const a = 0.25 + (0.75 * (i + 1)) / n,
+      rr = px(2.6);
+    if (f.st === 'gate') {
+      ctx.strokeStyle = rgba(TOK.bad, a);
+      ctx.beginPath();
+      ctx.moveTo(f.x - rr, f.y - rr);
+      ctx.lineTo(f.x + rr, f.y + rr);
+      ctx.moveTo(f.x - rr, f.y + rr);
+      ctx.lineTo(f.x + rr, f.y - rr);
+      ctx.stroke();
+    } else if (f.st === 'ok' || f.st === 'reset') {
+      ctx.fillStyle = rgba(TOK.rose, a);
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, rr, 0, TAU);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = rgba(TOK.rose, a);
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, rr, 0, TAU);
+      ctx.stroke();
+    }
+  });
+  const L = F[n - 1];
+  if (L && S.t - L.t < 2) {
+    ctx.strokeStyle = rgba(TOK.rose, 0.5);
+    ctx.setLineDash([px(3), px(3)]);
+    ctx.beginPath();
+    ctx.arc(L.x, L.y, 2 * L.sig, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 }
 function drawLidar(dpr, k, px) {

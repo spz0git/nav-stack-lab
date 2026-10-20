@@ -34,8 +34,8 @@ while working and again on `main` after the merge only repeats them.
    `note`; rename `## Unreleased` to `## vNN · date` in `CHANGELOG.md`; rebuild and commit. The label in the header
    (`v30 · 2026-10-15`) is the one users quote in bug reports, and this way it matches the artifact's version history.
 3. Run the gate, once: `npm run lint`, `npm run fmt:check`, `npm test` (the Node golden test, 10 s) and
-   `python3 tests/run_all.py` (the eight browser tests: `test.py`, `p5test.py`, `tles.py`, `chtest.py`, `dyntest.py`,
-   `extest.py`, `trtest.py`, `lvtest.py`). The L1–L5 summary of `test.py` must not change unless the change intends it;
+   `python3 tests/run_all.py` (the nine browser tests: `test.py`, `p5test.py`, `tles.py`, `chtest.py`, `dyntest.py`,
+   `extest.py`, `trtest.py`, `lvtest.py`, `sntest.py`). The L1–L5 summary of `test.py` must not change unless the change intends it;
    `p5test`, `chtest` and `dyntest` must report no errors. If a script fails, fix it and rerun what failed (the whole
    gate when the fix touches shared code).
 4. Merge. Do not run the gate again on `main`: its tree is the branch that was tested. Only if something else landed

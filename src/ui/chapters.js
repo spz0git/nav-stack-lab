@@ -356,3 +356,22 @@ function chapterFromHash() {
   return openChapter(m[1], m[2]);
 }
 window.addEventListener('hashchange', chapterFromHash);
+// GNSS (chapter 2 §12): the receiver's settings and what they imply for a filter that takes the fixes as white
+Object.assign(LIVE, {
+  gnssSig: () => liveF(P.gnssSig, 2),
+  gnssBias: () => liveF(P.gnssBias, 1),
+  gnssTau: () => liveF(P.gnssTau, 0),
+  gnssHz: () => liveF(P.gnssHz, 0),
+  gnssRep: () => liveF(gnssRep(), 2),
+  gnssPhi: () => liveF(Math.exp(-1 / (P.gnssHz * Math.max(1, P.gnssTau))), 4),
+  // a minute of fixes: what the plain filter claims for their average, and the truth with the correlated bias
+  gnssClaim: () => liveF(gnssRep() / Math.sqrt(60 * P.gnssHz), 3),
+  gnssTrue: () => {
+    const N = Math.round(60 * P.gnssHz),
+      phi = Math.exp(-1 / (P.gnssHz * Math.max(1, P.gnssTau)));
+    let s = N;
+    for (let m = 1; m < N; m++) s += 2 * (N - m) * phi ** m;
+    return liveF(Math.sqrt((P.gnssSig * P.gnssSig) / N + (P.gnssBias * P.gnssBias * s) / (N * N)), 2);
+  },
+  gnssQ: () => liveF((2 * P.gnssBias * P.gnssBias) / Math.max(1, P.gnssTau), 3)
+});

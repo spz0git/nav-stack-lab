@@ -23,6 +23,24 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   update and the cone likelihood, with the measured table. The lab models no materials, so the sonar's real strength,
   hearing glass and dark surfaces a lidar can miss, does not show here; the lesson says so.
 
+- Localize → Sensors: one switch per sensor (wheel odometry, the yaw-rate gyro, the lidar, the beacons, GNSS and the ultrasonic ring),
+  each with a line on what it gives the robot, and a row of dots beside the four health lights showing what the
+  robot is sensing with (a click opens the switches). Turn any of them off and the rest of the stack carries on and
+  says what it lost: with the lidar off there is no mapping, people detection, scan matching or lidar safety stop,
+  and the planners use the map they have; with the beacons off the EKF coasts on odometry; with the wheel odometry
+  off the filters predict with the commanded speed and turn rate; with every sensor of the world off the health
+  lights say the robot is blind. Setup links and Try buttons can switch any sensor.
+- GNSS, a new sensor (off by default; it belongs on the parking lot and the road, and works anywhere else as if the
+  world had a sky): position fixes 1 to 5 times a second, about a metre off, with an error that wanders slowly over
+  a minute, jumps of a few metres next to walls and parked cars (multipath), and outages. The fixes are drawn on the
+  map: filled when the filter used them, crossed out when the gate rejected them. The EKF and the particle filter
+  fuse them, your localizer in the Code tab receives them, and the EKF can estimate the receiver's bias as two more
+  states. A filter rejecting every fix for 10 s restarts from them.
+- Localization lesson 9, "GNSS: the noise is not white", on the parking lot: dead reckoning, GNSS alone, GNSS with
+  odometry, the bias in the state, multipath along the parked cars and an outage, with the consistency plot under
+  the error. Chapter 2 §12 derives the slowly wandering error, what it does to a Kalman filter that takes the fixes
+  as independent, and the filter that carries the bias, with the measured table and what the model leaves out.
+
 ## v57 · 2026-10-20
 
 - Custom levels: the level menu has a new entry, Custom level. Import a level from a JSON file, export the one on

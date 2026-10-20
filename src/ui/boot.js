@@ -152,5 +152,10 @@ window.__nav = {
   actuate,
   dynInfo,
   dynSlip,
-  health: () => healthNow(null)
+  health: () => healthNow(null),
+  SENSORS,
+  sensorOn,
+  setSensor,
+  sensorsBlind,
+  gnssTick
 };

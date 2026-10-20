@@ -5,6 +5,7 @@ function initLoc(fromStart) {
   const base = fromStart ? {x: S.robot.x, y: S.robot.y, th: S.robot.th} : {...S.est};
   S.est = {...base};
   S.nees = [];
+  S.gb = null; // the GNSS bias states (gnssAug), created at the first prediction
   if (P.loc === 'dr' || P.loc === 'ekf') S.Pc = [0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.0025];
   else S.Pc = null;
   if (P.loc === 'slam') slamInit();
@@ -25,7 +26,8 @@ function initLoc(fromStart) {
       neff: N,
       inj: 0,
       mB: 1,
-      mL: 1
+      mL: 1,
+      mG: 1
     };
     for (let i = 0; i < N; i++) {
       S.pf.x[i] = base.x + 0.1 * g.n();
@@ -92,6 +94,9 @@ function locPredict() {
     for (let i = 0; i < 9; i++) Pn[i] += VMV[i];
     S.Pc = Pn;
     S.est = n;
+    if (P.loc === 'ekf' && P.gnss && P.gnssAug)
+      gbPredict(G); // the GNSS bias states, when the EKF carries them
+    else S.gb = null;
     return;
   }
   if (P.loc === 'pf') {
@@ -110,6 +115,7 @@ function locPredict() {
     f.mB += mv;
     f.mL += mv;
     f.mS = (f.mS || 0) + mv; // since the last sonar weighting (pfSonarUpdate)
+    f.mG += mv;
     pfEstimate();
   }
 }
@@ -163,6 +169,7 @@ function ekfUpdate(z) {
       PH[4] * Si[0] + PH[5] * Si[2],
       PH[4] * Si[1] + PH[5] * Si[3]
     ];
+    if (S.gb) gbPoseUpdate([H.slice(0, 3), H.slice(3)], [Si.slice(0, 2), Si.slice(2)], nu, [K.slice(0, 2), K.slice(2, 4), K.slice(4)]); // GNSS bias states, if carried
     S.est = {x: e.x + K[0] * nu[0] + K[1] * nu[1], y: e.y + K[2] * nu[0] + K[3] * nu[1], th: wrap(e.th + K[4] * nu[0] + K[5] * nu[1])};
     // Joseph form: P = (I-KH)P(I-KH)^T + K R K^T
     const IKH = [
@@ -569,6 +576,17 @@ function ekfScanUpdate(ranges) {
     return;
   }
   const K = m3mul(S.Pc, Si); // P (P + R)⁻¹
+  if (S.gb)
+    gbPoseUpdate(
+      [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1]
+      ],
+      [Si.slice(0, 3), Si.slice(3, 6), Si.slice(6)],
+      nu,
+      [K.slice(0, 3), K.slice(3, 6), K.slice(6)]
+    );
   S.est = {
     x: e.x + K[0] * nu[0] + K[1] * nu[1] + K[2] * nu[2],
     y: e.y + K[3] * nu[0] + K[4] * nu[1] + K[5] * nu[2],
@@ -582,3 +600,222 @@ function ekfScanUpdate(ranges) {
   S.smLast = {...S.est};
 }
 // @end
+
+/* ---------- GNSS in the EKF and the particle filter ----------
+   A fix z = (x, y) measures the position: h(x) = (x, y), H = [I₂ 0], R = σ_rep² I₂ with the receiver's reported σ.
+   Gated at χ²(2) 99 % like a beacon reading. The plain filter takes the fixes as independent; they are not (the bias
+   wanders over a minute), so it grows ever more confident about a position that is a metre off. With P.gnssAug the
+   EKF carries the bias b = (b_x, b_y) as two more states, a random walk with q = 2σ_b²/τ (the Gauss–Markov process's
+   variance growth over short times), and the fix becomes z = p + b: H = [I₂ 0 I₂], with R the white part alone,
+   σ_rep² − σ_b² (the reported variance less the bias's, which the state now carries).
+   The bias states are kept beside the 3×3 pose covariance S.Pc (which the rest of the page reads): S.gb = {b, C, B},
+   C = cov(pose, b) (3×2), B = cov(b) (2×2). Every pose-only update (beacons, scan matching) moves them too, through
+   the cross-covariance (gbPoseUpdate): a beacon fix calibrates the GNSS bias. */
+const mz = (r, c) => Array.from({length: r}, () => new Array(c).fill(0));
+function mmul(A, B) {
+  const n = A.length,
+    m = B[0].length,
+    k = B.length,
+    C = mz(n, m);
+  for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) for (let a = 0; a < k; a++) C[i][j] += A[i][a] * B[a][j];
+  return C;
+}
+const mtr = A => A[0].map((_, j) => A.map(r => r[j]));
+const inv2 = S2 => {
+  const det = S2[0][0] * S2[1][1] - S2[0][1] * S2[1][0];
+  return Math.abs(det) < 1e-12
+    ? null
+    : [
+        [S2[1][1] / det, -S2[0][1] / det],
+        [-S2[1][0] / det, S2[0][0] / det]
+      ];
+};
+function gbInit() {
+  const v = P.gnssBias * P.gnssBias;
+  S.gb = {
+    b: [0, 0],
+    C: mz(3, 2),
+    B: [
+      [v, 0],
+      [0, v]
+    ]
+  };
+}
+// prediction: the pose moves with G, the bias walks: C ← G C, B ← B + q Δt I
+function gbPredict(G) {
+  if (!S.gb) gbInit();
+  const Gm = [G.slice(0, 3), G.slice(3, 6), G.slice(6)],
+    q = ((2 * P.gnssBias * P.gnssBias) / Math.max(1, P.gnssTau)) * DT;
+  S.gb.C = mmul(Gm, S.gb.C);
+  S.gb.B[0][0] += q;
+  S.gb.B[1][1] += q;
+}
+// a measurement of the pose alone (H m×3, S⁻¹ m×m, innovation ν, the pose gain K 3×m): the bias gain is
+// K_b = (H C)ᵀ S⁻¹, and C ← C − K H C, B ← B − K_b H C
+function gbPoseUpdate(H, Si, nu, K) {
+  const G = S.gb,
+    HC = mmul(H, G.C),
+    Kb = mmul(mtr(HC), Si),
+    dC = mmul(K, HC),
+    dB = mmul(Kb, HC);
+  for (let j = 0; j < 2; j++) for (let c = 0; c < nu.length; c++) G.b[j] += Kb[j][c] * nu[c];
+  G.C = G.C.map((r, i) => r.map((v, j) => v - dC[i][j]));
+  G.B = G.B.map((r, i) => r.map((v, j) => v - 0.5 * (dB[i][j] + dB[j][i])));
+}
+// @code ekf-gnss | ekfGnssUpdate: a GNSS fix as a position measurement, with the bias in the state or not
+function ekfGnssUpdate(fix) {
+  const e = S.est,
+    aug = !!S.gb,
+    // R: the reported variance; with the bias in the state, only its white part (the bias's σ_b² is in B already)
+    R = aug ? Math.max(fix.sig * fix.sig - P.gnssBias * P.gnssBias, 0.0025) : fix.sig * fix.sig,
+    // the full state: the pose, and with the bias states (x, y, θ, b_x, b_y)
+    Pp = [S.Pc.slice(0, 3), S.Pc.slice(3, 6), S.Pc.slice(6)],
+    Pa = aug ? [...Pp.map((r, i) => [...r, ...S.gb.C[i]]), ...S.gb.B.map((r, j) => [...S.gb.C.map(c => c[j]), ...r])] : Pp,
+    n = Pa.length,
+    H = aug
+      ? [
+          [1, 0, 0, 1, 0],
+          [0, 1, 0, 0, 1]
+        ]
+      : [
+          [1, 0, 0],
+          [0, 1, 0]
+        ],
+    hx = aug ? [e.x + S.gb.b[0], e.y + S.gb.b[1]] : [e.x, e.y], // the predicted fix: position, plus the bias if estimated
+    nu = [fix.x - hx[0], fix.y - hx[1]],
+    PHt = mmul(Pa, mtr(H)),
+    S2 = mmul(H, PHt);
+  S2[0][0] += R;
+  S2[1][1] += R;
+  const Si = inv2(S2);
+  if (!Si) return;
+  const d2 = nu[0] * (Si[0][0] * nu[0] + Si[0][1] * nu[1]) + nu[1] * (Si[1][0] * nu[0] + Si[1][1] * nu[1]);
+  fix.d2 = d2;
+  if (d2 > GNSS_GATE) {
+    fix.st = 'gate'; // too far from where the filter expects it: multipath, or a filter that is lost
+    S.gnss.gated++;
+    S.rejected++;
+    gnssLockout(fix);
+    return;
+  }
+  S.gnss.rejSince = null;
+  const K = mmul(PHt, Si), // n×2
+    dx = K.map(r => r[0] * nu[0] + r[1] * nu[1]);
+  S.est = {x: e.x + dx[0], y: e.y + dx[1], th: wrap(e.th + dx[2])};
+  // Joseph form: P ← (I − K H) P (I − K H)ᵀ + K R Kᵀ
+  const KH = mmul(K, H),
+    IKH = KH.map((r, i) => r.map((v, j) => (i === j ? 1 : 0) - v)),
+    Pn = mmul(mmul(IKH, Pa), mtr(IKH)),
+    KRK = mmul(K, mtr(K));
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) Pn[i][j] += R * KRK[i][j];
+  S.Pc = [0, 1, 2].flatMap(i => Pn[i].slice(0, 3));
+  if (aug) {
+    S.gb.b = [S.gb.b[0] + dx[3], S.gb.b[1] + dx[4]];
+    S.gb.C = [0, 1, 2].map(i => Pn[i].slice(3));
+    S.gb.B = [Pn[3].slice(3), Pn[4].slice(3)];
+  }
+  fix.st = 'ok';
+  S.gnss.used++;
+}
+// @end
+// the particle filter: each particle weighted by the fix's likelihood at its position (the same floor as the
+// beacons'), gated against the cloud's mean and spread, and only once the robot has moved since the last fused fix
+function pfGnssUpdate(fix) {
+  const f = S.pf,
+    R = fix.sig * fix.sig,
+    e = S.est,
+    nu = [fix.x - e.x, fix.y - e.y],
+    Si = inv2([
+      [S.Pc[0] + R, S.Pc[1]],
+      [S.Pc[3], S.Pc[4] + R]
+    ]);
+  if (!Si) return;
+  const d2 = nu[0] * (Si[0][0] * nu[0] + Si[0][1] * nu[1]) + nu[1] * (Si[1][0] * nu[0] + Si[1][1] * nu[1]);
+  fix.d2 = d2;
+  if (d2 > GNSS_GATE) {
+    fix.st = 'gate';
+    S.gnss.gated++;
+    S.rejected++;
+    gnssLockout(fix);
+    return;
+  }
+  S.gnss.rejSince = null;
+  if (f.mG < 0.05) {
+    fix.st = 'still';
+    return;
+  }
+  f.mG = 0;
+  for (let i = 0; i < f.N; i++) {
+    const dx = fix.x - f.x[i],
+      dy = fix.y - f.y[i];
+    f.lw[i] += Math.log(Math.exp((-0.5 * (dx * dx + dy * dy)) / R) + 1e-3);
+  }
+  pfResample(0, null);
+  fix.st = 'ok';
+  S.gnss.used++;
+}
+// The gate's trap: once the estimate is far enough off, every fix lands outside the gate, so nothing ever pulls it back.
+// After GNSS_LOCKOUT seconds of nothing but rejected fixes the filter restarts from the fixes (what a GNSS/INS does after
+// a run of rejections): the position moves by the mean innovation of the last few fixes and takes their variance, the
+// heading comes from the fixes' track (the course over ground) when they moved far enough, the cross-terms are
+// dropped and the bias states start over; the particles are scattered about the new position.
+const GNSS_LOCKOUT = 10;
+function gnssLockout(fix) {
+  const G = S.gnss,
+    e = S.est;
+  if (G.rejSince == null) {
+    G.rejSince = fix.t;
+    G.rej = [];
+  }
+  G.rej.push({x: fix.x, y: fix.y, nx: fix.x - e.x, ny: fix.y - e.y, t: fix.t, d: G.dist});
+  if (G.rej.length > 40) G.rej.shift();
+  if (fix.t - G.rejSince < GNSS_LOCKOUT) return;
+  const last = G.rej.slice(-6),
+    nx = last.reduce((a, q) => a + q.nx, 0) / last.length,
+    ny = last.reduce((a, q) => a + q.ny, 0) / last.length,
+    cog = gnssTrack(G.rej.filter(q => q.t > fix.t - 6)),
+    moving = cog != null,
+    rev = (S.odo.v || 0) < 0;
+  G.rejSince = null;
+  G.resets = (G.resets || 0) + 1;
+  const R = (fix.sig * fix.sig) / last.length,
+    th = moving ? wrap(cog + (rev ? Math.PI : 0)) : e.th;
+  if (P.loc === 'ekf') {
+    S.est = {x: e.x + nx, y: e.y + ny, th};
+    S.Pc = [R, 0, 0, 0, R, 0, 0, 0, moving ? ((20 * Math.PI) / 180) ** 2 : Math.max(S.Pc[8], ((30 * Math.PI) / 180) ** 2)];
+    if (S.gb) gbInit();
+  } else if (P.loc === 'pf') {
+    const f = S.pf,
+      g = S.rngA;
+    for (let i = 0; i < f.N; i++) {
+      f.x[i] += nx + Math.sqrt(R) * g.n();
+      f.y[i] += ny + Math.sqrt(R) * g.n();
+      if (moving) f.th[i] = wrap(th + 0.3 * g.n());
+      f.lw[i] = 0;
+    }
+    pfEstimate();
+  }
+  fix.st = 'reset';
+  logE(
+    `GNSS: every fix rejected for ${GNSS_LOCKOUT} s, so ${segName(P.loc)} restarts from the fixes: moved ${hyp(nx, ny).toFixed(1)} m${moving ? `, heading from their track (${Math.round((Math.abs(wrap(th - e.th)) * 180) / Math.PI)}° turned)` : ''}`,
+    'warn'
+  );
+}
+// the course over ground from a run of fixes: the direction from the mean of the first half to the mean of the second,
+// trusted only when the fixes lie along a line (no multipath jumps) and the halves are as far apart as the odometry
+// says the robot drove; null otherwise
+function gnssTrack(F) {
+  if (F.length < 8) return null;
+  const h = F.length >> 1,
+    m = A => [A.reduce((a, q) => a + q.x, 0) / A.length, A.reduce((a, q) => a + q.y, 0) / A.length],
+    a = m(F.slice(0, h)),
+    b = m(F.slice(h)),
+    L = hyp(b[0] - a[0], b[1] - a[1]),
+    drove = (F[F.length - 1].d - F[0].d) / 2;
+  if (L < 1.5 || Math.abs(L - drove) > 0.5 * drove) return null;
+  const ux = (b[0] - a[0]) / L,
+    uy = (b[1] - a[1]) / L,
+    c = m(F),
+    rms = Math.sqrt(F.reduce((s, q) => s + ((q.x - c[0]) * uy - (q.y - c[1]) * ux) ** 2, 0) / F.length);
+  return rms < 0.8 ? Math.atan2(uy, ux) : null;
+}

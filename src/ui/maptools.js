@@ -275,6 +275,7 @@ const LAYER_DEFS = [
   ['belief', 'Belief', 'Particles or the 95 % covariance ellipse', 'loc'],
   ['beam', 'Beacon readings', 'Rays from the estimate', 'loc'],
   ['trail', 'Trails', 'Solid = truth, dashed = estimate', 'loc'],
+  ['gnss', 'GNSS fixes', "Dots: fused; crosses: gated; hollow: not fused. The ring is the latest fix's reported 2σ", 'loc'],
   ['lidar', 'Lidar hits', 'As perceived', 'per'],
   ['sonar', 'Sonar ring', 'Each cone and its returned arc, where it was measured (Perceive → Ultrasonic ring)', 'per'],
   ['cost', 'Costmap', 'Inflation', 'per'],
@@ -302,14 +303,22 @@ function layerStatus(k) {
   switch (k) {
     case 'belief':
       return S.pf ? [1, `${S.pf.N} particles`] : S.Pc ? [1, '95 % ellipse'] : [0, tr ? 'ground truth has no belief' : 'no covariance yet'];
+    case 'gnss':
+      return !P.gnss
+        ? [0, 'GNSS is off (Sensors)']
+        : S.gnss && S.gnss.fixes.length
+          ? [1, `${S.gnss.fixes.length} fixes · ${S.gnss.gated} gated`]
+          : [0, S.gnss && S.gnss.down ? 'in an outage' : 'no fix yet'];
     case 'beam':
-      return tr || P.loc === 'dr'
-        ? [0, `${tr ? 'ground truth' : 'dead reckoning'} uses no beacons`]
-        : [1, `${S.lastZ.length} readings this scan`];
+      return !sensorOn(sensorByKey('beacons'))
+        ? [0, 'the beacons are off (Sensors)']
+        : tr || P.loc === 'dr'
+          ? [0, `${tr ? 'ground truth' : 'dead reckoning'} uses no beacons`]
+          : [1, `${S.lastZ.length} readings this scan`];
     case 'trail':
       return S.trailT.length > 1 ? [1, `${S.trailT.length} points`] : [0, 'starts when the robot moves'];
     case 'lidar':
-      return S.scanPts.length ? [1, `${S.scanPts.length} hits`] : [0, 'no scan yet'];
+      return !P.lidar ? [0, 'the lidar is off (Sensors)'] : S.scanPts.length ? [1, `${S.scanPts.length} hits`] : [0, 'no scan yet'];
     case 'sonar':
       return P.sonar
         ? [S.sonArcs ? 1 : 0, `${clamp(Math.round(P.sonN), 4, 16)} sonars · cycle ${sonCycle().toFixed(2)} s`]

@@ -51,6 +51,7 @@ function policyFeatures(scan, e, wp, odo) {
 function policyPlan(e, wp) {
   const M = nnModel('policy');
   if (!M) return {ok: false, reason: 'no policy model in this build (training/policy)'};
+  if (!P.lidar) return {ok: false, reason: 'the learned policy reads the lidar scan, and the lidar is off (Sensors)'};
   // the hybrid: a global planner's route, and the policy is pointed at the point 3 m along it instead of the goal
   let target = wp;
   if (P.policyGoal === 'subgoal') {

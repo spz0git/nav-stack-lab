@@ -59,6 +59,7 @@
   intended), `python3 p5test.py` (all Try buttons, ERRORS must be []), `python3 tles.py` (lessons), `python3 chtest.py` (companion notes),
   `python3 dyntest.py` (the car with tyre slip against chapter 1's theory, Analyze against the simulator; FAILS must be []),
   `python3 extest.py` (every slot example against its built-in; FAILS must be []), `python3 trtest.py` (the Train tab: collect,
-  train, save, use; ERRORS must be []). `python3 tests/run_all.py` runs all seven.
+  train, save, use; ERRORS must be []), `python3 sntest.py` (the Sensors switchboard: each sensor off on L3 and L5; FAILS must be []).
+  `python3 tests/run_all.py` runs all eight.
 - Design notes, known limits and next steps live in `docs/roadmap.md`. The GitHub repo is the only reference: there are
   no copies elsewhere (Claude projects, docs) to keep in sync.

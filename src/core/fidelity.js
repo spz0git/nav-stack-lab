@@ -9,7 +9,7 @@ function sensEnqueue(kind, data) {
 }
 // @code sens-deliver | sensDeliver: readings delivered late, by latency
 function sensDeliver() {
-  S.deliv = {scan: null, z: null};
+  S.deliv = {scan: null, z: null, gnss: null};
   if (!S.sensQ || !S.sensQ.length) return;
   const keep = [];
   for (const it of S.sensQ) {
@@ -20,6 +20,9 @@ function sensDeliver() {
     if (it.kind === 'lidar') {
       lidarApply(it.data);
       S.deliv.scan = it.data;
+    } else if (it.kind === 'gnss') {
+      gnssApply(it.data);
+      S.deliv.gnss = it.data;
     } else {
       beaconsApply(it.data);
       S.deliv.z = it.data;

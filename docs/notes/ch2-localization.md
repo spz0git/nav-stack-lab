@@ -325,6 +325,79 @@ with $\partial R^\top/\partial\theta = \begin{bmatrix} -s & c \\ -c & -s\end{bma
 
 [try: Pose-graph SLAM on wheel odometry | {"sim":true,"level":3,"set":{"loc":"pgslam"},"goals":[[5,13],[13.5,14],[21,13],[22.5,5.5],[21,13],[13.5,14],[5,13]],"tab":"loc","plot":"pos"}] [try: Both levels, with the gyro | {"sim":true,"level":3,"set":{"loc":"pgslam","gyro":true},"goals":[[5,13],[13.5,14],[21,13],[22.5,5.5],[21,13],[13.5,14],[5,13]],"tab":"loc","plot":"pos"}]
 
-## 12. What to carry into the next chapters
+## 12. GNSS: when the noise is not white
+
+Every update so far assumed that the measurement noise is **white**: each reading's error is drawn fresh, independent of the last one, $\mathrm E[v_k v_j^{\mathsf T}] = R\,\delta_{kj}$. That assumption is what lets the filter treat ten readings as ten times the evidence. A GNSS receiver breaks it. Most of its error comes from the atmosphere, the satellite orbits and clocks, and the reflections around the antenna, and all of these change over tens of seconds to minutes, not between one fix and the next.
+
+**The lab's receiver.** A fix at $t_k$ is the true position plus two errors per axis:
+
+$$
+z_k = p_k + b_k + w_k, \qquad w_k \sim \mathcal N(0, \sigma_w^2)
+$$
+
+$$
+b_{k+1} = \phi\, b_k + \sigma_b\sqrt{1-\phi^2}\;\eta_k, \qquad \phi = e^{-\Delta t/\tau}, \qquad \eta_k \sim \mathcal N(0, 1)
+$$
+
+The bias $b$ is a first-order **Gauss–Markov** process: stationary with variance $\sigma_b^2$ (the $\sqrt{1-\phi^2}$ keeps it there), and correlated in time as
+
+$$
+\mathrm E[b_k\, b_{k+m}] = \sigma_b^2\, \phi^{m} = \sigma_b^2\, e^{-m\Delta t/\tau}.
+$$
+
+In continuous time it is $\dot b = -b/\tau + n(t)$ with white $n$ of spectral density $2\sigma_b^2/\tau$: a random walk that is pulled back toward zero with time constant $\tau$. The settings here are $\sigma_w$ = {{live:gnssSig}} m, $\sigma_b$ = {{live:gnssBias}} m and $\tau$ = {{live:gnssTau}} s at {{live:gnssHz}} fixes per second, so two consecutive fixes share their bias with correlation $\phi$ = {{live:gnssPhi}}. The receiver reports $\sigma_{rep} = \sqrt{\sigma_w^2 + \sigma_b^2}$ = {{live:gnssRep}} m per axis: the true spread of one fix in the open, and nothing about the correlation.
+
+**What the plain filter does with it.** Take the fixes as white with $R = \sigma_{rep}^2 I$ (the update of §4 with $H = [I_2\; 0]$, the fix measuring $x$ and $y$ directly). Standing still for $N$ fixes, the filter's position variance falls as $\sigma_{rep}^2/N$, the variance of an average of independent readings. The average of the actual errors has variance
+
+$$
+\mathrm{Var}\Big(\tfrac1N \sum_k (b_k + w_k)\Big) = \frac{\sigma_w^2}{N} + \frac{\sigma_b^2}{N^2}\sum_{i,j} \phi^{|i-j|}, \qquad \sum_{i,j}\phi^{|i-j|} = N + 2\sum_{m=1}^{N-1}(N-m)\,\phi^m .
+$$
+
+For $N\Delta t \ll \tau$ the double sum is about $N^2$ and the bias term does not average down at all; for $N\Delta t \gg \tau$ it is about $N(1+\phi)/(1-\phi) \approx N\,2\tau/\Delta t$, so a span of $T$ seconds holds only about $T/2\tau$ independent samples of the bias. Over a minute of fixes the filter claims {{live:gnssClaim}} m and the truth is {{live:gnssTrue}} m: with the defaults, a variance about 80 times smaller than it should be on each axis, so NEES on the two position axes alone near 160 where 2 is expected. Moving, the odometry stops the variance from collapsing all the way, but the fixes still pull the estimate onto $p + b$, a point that wanders by a metre over a minute, while the band shrinks to a few tenths of a metre. That is the lesson's second experiment: NEES in the hundreds, the error inside the 2σ band a tenth of the time.
+
+**The fix: put the bias in the state.** If the error has structure, model it. Augment the state with the bias, $x_a = (x, y, \theta, b_x, b_y)$, and let the filter estimate it:
+
+$$
+F_a = \begin{bmatrix} G & 0 \\ 0 & I_2 \end{bmatrix}, \qquad Q_a = \begin{bmatrix} V M V^{\mathsf T} & 0 \\ 0 & q\,\Delta t\, I_2 \end{bmatrix}
+$$
+
+$$
+H_a = \begin{bmatrix} I_2 & 0 & I_2 \end{bmatrix}, \qquad R = \sigma_w^2 I_2 .
+$$
+
+The bias is modelled as a random walk with $q = 2\sigma_b^2/\tau$ = {{live:gnssQ}} m²/s, which matches the Gauss–Markov process over short times ($\mathrm{Var}(b_{t+\Delta} - b_t) = 2\sigma_b^2(1 - e^{-\Delta/\tau}) \approx 2\sigma_b^2 \Delta/\tau$) and is more cautious over long ones. $R$ is now only the white part: the reported $\sigma_{rep}^2$ less the $\sigma_b^2$ the state carries. With the covariance in blocks, $P_a = \begin{bmatrix} P & C \\ C^{\mathsf T} & B\end{bmatrix}$, $C$ the 3×2 cross-covariance of pose and bias, the update is the §4 update with
+
+$$
+\nu = z - (\hat p + \hat b), \qquad S = P_{pp} + C_p + C_p^{\mathsf T} + B + R
+$$
+
+$$
+K = \begin{bmatrix} P_{:,p} + C \\ C_p^{\mathsf T} + B \end{bmatrix} S^{-1}
+$$
+
+where $P_{pp}$ is the 2×2 position block, $P_{:,p}$ the first two columns of $P$ and $C_p$ the first two rows of $C$. The prediction moves the cross-covariance with the pose, $C \leftarrow G\,C$, and grows $B$ by $q\Delta t$. In the lab's runs the filter that carries the bias stays consistent (NEES at most 1.9 at seed 7, against 186 for the plain filter) and its band widens to a metre and a half, which is the honest answer.
+
+**What the state cannot do.** The fixes see only the sum $p + b$. The split between the two is held by what else the filter knows: the start pose at first, then the odometry, which lets the position drift by its own random walk while the bias drifts by its own. So the band widens with time rather than settling, and how much the error itself shrinks depends on the run: from 1.64 m RMS to 0.56 m at seed 7 and from 1.36 to 0.73 m at seed 11, but at seed 3 it grew from 1.38 to 1.55 m, still inside its band. Another position source makes the bias observable: every beacon fix moves $\hat b$ through the cross-covariance, $K_b = (H C)^{\mathsf T} S^{-1}$, which is how a GNSS/INS calibrates its receiver against anything better it has. And the random walk is a deliberate choice: the exact Gauss–Markov state bounds $B$ at $\sigma_b^2$, which makes the gate tighter, and in the lab's runs it rejected more fixes and lost track at one seed of three (NEES above 100 at seed 11).
+
+**Multipath and the gate.** Next to a wall or a parked car the receiver also sees reflections. The lab models them as a jump of 2 to 4 m, roughly away from the shape, held for 2 to 6 s, with extra noise, while the reported σ does not change. A jump is neither white nor slow, so neither model covers it; the gate of §6 ($\chi^2_2$, 9.21) catches the worst. Along the parked cars the gate rejects 15 to 21 of the first 40 fixes at seeds 3, 7 and 11. When every fix is rejected for 10 s the filter is trapped as after a kidnapping (§6), so the lab restarts it from the fixes: the position moves by the mean innovation of the last six, and the heading is taken from their track when they lie on a line and match the distance the odometry drove. Beside the cars that restart lands on reflected fixes, and NEES leaves the band.
+
+| Run on L6, 120 s, seed 7 | RMS error | Worst | NEES max | Inside 2σ | NEES max, seeds 3 / 11 |
+| --- | --- | --- | --- | --- | --- |
+| Dead reckoning, odometry noise ×1 | 1.45 m | 3.21 m | 2.7 | 100 % | 3.3 / 1.4 |
+| GNSS alone (odometry off) | 2.11 m | 3.54 m | 503 | 10 % | 2835 / 128 |
+| GNSS and odometry, plain EKF | 1.64 m | 2.90 m | 186 | 11 % | 207 / 154 |
+| … with the bias in the state | 0.56 m | 1.10 m | 1.9 | 100 % | 8.6 / 3.1 |
+| … along the parked cars (multipath) | 1.93 m | 3.78 m | 127 | 59 % | 50 / 64 |
+| … with outages, 50 % in 15 s spells | 1.23 m | 2.14 m | 2.6 | 100 % | 3.7 / 2.3 |
+
+The first four and the last drive laps of an 18 × 10 m rectangle on the lot's empty floor (Map → empty, so nothing but the people gets in the way); the multipath run drives the lane above the middle row of parked cars. "NEES max" is the largest value of the status strip's 20 s mean, read every 10 s. The beacons are off in all of them.
+
+**What the model leaves out.** Satellite geometry: a real fix is worse when the visible satellites bunch in one part of the sky (the dilution of precision, DOP), and better with more of them. The sky itself: next to a wall a real receiver loses satellites, not only gains reflections; a 2D world has no sky, so the lab stands in for it with distance. The receiver's clock and the atmosphere, which are where the slow bias comes from. Carrier phase and RTK: with a base station nearby, a receiver that tracks the carrier's phase is good to centimetres, and the error model changes entirely. And the receiver's own filter, which smooths the fixes and correlates them further before the robot's filter ever sees them.
+
+**When GNSS still beats beacons.** It needs nothing installed, works anywhere under open sky, and its error does not grow with distance or with time: however long the robot drives, the next fix is within a few metres. Beacons give centimetres, but only where someone put them and only in their range. The usual answer is both: GNSS for where on Earth, and the lidar, beacons or a map for where in the lane.
+
+[try: GNSS and odometry, plain | {"sim":true,"level":5,"set":{"loc":"ekf","bOff":"all","gnss":true,"odoK":1,"map":"empty","misLoop":true,"vehicles":false},"goals":[[3,13],[21,13],[21,3],[3,3]],"tab":"loc","plot":"pos","panes":[["nees"]]}] [try: The bias in the state | {"sim":true,"level":5,"set":{"loc":"ekf","bOff":"all","gnss":true,"gnssAug":true,"odoK":1,"map":"empty","misLoop":true,"vehicles":false},"goals":[[3,13],[21,13],[21,3],[3,3]],"tab":"loc","plot":"pos","panes":[["nees"]]}]
+
+## 13. What to carry into the next chapters
 
 Three ideas from this chapter recur everywhere in the stack. Linearize, then propagate covariance through the Jacobian: the tracker's constant-velocity filter in chapter 3 is the same machinery on a person's position and velocity. Measure surprise in units of the expected spread: the Mahalanobis gate reappears in data association for tracks, and NEES is the test for any filter that claims a covariance. And keep the uncertainty honest rather than small: the costmap margins, the speed planner's growing radii and the lost guard all consume $\Sigma$, and all of them are only as good as it is.

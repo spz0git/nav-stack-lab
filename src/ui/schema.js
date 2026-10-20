@@ -839,3 +839,83 @@ const SCHEMA = {
     {k: 'seed', label: 'Random seed (applies on Reset)', min: 1, max: 99, step: 1}
   ]
 };
+
+const upFirst = t => t.charAt(0).toUpperCase() + t.slice(1);
+/* ---------- The Sensors switchboard and GNSS in the settings (appended: spliced into the tabs, not reorganizing them) ---------- */
+// what the switched-off sensors take from the estimator and the stack now, in words: the same checks the health
+// lights run (ui/health.js), so the tab and the lights never disagree
+function sensorsNote() {
+  if (!S || !sensorsOff().length) return '';
+  const H = healthNow(),
+    msgs = [];
+  for (const k of ['loc', 'per', 'plan', 'ctl'])
+    for (const c of H.all[k] || [])
+      if (c.on && ['Blind', 'Odometry', 'Beacons', 'Lidar', 'GNSS'].includes(c.name) && !msgs.includes(c.msg)) msgs.push(c.msg);
+  return msgs.length ? `Now: ${msgs.map(upFirst).join('. ')}.` : '';
+}
+// the GNSS state in words: the last fix, how far off it was, what the filter did with it, the bias
+function gnssInfo() {
+  const G = S && S.gnss;
+  if (!G || !G.last) return G && G.down ? 'In an outage: no fix.' : 'No fix yet.';
+  const L = G.last,
+    r = S.robot,
+    err = hyp(L.x - r.x, L.y - r.y),
+    st = {
+      ok: 'fused',
+      gate: `rejected by the gate (d² ${L.d2 != null ? L.d2.toFixed(0) : '—'} > 9.2)`,
+      still: 'not fused (the robot has not moved since the last fix)',
+      unused: `not fused (${segName(P.loc)} takes no GNSS)`,
+      slot: 'passed to your localizer',
+      new: 'waiting (sensor latency)',
+      reset: `taken as the position: every fix had been rejected for ${GNSS_LOCKOUT} s, so the filter restarted from the fixes`
+    }[L.st];
+  const bias = S.gb
+    ? ` Bias in the EKF state: estimated (${S.gb.b[0].toFixed(2)}, ${S.gb.b[1].toFixed(2)}) m ± ${Math.sqrt(Math.max(0, S.gb.B[0][0])).toFixed(2)} m; the receiver's true bias (${G.bx.toFixed(2)}, ${G.by.toFixed(2)}) m.`
+    : '';
+  return `Last fix ${(S.t - L.t).toFixed(1)} s ago: ${err.toFixed(2)} m from the true position${L.mp ? ' (multipath: within 1.5 m of a wall or parked car)' : ''}, reported σ ${L.sig.toFixed(2)} m, ${st}.${G.down ? ' In an outage now.' : ''} ${G.n} fixes, ${G.used} fused, ${G.gated} gated${G.resets ? `, ${G.resets} reset${G.resets === 1 ? '' : 's'}` : ''}.${bias}`;
+}
+{
+  const at = SCHEMA.loc.findIndex(f => f.type === 'head' && /^Odometry/.test(f.label));
+  SCHEMA.loc.splice(at < 0 ? SCHEMA.loc.length : at, 0, {type: 'sensors'}, {type: 'info', text: sensorsNote, show: () => !!sensorsNote()});
+  SCHEMA.per.splice(1, 0, {
+    type: 'info',
+    text: () =>
+      `The lidar is off (Localize → Sensors): ${P.per === 'mapping' ? 'the map stops growing and the planners use what was seen before; ' : ''}no people are detected${P.agents === 'truth' ? ' (ground-truth tracking still runs)' : ''}, and the costmap gets nothing from the scan.`,
+    show: () => !P.lidar
+  });
+  SCHEMA.loc.push(
+    {type: 'head', label: 'GNSS', show: () => P.gnss},
+    {
+      type: 'info',
+      text: () =>
+        `Position fixes with white noise, a bias that wanders over about ${P.gnssTau.toFixed(0)} s (σ ${P.gnssBias.toFixed(1)} m), multipath within 1.5 m of walls and parked cars, and outages. The receiver reports σ ${gnssRep().toFixed(2)} m: honest for one fix in the open, silent about the correlation between fixes and about multipath. ${['ekf', 'pf', 'custom'].includes(P.loc) ? `${upFirst(segName(P.loc))} fuses them as position measurements (H = [I 0]), gated at χ²(2) 99 %.` : `${upFirst(segName(P.loc))} does not fuse them: pick the EKF or the particle filter.`}`,
+      show: () => P.gnss
+    },
+    {
+      type: 'info',
+      text: () =>
+        'Indoors a real receiver gets no fix at all, or a wild one off the walls: a 2D world has no roof, so here GNSS works as if outdoors. The parking lot (L6) and the road (L7) are where it belongs.',
+      show: () => P.gnss && !['L6', 'L7'].includes(LV.id)
+    },
+    {k: 'gnssHz', label: 'Fix rate', min: 1, max: 5, step: 1, unit: 'Hz', show: () => P.gnss},
+    {k: 'gnssSig', label: 'White noise σ per fix', min: 0, max: 1, step: 0.05, unit: 'm', show: () => P.gnss},
+    {k: 'gnssBias', label: 'Wandering bias σ (Gauss–Markov)', min: 0, max: 3, step: 0.1, unit: 'm', show: () => P.gnss},
+    {k: 'gnssTau', label: 'Bias time constant τ', min: 5, max: 300, step: 5, unit: 's', show: () => P.gnss},
+    {k: 'gnssMp', type: 'bool', label: 'Multipath within 1.5 m of walls and parked cars (a jump and extra noise)', show: () => P.gnss},
+    {k: 'gnssOut', label: 'GNSS outages (share of time without a fix)', min: 0, max: 90, step: 5, unit: '%', show: () => P.gnss},
+    {k: 'gnssOutLen', label: 'Mean outage length', min: 1, max: 30, step: 1, unit: 's', show: () => P.gnss && P.gnssOut > 0},
+    {
+      k: 'gnssAug',
+      type: 'bool',
+      label: 'Estimate the GNSS bias in the EKF (two more states, a random walk)',
+      show: () => P.gnss && P.loc === 'ekf'
+    },
+    {type: 'info', text: gnssInfo, show: () => P.gnss},
+    {
+      type: 'info',
+      text: () =>
+        "<b>Left out.</b> Satellite geometry (the DOP that makes a fix worse when the satellites bunch), the sky view itself, the receiver clock, the atmosphere, carrier phase and RTK (centimetres with a base station), and the receiver's own filter, which makes real fixes smoother and more correlated still. <b>When GNSS still beats beacons:</b> it needs no infrastructure and works everywhere under open sky, its error does not grow with distance from a beacon or with time, and it cannot be lost: a filter that drifted for a minute is back within a few metres at the next fix.",
+      show: () => P.gnss
+    }
+  );
+}

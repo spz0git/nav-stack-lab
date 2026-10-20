@@ -180,3 +180,21 @@ const LAYERS = {
   graph: true,
   vo: true
 };
+
+// ---- Sensors switchboard and GNSS (appended: one switch per modality, see SENSORS in core/sensors.js) ----
+const SENSOR_DEFAULTS = {
+  odom: true, // wheel odometry; off: the filters predict with the commanded velocity
+  lidar: true, // the 360° lidar; off: no mapping, scan matching, people detection, safety stop or lidar layers
+  gnss: false, // GNSS position fixes (outdoors on L6 and L7; anywhere else as if the world had a sky)
+  gnssHz: 2, // fixes per second
+  gnssSig: 0.3, // white noise σ per fix [m]
+  gnssBias: 1.0, // σ of the slowly wandering bias, a first-order Gauss–Markov process [m]
+  gnssTau: 60, // its time constant [s]
+  gnssMp: true, // multipath within 1.5 m of a wall or a parked car: a bias jump and extra noise
+  gnssOut: 0, // share of time the receiver has no fix [%]
+  gnssOutLen: 6, // mean length of one outage [s]
+  gnssAug: false // the EKF estimates the GNSS bias as two more states (random walk)
+};
+Object.assign(DEFAULTS, SENSOR_DEFAULTS);
+for (const [k, v] of Object.entries(SENSOR_DEFAULTS)) if (!(k in P)) P[k] = v;
+LAYERS.gnss = true;

@@ -22,6 +22,7 @@ function recFrame() {
     peds: S.peds.map(p => ({x: p.x, y: p.y, vx: p.vx || 0, vy: p.vy || 0, r: p.r, wait: p.wait || 0})),
     scan: sc,
     lastZ: S.lastZ,
+    sonArcs: S.sonArcs || null, // replaced, not changed, at each delivery (sonarApply)
     bDown: S.bDown ? S.bDown.slice() : null,
     nT: S.trailT.length,
     nE: S.trailE.length,

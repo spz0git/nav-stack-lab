@@ -2,7 +2,7 @@ import asyncio, json, sys
 from playwright.async_api import async_playwright
 from _browser import launch, page_url
 # Measures what the localization lessons' Try buttons show, headless: pose error, filter σ, NEES, rejected readings,
-# particle-filter N_eff and injections over time. A case: {name, lvl, set, secs, every, act, dense}.
+# particle-filter N_eff and injections over time. A case: {name, lvl, seed, set, secs, every, act, dense} (seed 7 by default).
 # act 'kidnap' or 'scatter' happens after 8 s (as tryGo does); dense = seconds sampled every second after the act;
 # tour: the level's goals and then back to its start (a loop for pose-graph SLAM to close); 'back': out along the goals and
 # back along them to the first (the lesson's tour); goals: a Try's own goal list (set up as the Try button does).

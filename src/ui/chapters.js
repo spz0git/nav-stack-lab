@@ -10,6 +10,8 @@ let chapterOpen = null,
   chapterSec = null,
   liveTimer = null; // chapterFrom: the lesson a link came from
 const liveF = (v, d = 2) => (v == null || !isFinite(v) ? '—' : (+v).toFixed(d));
+// about how many cells an arc of the sonar's beam width covers at range r: its length over a cell, times the band's 1.4 cells
+const sonArcN = r => Math.max(2, Math.round((1.41 * r * P.sonBeam * Math.PI) / 180 / RES));
 // the pure-pursuit formulas of chapter 6, from the current parameters (valid for pure pursuit on the diff-drive robot)
 function ppFormulas() {
   const v0 = anV0(),
@@ -74,6 +76,18 @@ const LIVE = {
   odoDrift: () => liveF((60 * odoErr(anV0()).bw * 180) / Math.PI, 0),
   // perception (chapter 3): the tracker's steady-state α–β gains from the tracking index λ = σa Δt² / σz
   lidarSig: () => liveF(P.lidarSig, 2),
+  // the ultrasonic ring (chapter 3 §11)
+  sonN: () => String(clamp(Math.round(P.sonN), 4, 16)),
+  sonBeam: () => String(P.sonBeam),
+  sonMax: () => liveF(P.sonMax, 1),
+  sonMin: () => liveF(P.sonMin, 2),
+  sonSig: () => liveF(P.sonSig, 3),
+  sonSpec: () => String(P.sonSpec),
+  sonXt: () => String(P.sonXt),
+  sonCycle: () => liveF(sonCycle(), 2),
+  sonGap: () => String(Math.max(0, Math.round(360 / clamp(Math.round(P.sonN), 4, 16) - P.sonBeam))),
+  sonArcN2: () => String(sonArcN(2)),
+  sonLarc2: () => liveF(Math.log((sonArcN(2) + 1) / (sonArcN(2) - 1)), 2),
   infl: () => liveF(P.infl, 1),
   agSigA: () => liveF(P.agSigA, 1),
   agT: () => liveF(P.agT, 1),

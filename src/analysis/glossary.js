@@ -369,6 +369,49 @@ const GLOSS = {
     ['closest-approach', 'closest approach']
   ],
   contacts: ['contacts', 'Times the robot touched a person.', '', ['contacts']],
+  sonar: [
+    'sonar',
+    'Ultrasonic range sensor: it sends a ping and times the first echo, which gives one range for a whole cone about 30° wide. A ring of them fires in turn round the hull.',
+    '',
+    ['sonars', 'sonar', 'ultrasonic']
+  ],
+  cone: [
+    'cone',
+    "A sonar's field of view. The echo can come from anywhere in it, so the reading gives the range of the nearest thing in the cone and nothing about its bearing within the beam.",
+    '',
+    ['cones', 'cone']
+  ],
+  specular: [
+    'specular reflection',
+    'A smooth surface met at a slant sends the echo away, as a mirror does light: the sonar hears nothing and reads its maximum range though a wall is in its cone.',
+    '',
+    ['specular']
+  ],
+  deadzone: [
+    'dead zone',
+    'The range closer than which a sonar hears no echo, because the transducer is still ringing from its own ping (0.2 m here).',
+    'm',
+    ['dead zone']
+  ],
+  crosstalk: ['crosstalk', "A sonar hearing the echo of a neighbour's ping and reporting it as its own range.", '', ['crosstalk']],
+  arcmodel: [
+    'arc inverse sensor model',
+    "The map update for one sonar reading: occupied evidence shared over the cells of the arc at the reading's range, free evidence for the cells inside the cone before it.",
+    '',
+    ['arc update', 'arc model']
+  ],
+  conelik: [
+    'cone likelihood',
+    "How probable a sonar reading is at a particle's pose: compared with the nearest obstacle the prior map puts inside that sonar's cone.",
+    '',
+    ['cone likelihood']
+  ],
+  guard: [
+    'safety stop',
+    'A collision monitor under the path tracker: it sweeps the footprint along the commanded arc against what the sensor sees now and caps the speed at what stops in time.',
+    '',
+    ['safety stop']
+  ],
   // planning
   astar: ['A*', 'Best-first graph search: always expands the node with the smallest <i>f</i> = <i>g</i> + <i>h</i>.', '', ['A*']],
   node: ['node', 'A search state; here a grid cell.', '', ['node']],
@@ -996,6 +1039,8 @@ const LESSON_TERMS = {
     'pf motionmodel particle likelihood resample neff lowvar sumP wi Npart amcl wfs wavg inject globalloc mirror unlabeled lidar',
   'EKF-SLAM: the map is part of the state': 'slam landmark xslam mlm Pslam nlm ppos rr bb Pmm Jxz Rm correlated drift deadreck loopclosure',
   'Log-odds mapping': 'lidar beam grid logodds clamp l lmeas lfh estframe deadreck',
+  'Sonar: one number for a whole cone':
+    'sonar cone specular deadzone crosstalk arcmodel conelik guard logodds lmeas pf likelihood contacts closest lidar',
   'Costmap: lethal cells and the inflation band': 'costmap disttrans lethal inflation dobs penalty winf edgecost frontier',
   'Tracking people: from lidar hits to tracks':
     'cluster lidar cvkf track mahal confirm coast xag pxy vxy Fcv Qproc siga d2 pt pag vag t rt rag ggrow groundtruth',

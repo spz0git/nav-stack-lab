@@ -87,6 +87,14 @@ const LIVE = {
     return liveF(0.1 / -Math.log(Math.sqrt(1 - a)), 1);
   },
   rAtT: () => liveF(0.35 + P.agGrow * P.agT, 2),
+  // the radar (chapter 3 §11): its settings, and what 3° of bearing noise and the angular resolution are at 10 m
+  radFov: () => liveF(P.radFov, 0),
+  radRange: () => liveF(P.radRange, 0),
+  radRes: () => liveF(P.radRes, 0),
+  radClutter: () => liveF(P.radClutter, 1),
+  radGhost: () => liveF(P.radGhost, 0),
+  radLat10: () => liveF(10 * RAD.sb, 2),
+  radCross10: () => liveF((10 * P.radRes * Math.PI) / 180, 2),
   // vehicle models (chapter 1)
   wheelbase: () => liveF(P.wheelbase, 2),
   steerMaxDeg: () => String(P.steerMaxDeg),

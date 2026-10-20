@@ -4,6 +4,21 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- A radar (Perceive → Radar): it looks ahead 120° and 20 m and reports, for each echo, the range, the bearing and
+  how fast the thing closes or opens (its radial velocity, from the Doppler shift). The map draws each detection as a
+  diamond with an arrow for that speed, false detections and ghosts (echoes that bounced off a wall) included, since
+  the robot cannot tell them apart. The metrics show what it saw and the nearest echo ahead with its closing speed
+  and time to contact.
+- Perceive → Tracker inputs: the people tracker can update from the lidar, the radar, or both. With both, a person
+  who turns around is followed within a scan or two instead of most of a second.
+- Perceive → Weather: rain and fog shorten the lidar's reach, make it miss beams and see the air itself; the radar
+  hardly notices.
+- New lesson in Perceive, "Radar: speed from the echo", with six experiments (fusion, fog, clutter, and the moose
+  test read by the radar), and a new section in chapter 3 on the radar's measurement model and what it is worse at.
+- Your predictor in the Code tab receives the radar's detections as `obs.radar`.
+
 ## v56 · 2026-10-20
 
 - Plan → Learned policy: the policy now proposes four candidate paths with a score each instead of one, and the

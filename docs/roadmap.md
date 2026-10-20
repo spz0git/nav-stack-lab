@@ -12,7 +12,7 @@ Lessons with depth (2026-10-13, started with the localization group): each lesso
   - Car-like (kinematic bicycle), pose at the rear-axle centre: θ̇ = v tan δ / L. Defaults: L = 0.6 m, δ_max = 32° (R_min 0.96 m), steering rate 1.5 rad/s, body 0.9 × 0.5 m. Physics uses the exact oriented rectangle; planners, DWA and MPC use 3 covering circles (≈0.14 m conservative at the bumpers).
   - Car with tyre slip (dynamic bicycle model): the same body and pose, plus lateral velocity v_y and yaw rate r at the centre of mass; linear tyres clipped at μF_z. Presets Grippy and Slippery floor. See "Car with tyre slip" below.
 - Actuation: control latency (whole 50 ms ticks, command queue) → saturation → first-order lag τ → acceleration limits → (car) steering-rate limit → actuator bias (car steering misalignment in degrees; diff turn-rate bias in rad/s).
-- Sensors: wheel odometry reporting (v, ω) (noise + calibration bias the filters are not told about), 120-beam 360° lidar (8 m, 10 Hz), range/bearing beacons (5 Hz, line-of-sight, optional unlabeled + clutter).
+- Sensors: wheel odometry reporting (v, ω) (noise + calibration bias the filters are not told about), 120-beam 360° lidar (8 m, 10 Hz), range/bearing beacons (5 Hz, line-of-sight, optional unlabeled + clutter), an optional yaw-rate gyro, and an optional forward radar (range, bearing, radial velocity; see "Radar and weather" below). Weather (clear, rain, fog) degrades the lidar.
 - Beacon availability (Localize tab): switch single beacons off (numbered chips, or Tap map → Switch a beacon on/off; `bOff`, comma-separated IDs) and random outages (`bOut` % of the time down, mean length `bOutLen` s; short = flicker). Each beacon is a two-state Markov chain stepped per beacon scan, on its own random stream (`S.rngB`), so the sensor noise sequence is unchanged. Map: switched off = grey hollow diamond with a stroke, outage = hollow. Dead reckoning draws no beacon readings (it never used them; the rays made it look connected), and its Localize tab says so, with a one-click "add odometry noise" when the level's odometry is perfect (L1, L2: DR = truth there). L3 Try: EKF with the east beacons off (error RMS 0.25 m vs 0.05 m, 90 s), flickering (50 %, 0.4 s: 0.08 m), long outages (70 %, 6 s: 0.14 m); all twelve off gives 1.51 m, like dead reckoning.
 - 24 × 16 m world, 0.1 m grids, 20 Hz fixed step.
 
@@ -238,6 +238,58 @@ Owner request: retrain the learned blocks from the GUI, with the built-in model 
   those lessons show the code without "Edit and run". A killed slot worker now resolves its pending call (a load during
   a pending plan used to surface 3 s later as a spurious timeout).
 
+## Radar and weather (2026-10-20; branch `claude/radar`)
+- The first of the sensor models the owner asked for, each taught by its failure modes; the radar first because Doppler
+  gives the tracker a velocity measurement and the fusion lesson (lidar position, radar velocity, fog degrades only the
+  lidar) is the strongest. All of it in `core/radar.js`; off by default, and the L1–L5 regression is unchanged (the
+  radar and the weather each draw from their own random stream, `S.rngR` and `S.rngX`, so turning the radar on changes
+  nothing else in a run, and clear weather draws nothing).
+- Sensor (`radarSense`, enqueued with the lidar at 10 Hz, latency applies): forward, `radFov` 120°, `radRange` 20 m;
+  per detection range σ 0.1 m, bearing σ 3°, radial velocity σ 0.1 m/s. People echo once from the near side of the body
+  (Pd 0.9; vehicles 0.98); static shapes sampled every half resolution cell across the field of view, kept with
+  probability 0.1 + 0.85 cos⁴(incidence), at most three per shape. Resolution: echoes within 0.4 m, 0.25 m/s and
+  `radRes` (8°) merge at their amplitude-weighted average (person 1, static 2, vehicle 4). Clutter Poisson `radClutter`
+  (0.5) per scan. Ghosts (`radGhost` 5 % per person per scan): the image method through a rectangle face that faces
+  both robot and person, bounce point on the face, both legs clear, the shortest. Rain: reach ×0.9, +0.3 clutter.
+- Weather (`weather`, `weatherLidar` after `lidarSense`): fog reach about 4 m (soft edge 0.8–1.2×), 15 % beam dropout,
+  +5 cm range noise, 0.5 % of beams return from the air at 0.3–2 m; rain 6 m, 6 %, 3 cm, 0.2 %. The backscatter rate
+  was 3 % at first: every scan then had several stray hits within 2 m, the rule detector made hundreds of tracks of
+  nobody per run and the robot crawled; 0.5 % gives a handful, which is the lesson.
+- Tracker (`agTrackFused`, when `trkIn` is radar or both): the same lifecycle as `agTrack` (confirm 3 hits, coast 1 s,
+  tentative 0.25 s, 2.5 m/s cap, per-target ICP) on a full 4×4 covariance per track (`t.C`; `pxx/pxv/pvv` kept as the
+  axis averages for the inspector). Lidar clusters update with H = [I 0]; radar candidates (Doppler differs from the
+  static world's −v̂ cos b by more than 0.35 m/s, or unexplained by the map within 0.25 + 2rσ_b) with the EKF on
+  (ρ − b₀, bearing, d·w/ρ). Gate on range and bearing only (χ²₂ 9.21), update with all three: a three-row gate
+  (χ²₃ 11.34) rejected the echo of a person who had just turned round and made old tracks' velocity worse than lidar
+  alone (0.18 against 0.11 m/s, seed 7). Ego speed from the static echoes by least squares (odometry within 0.4 m/s as
+  the inlier test, odometry itself with fewer than three), because one tick of odometry on L5 is off by about
+  0.15 m/s. b₀ = 0.24 m, not the 0.3 m body radius: the lidar's cluster centres sit about 6 cm short of the true centre
+  (measured, seed 7), and the two sensors must agree on the centre. Radar births: radial velocity known, tangential
+  σ 1 m/s, none within 1 m of a track. With both: a track in the radar's view confirms only with a radar hit or six
+  lidar hits.
+- UI: Perceive → Weather, Radar (FOV, reach, resolution, clutter, ghosts), Tracker inputs; map layer `radar` (wedge,
+  diamonds with 0.5 s of radial velocity, ghosts and clutter undistinguished), on whenever the radar is; metrics lines
+  Radar (detections · candidates · on tracks · new) and Radar, nearest ahead (range, closing speed, time to contact);
+  the predictor slot's `obs.radar`; replay frames carry the radar.
+- Lesson: perception group 9, *Radar: speed from the echo* (six Try buttons: lidar with the radar watching, lidar +
+  radar, fog lidar, fog both, clutter 10 per scan, the moose test read by the radar; Code: `radarH`/`radarTrack`).
+  Chapter 3 §11 *Radar: range, bearing and Doppler* (the model, the Jacobian, gating, ego speed, confirmation, the
+  measured table, where the radar is worse). `tests/measure_per.py` gained the radar and weather measures (tracks of
+  nobody, yields to them, people in view untracked, velocity error in a track's first half second, the turnaround
+  time, detections per scan by kind, the moose test's nearest detection ahead).
+- Findings (seed 7, checked at 2 and 3): a head-on turnaround is followed in 0.1–0.3 s with the radar, 0.7 s without;
+  a track's first half second in view 0.46 against 0.63 m/s; the run-averaged prediction error at 1 s does not move
+  (old tracks dominate, and the lidar's inferred velocity is as good along the line of sight once a track is a second
+  old). Fog: yields to tracks of nobody 4/6/3 → 1/2/2, people in view untracked 12/15/12 % → 4/7/19 % (seed 3: the
+  robot held against a shelf end). Shelf contacts in 7 of 15 runs with the radar in the tracker against 0 of 6
+  without: sharper yields next to shelf ends, as lesson 3's ground-truth tracks. Radar alone: 0.37 m at 1 s, a person
+  in view untracked 10 %.
+- Limits and next steps: nearest-neighbour association (PDA/JPDA would weigh every echo in a gate); the lidar's R does
+  not follow the weather (fused tracks in fog follow a turn in 0.5 s, not 0.1); no radar mapping or radar odometry for
+  localization (the ego-speed estimate is there and could feed the EKF); one forward radar (corner radars would cover
+  the sides); targets are points (no extent, no micro-Doppler of walking legs); multipath is one bounce off axis-aligned
+  rectangle faces only; the planners do not use the time to contact (an emergency brake on it is the obvious next use).
+
 ## Moving agents (v7)
 - Before v7 people only reached the stack as lidar hits: the global planner never saw them, DWA and MPC treated hits as static at scan time, and pure pursuit ignored them.
 - Architecture: global path static on purpose; agents handled at the trajectory level (path–velocity decomposition); escalate to a replan only when speed alone cannot resolve the conflict.
@@ -275,6 +327,7 @@ Owner request: retrain the learned blocks from the GUI, with the built-in model 
 - L7 Moose test — the car with tyre slip at 3.5 m/s through a two-box slalom: the kinematic against the tyre-model MPC.
 
 ## Candidate next steps
+- Sensors: more models in the radar's mould, each taught by its failure modes (a camera with a learned detector and its range ambiguity; ultrasonic for the last metre; corner radars; radar odometry into the EKF); probabilistic data association for the radar tracker; sensor noise that follows the weather.
 - Agents: interaction-aware prediction (the learned predictor of B2 knows the robot's position and velocity, not its plan); planners that weigh each learned future by its probability instead of the two ends offered; JPDA/multi-hypothesis tracking.
 - Localization: timestamped (lagged-state) filtering to absorb sensor latency; scan matching for SLAM without beacons. (A yaw-rate gyro with bias and a zero-velocity update was delivered in Phase 4, 2026-10-16: lesson 6 of the localization group, chapter 2 §9.)
 - Planning: space-time planning for the car (Hybrid A* in time).

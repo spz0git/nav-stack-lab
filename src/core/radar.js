@@ -391,7 +391,7 @@ function radarH(t, e, vex, vey) {
     ]
   };
 }
-// The radar step of the tracker: every candidate detection against every track, gated by χ² (3 degrees of freedom),
+// The radar step of the tracker: every candidate detection against every track, gated by χ² on range and bearing,
 // paired nearest first (greedy nearest neighbour, as the lidar's); a paired track takes the extended Kalman update. A
 // clutter echo that falls inside a track's gate when the person's own echo is missing is taken as the person: nearest
 // neighbour has no way to say "none of these". Unpaired candidates start tentative tracks, with the radial velocity

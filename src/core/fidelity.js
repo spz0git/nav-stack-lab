@@ -20,7 +20,8 @@ function sensDeliver() {
     if (it.kind === 'lidar') {
       lidarApply(it.data);
       S.deliv.scan = it.data;
-    } else {
+    } else if (it.kind === 'radar') radarApply(it.data);
+    else {
       beaconsApply(it.data);
       S.deliv.z = it.data;
     }

@@ -237,6 +237,7 @@ async function customPredict() {
   const dt = 0.1,
     obs = {
       tracks: tracks.map(t => ({id: t.id, x: t.x, y: t.y, vx: t.vx, vy: t.vy, r: t.r, age: +(S.t - (t.t0 || S.t)).toFixed(2)})),
+      radar: radarOn() && S.radar ? S.radar.det.map(d => ({r: d.r, b: d.b, v: d.v, x: d.x, y: d.y})) : [], // the robot's own view: no labels
       horizon: P.agT,
       dt,
       grid: {w: GW, h: GH, res: RES},

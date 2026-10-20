@@ -61,14 +61,16 @@ let layersEdited = false,
   layersKey = '';
 function applyTabLayers(force) {
   const set = TAB_LAYERS[activeTab];
+  if (!layersEdited && radarOn()) LAYERS.radar = true; // turning the radar on shows it, in a lesson too
   if (!set || layersEdited || lessonOpen) return;
-  const key = activeTab + '|' + LV.id + '|' + agOn();
+  const key = activeTab + '|' + LV.id + '|' + agOn() + '|' + radarOn();
   if (key === layersKey && !force) return;
   layersKey = key;
   const on = new Set(set);
   if (agOn()) on.add('agents');
   for (const [k, v] of Object.entries(LV.layers || {})) if (v) on.add(k); // a level's own layers (L2's costmap) stay
   on.add('sweep'); // an experiment's runs show whatever tab is open
+  if (radarOn()) on.add('radar'); // the radar, when on, on every tab
   for (const k of Object.keys(LAYERS)) LAYERS[k] = on.has(k);
   if (S && AN.mode === 'sim') draw();
 }
@@ -82,6 +84,7 @@ function layersPane() {
     ['cost', 'Costmap inflation'],
     ['search', 'Planner search (A* closed set / RRT* tree)'],
     ['lidar', 'Lidar hits (as perceived)'],
+    ['radar', 'Radar: field of view and detections with their radial velocity'],
     ['beam', 'Beacon measurements (from the estimate)'],
     ['belief', 'Particles / 95% covariance ellipse'],
     ['trail', 'Trails (solid = truth, dashed = estimate)'],
@@ -262,7 +265,7 @@ const CODE_HOW = {
   },
   pred: {
     when: 'at 10 Hz with the confirmed tracks, before the speed planner, DWA and MPC plan around them',
-    gets: 'obs.tracks (position, velocity, radius, age), obs.horizon, obs.dt, obs.lethal and obs.grid',
+    gets: "obs.tracks (position, velocity, radius, age), obs.radar (this scan's radar detections, when the radar is on: range r, bearing b, radial velocity v, and x, y placed from the pose estimate), obs.horizon, obs.dt, obs.lethal and obs.grid",
     returns: '{trajectories: {id: [[x, y, r], …]}}, one sample per step out to the horizon',
     fails: 'an error, or a call over 200 ms, leaves the planners without predictions: they see nobody coming'
   }

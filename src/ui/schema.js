@@ -271,6 +271,36 @@ const SCHEMA = {
     {k: 'infl', label: 'Inflation band beyond lethal', min: 0, max: 1.5, step: 0.05, unit: 'm'},
     {k: 'lidarSig', label: 'Lidar range noise σ', min: 0, max: 0.15, step: 0.005, unit: 'm'},
     {
+      k: 'weather',
+      type: 'seg',
+      label: 'Weather',
+      opts: [
+        ['clear', 'Clear'],
+        ['rain', 'Rain'],
+        ['fog', 'Fog']
+      ]
+    },
+    {
+      type: 'info',
+      text: () =>
+        P.weather === 'fog'
+          ? "Fog: the lidar's returns fade beyond about 4 m (of its 8), one beam in seven returns nothing, the ranges are noisier, and now and then a beam returns from the fog itself, under 2 m out. The radar does not notice."
+          : 'Rain: the lidar fades beyond about 6 m, drops one beam in sixteen and now and then returns from a drop. The radar loses a tenth of its reach and sees a few more false detections.',
+      show: () => P.weather !== 'clear'
+    },
+    {k: 'radar', type: 'bool', label: 'Radar (forward: range, bearing and radial velocity per detection)'},
+    {
+      type: 'info',
+      text: () =>
+        `A ${P.radFov}° radar reaching ${P.radRange} m ahead, 10 Hz: each detection is a range (σ 0.1 m), a bearing (σ 3°) and a radial velocity (σ 0.1 m/s) from the Doppler shift, drawn as a diamond with an arrow for the radial velocity (toward the robot: closing). A person gives one echo, a wall a few where it faces the radar; false detections and ghosts (an echo that bounced off a wall) are drawn the same way, since the robot cannot tell them apart. Two echoes closer than ${P.radRes}° in bearing, 0.4 m in range and 0.25 m/s in radial velocity are one detection.${P.trkIn === 'lidar' ? ' The people tracker does not use it until Tracker inputs says so.' : ''}`,
+      show: radarOn
+    },
+    {k: 'radFov', label: 'Radar field of view', min: 30, max: 180, step: 10, unit: '°', show: radarOn},
+    {k: 'radRange', label: 'Radar reach', min: 5, max: 30, step: 1, unit: 'm', show: radarOn},
+    {k: 'radRes', label: 'Radar angular resolution', min: 1, max: 20, step: 1, unit: '°', show: radarOn},
+    {k: 'radClutter', label: 'Radar false detections per scan', min: 0, max: 20, step: 0.5, unit: '', show: radarOn},
+    {k: 'radGhost', label: 'Radar ghosts: chance per person per scan', min: 0, max: 50, step: 1, unit: '%', show: radarOn},
+    {
       type: 'btn',
       label: 'Clear built map',
       act: () => {
@@ -292,6 +322,17 @@ const SCHEMA = {
         ['lidar', 'Lidar (clusters + Kalman)'],
         ['learned', 'Learned detector + Kalman']
       ]
+    },
+    {
+      k: 'trkIn',
+      type: 'seg',
+      label: 'Tracker inputs',
+      opts: [
+        ['lidar', 'Lidar'],
+        ['radar', 'Radar'],
+        ['both', 'Lidar + radar']
+      ],
+      show: () => agOn() && P.agents !== 'truth'
     },
     {
       type: 'info',
@@ -382,7 +423,15 @@ const SCHEMA = {
       unit: 'm/s',
       show: () => agOn() && (P.agPred === 'cv' || P.agPred === 'learned')
     },
-    {k: 'agSigA', label: 'Tracker process noise σ_a', min: 0.1, max: 3, step: 0.1, unit: 'm/s²', show: () => P.agents === 'lidar'}
+    {
+      k: 'agSigA',
+      label: 'Tracker process noise σ_a',
+      min: 0.1,
+      max: 3,
+      step: 0.1,
+      unit: 'm/s²',
+      show: () => P.agents === 'lidar' || P.trkIn !== 'lidar'
+    }
   ],
   mis: [
     {

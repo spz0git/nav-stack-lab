@@ -254,6 +254,7 @@ function agTrack() {
   }
   const dt = A.lastT == null ? 0.1 : Math.max(1e-3, S.t - A.lastT);
   A.lastT = S.t;
+  if (P.trkIn !== 'lidar') return agTrackFused(dt); // with the radar: core/radar.js
   const q = P.agSigA * P.agSigA,
     R = AG_SZ * AG_SZ;
   for (const t of A.tracks) {

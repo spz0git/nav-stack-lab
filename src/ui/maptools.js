@@ -276,6 +276,7 @@ const LAYER_DEFS = [
   ['beam', 'Beacon readings', 'Rays from the estimate', 'loc'],
   ['trail', 'Trails', 'Solid = truth, dashed = estimate', 'loc'],
   ['lidar', 'Lidar hits', 'As perceived', 'per'],
+  ['radar', 'Radar', 'Field of view and detections with their radial velocity (Perceive → Radar)', 'per'],
   ['cost', 'Costmap', 'Inflation', 'per'],
   ['ghost', 'True-map outline', 'Over the built map', 'per'],
   ['agents', 'Agents', 'Tracks, predictions, ego positions at the same times', 'per'],
@@ -309,6 +310,10 @@ function layerStatus(k) {
       return S.trailT.length > 1 ? [1, `${S.trailT.length} points`] : [0, 'starts when the robot moves'];
     case 'lidar':
       return S.scanPts.length ? [1, `${S.scanPts.length} hits`] : [0, 'no scan yet'];
+    case 'radar':
+      return radarOn()
+        ? [S.radar ? 1 : 0, S.radar ? `${S.radar.det.length} detections` : 'no scan yet']
+        : [0, 'the radar is off (Perceive)'];
     case 'cost':
       return [1, `inflation ${P.infl} m`];
     case 'ghost':

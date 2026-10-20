@@ -12,6 +12,7 @@ function lidarSense() {
     if (d < LMAX) d = Math.max(0.05, d + P.lidarSig * g.n());
     ranges[k] = d;
   }
+  if (P.weather !== 'clear') weatherLidar(ranges);
   return ranges;
 }
 // Beacon availability: switched off by the user (P.bOff, comma-separated IDs) or down in a random outage.

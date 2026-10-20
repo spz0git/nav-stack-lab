@@ -14,6 +14,7 @@
   --amber: #8a5d00;
   --beacon: #008a87;
   --rose: #ad2a69;
+  --radar: #6a3fc1; /* the radar's detections and field of view */
   --ok: #2b7741;
   --warn: #a35e00;
   --bad: #bb3227;
@@ -56,6 +57,7 @@
     --amber: #dfae48;
     --beacon: #3fd0c6;
     --rose: #e673ac;
+    --radar: #b297ff;
     --ok: #62c27f;
     --warn: #e69c3d;
     --bad: #f06d61;
@@ -82,6 +84,7 @@
   --amber: #dfae48;
   --beacon: #3fd0c6;
   --rose: #e673ac;
+  --radar: #b297ff;
   --ok: #62c27f;
   --warn: #e69c3d;
   --bad: #f06d61;

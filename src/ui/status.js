@@ -99,6 +99,22 @@ function renderMetrics() {
         'per'
       ]);
   }
+  const rs = radarSummary();
+  if (rs) {
+    const a = rs.ahead;
+    items.push([
+      'Radar',
+      `${rs.n} detections${rs.paired != null ? ` · ${rs.cand} candidates · ${rs.paired} on tracks · ${rs.born} new` : ''}`,
+      'per'
+    ]);
+    items.push([
+      'Radar, nearest ahead',
+      a
+        ? `${a.r.toFixed(1)} m · ${a.v < 0 ? 'closing' : 'opening'} at ${Math.abs(a.v).toFixed(1)} m/s${rs.ttc != null ? ` · contact in ${rs.ttc.toFixed(1)} s` : ''}`
+        : 'nothing within 20°',
+      'per'
+    ]);
+  }
   if (S.slam) items.push(['SLAM map', `${S.slam.n} of ${S.beacons.length} beacons · ${3 + 2 * S.slam.n} states`, 'loc']);
   if (S.pf) items.push(['Particles', `N_eff ${S.pf.neff.toFixed(0)}/${S.pf.N}, inj ${(S.pf.inj * 100).toFixed(0)}%`, 'loc']);
   if (P.assoc === 'unknown' && P.loc !== 'truth' && P.loc !== 'dr') items.push(['Gated measurements', String(S.rejected), 'loc']);

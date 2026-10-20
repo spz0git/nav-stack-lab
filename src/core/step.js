@@ -8,6 +8,7 @@ function preSense() {
   odometry();
   if (P.loc !== 'custom') locPredict();
   if (S.tick % 2 === 1) sensEnqueue('lidar', lidarSense());
+  if (S.tick % 2 === 1 && radarOn()) sensEnqueue('radar', radarSense()); // with the lidar, at 10 Hz
   if (S.tick % 4 === 1) sensEnqueue('beacons', senseBeacons());
   sensDeliver();
   if (P.loc === 'truth') S.est = {x: S.robot.x, y: S.robot.y, th: S.robot.th};

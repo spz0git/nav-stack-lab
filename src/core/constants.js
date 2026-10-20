@@ -21,6 +21,15 @@ const W = 24,
 const DET_CH = 7,
   DET_THR = 0.8,
   DET_MIN = 1;
+// the learned people predictor (core/predict.js): K futures, each at the times PRED_H; the past positions it reads; the
+// rays of free space; its 24 inputs and 39 outputs; σ of the mixture's Gaussians in its loss (m)
+const PRED_K = 3,
+  PRED_H = [0.5, 1, 1.5, 2, 2.5, 3],
+  PRED_LAGS = [0.2, 0.4, 0.6, 0.8, 1.0],
+  PRED_RAYS = 8,
+  PRED_NF = 2 * PRED_LAGS.length + 2 + 4 + PRED_RAYS,
+  PRED_NO = PRED_K + PRED_K * 2 * PRED_H.length,
+  PRED_SIG = 0.3;
 const ARRIVE = 0.25,
   OFFPATH = 1.0; // arrival radius; replan when the estimate is this far from the path [m]
 const $ = s => (typeof document !== 'undefined' ? document.querySelector(s) : null);

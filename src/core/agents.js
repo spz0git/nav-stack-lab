@@ -355,12 +355,13 @@ function agTrack() {
   A.tracks = A.tracks.filter(t => S.t - t.lastUpd < (t.conf ? 1.0 : 0.25)); // confirmed tracks coast through 1 s of occlusion
 }
 // @end
-// Prediction: constant velocity (or frozen), radius inflated with time
+// Prediction: constant velocity (or frozen), radius inflated with time; or the learned futures (core/predict.js)
 function agPred(t, tt) {
   if (P.agPred === 'custom') {
     const q = trajPred(t, tt);
     if (q) return q;
   }
+  if (P.agPred === 'learned' && t.lp) return predLearnedDisc(t, tt);
   const cv = P.agPred !== 'static';
   return [t.x + (cv ? t.vx * tt : 0), t.y + (cv ? t.vy * tt : 0), t.r + (cv ? P.agGrow * tt : 0)];
 }
@@ -386,7 +387,7 @@ function stPlan() {
   A.st = null;
   A.vlim = Infinity;
   if (!T || S.fsm.state !== 'DRIVE' || !agOn()) return;
-  const ags = agList(14),
+  const ags = agListModes(14),
     dir = T.dir || 1,
     pr = project(e.x, e.y, true),
     Hh = P.agT,
@@ -645,6 +646,7 @@ function agentsTick() {
     else agDetect();
   }
   if (agOn() && (lid || P.agents === 'truth')) agTrack();
+  if (agOn() && lid) predTick();
   if (!agOn()) A.tracks = [];
 }
 function agentsPlan() {
@@ -805,7 +807,7 @@ function agEgoMarks() {
 }
 // Agent layer for the global planner: mark predicted positions over the next 2 s as occupied
 function agCostLayer() {
-  const ags = agList(30);
+  const ags = agListModes(30);
   if (!ags.length) return false;
   const cm = S.cm,
     occ = cm.occ;

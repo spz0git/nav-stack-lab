@@ -190,7 +190,15 @@ function selCard(V) {
           row('radius', `${f2(o.r)} m`) +
           row('hits', String(o.hits)) +
           row('σ position', `${f2(Math.sqrt(Math.max(0, o.pxx)))} m`) +
-          (pr ? row(`in ${P.agT} s`, `${f2(pr[0])}, ${f2(pr[1])} m (r ${f2(pr[2])})`) : '')
+          (pr ? row(`in ${P.agT} s`, `${f2(pr[0])}, ${f2(pr[1])} m (r ${f2(pr[2])})`) : '') +
+          (o.lp && P.agPred === 'learned'
+            ? row(
+                'learned futures',
+                o.lp.modes
+                  .map(m => `${Math.round(100 * m.p)} % → ${f2(m.pts[m.pts.length - 1][0])}, ${f2(m.pts[m.pts.length - 1][1])} m`)
+                  .join('<br>')
+              )
+            : '')
       ];
     }
     case 'beacon': {

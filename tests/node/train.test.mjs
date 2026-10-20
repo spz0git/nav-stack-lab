@@ -19,7 +19,7 @@ function float64Trainer() {
   return new Function('const POLICY_N = 8;\n' + src + '\nreturn {nnInit, nnGrad, nnFlat, nnUnflat};')();
 }
 
-test('nnGrad: the gradient equals central differences (conv detector and MLP policy)', () => {
+test('nnGrad: the gradient equals central differences (conv detector, MLP policy, MLP predictor with the mixture loss)', () => {
   const T = float64Trainer();
   let u = 12345;
   const rnd = () => ((u = (u * 1103515245 + 12345) % 2147483648) / 2147483648) * 2 - 1;
@@ -35,13 +35,14 @@ test('nnGrad: the gradient equals central differences (conv detector and MLP pol
       1,
       'bce'
     ],
-    ['policy', [7, 6], 1, 139, 16, 'mse']
+    ['policy', [7, 6], 1, 139, 16, 'mse'],
+    ['predictor', [7, 6], 1, 24, 12, 'mix']
   ]) {
     const m = T.nnInit(block, hidden, 3),
       ns = 3,
       X = Float64Array.from({length: ns * n * nin}, rnd),
       Y = Float64Array.from({length: ns * n * nout}, () => (loss === 'bce' ? (rnd() > 0.6 ? 1 : 0) : rnd())),
-      task = {loss, n, posW: 2.5},
+      task = {loss, n, posW: 2.5, K: 3, ny: 12, sigma: 0.5},
       idx = [0, 1, 2],
       {g} = T.nnGrad(m, X, Y, idx, task),
       w = T.nnFlat(m);
@@ -74,6 +75,25 @@ test('nnPredict reproduces nnForward and mlpForward on the built-in models', () 
     const q = C.mlpForward(pol, Xp.subarray(s * 139, (s + 1) * 139));
     for (let k = 0; k < 16; k++) assert.ok(Math.abs(q[k] - pp[s * 16 + k]) < 1e-5, `policy sample ${s} output ${k}`);
   }
+  const prd = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/models/predictor.json'), 'utf8')),
+    Xq = Float32Array.from({length: 20 * 24}, (_, i) => Math.sin(i * 0.23)),
+    pq = C.nnPredict(prd, Xq, 20, 1);
+  for (let s = 0; s < 20; s++) {
+    const q = C.mlpForward(prd, Xq.subarray(s * 24, (s + 1) * 24));
+    for (let k = 0; k < 39; k++) assert.ok(Math.abs(q[k] - pq[s * 39 + k]) < 1e-5, `predictor sample ${s} output ${k}`);
+  }
+});
+
+test('collectRun: a predictor run pairs each tracked person with where they went; the built-in model beats constant velocity on it', async () => {
+  const d = await C.collectRun({block: 'predictor', level: 4, seed: 3, secs: 60, goals: 'level', people: 'alt'});
+  assert.ok(d.n > 100, `samples: ${d.n}`);
+  assert.equal(d.x.length, d.n * 24);
+  assert.equal(d.y.length, d.n * 12);
+  assert.equal(C.P.misLoop, true, 'the mission loops');
+  const M = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/models/predictor.json'), 'utf8')),
+    ev = C.nnEvaluate(M, d.x, d.y, 'predictor');
+  assert.ok(ev.top[1] < ev.cv[1], `error at 2 s: learned ${ev.top[1]}, constant velocity ${ev.cv[1]}`);
+  assert.ok(ev.best[1] <= ev.top[1], 'the best of three is no worse than the most probable');
 });
 
 test('collectRun: a detector run labels person beams; a policy run on random obstacles records the expert route', async () => {
@@ -121,4 +141,25 @@ test('nnTrain: a few epochs bring the loss down (policy, small MLP)', async () =
   });
   assert.equal(losses.length, 6);
   assert.ok(losses[5] < losses[0] * 0.5, `loss ${losses[0]} → ${losses[5]}`);
+});
+
+test('nnTrain: a few epochs of the mixture loss bring the predictor below constant velocity on its data', async () => {
+  const d = await C.collectRun({block: 'predictor', level: 5, seed: 1, secs: 90, goals: 'level', people: 'alt'}),
+    model = C.nnInit('predictor', [32, 32], 1),
+    task = {loss: 'mix', n: 1, K: 3, ny: 12, sigma: 0.3},
+    losses = [];
+  let ev = null;
+  await C.nnTrain({
+    model,
+    nTrain: d.n,
+    epochs: 8,
+    batch: 64,
+    lr: 0.003,
+    seed: 1,
+    grad: async (w, idx) => C.nnGrad(C.nnUnflat(model, w), d.x, d.y, idx, task),
+    evaluate: async m => (ev = C.nnEvaluate(m, d.x, d.y, 'predictor')),
+    onEpoch: i => losses.push(i.loss)
+  });
+  assert.ok(losses[7] < losses[0], `loss ${losses[0]} → ${losses[7]}`);
+  assert.ok(ev.top[1] < ev.cv[1], `error at 2 s: ${ev.top[1]} against constant velocity ${ev.cv[1]}`);
 });

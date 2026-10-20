@@ -28,6 +28,7 @@ function runSummary() {
     cteRMS: S.cteN ? +Math.sqrt(S.cteSq / S.cteN).toFixed(4) : null,
     nees: nees == null ? null : +nees.toFixed(2),
     replans: S.log.filter(l => /^Replan/.test(l.msg)).length,
+    predErr: predErrors(), // the people predictors' mean error at 1 s and 2 s (core/predict.js)
     mpcMs: S.mpcStats ? +S.mpcStats.ms.toFixed(2) : null,
     log: S.log
       .slice(0, 12)
@@ -67,6 +68,8 @@ self.__core = {
   nnUnflat,
   nnPredict,
   nnEvaluate,
+  predFeatures,
+  predErrors,
   nnTrain,
   NN_ARCH,
   USER_MODELS,

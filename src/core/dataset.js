@@ -5,6 +5,10 @@
                when the beam's hit lies on a person (from the true pose and the people's true discs; the ranges are the
                noisy ones the page sees); the map condition (cond) alternates so the network sees the map right,
                unsettled and misplaced
+     predictor: at every scan, each confirmed lidar track near a person: the predictor's 24 inputs (predFeatures) and
+               where that person really was 0.5 … 3 s later (seen through the pose estimate of the moment, so that a
+               localization error is not taught as motion), in the person's frame, minus the constant-velocity point
+               (the network predicts the correction); the mission loops so the robot keeps meeting people
      policy:   the policy's 139 inputs (policyFeatures) and the expert's answer from that state: the A* route to the
                goal, resampled to eight points 0.4 m apart in the robot frame, in units of 4 m
    A run is described by a spec: {block, level (index), seed, secs, map: {map, mapAdd, mapDel} or null, randomMap:
@@ -92,6 +96,16 @@ function dsSetup(sp) {
       ...(cond === 'drift' ? {loc: 'dr', odoK: Math.max(P.odoK, 1), odoB: Math.max(P.odoB, 1)} : {})
     }))
       setParam(k, v, false);
+  } else if (sp.block === 'predictor') {
+    for (const [k, v] of Object.entries({
+      agents: 'lidar',
+      agPred: 'cv',
+      misLoop: true,
+      people: sp.people === 'alt' || !sp.people ? (sp.seed % 2 ? 'scripted' : 'reactive') : sp.people,
+      // the robot yields (speed planning) or drives through (ignore) in turn, so that people also meet it up close
+      spd: sp.spd || ((sp.seed >> 1) % 2 ? 'none' : 'st')
+    }))
+      setParam(k, v, false);
   } else {
     setParam('spd', 'st', false);
     setParam('actNoise', sp.noise == null ? 0.3 : sp.noise, false);
@@ -109,12 +123,13 @@ function dsSetup(sp) {
     }
     setGoals(g);
   } else if (fixed !== LV.wps) setGoals(fixed);
-  else if (sp.block === 'detector') startMission();
+  else if (sp.block !== 'policy') startMission();
   else setGoals(LV.wps); // the policy collector always plans its goals afresh
 }
 // @code ds-collect | collectRun: one run of the core recorded as training data
 async function collectRun(sp, onProgress) {
   dsSetup(sp);
+  if (sp.block === 'predictor') return collectPred(sp, onProgress);
   const det = sp.block === 'detector',
     N = Math.round((sp.secs || 120) / DT),
     NF = det ? NBEAM * DET_CH : NBEAM + 19,
@@ -177,3 +192,66 @@ async function collectRun(sp, onProgress) {
   };
 }
 // @end
+// The predictor's run: the samples are written at the scan, the labels once the run has gone 3 s past them
+async function collectPred(sp, onProgress) {
+  const N = Math.round((sp.secs || 120) / DT),
+    NH = PRED_H.length,
+    times = [],
+    pos = [],
+    smp = [];
+  for (let i = 0; i < N; i++) {
+    await advance(1);
+    if (onProgress && i % 400 === 0) onProgress(i / N);
+    if (S.scanTick !== S.tick || !S.agents) continue;
+    times.push(S.t);
+    pos.push(S.peds.map(p => [p.x, p.y]));
+    const A = S.agents,
+      tf = predTruthFrame();
+    for (const t of A.tracks) {
+      if (!t.conf) continue;
+      const j = predNearest(t, tf);
+      if (j < 0) continue;
+      const {f, fr} = predFeatures(t, A.hist && A.hist.get(t.id), S.est, S.odo ? S.odo.v : 0);
+      smp.push({f, fr, j, tf, si: times.length - 1});
+    }
+  }
+  const xs = [],
+    ys = [];
+  for (const q of smp) {
+    const y = new Float32Array(2 * NH);
+    let ok = true,
+      k = q.si;
+    for (let h = 0; h < NH && ok; h++) {
+      const tw = times[q.si] + PRED_H[h];
+      while (k < times.length && times[k] < tw - 0.03) k++;
+      if (k >= times.length || Math.abs(times[k] - tw) > 0.06) {
+        ok = false;
+        break;
+      }
+      const p = q.tf(pos[k][q.j][0], pos[k][q.j][1]), // seen through the pose estimate at the sample's moment
+        dx = p[0] - q.fr.x,
+        dy = p[1] - q.fr.y,
+        fr = q.fr;
+      y[2 * h] = fr.c * dx + fr.s * dy - q.f[10] * PRED_H[h];
+      y[2 * h + 1] = -fr.s * dx + fr.c * dy - q.f[11] * PRED_H[h];
+    }
+    if (!ok) continue;
+    xs.push(q.f);
+    ys.push(y);
+  }
+  const x = new Float32Array(xs.length * PRED_NF),
+    y = new Float32Array(ys.length * 2 * NH);
+  xs.forEach((f, i) => x.set(f, i * PRED_NF));
+  ys.forEach((f, i) => y.set(f, i * 2 * NH));
+  return {
+    x,
+    y,
+    n: xs.length,
+    positives: 0,
+    people: P.people,
+    spd: P.spd,
+    goalsDone: WPS.filter(g => g.done && !g.skipped).length,
+    goals: WPS.length,
+    t: +S.t.toFixed(1)
+  };
+}

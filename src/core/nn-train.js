@@ -51,6 +51,12 @@ const NN_ARCH = {
       'kernel 1: each beam judged on its own six numbers, no neighbours; shows what the context buys'
     ]
   ],
+  predictor: [
+    ['builtin', 'Built-in shape', [64, 64], 'two hidden layers of 64: what the shipped predictor is'],
+    ['small', 'Small', [24, 24], 'two hidden layers of 24: a sixth of the parameters'],
+    ['wide', 'Wide', [128, 128], 'two hidden layers of 128'],
+    ['linear', 'Linear (no hidden layer)', [], 'the inputs straight to the outputs: a linear correction to constant velocity']
+  ],
   policy: [
     ['builtin', 'Built-in shape', [256, 256], 'two hidden layers of 256: what the shipped policy is'],
     ['small', 'Small', [64, 64], 'two hidden layers of 64: a fifteenth of the parameters'],
@@ -60,6 +66,16 @@ const NN_ARCH = {
 };
 const NN_IN = {
   detector: {beams: NBEAM, channels: DET_CH, order: ['range/8', 'previous range/8', 'change (±1)', 'hit', 'v/1.5', 'w/2', 'map evidence']},
+  predictor: {
+    features: PRED_NF,
+    order: [
+      '5 past positions (x, y) at 0.2…1 s ago, m',
+      'velocity (x, y), m/s',
+      'robot position /4',
+      'robot velocity, m/s',
+      '8 rays of free space /4'
+    ]
+  },
   policy: {
     features: NBEAM + 19,
     order: ['120 ranges/8', '12 sector minima/8', 'goal dx/10', 'goal dy/10', 'distance/10', 'cos bearing', 'sin bearing', 'v/1.5', 'w/2']
@@ -88,8 +104,8 @@ function nnInit(block, hidden, seed) {
       cin = cout;
     });
   } else {
-    let nin = NN_IN.policy.features;
-    const spec = [...hidden, 2 * POLICY_N];
+    let nin = NN_IN[block].features;
+    const spec = [...hidden, block === 'predictor' ? PRED_NO : 2 * POLICY_N];
     spec.forEach((nout, i) => {
       const lim = 1 / Math.sqrt(nin);
       layers.push({type: 'dense', nin, nout, act: i < spec.length - 1 ? 'relu' : 'none', w: uni(nout * nin, lim), b: uni(nout, lim)});
@@ -286,6 +302,50 @@ function nnLoss(task, z, y, m, dz) {
     }
   return loss;
 }
+// 'mix', the predictor's: R samples, each with the K logits and K futures of ny numbers in z (nout = K + K ny wide) and
+// its true future in y (ny wide). The loss is the negative log-likelihood of a mixture of K Gaussians with a fixed σ,
+//   L = −log Σ_k π_k exp(−|y − μ_k|² / 2σ²),  π = softmax(logits)
+// and with γ_k the responsibilities (π_k exp(·) normalized: how well future k explains y),
+//   ∂L/∂μ_k = γ_k (μ_k − y) / σ²,   ∂L/∂logit_k = π_k − γ_k
+// so each future moves towards the outcomes it explains best and each probability towards how often it does.
+// @code mix-loss | mixLoss: the mixture's negative log-likelihood and its gradient
+function mixLoss(task, z, y, R, nout, dz) {
+  const K = task.K,
+    ny = task.ny,
+    s2 = task.sigma * task.sigma,
+    a = new Float64Array(K),
+    pi = new Float64Array(K);
+  let loss = 0;
+  for (let r = 0; r < R; r++) {
+    const zr = r * nout,
+      yr = r * ny;
+    let mx = -Infinity,
+      ma = -Infinity;
+    for (let k = 0; k < K; k++) mx = Math.max(mx, z[zr + k]);
+    let zs = 0;
+    for (let k = 0; k < K; k++) zs += pi[k] = Math.exp(z[zr + k] - mx);
+    for (let k = 0; k < K; k++) {
+      pi[k] /= zs;
+      let d2 = 0;
+      for (let q = 0; q < ny; q++) {
+        const d = z[zr + K + k * ny + q] - y[yr + q];
+        d2 += d * d;
+      }
+      a[k] = Math.log(pi[k] + 1e-30) - d2 / (2 * s2);
+      ma = Math.max(ma, a[k]);
+    }
+    let as = 0;
+    for (let k = 0; k < K; k++) as += Math.exp(a[k] - ma);
+    loss -= ma + Math.log(as);
+    for (let k = 0; k < K; k++) {
+      const g = Math.exp(a[k] - ma) / as; // γ_k
+      dz[zr + k] = pi[k] - g;
+      for (let q = 0; q < ny; q++) dz[zr + K + k * ny + q] = (g * (z[zr + K + k * ny + q] - y[yr + q])) / s2;
+    }
+  }
+  return loss;
+}
+// @end
 const reluMask = (dz, x, m) => {
   for (let q = 0; q < m; q++) if (x[q] <= 0) dz[q] = 0;
 };
@@ -335,14 +395,15 @@ function nnGrad(model, X, Y, idx, task) {
     }
     for (let l = 0; l < nL; l++) convT(Ls[l], wk[l].gwt, g[l].w, true);
   } else {
-    const xb = task.xb || (task.xb = new Float32Array(NN_CHUNK * nin)),
-      yb = task.yb || (task.yb = new Float32Array(NN_CHUNK * nout));
+    const ny = task.ny || nout, // the targets per sample: the outputs, or the predictor's one future
+      xb = task.xb || (task.xb = new Float32Array(NN_CHUNK * nin)),
+      yb = task.yb || (task.yb = new Float32Array(NN_CHUNK * ny));
     for (let c0 = 0; c0 < idx.length; c0 += NN_CHUNK) {
       const R = Math.min(NN_CHUNK, idx.length - c0);
       for (let r = 0; r < R; r++) {
         const s = idx[c0 + r];
         xb.set(X.subarray(s * nin, (s + 1) * nin), r * nin);
-        yb.set(Y.subarray(s * nout, (s + 1) * nout), r * nout);
+        yb.set(Y.subarray(s * ny, (s + 1) * ny), r * ny);
       }
       let x = xb;
       for (let l = 0; l < nL; l++) {
@@ -351,7 +412,10 @@ function nnGrad(model, X, Y, idx, task) {
         if (l < nL - 1) relu(wk[l].z, R * L.nout);
         x = wk[l].z;
       }
-      loss += nnLoss(task, wk[nL - 1].z, yb, R * nout, wk[nL - 1].dz);
+      loss +=
+        task.loss === 'mix'
+          ? mixLoss(task, wk[nL - 1].z, yb, R, nout, wk[nL - 1].dz)
+          : nnLoss(task, wk[nL - 1].z, yb, R * nout, wk[nL - 1].dz);
       for (let l = nL - 1; l >= 0; l--) {
         const L = Ls[l],
           xin = l ? wk[l - 1].z : xb;
@@ -370,8 +434,9 @@ function nnGrad(model, X, Y, idx, task) {
     flat.set(G.b, o);
     o += G.b.length;
   }
-  // the losses are means over every output (beams × samples, or waypoint coordinates × samples), as in PyTorch
-  return {g: flat, loss, count: idx.length * n * nout};
+  // the losses are means over every output (beams × samples, or waypoint coordinates × samples), as in PyTorch; the
+  // mixture's over the samples
+  return {g: flat, loss, count: task.loss === 'mix' ? idx.length : idx.length * n * nout};
 }
 // @end
 // Adam (PyTorch's defaults: β₁ 0.9, β₂ 0.999, ε 1e-8), in place on the flat parameter vector
@@ -450,6 +515,7 @@ function nnEvaluate(model, X, Y, block) {
       recall = tp / Math.max(1, tp + fn);
     return {precision, recall, f1: precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0, samples: ns};
   }
+  if (block === 'predictor') return predEvaluate(model, X, Y);
   const NO = 2 * POLICY_N,
     ns = Y.length / NO,
     out = nnPredict(model, X, ns, 1),
@@ -462,6 +528,38 @@ function nnEvaluate(model, X, Y, block) {
     }
   const perWp = Array.from(se, v => Math.sqrt(v / Math.max(1, ns)));
   return {perWp, rms: Math.sqrt(perWp.reduce((a, v) => a + v * v, 0) / POLICY_N), samples: ns};
+}
+// The predictor's numbers: the error at 1 s and 2 s of its most probable future (top), of the best of its K (best),
+// and of constant velocity (a zero correction: the label itself), in metres
+function predEvaluate(model, X, Y) {
+  const NH = PRED_H.length,
+    ny = 2 * NH,
+    ns = Y.length / ny,
+    NO = model.layers[model.layers.length - 1].nout,
+    K = (NO / (1 + ny)) | 0,
+    out = nnPredict(model, X, ns, 1),
+    acc = {top: [0, 0], best: [0, 0], cv: [0, 0]};
+  for (let s = 0; s < ns; s++) {
+    const z = s * NO,
+      y = s * ny;
+    let top = 0;
+    for (let k = 1; k < K; k++) if (out[z + k] > out[z + top]) top = k;
+    [1, 3].forEach((h, i) => {
+      const yx = Y[y + 2 * h],
+        yy = Y[y + 2 * h + 1];
+      let best = Infinity;
+      for (let k = 0; k < K; k++) {
+        const o = z + K + k * ny + 2 * h,
+          e = hyp(out[o] - yx, out[o + 1] - yy);
+        if (k === top) acc.top[i] += e;
+        best = Math.min(best, e);
+      }
+      acc.best[i] += best;
+      acc.cv[i] += hyp(yx, yy);
+    });
+  }
+  const m = a => a.map(v => v / Math.max(1, ns));
+  return {top: m(acc.top), best: m(acc.best), cv: m(acc.cv), samples: ns};
 }
 // The training loop. opts: model (initial weights), nTrain (samples), epochs, batch, lr, seed, and three callbacks:
 // grad(flat, idx) → {g, loss, count} (async: workers), evaluate(model) → numbers on the held-out samples,

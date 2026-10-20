@@ -19,7 +19,7 @@
  "core/dispatch.js",
  "core/custom-controller.js",
  "core/examples-data.js", "core/slots.js",
- "core/models-data.js", "core/nn.js", "core/nn-train.js", "core/agents.js", "core/dataset.js",
+ "core/models-data.js", "core/nn.js", "core/nn-train.js", "core/agents.js", "core/predict.js", "core/dataset.js",
  "core/fidelity.js",
  "core/step.js",
  "core/log.js",

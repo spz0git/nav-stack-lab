@@ -293,7 +293,7 @@ function ctlMPC() {
     rc = car ? Math.hypot(carLen() / 6, CAR.width / 2) : RR;
   const agM = obs && agOn(),
     nc = 4 + (obs ? offs.length * (agM ? 2 : 1) : 0),
-    ags = agM ? agList(14) : []; // the speed planner's range: the hold window reaches T_p + 3 s ahead
+    ags = agM ? agListModes(14) : []; // the speed planner's range: the hold window reaches T_p + 3 s ahead
   const pts = obs
     ? ((S.agents && S.agents.staticPts) || S.scanPts).filter(p => hyp(p[0] - e.x, p[1] - e.y) < Np * dt * Math.max(vMax, 0.3) + 1.5)
     : [];

@@ -3,13 +3,16 @@ from playwright.async_api import async_playwright
 from _browser import launch, page_url
 # Measures what the perception lessons' Try buttons show, headless: map quality against the truth (occupied-cell precision
 # and recall over the cells the robot has seen), pose error, people contacts and closest approach, track velocity error,
-# replans and mission progress. A case: {name, lvl, set, secs, every}.
+# replans and mission progress; with people, the people predictors' mean error at 1 s and 2 s (constant velocity and,
+# when a predictor model is built in, the learned one: core/predict.js), and the contacts and errors at the moment of
+# Mission complete. A case: {name, lvl, seed, set, secs, every}.
 RUN=r'''
-async ({lvl, overrides, secs, every}) => {
-  const N=window.__nav; N.loadLevel(lvl);
+async ({lvl, seed, overrides, secs, every}) => {
+  const N=window.__nav; N.P.seed=seed; N.loadLevel(lvl);
   for(const [k,v] of Object.entries(overrides)) N.setParam(k,v,false);
   document.querySelector('#run').click(); document.querySelector('#run').click();
-  const S=N.S, LV=N.LV, rows=[]; let vErrSum=0,vErrN=0,trkN=0,trkSamples=0,confMax=0,minClear=Infinity;
+  const S=N.S, LV=N.LV, rows=[]; let vErrSum=0,vErrN=0,trkN=0,trkSamples=0,confMax=0,minClear=Infinity,done=null;
+  const pe=()=>{const E=S.agents&&S.agents.pe;if(!E)return null;const m=(a,i)=>a[i+1]?+(a[i]/a[i+1]).toFixed(3):null;return{cv1:m(E.cv,0),cv2:m(E.cv,2),ln1:m(E.ln,0),ln2:m(E.ln,2),n:E.cv[1]};};
   // map quality with one cell of tolerance: an occupied map cell is right if the truth has an obstacle within one cell;
   // a seen truth obstacle cell is recalled if the map has an occupied cell within one cell
   const GW=240,GH=160,near=(A,i,pred)=>{const x=i%GW,y=(i/GW)|0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=GW||yy>=GH)continue;if(pred(A[yy*GW+xx]))return true;}return false;};
@@ -20,7 +23,7 @@ async ({lvl, overrides, secs, every}) => {
     return{seen,occ,prec:occ?+(tp/occ).toFixed(2):null,rec:(tp+fn)?+(tp/(tp+fn)).toFixed(2):null,fp,fn};};
   const per=Math.round(every/0.05),total=Math.round(secs/every);
   for(let i=0;i<total;i++){
-    for(let j=0;j<per;j++){await N.advance(1);{const k=N.cellIdx?N.cellIdx(S.robot.x,S.robot.y):-1;}{const i=Math.floor(S.robot.x/0.1),jj=Math.floor(S.robot.y/0.1);if(i>=0&&jj>=0&&i<GW&&jj<GH)minClear=Math.min(minClear,LV.truthDist[jj*GW+i]-0.3);}
+    for(let j=0;j<per;j++){await N.advance(1);if(!done&&S.fsm.state==='DONE')done={t:+S.t.toFixed(1),ped:S.collPed,coll:S.coll,minPed:+S.minPed.toFixed(2),pe:pe()};{const k=N.cellIdx?N.cellIdx(S.robot.x,S.robot.y):-1;}{const i=Math.floor(S.robot.x/0.1),jj=Math.floor(S.robot.y/0.1);if(i>=0&&jj>=0&&i<GW&&jj<GH)minClear=Math.min(minClear,LV.truthDist[jj*GW+i]-0.3);}
       if(S.agents&&S.agents.tracks){const tr=S.agents.tracks.filter(t=>t.conf);confMax=Math.max(confMax,tr.length);
         if(S.tick%10===0)for(const t of tr){let best=null;for(const p of S.peds){const d=Math.hypot(p.x-t.x,p.y-t.y);if(d<1&&(!best||d<best[0]))best=[d,p];}
           if(best){vErrSum+=Math.hypot((best[1].vx||0)-t.vx,(best[1].vy||0)-t.vy);vErrN++;}}}}
@@ -30,7 +33,7 @@ async ({lvl, overrides, secs, every}) => {
     const m=mapq();if(m)Object.assign(row,m);
     if(S.pf)row.inj=+(S.pf.inj).toFixed(2);
     rows.push(row);}
-  return{rows,vErr:vErrN?+(vErrSum/vErrN).toFixed(2):null,confMax,dist:+S.dist.toFixed(1),minClear:isFinite(minClear)?+minClear.toFixed(2):null,
+  return{rows,done,pe:pe(),vErr:vErrN?+(vErrSum/vErrN).toFixed(2):null,confMax,dist:+S.dist.toFixed(1),minClear:isFinite(minClear)?+minClear.toFixed(2):null,
     log:S.log.filter(l=>/A\*|Replan|yield|Skipping|contact|Paused/i.test(l.msg)).slice(0,10).map(l=>l.t.toFixed(1)+' '+l.msg).reverse()};
 }'''
 async def main():
@@ -43,8 +46,9 @@ async def main():
         await pg.goto(page_url())
         await pg.wait_for_timeout(800)
         for c in cases:
-            r=await pg.evaluate(RUN,{'lvl':c['lvl'],'overrides':c.get('set',{}),'secs':c.get('secs',150),'every':c.get('every',10)})
-            print('==',c.get('name',''),'L%d'%(c['lvl']+1),c.get('set',{}),'vErr',r['vErr'],'confMax',r['confMax'],'dist',r['dist'],'minClear',r['minClear'])
+            r=await pg.evaluate(RUN,{'lvl':c['lvl'],'seed':c.get('seed',7),'overrides':c.get('set',{}),'secs':c.get('secs',150),'every':c.get('every',10)})
+            print('==',c.get('name',''),'L%d'%(c['lvl']+1),'seed',c.get('seed',7),c.get('set',{}),'vErr',r['vErr'],'confMax',r['confMax'],'dist',r['dist'],'minClear',r['minClear'])
+            print('   prediction error (m, at 1 s / 2 s; cv1 cv2 ln1 ln2):',r['pe'],'· at Mission complete:',r['done'])
             for row in r['rows']: print('   ',row)
             for l in r['log']: print('      ',l)
         print('ERRORS:',errs[:5])

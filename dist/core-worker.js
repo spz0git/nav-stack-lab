@@ -958,14 +958,6 @@ const DEFAULTS = {
   bOut: 0,
   bOutLen: 1,
   lidarSig: 0.02,
-  weather: 'clear', // fog and rain shorten the lidar's reach, drop beams, add range noise and returns from the air (core/radar.js)
-  radar: false, // the forward radar: detections with range, azimuth and radial velocity (core/radar.js)
-  radFov: 120, // its field of view [°]
-  radRange: 20, // its reach [m]
-  radRes: 8, // its angular resolution [°]: two echoes closer than this (and in range and Doppler) become one
-  radClutter: 0.5, // false detections per scan, on average
-  radGhost: 5, // the chance per scan that a person's echo also comes back by a bounce off a wall [%]
-  trkIn: 'lidar', // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
   seed: 7,
   agents: 'off',
   agPred: 'cv',
@@ -982,7 +974,15 @@ const DEFAULTS = {
   people: 'scripted',
   sensLat: 0,
   vehicles: true,
-  guard: false
+  guard: false,
+  weather: 'clear', // fog and rain shorten the lidar's reach, drop beams, add range noise and returns from the air (core/radar.js)
+  radar: false, // the forward radar: detections with range, azimuth and radial velocity (core/radar.js)
+  radFov: 120, // its field of view [°]
+  radRange: 20, // its reach [m]
+  radRes: 8, // its angular resolution [°]: two echoes closer than this (and in range and Doppler) become one
+  radClutter: 0.5, // false detections per scan, on average
+  radGhost: 5, // the chance per scan that a person's echo also comes back by a bounce off a wall [%]
+  trkIn: 'lidar' // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
 };
 const P = {...DEFAULTS};
 // The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
@@ -7815,7 +7815,7 @@ function agTrack() {
   }
   const dt = A.lastT == null ? 0.1 : Math.max(1e-3, S.t - A.lastT);
   A.lastT = S.t;
-  if (P.trkIn !== 'lidar') return agTrackFused(dt); // with the radar: core/radar.js
+  if (P.radar && P.trkIn !== 'lidar') return agTrackFused(dt); // with the radar: core/radar.js
   const q = P.agSigA * P.agSigA,
     R = AG_SZ * AG_SZ;
   for (const t of A.tracks) {
@@ -8425,7 +8425,7 @@ const RAD = {sr: 0.1, sb: (3 * Math.PI) / 180, sv: 0.1, dr: 0.4, dv: 0.25, body:
 // velocity too would throw away exactly the echo that matters most: when a person turns around, the Doppler innovation
 // is many σ (the filter's velocity is confident and wrong), and a velocity gate would reject the measurement that says so.
 const RAD_GATE = 9.21;
-const radarOn = () => P.radar || P.trkIn !== 'lidar';
+const radarOn = () => !!P.radar; // off: nothing of the radar runs or draws, and the tracker is the lidar's
 const radReach = () => P.radRange * (P.weather === 'rain' ? 0.9 : 1);
 function radRng() {
   if (!S.rngR) S.rngR = makeRng(P.seed * 15485863 + 5); // its own stream: turning the radar on leaves every other draw as it was
@@ -8882,7 +8882,7 @@ function agHit(t) {
   t.hits++;
   t.lastUpd = S.t;
   if (t.conf) return;
-  const vouch = P.trkIn === 'both' && radInView(t) ? (t.rh || 0) >= 1 || t.hits >= 6 : true;
+  const vouch = radarOn() && P.trkIn === 'both' && radInView(t) ? (t.rh || 0) >= 1 || t.hits >= 6 : true;
   if (t.hits >= 3 && vouch) {
     t.conf = true;
     t.t0 = S.t;

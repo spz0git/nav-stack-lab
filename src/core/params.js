@@ -104,14 +104,6 @@ const DEFAULTS = {
   bOut: 0,
   bOutLen: 1,
   lidarSig: 0.02,
-  weather: 'clear', // fog and rain shorten the lidar's reach, drop beams, add range noise and returns from the air (core/radar.js)
-  radar: false, // the forward radar: detections with range, azimuth and radial velocity (core/radar.js)
-  radFov: 120, // its field of view [°]
-  radRange: 20, // its reach [m]
-  radRes: 8, // its angular resolution [°]: two echoes closer than this (and in range and Doppler) become one
-  radClutter: 0.5, // false detections per scan, on average
-  radGhost: 5, // the chance per scan that a person's echo also comes back by a bounce off a wall [%]
-  trkIn: 'lidar', // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
   seed: 7,
   agents: 'off',
   agPred: 'cv',
@@ -128,7 +120,15 @@ const DEFAULTS = {
   people: 'scripted',
   sensLat: 0,
   vehicles: true,
-  guard: false
+  guard: false,
+  weather: 'clear', // fog and rain shorten the lidar's reach, drop beams, add range noise and returns from the air (core/radar.js)
+  radar: false, // the forward radar: detections with range, azimuth and radial velocity (core/radar.js)
+  radFov: 120, // its field of view [°]
+  radRange: 20, // its reach [m]
+  radRes: 8, // its angular resolution [°]: two echoes closer than this (and in range and Doppler) become one
+  radClutter: 0.5, // false detections per scan, on average
+  radGhost: 5, // the chance per scan that a person's echo also comes back by a bounce off a wall [%]
+  trkIn: 'lidar' // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
 };
 const P = {...DEFAULTS};
 // The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).

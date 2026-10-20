@@ -11,7 +11,7 @@ const RAD = {sr: 0.1, sb: (3 * Math.PI) / 180, sv: 0.1, dr: 0.4, dv: 0.25, body:
 // velocity too would throw away exactly the echo that matters most: when a person turns around, the Doppler innovation
 // is many σ (the filter's velocity is confident and wrong), and a velocity gate would reject the measurement that says so.
 const RAD_GATE = 9.21;
-const radarOn = () => P.radar || P.trkIn !== 'lidar';
+const radarOn = () => !!P.radar; // off: nothing of the radar runs or draws, and the tracker is the lidar's
 const radReach = () => P.radRange * (P.weather === 'rain' ? 0.9 : 1);
 function radRng() {
   if (!S.rngR) S.rngR = makeRng(P.seed * 15485863 + 5); // its own stream: turning the radar on leaves every other draw as it was
@@ -468,7 +468,7 @@ function agHit(t) {
   t.hits++;
   t.lastUpd = S.t;
   if (t.conf) return;
-  const vouch = P.trkIn === 'both' && radInView(t) ? (t.rh || 0) >= 1 || t.hits >= 6 : true;
+  const vouch = radarOn() && P.trkIn === 'both' && radInView(t) ? (t.rh || 0) >= 1 || t.hits >= 6 : true;
   if (t.hits >= 3 && vouch) {
     t.conf = true;
     t.t0 = S.t;

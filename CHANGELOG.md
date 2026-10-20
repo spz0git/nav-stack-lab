@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v56 · 2026-10-20
 
 - Plan → Learned policy: the policy now proposes four candidate paths with a score each instead of one, and the
   robot drives one that stays clear of the inflated obstacles, the best-scoring one, or the one closest to the path
@@ -18,7 +18,7 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   with a subgoal.
 - Tools → Train: the policy is trained with the same mixture loss, and the results show the error of the best of
   the four candidates next to the best-scoring one's. Policies trained in the page before this still run (as one
-  candidate).
+  candidate). (PR #112)
 
 ## v55 · 2026-10-20
 

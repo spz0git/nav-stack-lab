@@ -1,1 +1,1 @@
-{"version": 55, "date": "2026-10-20", "note": "Lidar gaps filled and goal-directed planning under unknown = lethal; back-off when stuck; the learned policy's safety layer checks segments (PR #111)"}
+{"version": 56, "date": "2026-10-20", "note": "Learned policy: four candidate paths, the clear one held between refreshes, on top of the safety layer (PR #112)"}

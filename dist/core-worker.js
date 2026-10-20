@@ -4343,13 +4343,33 @@ function policyPlan(e, wp) {
     return {pts, p};
   }).sort((a, b) => b.p - a.p);
   for (const C of cands) C.p /= z;
-  // the best-scoring candidate whose segments clear the costmap (POLICY_CLEAR, the first one may start inside the
-  // margin, on its way out); a lower-scored one taken instead is counted
-  const pick = cands.find(C => (C.clear = C.pts.every((q, i) => !i || segClear(...C.pts[i - 1], ...q, POLICY_CLEAR, i === 1))));
+  // the best-scoring candidate whose waypoints and segments clear the costmap by POLICY_CLEAR (the first segment may
+  // start inside the margin on its way out, but its waypoint must be outside it: segClear alone would pass a first
+  // segment that never leaves, one pointing into the shelf the robot is touching); a lower-scored one taken is counted
+  const outside = q => {
+      const k = cellIdx(q[0], q[1]);
+      return k >= 0 && S.cm.dist[k] >= POLICY_CLEAR;
+    },
+    clear = cands.filter(
+      C => (C.clear = C.pts.every((q, i) => !i || (outside(q) && segClear(...C.pts[i - 1], ...q, POLICY_CLEAR, i === 1))))
+    ),
+    // commitment: of the clear candidates, the one nearest the path being driven, unless the best-scoring clear one
+    // is more than twice as likely; without it the pick can flip from "left of the shelf" to "right of it" between
+    // two refreshes, and the tracker cuts the reversal into the shelf
+    prev = S.policyPrevFor === wp ? S.policyPrev : null,
+    near = C => {
+      let d = 0;
+      for (const q of C.pts.slice(1, 5)) d += Math.min(...prev.map(r => hyp(r[0] - q[0], r[1] - q[1])));
+      return d;
+    },
+    held = prev && clear.length > 1 ? clear.reduce((a, b) => (near(b) < near(a) ? b : a)) : null,
+    pick = held && clear[0].p <= 2 * held.p ? held : clear[0];
   if (pick && pick !== cands[0]) S.policyAlt = (S.policyAlt || 0) + 1;
   S.policyCands = cands;
   (pick || cands[0]).used = true;
   const pts = (pick || cands[0]).pts.map(q => q.slice());
+  S.policyPrev = pick ? pick.pts.slice(1) : null;
+  S.policyPrevFor = wp;
   S.policyOut = pts.slice(1);
   // none clears: the safety layer every learned planner needs, on the best-scoring one: a waypoint inside an inflated
   // obstacle (the policy's error is about 20 cm, the expert's clearance 40), or less than 10 cm outside one, is moved
@@ -4369,7 +4389,7 @@ function policyPlan(e, wp) {
       break;
     }
   }
-  if (!pick) policyShield(pts, e, target);
+  policyShield(pts, e, target); // on a candidate that clears, only its fallback can act: a path too short to drive
   if (pathLen(pts) < 0.05) return {ok: false, reason: 'the policy proposes no motion'};
   return {ok: true, pts, exp: 0, cost: pathLen(pts)};
 }

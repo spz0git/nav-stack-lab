@@ -553,7 +553,7 @@ function wirePane(t) {
       $('#o-' + f.k).textContent = fmtVal(f, rg.value);
       setParam(f.k, +rg.value, true);
       pane.querySelectorAll('[data-info]').forEach(el => {
-        el.textContent = infoFns[+el.dataset.info]();
+        el.innerHTML = el.dataset.last = infoFns[+el.dataset.info](); // the lines carry markup (buttons, line breaks)
       });
     };
     rg.onchange = () => setParam(f.k, +rg.value, false);

@@ -289,3 +289,11 @@ document.addEventListener('click', e => {
   const b = e.target && e.target.closest ? e.target.closest('[data-code]') : null;
   if (b) codeOpen(b.dataset.code, null);
 });
+// and some carry a button that sets one setting (Perceive: "Turn on lidar tracking")
+document.addEventListener('click', e => {
+  const b = e.target && e.target.closest ? e.target.closest('[data-setp]') : null;
+  if (!b) return;
+  const [k, v] = b.dataset.setp.split(':');
+  setParam(k, v);
+  renderAllPanes();
+});

@@ -1,8 +1,17 @@
 # Changelog
 
-The version label in the page header (`v53 · 2026-10-20`) is the number used here; `src/version.json` holds it.
+The version label in the page header (`v54 · 2026-10-20`) is the number used here; `src/version.json` holds it.
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
+
+## v54 · 2026-10-20
+
+- Perceive: with agent tracking off, a note now says that people prediction (including the learned predictor) is
+  set there once tracking is on, names the levels with people, and has a button that turns lidar tracking on.
+- Plan → Learned policy: the description now lists what still runs while the policy drives, for the settings in
+  use: the estimator that places the goal and the waypoints, the costmap that keeps the waypoints out of obstacles,
+  how the controller reacts to people, the controller that follows the path, and the mission logic. Before, it said
+  "no map, no search", which left that unclear. (PR #109)
 
 ## v53 · 2026-10-20
 

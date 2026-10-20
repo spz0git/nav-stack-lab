@@ -8,6 +8,7 @@ function preSense() {
   odometry();
   if (P.loc !== 'custom') locPredict();
   if (P.lidar && S.tick % 2 === 1) sensEnqueue('lidar', lidarSense()); // the Sensors switches: an off sensor makes no readings
+  if (S.tick % 2 === 1 && radarOn()) sensEnqueue('radar', radarSense()); // with the lidar, at 10 Hz
   if (S.tick % 4 === 1) sensEnqueue('beacons', senseBeacons());
   if (P.sonar) sensEnqueue('sonar', sonarSense()); // the ultrasonic ring fires its own schedule (core/sensors.js)
   if (P.gnss) gnssTick();

@@ -12,6 +12,7 @@ function lidarSense() {
     if (d < LMAX) d = Math.max(0.05, d + P.lidarSig * g.n());
     ranges[k] = d;
   }
+  if (P.weather !== 'clear') weatherLidar(ranges);
   return ranges;
 }
 // Beacon availability: switched off by the user (P.bOff, comma-separated IDs) or down in a random outage.
@@ -340,6 +341,17 @@ const SENSORS = [
     per: ['sonar mapping', 'the sonar safety stop'],
     gives:
       'The ultrasonic ring: one range per sonar for a whole cone, a few metres at most, the sonars firing in turn: a blurred map, a bumper that stops late at grazing angles, and a rough pose fix against the map. What reads it: Perceive → Ultrasonic ring.'
+  },
+  {
+    key: 'radar',
+    label: 'Radar',
+    short: 'Radar',
+    flag: 'radar',
+    kind: 'extero',
+    loc: [],
+    per: ['the people tracker (Perceive → The tracker updates from)', 'your predictor'],
+    gives:
+      'A few detections per scan ahead of the robot, each with range, a coarse bearing and the radial speed from the Doppler shift, with clutter and ghosts; it keeps working in fog and rain. What reads it: Perceive → Radar.'
   }
 ];
 const sensorOn = s => (s.on ? s.on() : !!P[s.flag]);

@@ -27,6 +27,7 @@ function readTokens() {
     'amber',
     'beacon',
     'rose',
+    'radar',
     'ok',
     'warn',
     'bad',
@@ -222,6 +223,7 @@ function draw() {
   drawGnss(dpr, k, px);
   drawLidar(dpr, k, px);
   drawSonar(dpr, k, px);
+  drawRadar(dpr, k, px);
   drawPath(dpr, k, px);
   drawRollouts(dpr, k, px);
   drawAgents(dpr, k, px);
@@ -594,6 +596,59 @@ function drawSonar(dpr, k, px) {
     ctx.strokeStyle = A.why === 'xt' ? TOK.rose : TOK.ok;
     ctx.stroke();
   }
+}
+// The radar's field of view from the estimated pose, and its detections: a diamond each, with an arrow along the line of
+// sight for the radial velocity (0.5 s of it; toward the robot when closing). Clutter and ghosts look the same: the robot
+// cannot tell them apart.
+function drawRadar(dpr, k, px) {
+  if (!LAYERS.radar || !radarOn() || !S.radar) return;
+  const e = S.est,
+    f = (P.radFov * Math.PI) / 360,
+    R = radReach(),
+    c = TOK.radar || TOK.accent;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, W, H);
+  ctx.clip();
+  ctx.fillStyle = rgba(c, 0.05);
+  ctx.strokeStyle = rgba(c, 0.35);
+  ctx.lineWidth = px(1);
+  ctx.beginPath();
+  ctx.moveTo(e.x, e.y);
+  ctx.arc(e.x, e.y, R, e.th - f, e.th + f);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  const s = px(4);
+  for (const d of S.radar.det) {
+    const ux = Math.cos(e.th + d.b),
+      uy = Math.sin(e.th + d.b),
+      L = 0.5 * d.v;
+    ctx.strokeStyle = c;
+    ctx.lineWidth = px(1.5);
+    if (Math.abs(L) > 0.02) {
+      const tx = d.x + L * ux,
+        ty = d.y + L * uy,
+        h = Math.min(px(5), Math.abs(L) * 0.6),
+        sg = Math.sign(L);
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(tx, ty);
+      ctx.moveTo(tx - sg * h * ux - h * 0.6 * uy, ty - sg * h * uy + h * 0.6 * ux);
+      ctx.lineTo(tx, ty);
+      ctx.lineTo(tx - sg * h * ux + h * 0.6 * uy, ty - sg * h * uy - h * 0.6 * ux);
+      ctx.stroke();
+    }
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(d.x + s, d.y);
+    ctx.lineTo(d.x, d.y + s);
+    ctx.lineTo(d.x - s, d.y);
+    ctx.lineTo(d.x, d.y - s);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
 }
 function drawPath(dpr, k, px) {
   // the learned policy's other candidate paths, faint by their probability: rose where they hit the inflation

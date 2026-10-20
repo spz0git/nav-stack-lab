@@ -133,7 +133,15 @@ const DEFAULTS = {
   sonPing: 0.05, // time per ping; the ring fires in turn, one cycle is sonN pings [s]
   mapSrc: 'lidar', // what builds the occupancy map with the sonar on: lidar, sonar or both
   guardSrc: 'lidar', // what the safety stop reads with the sonar on: lidar, sonar or both
-  pfSonar: false // the particle filter also weights particles by the sonars against the prior map
+  pfSonar: false, // the particle filter also weights particles by the sonars against the prior map
+  weather: 'clear', // fog and rain shorten the lidar's reach, drop beams, add range noise and returns from the air (core/radar.js)
+  radar: false, // the forward radar: detections with range, azimuth and radial velocity (core/radar.js)
+  radFov: 120, // its field of view [°]
+  radRange: 20, // its reach [m]
+  radRes: 8, // its angular resolution [°]: two echoes closer than this (and in range and Doppler) become one
+  radClutter: 0.5, // false detections per scan, on average
+  radGhost: 5, // the chance per scan that a person's echo also comes back by a bounce off a wall [%]
+  trkIn: 'lidar' // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
 };
 const P = {...DEFAULTS};
 // The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
@@ -158,7 +166,9 @@ const PARAM_OPTS = {
   people: ['scripted', 'reactive'],
   map: ['level', 'empty'],
   mapSrc: ['lidar', 'sonar', 'both'],
-  guardSrc: ['lidar', 'sonar', 'both']
+  guardSrc: ['lidar', 'sonar', 'both'],
+  trkIn: ['lidar', 'radar', 'both'],
+  weather: ['clear', 'rain', 'fog']
 };
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
@@ -194,7 +204,8 @@ const LAYERS = {
   frontier: true,
   graph: true,
   vo: true,
-  sonar: true
+  sonar: true,
+  radar: true
 };
 
 // ---- Sensors switchboard and GNSS (appended: one switch per modality, see SENSORS in core/sensors.js) ----

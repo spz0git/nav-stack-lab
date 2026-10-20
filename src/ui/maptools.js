@@ -278,6 +278,7 @@ const LAYER_DEFS = [
   ['gnss', 'GNSS fixes', "Dots: fused; crosses: gated; hollow: not fused. The ring is the latest fix's reported 2σ", 'loc'],
   ['lidar', 'Lidar hits', 'As perceived', 'per'],
   ['sonar', 'Sonar ring', 'Each cone and its returned arc, where it was measured (Perceive → Ultrasonic ring)', 'per'],
+  ['radar', 'Radar', 'Field of view and detections with their radial velocity (Perceive → Radar)', 'per'],
   ['cost', 'Costmap', 'Inflation', 'per'],
   ['ghost', 'True-map outline', 'Over the built map', 'per'],
   ['agents', 'Agents', 'Tracks, predictions, ego positions at the same times', 'per'],
@@ -323,6 +324,10 @@ function layerStatus(k) {
       return P.sonar
         ? [S.sonArcs ? 1 : 0, `${clamp(Math.round(P.sonN), 4, 16)} sonars · cycle ${sonCycle().toFixed(2)} s`]
         : [0, 'the ultrasonic ring is off (Perceive)'];
+    case 'radar':
+      return radarOn()
+        ? [S.radar ? 1 : 0, S.radar ? `${S.radar.det.length} detections` : 'no scan yet']
+        : [0, 'the radar is off (Perceive)'];
     case 'cost':
       return [1, `inflation ${P.infl} m`];
     case 'ghost':

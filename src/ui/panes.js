@@ -415,6 +415,19 @@ const TIPS = {
   predModes: 'Which of the learned futures the speed planner, space-time A*, DWA and MPC treat as obstacles.',
   agT: 'How far ahead agents are predicted and the speed planner plans.',
   agGrow: 'How fast the predicted radius grows per second of prediction.',
+  trkIn:
+    "What updates the tracks. Lidar: the clusters' positions. Radar: the radar's detections (range, bearing, radial velocity) in an extended Kalman filter, only in its field of view. Lidar + radar: both, and a track the radar can see is confirmed only once the radar has seen it too (or after six lidar hits).",
+  weather:
+    "Clear, rain or fog. Fog and rain shorten the lidar's reach, drop beams, add range noise and returns from the air close to the robot; the radar barely notices.",
+  radar:
+    'A forward radar: detections with range, bearing and radial velocity, drawn on the map. It feeds the people tracker when Tracker inputs includes it.',
+  radFov: 'How wide the radar looks, centred on the heading.',
+  radRange: 'How far the radar sees.',
+  radRes:
+    'Two echoes closer than this in bearing (and within 0.4 m in range and 0.25 m/s in radial velocity) come back as one detection, at their amplitude-weighted average: two people side by side become one.',
+  radClutter: 'False detections per scan, on average (Poisson), anywhere in the field of view, with random radial velocities.',
+  radGhost:
+    "The chance per scan that a person's echo also comes back by a bounce off a wall: a detection at the person's mirror image behind the wall, moving with the mirrored velocity.",
   agSigA: 'White acceleration noise of the constant-velocity model. Higher follows turns faster but gives noisier velocity.',
   mis: 'In order visits goals as numbered. Greedy picks the nearest next. Optimal solves the open-path TSP.',
   replan: 'Replan on a timer in addition to the event-driven triggers.',

@@ -20,7 +20,8 @@ function sensDeliver() {
     if (it.kind === 'lidar') {
       lidarApply(it.data);
       S.deliv.scan = it.data;
-    } else if (it.kind === 'sonar') {
+    } else if (it.kind === 'radar') radarApply(it.data);
+    else if (it.kind === 'sonar') {
       sonarApply(it.data);
       S.deliv.sonar = it.data;
     } else if (it.kind === 'gnss') {

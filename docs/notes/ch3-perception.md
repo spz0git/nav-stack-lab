@@ -1,7 +1,7 @@
 id: ch3
 num: 3
 sys: per
-summary: The derivations behind the Perception lessons: the binary Bayes filter behind log-odds mapping, the distance transform and inflation cost, lidar clustering, the constant-velocity Kalman tracker and its gains, prediction with growing uncertainty, what sensor latency does to each estimator, the social-force model of people, and the sonar ring's arc inverse sensor model and cone likelihood.
+summary: The derivations behind the Perception lessons: the binary Bayes filter behind log-odds mapping, the distance transform and inflation cost, lidar clustering, the constant-velocity Kalman tracker and its gains, prediction with growing uncertainty, what sensor latency does to each estimator, the social-force model of people, the sonar ring's arc inverse sensor model and cone likelihood, and a radar's measurement model fused into the tracker.
 
 # Perception: maps, costs and people
 
@@ -309,6 +309,80 @@ Precision is the share of the cells the map calls occupied that have a real obst
 
 [try: Sonar only, the building | {"sim":true,"level":3,"set":{"sonar":true,"mapSrc":"sonar"},"tab":"per"}] [try: Sonar safety stop | {"sim":true,"level":4,"set":{"agents":"off","spd":"none","people":"reactive","guard":true,"sonar":true,"guardSrc":"sonar"},"goals":[[12,1.6],[12,15],[12,1.6]],"tab":"ctl"}] [try: Sonar-only particle filter | {"sim":true,"level":2,"set":{"loc":"pf","pfLidar":false,"sonar":true,"pfSonar":true,"bOff":"all"},"tab":"loc","plot":"pos"}]
 
-## 12. What to carry into the next chapters
+## 12. Radar: range, bearing and Doppler
+
+**The sensor.** A radar sends a radio wave and listens for echoes. The delay gives the range, the phase across its receiving antennas the bearing, and the Doppler shift of the echo's frequency, $f_D = 2 v_r / \lambda$, the *radial velocity* $v_r$: the rate at which the range changes, the part of the relative velocity along the line of sight. The lab's radar looks forward, {{live:radFov}}° wide and {{live:radRange}} m deep, at 10 Hz, and each detection is
+
+$$
+z = [\,r,\ b,\ v_r\,] + \nu, \qquad \nu \sim \mathcal N\big(0,\ \operatorname{diag}(0.1^2\ \text{m}^2,\ (3°)^2,\ 0.1^2\ \text{m}^2/\text{s}^2)\big)
+$$
+
+A person echoes once per scan from the near side of the body (missed one scan in ten: a person is a weak reflector); a vehicle hardly ever misses. A flat surface reflects like a mirror, so a wall echoes strongly only where it faces the radar: the lab samples the field of view every half resolution cell and keeps an echo with probability $0.1 + 0.85\cos^4\phi$ for the incidence angle $\phi$, at most three per shape, which gives a wall a few echoes around its perpendicular and a pillar one or two. On top of that come false detections, Poisson with {{live:radClutter}} per scan on average, anywhere in the field of view with random radial velocities, and ghosts.
+
+**Resolution.** Two echoes become one detection when they are closer than the resolution in all three of range (0.4 m), radial velocity (0.25 m/s) and bearing ({{live:radRes}}°), at their amplitude-weighted average. Across the line of sight the angular resolution is a distance that grows with range: at 10 m, {{live:radRes}}° is {{live:radCross10}} m. Two people walking side by side at the same speed are one detection there; two people at different speeds, or at different ranges, are two, because radar separates by range and Doppler far better than by angle.
+
+**Ghosts.** A wave can reach a person by way of a wall and come back the same way. The echo then seems to come from the person's mirror image in the wall plane (the image method): for a wall along $x = c$ the image of $(p_x, p_y)$ moving at $(v_x, v_y)$ is $(2c - p_x, p_y)$ moving at $(-v_x, v_y)$. The lab adds such a ghost with probability {{live:radGhost}} % per person per scan, through the face of a rectangle that faces both the robot and the person, when the bounce point lies on the face and both legs of the path are clear. A ghost sits behind the wall and moves like a person, so the map does not explain it and its Doppler marks it as moving: the tracker has no way to tell it from a person in the next aisle. Ghosts and clutter are drawn like every other detection for that reason.
+
+**The robot's own speed.** Doppler is relative. A person's radial velocity is the reading minus the robot's own contribution, so the robot must know its speed better than the radar's 0.1 m/s; one tick of wheel odometry on the busy floor is off by about 0.15 m/s. The static world measures it instead: every static echo at bearing $b$ reads $v_r = -v\cos b$, so with the echoes that agree with the odometry's guess to within 0.4 m/s,
+
+$$
+\hat v = -\frac{\sum_i v_{r,i} \cos b_i}{\sum_i \cos^2 b_i}
+$$
+
+by least squares (the odometry when fewer than three agree). A detection is a candidate for the people tracker when its reading differs from $-\hat v\cos b$ by more than $3\sigma_v + 0.05$ m/s (it moves), or when the map does not explain it within $0.25 + 2\,r\,\sigma_b$, the smear of its bearing noise. A person standing still within that smear of a shelf is therefore invisible to the radar tracker, the classic blind spot of Doppler processing.
+
+**The measurement model.** With the track's state $x = [p_x, p_y, v_x, v_y]$, the estimated robot pose $(\hat p, \hat\theta)$ and its velocity $v_e = \hat v\,[\cos\hat\theta, \sin\hat\theta]$, write $d = p - \hat p$, $\rho = \lVert d \rVert$ and $w = v - v_e$. The radar should read
+
+$$
+h(x) = \begin{bmatrix} \rho - b_0 \\ \operatorname{atan2}(d_y, d_x) - \hat\theta \\ v_r \end{bmatrix}, \qquad v_r = \frac{d \cdot w}{\rho}
+$$
+
+where $b_0$ = 0.24 m is the distance from what the tracker calls a person's centre to the surface that echoes. It is not the body radius of 0.3 m: the lidar's cluster centres sit about 6 cm short of the true centre, and the two sensors have to agree on where a person is, or every scan in which only one of them sees the person moves the track by the difference. That calibration between sensors is part of fusion. The Jacobian, row by row: the range depends on position only, through the unit vector $d/\rho$; the bearing through the perpendicular, scaled by $1/\rho$, since a sideways step changes the angle less the farther away it is; and the radial velocity
+
+$$
+\frac{\partial v_r}{\partial p} = \frac{1}{\rho}\Big(w - v_r \frac{d}{\rho}\Big)^{\mathsf T}, \qquad \frac{\partial v_r}{\partial v} = \frac{d^{\mathsf T}}{\rho}
+$$
+
+so that
+
+$$
+H = \begin{bmatrix} d_x/\rho & d_y/\rho & 0 & 0 \\ -d_y/\rho^2 & d_x/\rho^2 & 0 & 0 \\ (w_x - v_r d_x/\rho)/\rho & (w_y - v_r d_y/\rho)/\rho & d_x/\rho & d_y/\rho \end{bmatrix}
+$$
+
+The velocity block of the last row is the line of sight: one detection measures the velocity in that one direction and says nothing across it. Its position block is the tangential part of $w$ divided by $\rho$: moving the track sideways turns the line of sight onto which the velocity is projected. Both are what make the problem nonlinear, and the update is the extended Kalman filter's, linearized at the predicted track,
+
+$$
+S = H C H^{\mathsf T} + Q, \quad K = C H^{\mathsf T} S^{-1}, \quad x \leftarrow x + K\big(z - h(x)\big), \quad C \leftarrow (I - KH)\,C\,(I - KH)^{\mathsf T} + K Q K^{\mathsf T}
+$$
+
+with the bearing innovation wrapped to $(-\pi, \pi]$ and the covariance update in Joseph's form, which stays symmetric and positive with gains this uneven. $C$ is now the full 4×4 covariance. The lidar tracker of §5 keeps one covariance for both axes, which is exact only while every measurement is a position with the same noise in $x$ and $y$; a radar detection pins range and radial velocity to a tenth and the bearing to 3°, {{live:radLat10}} m across the line of sight at 10 m, so after one update the uncertainty is an ellipse along the line of sight and the filter has to carry all of it. With both sensors, the lidar's clusters update the same filter with $H = [I\ \ 0]$, the update of §5 written for the full covariance.
+
+**Gating and association.** Candidates are paired with tracks nearest first, as in §5, by the Mahalanobis distance of the range and bearing only, $d^2 < 9.21$ (χ² with two degrees of freedom at 99 %); the paired update then uses all three rows. Gating on the radial velocity too would be tighter against clutter, and it was the first version: it rejected exactly the echo of a person who had just turned around, whose Doppler is many σ from a confident wrong track, so the track coasted on the old velocity, and the velocity of tracks older than two seconds came out worse than with the lidar alone (0.18 against 0.11 m/s at seed 7). Gate on position, update with everything: the standard compromise for targets that manoeuvre. A candidate left unpaired starts a tentative track at its range plus $b_0$ along its bearing, with the radial velocity known ($\hat v_r + v_e \cdot u$ along the unit line of sight $u$, σ 0.1 m/s) and the tangential velocity not (σ 1 m/s, as a lidar track starts), unless a track is already within 1 m.
+
+**Clutter, and what nearest neighbour does with it.** For a false detection to become a track it has to fall inside a gate three scans running. A gate's area is roughly $\pi \cdot 9.21 \cdot \sigma_r \cdot \rho\sigma_b$, a third of a square metre at 10 m; the field of view is about {{live:radRange}}²·{{live:radFov}}/360·π ≈ 420 m², so with λ false detections per scan the chance per scan of one landing in a given gate is about λ times one in a thousand. Most false tracks are therefore born far out, where the gates are widest and only the radar sees. Nearest neighbour also has a quieter weakness: when a person's own echo is missing (one scan in ten), a false one inside their gate is taken as theirs and pulls the track. Probabilistic data association (PDA, and JPDA for several targets) weighs every echo in the gate by how likely it is to be the target's, including "none of them"; the lab does not implement it.
+
+**Confirmation with two sensors.** With both sensors in the tracker, a track inside the radar's field of view is confirmed only once at least one of its hits came from the radar, or after six lidar hits. Each sensor's artefacts are rare in the other: the air returns lidar hits in fog but no radar echo, and a radar ghost behind a wall returns no lidar hit. The six-hit rule keeps a person the radar cannot see (standing by a shelf) from going unconfirmed; it delays them by 0.3 s. Outside the radar's view the lidar alone confirms as before.
+
+**Weather.** Fog and rain scatter a lidar's near-infrared light (a micrometre against droplets of a few) and barely touch millimetre waves. In the lab, fog cuts the lidar's reach to about 4 m of its 8, drops one beam in seven, adds 5 cm of range noise and returns one beam in two hundred from the air within 2 m; rain is milder (6 m, one beam in sixteen, 3 cm, one in five hundred). The radar loses a tenth of its reach in rain and sees 0.3 more false detections per scan; fog leaves it alone.
+
+**Measured** on L5 at seed 7, read at Mission complete, the speed planner, with seeds 2 and 3 in brackets; *in view* is the radar's field (±60°, within 8 m, in line of sight); a track of nobody is a confirmed track that was more often than not more than 1 m from every person; *turn* is the time until a track's velocity is within 0.3 m/s of a person's who turned round at 50 s, 2 to 3 m ahead, walking straight back at the robot:
+
+| Tracker inputs | Weather | Contacts, people · shelf | Mission complete | Prediction error at 1 s | Velocity error, first 0.5 s in view | Turn at 50 s | In view, untracked | Tracks of nobody | Yields to them |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| lidar | clear | 1 · 0 (1 · 0, 1 · 0) | 121 s (119, 118) | 0.23 m (0.24, 0.23) | 0.63 m/s (0.48, 0.47) | 0.7 s (0.7, 0.7) | 2 % (1, 3) | 11 (1, 3) | 0 (1, 0) |
+| lidar + radar | clear | 2 · 0 (1 · 1, 1 · 0) | 119 s (127, 119) | 0.23 m (0.29, 0.22) | 0.46 m/s (0.40, 0.36) | 0.1 s (0.2, 0.3) | 1 % (3, 2) | 4 (3, 3) | 0 (0, 1) |
+| radar | clear | 1 · 1 (1 · 1, 1 · 1) | 127 s (127, 127) | 0.37 m (0.35, 0.33) | 0.45 m/s (0.43, 0.34) | 0.1 s (0.2, 0.2) | 10 % (12, 13) | 1 (0, 0) | 0 (0, 0) |
+| lidar | fog | 1 · 0 (4 · 0, 4 · 0) | 121 s (118, 123) | 0.37 m (0.39, 0.40) | 0.75 m/s (0.59, 0.59) | 0.6 s (1.3, 0.8) | 12 % (15, 12) | 19 (16, 26) | 4 (6, 3) |
+| lidar + radar | fog | 1 · 0 (3 · 0, 4 · 1) | 123 s (113, 134) | 0.39 m (0.46, 0.44) | 0.61 m/s (0.45, 0.66) | 0.5 s (0.8, 0.9) | 4 % (7, 19) | 12 (15, 17) | 1 (2, 2) |
+| lidar + radar, 10 false per scan | clear | 1 · 0 (1 · 0, 0 · 1) | 131 s (134, 129) | 0.38 m (0.33, 0.32) | 0.56 m/s (0.50, 0.36) | 2.8 s (1.7, 0.8) | 2 % (1, 3) | 221 (206, 203) | 25 (22, 14) |
+| lidar + radar, ghosts 50 % | clear | 0 · 1 (1 · 1, 2 · 0) | 127 s (127, 119) | 0.34 m (0.28, 0.24) | 0.49 m/s (0.32, 0.32) | 0.3 s (0.2, 0.3) | 3 % (3, 2) | 18 (24, 16) | 1 (1, 2) |
+
+The radar sees about four static echoes a scan on this floor, half a false one, a person in a quarter of the scans (the shelves hide the rest from a forward sensor) and a ghost in one scan in fifty. The reading: the radar's gain is speed, early. A head-on turn is followed in a scan or two instead of most of a second, and a track's first half second in view is a quarter better; a turn across the line of sight (at 83 s, at 1.6 m) is followed in 0.8 s with or without it, since Doppler does not see it. Averaged over a run, which old tracks dominate, the prediction error does not move, because once a track is a second old the lidar's inferred velocity is as good along the line of sight and better across it. Alone, the radar tracks only ahead, a person in its view goes untracked a tenth of the time, and its coarse positions make the prediction error half as large again. The shelf column is the cost of reacting sooner: with the radar in the tracker the robot touched a shelf end in 7 runs of 15, with the lidar alone in none of 6 (the one examined: stopped for a person, then turning in place beside a shelf end); lesson 3's ground-truth tracks do the same. Better tracks make the speed planner's yields sharper, and a sharp yield next to a shelf is a hazard this planner does not weigh. In fog the fusion keeps people ahead tracked on two seeds of three (on the third the robot was held against a shelf end with a person in view) and halves the yields to tracks of nobody on all three; it does not improve the lidar's own tracks, which still believe their fogged clusters to 0.1 m, so the turn at 50 s takes 0.5 s instead of 0.1: the noise a filter assumes has to follow the conditions, and here nothing tells it the weather changed. The prediction error in fog is slightly higher with the radar, because the radar keeps tracks of people far down the aisles, with coarse positions, that the fogged lidar never had, and they are scored too.
+
+**Where the radar is worse, and where the lidar still wins.** *Angle:* 3° of bearing noise is {{live:radLat10}} m at 10 m and the resolution {{live:radCross10}} m, against centimetres for a lidar cluster; two people walking together are one target. *Ghosts:* along walls, a person in one aisle appears in the next, moving like a person; the map cannot reject them and Doppler marks them as moving. *No shape:* one point per target, so no outline, no size, no map; a person standing still is the same echo as a post. *Standing targets near structure* are filed as structure. *Coverage:* this radar looks forward over {{live:radFov}}°; the lidar sees all round. *Tangential velocity:* none from one detection. The lidar still wins on position, on everything to the sides and behind, on mapping and localization (chapter 2's scan matching needs its geometry), and on anything that stands still. The radar wins on speed along the line of sight from the first echo, on range, and on weather; the moose test of control lesson 17 shows the cheapest use of it, a time to contact $r / (-v_r)$ from one detection with no tracking at all.
+
+[try: Lidar + radar | {"sim":true,"level":4,"set":{"radar":true,"trkIn":"both"},"tab":"per","layers":{"agents":true,"radar":true}}] [try: Fog, lidar only | {"sim":true,"level":4,"set":{"radar":true,"weather":"fog"},"tab":"per","layers":{"agents":true,"radar":true,"lidar":true}}] [try: Fog, lidar + radar | {"sim":true,"level":4,"set":{"radar":true,"trkIn":"both","weather":"fog"},"tab":"per","layers":{"agents":true,"radar":true,"lidar":true}}]
+
+## 13. What to carry into the next chapters
 
 The log-odds map and the costmap are what the planners of chapter 4 search; the inflation penalty is the term that makes A* prefer the middle of an aisle, and the unknown-cell policy decides whether an unexplored room is a route or a wall. The tracks and their growing radii are what the space-time planner blocks cells with and what the speed planner slows down for, and everything in §7 is why those planners work on timestamps rather than on "now". The pattern from chapter 2 holds throughout: the covariance, or its stand-in, is consumed downstream, and a tracker that reports a velocity it does not really know yet is as dangerous to the speed planner as an overconfident EKF is to the costmap.

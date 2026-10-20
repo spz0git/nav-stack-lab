@@ -169,6 +169,22 @@ const PARAM_EFFECTS = [
     }
   ],
   [
+    ['trkIn'],
+    (k, v) => {
+      S.agents = agInit();
+      logE(`Tracker inputs → ${{lidar: 'lidar', radar: 'radar', both: 'lidar and radar'}[v]}`);
+    }
+  ],
+  [
+    ['radar', 'weather'],
+    (k, v) =>
+      logE(
+        k === 'radar'
+          ? `Radar → ${v ? 'on' : 'off'}`
+          : `Weather → ${v}${v === 'clear' ? '' : ': the lidar reaches less far, drops beams and sees the air'}`
+      )
+  ],
+  [
     ['detModel', 'polModel', 'predModel'],
     (k, v) => {
       const M = USER_MODELS[v],

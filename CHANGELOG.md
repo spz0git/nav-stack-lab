@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v58 · 2026-10-20
 
 - An ultrasonic ring: Perceive → Ultrasonic ring (off by default) puts 8 sonars round the robot, each a 30° cone that
   reports one number, the range of the nearest echo in the cone. It has a sonar's real failures: walls met at a slant
@@ -23,7 +23,7 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   update and the cone likelihood, with the measured table. The lab models no materials, so the sonar's real strength,
   hearing glass and dark surfaces a lidar can miss, does not show here; the lesson says so.
 
-- Localize → Sensors: one switch per sensor (wheel odometry, the yaw-rate gyro, the lidar, the beacons, GNSS and the ultrasonic ring),
+- Localize → Sensors: one switch per sensor (wheel odometry, the yaw-rate gyro, the lidar, the beacons, GNSS, the ultrasonic ring and the radar),
   each with a line on what it gives the robot, and a row of dots beside the four health lights showing what the
   robot is sensing with (a click opens the switches). Turn any of them off and the rest of the stack carries on and
   says what it lost: with the lidar off there is no mapping, people detection, scan matching or lidar safety stop,
@@ -40,6 +40,19 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   odometry, the bias in the state, multipath along the parked cars and an outage, with the consistency plot under
   the error. Chapter 2 §12 derives the slowly wandering error, what it does to a Kalman filter that takes the fixes
   as independent, and the filter that carries the bias, with the measured table and what the model leaves out.
+
+- A radar (Perceive → Radar): it looks ahead 120° and 20 m and reports, for each echo, the range, the bearing and
+  how fast the thing closes or opens (its radial velocity, from the Doppler shift). The map draws each detection as a
+  diamond with an arrow for that speed, false detections and ghosts (echoes that bounced off a wall) included, since
+  the robot cannot tell them apart. The metrics show what it saw and the nearest echo ahead with its closing speed
+  and time to contact.
+- Perceive → Tracker inputs: the people tracker can update from the lidar, the radar, or both. With both, a person
+  who turns around is followed within a scan or two instead of most of a second.
+- Perceive → Weather: rain and fog shorten the lidar's reach, make it miss beams and see the air itself; the radar
+  hardly notices.
+- New lesson in Perceive, "Radar: speed from the echo", with six experiments (fusion, fog, clutter, and the moose
+  test read by the radar), and a new section in chapter 3 on the radar's measurement model and what it is worse at.
+- Your predictor in the Code tab receives the radar's detections as `obs.radar`.
 
 ## v57 · 2026-10-20
 

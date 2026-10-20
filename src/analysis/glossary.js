@@ -309,6 +309,54 @@ const GLOSS = {
     '',
     ['constant-velocity Kalman filter']
   ],
+  radar: [
+    'radar',
+    'A sensor that sends radio waves and times their echoes: range, bearing and, from the Doppler shift, radial velocity per detection. Coarse in bearing, unbothered by fog.',
+    '',
+    ['radar']
+  ],
+  doppler: [
+    'radial velocity',
+    'The part of the relative velocity along the line of sight, read from the Doppler shift of the echo: negative when closing. Motion across the line of sight leaves no trace in it.',
+    'm/s',
+    ['radial velocity', 'Doppler']
+  ],
+  angres: [
+    'angular resolution',
+    'The smallest difference in bearing at which two echoes come back as two detections; closer ones (in range and Doppler too) merge into one.',
+    '°',
+    ['angular resolution']
+  ],
+  ghost: [
+    'ghost',
+    'A radar detection of a real person at a place they are not: the echo bounced off a wall on the way, so it seems to come from the mirror image behind the wall.',
+    '',
+    ['ghosts', 'ghost']
+  ],
+  egomotion: [
+    'ego speed',
+    "The robot's own speed, here measured from the Doppler of the static echoes, which all close at v cos b.",
+    'm/s',
+    ['ego speed']
+  ],
+  ttc: [
+    'time to contact',
+    'Range divided by closing speed: how long until contact if nothing changes. One radar detection gives it, without any tracking.',
+    's',
+    ['time to contact']
+  ],
+  xconfirm: [
+    'cross-sensor confirmation',
+    "A track inside both sensors' view counts only once both have seen it: an artefact of one sensor rarely shows in the other.",
+    '',
+    ['cross-sensor confirmation']
+  ],
+  fog: [
+    'fog',
+    "Water droplets that scatter the lidar's light: shorter reach, missing beams, and returns from the air itself. A radar's millimetre waves pass through.",
+    '',
+    ['fog']
+  ],
   confirm: ['confirm', 'A track counts only after three hits, so one stray detection does not create a person.', '', ['confirm']],
   coast: [
     'coast',
@@ -1049,6 +1097,8 @@ const LESSON_TERMS = {
     'conv1d precision recall distshift track cvkf cluster lidar logodds agent icp speedplanner odometry deadreck pf',
   'A learned predictor: three futures for each person':
     'mlp mixture resp wta multimodal prederr cvkf track speedplanner socialforce contacts closest groundtruth distshift',
+  'Radar: speed from the echo':
+    'radar doppler angres ghost egomotion ttc xconfirm fog cvkf track gate chi2 mahal ekf Hjac confirm coast speedplanner moose lidar',
   'Velocity obstacles: steering around people in velocity space':
     'vo rvo track cvkf agent speedplanner socialforce contacts closest lidar costmap tracker',
   'People who react': 'socialforce Fsf v0p edir vp tausf sumO Asf rij dpp Bsf ndir contacts closest',

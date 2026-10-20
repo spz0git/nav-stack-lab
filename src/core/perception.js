@@ -111,7 +111,7 @@ function goalBlocked(gx, gy) {
       for (let i = i0 - n; i <= i0 + n; i++) {
         if (i < 0 || j < 0 || i >= GW || j >= GH) continue;
         if (Math.abs(S.lo[j * GW + i]) < 0.05)
-          return 'goal is in unexplored space, and unknown space is lethal (Perceive): the robot stays where it can see; Mission → Explore picks goals it can reach';
+          return 'goal is in unexplored space, and unknown space is lethal (Perceive): no edge of the seen floor the robot can reach leads closer to it';
       }
   }
   return null;

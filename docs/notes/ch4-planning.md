@@ -100,7 +100,8 @@ A grid path has corners of zero radius and no heading, so a car following it swi
 | PLAN | planner failed | NO_PATH (retry after 2 s; skip the goal after 3 failures) |
 | DRIVE | a lethal cell on the path within 6 m, checked every 0.5 s | PLAN ("path blocked") |
 | DRIVE | the estimate more than 1 m from the path | PLAN ("off path") |
-| DRIVE | less than 0.15 m of progress in 5 s | PLAN ("stuck"; the goal is skipped after 3) |
+| DRIVE | less than 0.15 m of progress in 5 s | PLAN ("stuck"; at an obstacle, after backing off; the goal is skipped after 3) |
+| DRIVE | heading for the edge of the seen floor (below), every 1 s | PLAN ("periodic", not logged) |
 | DRIVE | the periodic timer, if set | PLAN ("periodic", not logged) |
 | DRIVE | the speed planner cannot resolve a person by slowing | PLAN ("agent blocking") |
 | DRIVE | position σ above 1 m, with the lost guard on | LOST (hold and turn until σ < 0.4 m) |
@@ -108,7 +109,17 @@ A grid path has corners of zero radius and no heading, so a car following it swi
 
 Two of the triggers deserve a note. The "off path" rule is what makes a kidnapping (chapter 2 §6) recoverable at the mission level: the moment the estimate jumps, the plan is rebuilt from where the robot now believes it is, which is right if the estimator is and useless if it is not. The "agent blocking" rule is the escalation from the trajectory layer: for that one plan the predicted positions of the people over the next 2 s are stamped into the costmap as obstacles, so the new route goes around where they will be, and the costmap is rebuilt clean afterwards.
 
+And "stuck" next to an obstacle has a step of its own. A replan from inside the lethal band starts at the nearest free cell, a few centimetres away at the band's edge, so the tracker looks past it, along the wall, and pushes the robot back in; three of those and the goal is gone. So the ground robot first backs off, straight to the nearest cell 0.2 m clear of the band (turning in place if it faces the wall, which contact allows), and replans from there. The car manoeuvres with reverse legs of its own, and neither the straight line, which ignores the map, nor the learned policy, which has its own fallback (§10), backs off: replanned, both drive straight back into the obstacle.
+
 [try: Discover the building | {"sim":true,"level":3,"tab":"mis"}] [try: Agent-blocking replans | {"sim":true,"level":4,"tab":"mis"}]
+
+**A goal in unseen space.** Under the cautious policy (chapter 3 §3: unknown cells are lethal) a goal the robot has not seen has no path, and a robot that does not move sees nothing new. So the mission layer gives the planner a stand-in, the edge of the floor it can plan through: among the cells it can reach that lie 0.2 to 0.35 m beyond the lethal band, with the unknown and not a seen wall as the nearest obstruction (the margin a frontier goal keeps, §7), the one with the least
+$$
+c(u) = g(u) + \lVert u - \text{goal} \rVert,
+$$
+the route cost $g$ from the robot plus the straight line on to the goal, the unknown beyond taken as free. That is A*'s own $f = g + h$, cut at the edge of what is known. The stand-in is recomputed with every plan, once a second while the map grows, and the moment the goal itself is on seen floor the planner gets the goal. An edge cell under the robot is no progress; then the goal has no plan, as before, and is skipped after three tries. It is frontier exploration (§7) with the goal in the score, and it costs time, not goals: on L4 the cautious run takes all four in 83 s and 51 m against 67 s and 50 m optimistic, and on seeds 1 to 5 all four every time, in 71 to 98 s, with up to two touches.
+
+[try: Unknown = lethal | {"sim":true,"level":3,"set":{"unknownAs":"lethal"},"tab":"per"}]
 
 ## 6. Space-time A*: time as a coordinate
 
@@ -155,7 +166,7 @@ and the highest score is the next goal. Size per metre is the crudest estimate o
 | Unknown as lethal | 100 % | 171 s | 127 m | 19 | 16 |
 | DWA tracker | 100 % | 187 s | 86 m | 17 | 11, four given up, one retried |
 
-Over six seeds the default run takes 111 to 147 s and 80 to 108 m, always to 100 %, with at most one brush against a shelf. The cautious policy (§5 explains why a hand-placed goal in an unseen room stalls under it) does not block exploration, because a frontier goal is on seen floor by construction; it only forbids the plans to cut through rooms not yet looked into, which costs about two fifths more time here and from nothing to a minute and a quarter on seeds 1 to 5.
+Over six seeds the default run takes 111 to 147 s and 80 to 108 m, always to 100 %, with at most one brush against a shelf. The cautious policy (§5 explains how a hand-placed goal in an unseen room is reached under it) does not block exploration, because a frontier goal is on seen floor by construction; it only forbids the plans to cut through rooms not yet looked into, which costs about two fifths more time here and from nothing to a minute and a quarter on seeds 1 to 5.
 
 [try: Explore the building | {"sim":true,"level":3,"set":{"mis":"explore"},"tab":"mis"}] [try: Explore with unknown as lethal | {"sim":true,"level":3,"set":{"mis":"explore","unknownAs":"lethal"},"tab":"per"}]
 

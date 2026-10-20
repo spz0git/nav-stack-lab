@@ -69,7 +69,10 @@ try {
   console.error(String(e.stderr));
   process.exit(1);
 }
-const page2 = page.replace('/*__WORKER__*/', () => worker.replace(/<\/script/g, '<\\/script'));
+// the page's copy of the worker does not repeat the weights: makeCoreWorker (ui/experiments.js) prepends them from the page's MODELS
+const pageWorker = worker.replace(/\bconst MODELS = \{.*\};\n/, 'const MODELS = self.__MODELS;\n');
+if (pageWorker === worker) throw new Error('BUILD FAILED: MODELS declaration not found in the worker source');
+const page2 = page.replace('/*__WORKER__*/', () => pageWorker.replace(/<\/script/g, '<\\/script'));
 if (
   !/"id":"ch1"/.test(page2) ||
   !/"t":"Dead reckoning drifts/.test(page2) ||

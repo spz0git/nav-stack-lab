@@ -4,6 +4,10 @@ The version label in the page header (`v51 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- The page is about 0.7 MB lighter: the learned models were included twice.
+
 ## v51 · 2026-10-20
 
 - The learned people detector (Perceive → Agent tracking → Learned detector) now also weighs how well the map

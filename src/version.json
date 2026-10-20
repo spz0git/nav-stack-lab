@@ -1,1 +1,1 @@
-{"version": 54, "date": "2026-10-20", "note": "Perceive says where people prediction is set; Plan lists what runs around the learned policy (PR #109)"}
+{"version": 55, "date": "2026-10-20", "note": "Lidar gaps filled and goal-directed planning under unknown = lethal; back-off when stuck; the learned policy's safety layer checks segments (PR #111)"}

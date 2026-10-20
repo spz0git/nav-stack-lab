@@ -6,18 +6,6 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 ## Unreleased
 
-- Lidar mapping with Perceive → Unknown space → Lethal: the planners can now plan through the space between the
-  beams. The 120 beams are 3° apart, so beyond about 2 m they left unseen cells between them, each of which was
-  inflated into an obstacle: the robot could plan only within about 3 m of where it had been, and now plans as far
-  as the lidar sees, about 7 m. Those cells still count as unexplored for Explore and the floor seen, and with
-  Unknown space → Free nothing changes. A goal the robot has not seen, out of range or behind a wall, still has no
-  plan under Lethal; Mission → Explore is the way to reach it, and the note under the setting now says so.
-- Plan → Learned policy: the safety layer now checks the lines between the waypoints as well as the waypoints,
-  keeps the path 10 cm clear of the inflated obstacles, and reroutes a line that comes too close with a short A*
-  detour. When the robot is pinned against an obstacle and the policy keeps pushing into it, the robot follows
-  1.5 m of the A* route instead, and the policy takes over again from there. The Plan tab counts each of these.
-  On the warehouse aisles the policy now reaches 3 of 4 goals, where it reached none; pointed at the subgoal, it
-  takes all four goals on the aisles and in the building, with no collision.
 - Plan → Learned policy: the policy now proposes four candidate paths with a score each instead of one, and the
   robot drives the best-scoring one that stays out of the inflated obstacles; the others are drawn faint on the map
   (rose where they run into an obstacle). Before, where the demonstrations went either way around a shelf, the one
@@ -29,6 +17,28 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 - Tools → Train: the policy is trained with the same mixture loss, and the results show the error of the best of
   the four candidates next to the best-scoring one's. Policies trained in the page before this still run (as one
   candidate).
+
+## v55 · 2026-10-20
+
+- Lidar mapping with Perceive → Unknown space → Lethal: the planners can now plan through the space between the
+  beams. The 120 beams are 3° apart, so beyond about 2 m they left unseen cells between them, each of which was
+  inflated into an obstacle: the robot could plan only within about 3 m of where it had been, and now plans as far
+  as the lidar sees, about 7 m. Those cells still count as unexplored for Explore and the floor seen, and with
+  Unknown space → Free nothing changes.
+- Lethal unknown space no longer stops the robot: a goal it has not seen, out of range or behind a wall, used to
+  have no plan, so the robot never moved and every goal was skipped. Now the robot heads for the edge of the seen
+  floor nearest the goal, replans every second as the map grows, and plans to the goal once it is on seen floor;
+  the event log says when each happens. On the unknown building it takes all four goals, more slowly than with
+  Free (83 s against 67 s).
+- A robot stuck against an obstacle now backs off to clear floor before it replans. Before, the new plan started
+  right at the obstacle and the robot pushed back into it until the goal was given up. (Not for the car, Straight
+  line or the learned policy, which would drive back into it.)
+- Plan → Learned policy: the safety layer now checks the lines between the waypoints as well as the waypoints,
+  keeps the path 10 cm clear of the inflated obstacles, and reroutes a line that comes too close with a short A*
+  detour. When the robot is pinned against an obstacle and the policy keeps pushing into it, the robot follows
+  1.5 m of the A* route instead, and the policy takes over again from there. The Plan tab counts each of these.
+  On the warehouse aisles the policy now reaches 3 of 4 goals, where it reached none; pointed at the subgoal, it
+  takes all four goals on the aisles and in the building, with no collision. (PR #111)
 
 ## v54 · 2026-10-20
 

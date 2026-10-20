@@ -265,7 +265,7 @@ const SCHEMA = {
     {
       type: 'info',
       text: () =>
-        'Lethal: the planners plan only through cells the lidar has already seen free (and 0.4 m clear of unseen ones). At the start that is what one scan covers, at most the lidar\'s 8 m and nothing behind a wall. A goal farther away or in an unseen room is approached through what has been seen: the robot heads for the edge of the seen floor nearest the goal, replans every second as the map grows, and plans to the goal itself once it is on seen floor (the event log says when). Mission → Explore maps the whole floor the same way, with no goals given. With Free the planner goes optimistically and replans as walls appear.',
+        "Lethal: the planners plan only through cells the lidar has already seen free (and 0.4 m clear of unseen ones). At the start that is what one scan covers, at most the lidar's 8 m and nothing behind a wall. A goal farther away or in an unseen room is approached through what has been seen: the robot heads for the edge of the seen floor nearest the goal, replans every second as the map grows, and plans to the goal itself once it is on seen floor (the event log says when). Mission → Explore maps the whole floor the same way, with no goals given. With Free the planner goes optimistically and replans as walls appear.",
       show: () => P.per === 'mapping' && P.unknownAs === 'lethal'
     },
     {k: 'infl', label: 'Inflation band beyond lethal', min: 0, max: 1.5, step: 0.05, unit: 'm'},

@@ -5194,7 +5194,9 @@ function doPlan(reason) {
   F.proxy = towardUnseen() ? unseenGoalProxy(wp) : null;
   if (F.proxy) {
     if (F.proxyFor !== F.queue[0])
-      logE(`Goal ${wpLabel(F.queue[0])} is in unseen space: heading for the edge of the seen floor nearest it, (${F.proxy.x.toFixed(1)}, ${F.proxy.y.toFixed(1)})`);
+      logE(
+        `Goal ${wpLabel(F.queue[0])} is in unseen space: heading for the edge of the seen floor nearest it, (${F.proxy.x.toFixed(1)}, ${F.proxy.y.toFixed(1)})`
+      );
     F.proxyFor = F.queue[0];
     wp = F.proxy;
   } else if (F.proxyFor === F.queue[0]) {

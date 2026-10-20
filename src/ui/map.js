@@ -171,8 +171,29 @@ function syncViewUI() {
   const t = $('#mv-fit');
   if (t) t.disabled = VIEW.z === 1;
 }
+// The grid images (occupancy, costmap, search) are one pixel a cell: a level of another size makes them again, and the
+// view, fitted to the old world, fits the new one
+let viewWorld = '';
+function fitWorld() {
+  if (occCv.width !== GW || occCv.height !== GH)
+    for (const c of [occCv, costCv, srchCv]) {
+      c.width = GW;
+      c.height = GH;
+    }
+  const key = W + 'x' + H;
+  if (key === viewWorld) return;
+  viewWorld = key;
+  VIEW.z = 1;
+  VIEW.cx = W / 2;
+  VIEW.cy = H / 2;
+  VIEW.follow = false;
+  dirty.occ = dirty.cost = dirty.search = true;
+  lastSearch = null;
+  syncViewUI();
+}
 function draw() {
   readTokens();
+  fitWorld();
   if (VIEW.follow && VIEW.z > 1 && S) {
     VIEW.cx = S.robot.x;
     VIEW.cy = S.robot.y;

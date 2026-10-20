@@ -454,7 +454,7 @@ function makeCoreWorker() {
 async function expRun() {
   const pl = paramList(),
     base = baseOverrides(),
-    lvl = LEVELS.indexOf(LV);
+    lvl = levelRef(LV);
   let cfgs = [{}];
   for (const v of EXP.vary) {
     if (!v.k) continue;
@@ -685,16 +685,25 @@ function wireExp(pane) {
     };
 }
 // ---- configuration as data ----
+// A custom level travels with the setup: a generated one as its spec (gen), any other as the level itself (levelData,
+// core/levels.js); the map's edits stay in params, as for a built-in level
 function currentConfig() {
   const c = {level: LV.id, seed: P.seed, params: baseOverrides()};
+  if (!LEVELS.includes(LV)) {
+    if (LV.genSpec) c.gen = {...LV.genSpec};
+    else c.levelData = levelJSON(LV);
+  }
   const dg = LV.wps.map(w => [w[0], w[1], w.length > 2 ? w[2] : null]),
     cg = WPS.some(w => w.explore) ? dg : WPS.map(w => [w.x, w.y, w.th == null ? null : w.th]); // a frontier goal is the mission's, not the setup's
   if (JSON.stringify(dg) !== JSON.stringify(cg)) c.goals = cg.map(g => g.map(v => (v == null ? null : +v.toFixed(2))));
   return c;
 }
 function applyConfig(c) {
-  const i = LEVELS.findIndex(L => L.id === c.level);
-  if (i < 0) throw new Error('unknown level ' + c.level);
+  let i = LEVELS.findIndex(L => L.id === c.level);
+  if (c.gen) i = genSpec(c.gen);
+  else if (c.levelData) i = c.levelData;
+  else if (c.lz) throw new Error('the level in the link is not read yet');
+  else if (i < 0) throw new Error('unknown level ' + c.level);
   if (c.seed) P.seed = clamp(Math.round(c.seed), 1, 99);
   loadLevel(i);
   for (const [k, v] of Object.entries(c.params || {})) {
@@ -714,19 +723,25 @@ function applyConfig(c) {
 function configURL() {
   const c = currentConfig(),
     q = [`l=${c.level}`, `seed=${c.seed}`];
+  // the level: a spec as key:value pairs; a level as deflated JSON (lz), or plain until that is ready (lj)
+  if (c.gen) q.push('gen=' + genLinkEnc(c.gen));
+  else if (c.levelData) q.push(LV.lz ? 'lz=' + LV.lz : 'lj=' + b64uText(JSON.stringify(c.levelData)));
   for (const [k, v] of Object.entries(c.params)) q.push(`${k}=${encodeURIComponent(typeof v === 'boolean' ? (v ? 1 : 0) : v)}`);
   if (c.goals) q.push('goals=' + c.goals.map(g => g.map(v => (v == null ? '' : v)).join(',')).join(';'));
   return location.href.split('#')[0] + '#' + q.join('&');
 }
 function configFromHash() {
   const h = location.hash.slice(1);
-  if (!h || !/^l=L\d/.test(h)) return null;
+  if (!h || !/^l=(L\d|C|G)\b/.test(h)) return null;
   const c = {params: {}};
   for (const part of h.split('&')) {
     const [k, v] = part.split('=');
     const val = decodeURIComponent(v || '');
     if (k === 'l') c.level = val;
     else if (k === 'seed') c.seed = +val;
+    else if (k === 'gen') c.gen = genLinkDec(val);
+    else if (k === 'lz') c.lz = val;
+    else if (k === 'lj') c.levelData = JSON.parse(b64uDecText(val));
     else if (k === 'goals') c.goals = val.split(';').map(g => g.split(',').map(x => (x === '' ? null : +x)));
     else if (k === 'mode') c.mode = val;
     else if (k === 't') c.t = +val;

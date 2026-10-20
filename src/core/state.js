@@ -21,15 +21,27 @@ const dirty = {occ: true, cost: true, search: true};
 
 function prepLevel(L) {
   if (L.truthOcc) return;
-  const occ = new Uint8Array(NC);
-  for (let j = 0; j < GH; j++)
-    for (let i = 0; i < GW; i++) {
-      const x = (i + 0.5) * RES,
-        y = (j + 0.5) * RES;
-      if (insideAny(x, y, L.shapes)) occ[j * GW + i] = 1;
-    }
+  const occ = rasterize(L.shapes, GW, GH);
   L.truthOcc = occ;
   L.truthDist = distanceTransform(occ);
+}
+// The cells of a gw × gh grid whose centres lie in a shape (insideAny's test, cell by cell over each shape's bounding box)
+function rasterize(shapes, gw, gh) {
+  const occ = new Uint8Array(gw * gh);
+  for (const s of shapes) {
+    const one = [s],
+      bx0 = s.t === 'r' ? s.x : s.x - s.r,
+      by0 = s.t === 'r' ? s.y : s.y - s.r,
+      bx1 = s.t === 'r' ? s.x + s.w : s.x + s.r,
+      by1 = s.t === 'r' ? s.y + s.h : s.y + s.r,
+      i0 = Math.max(0, Math.floor(bx0 / RES) - 1),
+      j0 = Math.max(0, Math.floor(by0 / RES) - 1),
+      i1 = Math.min(gw - 1, Math.ceil(bx1 / RES) + 1),
+      j1 = Math.min(gh - 1, Math.ceil(by1 / RES) + 1);
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) if (!occ[j * gw + i] && insideAny((i + 0.5) * RES, (j + 0.5) * RES, one)) occ[j * gw + i] = 1;
+  }
+  return occ;
 }
 function insideAny(x, y, shapes) {
   for (const s of shapes) {
@@ -95,37 +107,39 @@ function rayCast(ox, oy, dx, dy, maxR, shapes) {
   }
   return best;
 }
-function distanceTransform(occ) {
-  const d = new Float32Array(NC);
+// (on the world's grid, or on a gw × gh one: the world generator's, which is not the world's while it runs)
+function distanceTransform(occ, gw = GW, gh = GH) {
+  const nc = gw * gh;
+  const d = new Float32Array(nc);
   const INF = 1e9;
-  for (let i = 0; i < NC; i++) d[i] = occ[i] ? 0 : INF;
-  for (let j = 0; j < GH; j++)
-    for (let i = 0; i < GW; i++) {
-      const k = j * GW + i;
+  for (let i = 0; i < nc; i++) d[i] = occ[i] ? 0 : INF;
+  for (let j = 0; j < gh; j++)
+    for (let i = 0; i < gw; i++) {
+      const k = j * gw + i;
       let m = d[k];
       if (m === 0) continue;
       if (i > 0) m = Math.min(m, d[k - 1] + 1);
       if (j > 0) {
-        m = Math.min(m, d[k - GW] + 1);
-        if (i > 0) m = Math.min(m, d[k - GW - 1] + SQ2);
-        if (i < GW - 1) m = Math.min(m, d[k - GW + 1] + SQ2);
+        m = Math.min(m, d[k - gw] + 1);
+        if (i > 0) m = Math.min(m, d[k - gw - 1] + SQ2);
+        if (i < gw - 1) m = Math.min(m, d[k - gw + 1] + SQ2);
       }
       d[k] = m;
     }
-  for (let j = GH - 1; j >= 0; j--)
-    for (let i = GW - 1; i >= 0; i--) {
-      const k = j * GW + i;
+  for (let j = gh - 1; j >= 0; j--)
+    for (let i = gw - 1; i >= 0; i--) {
+      const k = j * gw + i;
       let m = d[k];
       if (m === 0) continue;
-      if (i < GW - 1) m = Math.min(m, d[k + 1] + 1);
-      if (j < GH - 1) {
-        m = Math.min(m, d[k + GW] + 1);
-        if (i < GW - 1) m = Math.min(m, d[k + GW + 1] + SQ2);
-        if (i > 0) m = Math.min(m, d[k + GW - 1] + SQ2);
+      if (i < gw - 1) m = Math.min(m, d[k + 1] + 1);
+      if (j < gh - 1) {
+        m = Math.min(m, d[k + gw] + 1);
+        if (i < gw - 1) m = Math.min(m, d[k + gw + 1] + SQ2);
+        if (i > 0) m = Math.min(m, d[k + gw - 1] + SQ2);
       }
       d[k] = m;
     }
-  for (let i = 0; i < NC; i++) d[i] *= RES;
+  for (let i = 0; i < nc; i++) d[i] *= RES;
   return d;
 }
 

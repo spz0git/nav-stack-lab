@@ -1,7 +1,9 @@
 // Training data for the learned people detector (training/detector/train.py): every lidar scan of headless runs on
 // the levels that have people, with one label per beam, 1 when the beam's hit lies on a person. Written as raw
 // float32 (features) and uint8 (labels) with a JSON side file into training/data/, which is not committed.
-//   node tools/collect-detector.mjs [seconds per run = 120] [seeds = 21..38]
+//   node tools/collect-detector.mjs [seconds per run = 120] [seeds = 21..38] [--gen families or spec JSON]
+// With --gen the runs are on generated worlds (four people each unless the spec says), one per seed
+// (tests/node/core.mjs, collectSources).
 // Features per beam, 7 channels: range/8, the previous scan reprojected through the odometry into this frame /8 (so a
 // static wall reads the same range twice and a person does not), the change clipped to ±1, hit flag, the odometry's
 // v/1.5 and ω/2 broadcast over the beams, and the map's evidence that the hit is static. The runs take the three map
@@ -10,8 +12,9 @@
 // so that the lessons' seeds (7 and 1–20) are runs the built-in model has not seen.
 import fs from 'node:fs';
 import path from 'node:path';
-import {loadCore, ROOT} from '../tests/node/core.mjs';
+import {loadCore, ROOT, collectSources} from '../tests/node/core.mjs';
 loadCore();
+const SRC = collectSources(process.argv, L => (L.peds || []).length > 0, {people: 4, like: 'L5'});
 const C = globalThis.__core,
   SECS = +(process.argv[2] || 120),
   SEEDS = (process.argv[3] || Array.from({length: 18}, (_, i) => 21 + i).join(',')).split(',').map(Number),
@@ -21,18 +24,17 @@ const X = [],
   Y = [],
   runs = [];
 let positives = 0;
-for (let L = 0; L < C.LEVELS.length; L++) {
-  if (!C.LEVELS[L].peds || !C.LEVELS[L].peds.length) continue;
+for (const src of SRC) {
   for (const seed of SEEDS) {
     // the run itself is the core's (core/dataset.js), the same code the page's Train tab collects with
-    const d = await C.collectRun({block: 'detector', level: L, seed, secs: SECS, goals: 'level', people: 'alt'});
+    const d = await C.collectRun({block: 'detector', level: src.level, gen: src.gen, seed, secs: SECS, goals: 'level', people: 'alt'});
     for (let i = 0; i < d.n; i++) {
       X.push(d.x.subarray(i * NB * CH, (i + 1) * NB * CH));
       Y.push(d.y.subarray(i * NB, (i + 1) * NB));
     }
     positives += d.positives;
-    runs.push({level: C.LEVELS[L].id, seed, cond: d.cond, scans: d.n});
-    console.log(`${C.LEVELS[L].id} seed ${seed} ${d.cond}: ${d.n} scans`);
+    runs.push({level: src.label, seed, cond: d.cond, scans: d.n});
+    console.log(`${src.label} seed ${seed} ${d.cond}: ${d.n} scans`);
   }
 }
 const dir = path.join(ROOT, 'training', 'data');

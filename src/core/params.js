@@ -98,7 +98,7 @@ const DEFAULTS = {
   clutter: 0,
   bOff: '',
   map: 'level', // the obstacles: the level's ('level') or none but the outer walls ('empty'); beacons and people stay
-  mapAdd: '', // obstacles painted on the map: cells of the 0.4 m paint grid (j·60 + i), comma-separated
+  mapAdd: '', // obstacles painted on the map: cells of the 0.4 m paint grid (j·PGW + i; PGW = 60 on a 24 m floor), comma-separated
   mapDel: '', // the level's obstacles erased on the map: their indices in the level's shape list, comma-separated
   misLoop: false, // after the last goal the mission starts again from the first, until stopped
   bOut: 0,

@@ -56,21 +56,62 @@ const firstSentence = s => {
 };
 function buildLevels() {
   $('#levels').innerHTML =
-    `<button type="button" class="btn lvl-btn" id="lvl-btn" aria-haspopup="dialog" aria-expanded="${!lvMenu.hidden}" aria-controls="lvlmenu" title="Choose the floor; its description and quick experiments are in this menu"><b>${LV.id}</b><span class="lvl-name">${LV.name}</span><svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    `<button type="button" class="btn lvl-btn" id="lvl-btn" aria-haspopup="dialog" aria-expanded="${!lvMenu.hidden}" aria-controls="lvlmenu" title="Choose the floor; its description and quick experiments are in this menu"><b>${LV.id}</b><span class="lvl-name">${esc(LV.name)}</span><svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
   $('#lvl-btn').onclick = () => lvMenuOpen();
   const list = lvMenu.querySelector('.lvl-list');
-  list.innerHTML = LEVELS.map(
-    (L, i) =>
-      `<button type="button" class="lvl" data-i="${i}" aria-pressed="${L === LV}"><b>${L.id}</b><span class="lvl-n">${L.name}</span><span class="lvl-d">${firstSentence(L.adds)}</span></button>`
-  ).join('');
-  list.querySelectorAll('.lvl').forEach(
+  // the built-in floors, then the custom ones: kept in this browser, the one on screen if it is not kept, and the
+  // Custom entry (import, export, link, generate: ui/levelmenu.js)
+  const own = !LEVELS.includes(LV),
+    custOn = CUST.open || own,
+    item = (attr, id, name, d, on) =>
+      `<button type="button" class="lvl" ${attr} aria-pressed="${on}"><b>${id}</b><span class="lvl-n">${esc(name)}</span><span class="lvl-d">${d}</span></button>`;
+  list.innerHTML =
+    LEVELS.map((L, i) => item(`data-i="${i}"`, L.id, L.name, firstSentence(L.adds), !custOn && L === LV)).join('') +
+    CUST.saved
+      .map(r =>
+        item(
+          `data-c="${r.id}"`,
+          r.json.gen ? 'G' : 'C',
+          r.name,
+          `${r.json.size.join(' × ')} m, kept in this browser`,
+          own && LV.savedId === r.id
+        )
+      )
+      .join('') +
+    (own && !LV.savedId ? item('data-cur="1"', LV.id, LV.name, `${levelSize(LV).join(' × ')} m, not kept`, true) : '') +
+    item('data-cust="1"', '+', 'Custom level', 'Import, export, share, generate', CUST.open && !own);
+  list.querySelectorAll('.lvl[data-i]').forEach(
     b =>
       (b.onclick = () => {
+        CUST.open = false;
         levelPicked(+b.dataset.i);
         const nb = lvMenu.querySelector(`.lvl[data-i="${b.dataset.i}"]`);
         if (nb) nb.focus();
       })
   );
+  list.querySelectorAll('.lvl[data-c]').forEach(
+    b =>
+      (b.onclick = () => {
+        CUST.open = true;
+        custPick(CUST.saved.find(r => r.id === b.dataset.c));
+        const nb = lvMenu.querySelector(`.lvl[data-c="${b.dataset.c}"]`);
+        if (nb) nb.focus();
+      })
+  );
+  list.querySelectorAll('.lvl[data-cust], .lvl[data-cur]').forEach(
+    b =>
+      (b.onclick = () => {
+        CUST.open = true;
+        buildLevels();
+        const nb = lvMenu.querySelector(b.dataset.cust ? '.lvl[data-cust]' : '.lvl[data-cur]');
+        if (nb) nb.focus();
+      })
+  );
+  if (custOn) {
+    $('#brief').innerHTML = custBriefHTML();
+    custWire($('#brief'));
+    return;
+  }
   $('#brief').innerHTML =
     `<div class="adds-d"><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3><p class="adds">${LV.adds}</p></div><details class="try" open><summary><h3>Quick experiments (${LV.tries.length}) · one click sets the lab up and runs</h3></summary><p class="note">Short setups to poke at this floor. The guided lessons in Learn explain the same things step by step${
       lessonsOnLevel().length
@@ -116,7 +157,7 @@ async function tryGo(cfg) {
   else if (typeof cfg.seed === 'number') P.seed = cfg.seed;
   else if (cfg.level != null) P.seed = DEFAULTS.seed;
   if (cfg.level != null) LV = LEVELS[cfg.level];
-  if (!cfg.keep) loadLevel(LEVELS.indexOf(LV));
+  if (!cfg.keep) loadLevel(LV);
   for (const [k, v] of Object.entries(cfg.set || {})) setParam(k, v, false);
   if (cfg.goals) setGoals(cfg.goals); // a Try with its own goals (a loop to close): the mission restarts on them
   if (cfg.tab) {

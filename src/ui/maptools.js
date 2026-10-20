@@ -454,7 +454,10 @@ function toggleLayerPop(on) {
   );
 }
 
-/* ---------- the previous run's path: a chip on the map names it and offers Hide (the layer) and Forget ---------- */
+/* ---------- the previous run's path: a chip on the map names it and offers Pin, Hide (the layer) and Forget. Pin keeps it
+   as the compared run (runs.js), which stays through Reset and new settings on this level; the chip then names it too. ---------- */
+// the ghost is drawn unless it is the pinned run, which runs.js draws in its own style
+const ghostOn = () => !!(LAYERS.ghostrun && GHOST && GHOST.level === LV.id && !(GHOST.run && GHOST.run === RUNS.cmp));
 function forgetGhost() {
   GHOST = null;
   renderGhostChip();
@@ -466,14 +469,37 @@ let ghKey = '';
 function renderGhostChip() {
   const c = $('#ghostchip');
   if (!c) return;
-  const on = !!(GHOST && GHOST.level === LV.id && LAYERS.ghostrun && AN.mode === 'sim');
-  const key = on ? GHOST.label + GHOST.t : '';
+  const sim = AN.mode === 'sim',
+    pin = sim && cmpOn() ? RUNS.cmp : null,
+    gh = sim && ghostOn();
+  const key = (gh ? GHOST.label + GHOST.t + !!GHOST.run : '') + '|' + (pin ? pin.id + runName(pin) : '');
   if (key === ghKey) return;
   ghKey = key;
-  c.hidden = !on;
-  if (!on) return;
-  c.innerHTML = `<span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span><button type="button" class="linkbtn" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="linkbtn" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button>`;
-  $('#gh-hide').onclick = () => {
+  c.hidden = !gh && !pin;
+  if (c.hidden) return;
+  c.innerHTML =
+    (pin
+      ? `<div class="gh-row"><span class="gh-swatch pin" aria-hidden="true"></span><span class="gh-txt" title="${esc(runName(pin))}">Pinned: ${esc(pin.label)} (${pin.t.toFixed(0)} s)</span><button type="button" class="linkbtn" id="gh-unpin" title="Stop comparing with this run (it stays in Runs)">Unpin</button></div>`
+      : '') +
+    (gh
+      ? `<div class="gh-row"><span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span>${GHOST.run ? `<button type="button" class="linkbtn" id="gh-pin" title="Keep this path on the map through Reset and new settings, to compare runs with it (Runs has its numbers)">Pin</button>` : ''}<button type="button" class="linkbtn" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="linkbtn" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button></div>`
+      : '');
+  const on = (sel, f) => {
+    const b = $(sel);
+    if (b) b.onclick = f;
+  };
+  on('#gh-pin', () => {
+    const r = GHOST.run;
+    runKeep(r);
+    if (RUNS.cmp !== r) runCompare(r);
+    renderGhostChip();
+    toast('Pinned: its path stays on the map (amber, dashed) and its series in the plots while you change settings and run again', 5200);
+  });
+  on('#gh-unpin', () => {
+    runCompare(null);
+    renderGhostChip();
+  });
+  on('#gh-hide', () => {
     LAYERS.ghostrun = false;
     layersEdited = true;
     renderGhostChip();
@@ -481,8 +507,8 @@ function renderGhostChip() {
     if (activeTab === 'view') renderAllPanes();
     draw();
     drawPlot();
-  };
-  $('#gh-forget').onclick = forgetGhost;
+  });
+  on('#gh-forget', forgetGhost);
 }
 {
   const c = document.createElement('div');

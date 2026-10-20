@@ -848,6 +848,9 @@ dialog:focus-visible {
     top: 56px;
     right: 10px;
   }
+  .mapwrap .ghostchip {
+    right: 60px; /* clear of the zoom column at the bottom right */
+  }
 }
 .mt-fold,
 .bottombar {
@@ -1031,8 +1034,8 @@ dialog:focus-visible {
   bottom: 8px;
   z-index: 2;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 1px;
   max-width: calc(100% - 140px);
   background: var(--panel);
   border: 1px solid var(--line);
@@ -1085,11 +1088,20 @@ dialog:focus-visible {
 .ghostchip .linkbtn {
   font-size: var(--fs-small);
 }
+.gh-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 .gh-swatch {
   width: 18px;
   height: 0;
   border-top: 2px dotted var(--rose);
   flex: none;
+}
+.gh-swatch.pin {
+  border-top: 2px dashed var(--amber);
 }
 .gh-txt {
   white-space: nowrap;
@@ -4878,6 +4890,10 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     right: 52px;
     max-height: calc(100% - 58px);
   }
+  .ghostchip {
+    bottom: 50px; /* above the Layers and help row */
+    max-width: calc(100% - 16px);
+  }
   .console.collapsed #panes {
     display: none;
   }
@@ -6351,7 +6367,7 @@ const LAYERS = {
    Recording: frames for replay, and the ghost of the previous run
    ============================================================ */
 const REC = {frames: [], max: 3000, every: 2, on: true}; // 10 Hz frames, up to 5 minutes
-let GHOST = null; // {level, label, trailT, plot} kept from the previous run on this level
+let GHOST = null; // {level, label, trailT, plot, run} kept from the previous run on this level (run: the page's copy in its runs library)
 function recFrame() {
   if (!REC.on || S.tick % REC.every) return;
   const sp = S.scanPts,
@@ -6454,11 +6470,11 @@ function runLabel() {
   return `${names[P.ctl] || P.ctl} · seed ${P.seed}${d.length ? ' · ' + d.slice(0, 3).join(', ') + (d.length > 3 ? ' …' : '') : ''}`;
 }
 function keepGhost() {
-  if (S) UI.runEnded(); // the page keeps a copy (runs library); S and the frames are still the finished run's here
+  const run = S ? UI.runEnded() || null : null; // the page keeps a copy (runs library); S and the frames are still the finished run's here
   // the level and settings noted while the run was live: a new level or a Try has already replaced LV and P here
   const m = S && UI.runMeta();
   if (S && S.t > 1 && S.trailT.length > 5)
-    GHOST = {level: m ? m.level : LV.id, label: m ? m.label : runLabel(), trailT: S.trailT.slice(), plot: S.plot.slice(), t: S.t}; // nulls in trailT: kidnap breaks
+    GHOST = {level: m ? m.level : LV.id, label: m ? m.label : runLabel(), trailT: S.trailT.slice(), plot: S.plot.slice(), t: S.t, run}; // nulls in trailT: kidnap breaks
   REC.frames = [];
 }
 
@@ -6481,7 +6497,7 @@ const UI = {
   runEnded() {},
   runMeta: () => null,
   mode: () => 'sim'
-}; // runEnded: the run is about to be cleared (record.js)
+}; // runEnded: the run is about to be cleared (record.js); returns the page's copy of it, if it keeps one
 const dirty = {occ: true, cost: true, search: true};
 
 function prepLevel(L) {
@@ -15729,7 +15745,7 @@ const LAYERS = {
    Recording: frames for replay, and the ghost of the previous run
    ============================================================ */
 const REC = {frames: [], max: 3000, every: 2, on: true}; // 10 Hz frames, up to 5 minutes
-let GHOST = null; // {level, label, trailT, plot} kept from the previous run on this level
+let GHOST = null; // {level, label, trailT, plot, run} kept from the previous run on this level (run: the page's copy in its runs library)
 function recFrame() {
   if (!REC.on || S.tick % REC.every) return;
   const sp = S.scanPts,
@@ -15832,11 +15848,11 @@ function runLabel() {
   return `${names[P.ctl] || P.ctl} · seed ${P.seed}${d.length ? ' · ' + d.slice(0, 3).join(', ') + (d.length > 3 ? ' …' : '') : ''}`;
 }
 function keepGhost() {
-  if (S) UI.runEnded(); // the page keeps a copy (runs library); S and the frames are still the finished run's here
+  const run = S ? UI.runEnded() || null : null; // the page keeps a copy (runs library); S and the frames are still the finished run's here
   // the level and settings noted while the run was live: a new level or a Try has already replaced LV and P here
   const m = S && UI.runMeta();
   if (S && S.t > 1 && S.trailT.length > 5)
-    GHOST = {level: m ? m.level : LV.id, label: m ? m.label : runLabel(), trailT: S.trailT.slice(), plot: S.plot.slice(), t: S.t}; // nulls in trailT: kidnap breaks
+    GHOST = {level: m ? m.level : LV.id, label: m ? m.label : runLabel(), trailT: S.trailT.slice(), plot: S.plot.slice(), t: S.t, run}; // nulls in trailT: kidnap breaks
   REC.frames = [];
 }
 
@@ -15859,7 +15875,7 @@ const UI = {
   runEnded() {},
   runMeta: () => null,
   mode: () => 'sim'
-}; // runEnded: the run is about to be cleared (record.js)
+}; // runEnded: the run is about to be cleared (record.js); returns the page's copy of it, if it keeps one
 const dirty = {occ: true, cost: true, search: true};
 
 function prepLevel(L) {
@@ -24535,7 +24551,7 @@ function drawPeople(dpr, k, px) {
 }
 function drawGhostRun(dpr, k, px) {
   // ghost of the previous run
-  if (LAYERS.ghostrun && GHOST && GHOST.level === LV.id) {
+  if (ghostOn()) {
     ctx.lineWidth = px(2);
     ctx.setLineDash([px(2), px(4)]);
     ctx.strokeStyle = rgba(TOK.rose, 0.55);
@@ -25338,7 +25354,7 @@ function drawPlotMain() {
       st = true;
     }
   }
-  if (LAYERS.ghostrun && GHOST && GHOST.level === LV.id && GHOST.plot.length > 1) {
+  if (ghostOn() && GHOST.plot.length > 1) {
     const GD = GHOST.plot;
     pctx.strokeStyle = rgba(TOK.rose, 0.6);
     pctx.lineWidth = 1.2 * dpr;
@@ -32399,10 +32415,11 @@ const LESSON_LAYERS = {
   ],
   ctl: []
 };
+// The previous run is not one of them: it stays as the user set it, so that a Try can be compared with the run before.
 function lessonLayers(id) {
   const [g, i] = id.split(':');
   const L = (LESSON_LAYERS[g] || [])[+i] || ['trail', 'dwa', 'look'];
-  return Object.fromEntries(Object.keys(LAYERS).map(k => [k, L.includes(k)]));
+  return Object.fromEntries(Object.keys(LAYERS).map(k => [k, k === 'ghostrun' ? (userLayers || LAYERS).ghostrun : L.includes(k)]));
 }
 const lessonItem = id => {
   const [g, i] = id.split(':'),
@@ -36539,7 +36556,10 @@ function toggleLayerPop(on) {
   );
 }
 
-/* ---------- the previous run's path: a chip on the map names it and offers Hide (the layer) and Forget ---------- */
+/* ---------- the previous run's path: a chip on the map names it and offers Pin, Hide (the layer) and Forget. Pin keeps it
+   as the compared run (runs.js), which stays through Reset and new settings on this level; the chip then names it too. ---------- */
+// the ghost is drawn unless it is the pinned run, which runs.js draws in its own style
+const ghostOn = () => !!(LAYERS.ghostrun && GHOST && GHOST.level === LV.id && !(GHOST.run && GHOST.run === RUNS.cmp));
 function forgetGhost() {
   GHOST = null;
   renderGhostChip();
@@ -36551,14 +36571,37 @@ let ghKey = '';
 function renderGhostChip() {
   const c = $('#ghostchip');
   if (!c) return;
-  const on = !!(GHOST && GHOST.level === LV.id && LAYERS.ghostrun && AN.mode === 'sim');
-  const key = on ? GHOST.label + GHOST.t : '';
+  const sim = AN.mode === 'sim',
+    pin = sim && cmpOn() ? RUNS.cmp : null,
+    gh = sim && ghostOn();
+  const key = (gh ? GHOST.label + GHOST.t + !!GHOST.run : '') + '|' + (pin ? pin.id + runName(pin) : '');
   if (key === ghKey) return;
   ghKey = key;
-  c.hidden = !on;
-  if (!on) return;
-  c.innerHTML = `<span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span><button type="button" class="linkbtn" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="linkbtn" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button>`;
-  $('#gh-hide').onclick = () => {
+  c.hidden = !gh && !pin;
+  if (c.hidden) return;
+  c.innerHTML =
+    (pin
+      ? `<div class="gh-row"><span class="gh-swatch pin" aria-hidden="true"></span><span class="gh-txt" title="${esc(runName(pin))}">Pinned: ${esc(pin.label)} (${pin.t.toFixed(0)} s)</span><button type="button" class="linkbtn" id="gh-unpin" title="Stop comparing with this run (it stays in Runs)">Unpin</button></div>`
+      : '') +
+    (gh
+      ? `<div class="gh-row"><span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span>${GHOST.run ? `<button type="button" class="linkbtn" id="gh-pin" title="Keep this path on the map through Reset and new settings, to compare runs with it (Runs has its numbers)">Pin</button>` : ''}<button type="button" class="linkbtn" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="linkbtn" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button></div>`
+      : '');
+  const on = (sel, f) => {
+    const b = $(sel);
+    if (b) b.onclick = f;
+  };
+  on('#gh-pin', () => {
+    const r = GHOST.run;
+    runKeep(r);
+    if (RUNS.cmp !== r) runCompare(r);
+    renderGhostChip();
+    toast('Pinned: its path stays on the map (amber, dashed) and its series in the plots while you change settings and run again', 5200);
+  });
+  on('#gh-unpin', () => {
+    runCompare(null);
+    renderGhostChip();
+  });
+  on('#gh-hide', () => {
     LAYERS.ghostrun = false;
     layersEdited = true;
     renderGhostChip();
@@ -36566,8 +36609,8 @@ function renderGhostChip() {
     if (activeTab === 'view') renderAllPanes();
     draw();
     drawPlot();
-  };
-  $('#gh-forget').onclick = forgetGhost;
+  });
+  on('#gh-forget', forgetGhost);
 }
 {
   const c = document.createElement('div');
@@ -38491,12 +38534,13 @@ UI.runEnded = () => {
     const {id, name} = k;
     Object.assign(k, r, {id, name});
     delete k._S;
+    renderRuns(true);
+    return k;
   } // a run kept while live gets its full length
-  else {
-    RUNS.recent.unshift(r);
-    RUNS.recent = RUNS.recent.slice(0, 6);
-  }
+  RUNS.recent.unshift(r);
+  RUNS.recent = RUNS.recent.slice(0, 6);
   renderRuns(true);
+  return r;
 };
 const runName = r => r.name || `${r.level} · ${r.label}`;
 const runFind = id => RUNS.kept.find(r => r.id === id) || RUNS.recent.find(r => r.id === id) || null;

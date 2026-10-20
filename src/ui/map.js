@@ -435,7 +435,7 @@ function drawPeople(dpr, k, px) {
 }
 function drawGhostRun(dpr, k, px) {
   // ghost of the previous run
-  if (LAYERS.ghostrun && GHOST && GHOST.level === LV.id) {
+  if (ghostOn()) {
     ctx.lineWidth = px(2);
     ctx.setLineDash([px(2), px(4)]);
     ctx.strokeStyle = rgba(TOK.rose, 0.55);

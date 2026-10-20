@@ -193,7 +193,7 @@ function drawPlotMain() {
       st = true;
     }
   }
-  if (LAYERS.ghostrun && GHOST && GHOST.level === LV.id && GHOST.plot.length > 1) {
+  if (ghostOn() && GHOST.plot.length > 1) {
     const GD = GHOST.plot;
     pctx.strokeStyle = rgba(TOK.rose, 0.6);
     pctx.lineWidth = 1.2 * dpr;

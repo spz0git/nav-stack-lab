@@ -208,6 +208,7 @@ async function customLocalize() {
     beacons: z,
     map: S.beacons.map(b => ({id: b.id, x: b.x, y: b.y})),
     scan: S.deliv && S.deliv.scan ? Array.from(S.deliv.scan) : null,
+    gnss: S.deliv && S.deliv.gnss ? {x: S.deliv.gnss.x, y: S.deliv.gnss.y, sigma: S.deliv.gnss.sig, t: S.deliv.gnss.t} : null, // a fix, when one arrived
     field: first && P.per === 'oracle' ? {w: GW, h: GH, res: RES, dist: Array.from(LV.truthDist)} : null, // the prior map, once
     t: S.t
   };

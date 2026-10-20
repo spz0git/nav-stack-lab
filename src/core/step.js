@@ -7,8 +7,9 @@ function preSense() {
   actuate();
   odometry();
   if (P.loc !== 'custom') locPredict();
-  if (S.tick % 2 === 1) sensEnqueue('lidar', lidarSense());
+  if (P.lidar && S.tick % 2 === 1) sensEnqueue('lidar', lidarSense()); // the Sensors switches: an off sensor makes no readings
   if (S.tick % 4 === 1) sensEnqueue('beacons', senseBeacons());
+  if (P.gnss) gnssTick();
   sensDeliver();
   if (P.loc === 'truth') S.est = {x: S.robot.x, y: S.robot.y, th: S.robot.th};
 }

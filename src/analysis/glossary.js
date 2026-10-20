@@ -937,7 +937,48 @@ Object.assign(GLOSS, {
     ['pole placement']
   ]
 });
+// GNSS (Localization lesson 9)
+Object.assign(GLOSS, {
+  gnss: [
+    'GNSS',
+    'Global navigation satellite system (GPS, Galileo, GLONASS, BeiDou): a receiver that computes its position from satellite signals, anywhere under open sky.',
+    '',
+    ['GNSS', 'fix', 'fixes']
+  ],
+  gaussmarkov: [
+    'Gauss–Markov process',
+    'A random signal that drifts and forgets: each step keeps a fraction e<sup>−Δ<i>t</i>/τ</sup> of its value and adds fresh noise, so it wanders with spread σ<sub>b</sub> and is correlated over about τ seconds.',
+    '',
+    ['Gauss–Markov', 'Gauss-Markov']
+  ],
+  white: [
+    'white noise',
+    'Noise drawn fresh at every reading, independent of the last one. Every Kalman update assumes its measurement noise is white.',
+    '',
+    ['white']
+  ],
+  multipath: [
+    'multipath',
+    'A satellite signal that reaches the antenna by a reflection as well as, or instead of, directly: the longer path shifts the fix by metres, next to walls and vehicles.',
+    '',
+    ['multipath', 'reflections']
+  ],
+  augstate: [
+    'augmented state',
+    'The filter state extended with quantities that are not the pose but shape the error, here the GNSS bias, so that the filter estimates them instead of treating their effect as noise.',
+    '',
+    ['bias in the state']
+  ],
+  outage: [
+    'outage',
+    'A spell with no readings from a sensor: under a bridge, in a tunnel, or a beacon that is down.',
+    '',
+    ['outage', 'outages']
+  ]
+});
 const LESSON_TERMS = {
+  'GNSS: the noise is not white':
+    'gnss gaussmarkov white bias augstate multipath outage gate d2 chi2 nees band2s overconf consistent ekf Hjac K odometry deadreck kidnap',
   'Placing the poles on purpose: pole placement and LQR': 'poleplace lqr pole zeta wn Ke kth rwf DM pm overshoot ts plantgain hold',
   'Pose-graph SLAM: the map that closes the loop':
     'posegraph keyframe loopclosure icp scanmatch gaussnewton drift odometry covariance gyro lidar logodds frontier',

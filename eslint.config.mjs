@@ -31,7 +31,8 @@ const shared = {};
 for (const f of files) for (const n of declared(fs.readFileSync(f, 'utf8'))) shared[n] = 'writable';
 const sharedCount = Object.keys(shared).length;
 export default [
-  {ignores: ['dist/**', 'node_modules/**', 'tools/vendor/**', '.venv/**', '**/.venv/**']},
+  // .claude/: the app's session worktrees, each a full checkout (its tools/vendor/ is not the one ignored above)
+  {ignores: ['dist/**', 'node_modules/**', 'tools/vendor/**', '.venv/**', '**/.venv/**', '.claude/**']},
   {
     files: ['src/**/*.js'],
     languageOptions: {ecmaVersion: 'latest', sourceType: 'script', globals: {...globalsPkg.browser, ...globalsPkg.worker, ...shared}},

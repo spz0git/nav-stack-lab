@@ -828,6 +828,9 @@ dialog:focus-visible {
     top: 56px;
     right: 10px;
   }
+  .mapwrap .ghostchip {
+    right: 60px; /* clear of the zoom column at the bottom right */
+  }
 }
 .mt-fold,
 .bottombar {
@@ -1011,8 +1014,8 @@ dialog:focus-visible {
   bottom: 8px;
   z-index: 2;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 1px;
   max-width: calc(100% - 140px);
   background: var(--panel);
   border: 1px solid var(--line);
@@ -1065,11 +1068,20 @@ dialog:focus-visible {
 .ghostchip .linkbtn {
   font-size: var(--fs-small);
 }
+.gh-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 .gh-swatch {
   width: 18px;
   height: 0;
   border-top: 2px dotted var(--rose);
   flex: none;
+}
+.gh-swatch.pin {
+  border-top: 2px dashed var(--amber);
 }
 .gh-txt {
   white-space: nowrap;
@@ -4857,6 +4869,10 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     top: 8px;
     right: 52px;
     max-height: calc(100% - 58px);
+  }
+  .ghostchip {
+    bottom: 50px; /* above the Layers and help row */
+    max-width: calc(100% - 16px);
   }
   .console.collapsed #panes {
     display: none;

@@ -2,7 +2,7 @@
    Recording: frames for replay, and the ghost of the previous run
    ============================================================ */
 const REC = {frames: [], max: 3000, every: 2, on: true}; // 10 Hz frames, up to 5 minutes
-let GHOST = null; // {level, label, trailT, plot} kept from the previous run on this level
+let GHOST = null; // {level, label, trailT, plot, run} kept from the previous run on this level (run: the page's copy in its runs library)
 function recFrame() {
   if (!REC.on || S.tick % REC.every) return;
   const sp = S.scanPts,
@@ -105,10 +105,10 @@ function runLabel() {
   return `${names[P.ctl] || P.ctl} · seed ${P.seed}${d.length ? ' · ' + d.slice(0, 3).join(', ') + (d.length > 3 ? ' …' : '') : ''}`;
 }
 function keepGhost() {
-  if (S) UI.runEnded(); // the page keeps a copy (runs library); S and the frames are still the finished run's here
+  const run = S ? UI.runEnded() || null : null; // the page keeps a copy (runs library); S and the frames are still the finished run's here
   // the level and settings noted while the run was live: a new level or a Try has already replaced LV and P here
   const m = S && UI.runMeta();
   if (S && S.t > 1 && S.trailT.length > 5)
-    GHOST = {level: m ? m.level : LV.id, label: m ? m.label : runLabel(), trailT: S.trailT.slice(), plot: S.plot.slice(), t: S.t}; // nulls in trailT: kidnap breaks
+    GHOST = {level: m ? m.level : LV.id, label: m ? m.label : runLabel(), trailT: S.trailT.slice(), plot: S.plot.slice(), t: S.t, run}; // nulls in trailT: kidnap breaks
   REC.frames = [];
 }

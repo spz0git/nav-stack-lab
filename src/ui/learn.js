@@ -77,10 +77,11 @@ const LESSON_LAYERS = {
   ],
   ctl: []
 };
+// The previous run is not one of them: it stays as the user set it, so that a Try can be compared with the run before.
 function lessonLayers(id) {
   const [g, i] = id.split(':');
   const L = (LESSON_LAYERS[g] || [])[+i] || ['trail', 'dwa', 'look'];
-  return Object.fromEntries(Object.keys(LAYERS).map(k => [k, L.includes(k)]));
+  return Object.fromEntries(Object.keys(LAYERS).map(k => [k, k === 'ghostrun' ? (userLayers || LAYERS).ghostrun : L.includes(k)]));
 }
 const lessonItem = id => {
   const [g, i] = id.split(':'),

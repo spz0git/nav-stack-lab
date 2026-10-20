@@ -4,6 +4,15 @@ The version label in the page header (`v52 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- Comparing runs: the "Previous run" chip at the bottom right of the map now has Pin. A pinned run keeps its path on
+  the map (amber, dashed) and its series in the plots through Reset, new settings and Try buttons on the same level,
+  so a run can be compared with several others; Unpin, or Runs, ends it. Before, the previous run was replaced at
+  every Reset, so it was only ever the last one.
+- Lessons no longer switch off the previous run's path: after a Try, the run before it stays on the map to compare
+  with (Layers → Previous run still hides it).
+
 ## v52 · 2026-10-20
 
 - A learned people predictor: Perceive → Prediction → Learned (network). For each tracked person it draws three

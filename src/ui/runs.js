@@ -74,12 +74,13 @@ UI.runEnded = () => {
     const {id, name} = k;
     Object.assign(k, r, {id, name});
     delete k._S;
+    renderRuns(true);
+    return k;
   } // a run kept while live gets its full length
-  else {
-    RUNS.recent.unshift(r);
-    RUNS.recent = RUNS.recent.slice(0, 6);
-  }
+  RUNS.recent.unshift(r);
+  RUNS.recent = RUNS.recent.slice(0, 6);
   renderRuns(true);
+  return r;
 };
 const runName = r => r.name || `${r.level} · ${r.label}`;
 const runFind = id => RUNS.kept.find(r => r.id === id) || RUNS.recent.find(r => r.id === id) || null;

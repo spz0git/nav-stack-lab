@@ -16,7 +16,7 @@ const UI = {
   runEnded() {},
   runMeta: () => null,
   mode: () => 'sim'
-}; // runEnded: the run is about to be cleared (record.js)
+}; // runEnded: the run is about to be cleared (record.js); returns the page's copy of it, if it keeps one
 const dirty = {occ: true, cost: true, search: true};
 
 function prepLevel(L) {

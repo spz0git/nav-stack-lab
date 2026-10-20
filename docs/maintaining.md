@@ -20,26 +20,36 @@ What a maintainer does that a contributor does not: cut a release, keep the demo
 
 ## Releasing (every change that lands on `main`)
 
-1. On the branch: `./build.sh`, then from `tests/` run `test.py`, `p5test.py`, `tles.py`, `chtest.py`,
-   `dyntest.py`, `extest.py` and `trtest.py`, or `python3 tests/run_all.py` for all seven; `npm test` runs the Node golden test (10 s) and `npm run test:all` both. The L1–L5 summary of
-   `test.py` must not change unless the change intends it; `p5test`, `chtest` and `dyntest` must report no errors.
-2. Commit the rebuilt `dist/` with the source change so page and commit match. Open a PR; CI
-   (`.github/workflows/ci.yml`) builds, checks that the committed `dist/` equals a fresh build, and runs the Node
-   golden tests. The browser gate runs nightly and on demand (`.github/workflows/browser-tests.yml`, Actions → Browser
-   tests → Run workflow); run it locally before merging anything that touches the page.
-3. Merge. Pages deploys on its own when it is turned on (`PAGES_ENABLED`, above).
-4. Bump the version label: set `version`, `date` and a short `note` in `src/version.json`, rebuild, commit. The label
-   in the header (`v30 · 2026-10-15`) is the one users quote in bug reports. When the live artifact is republished the
-   number should equal the artifact version the publish creates (the previous publish's version + 1), so the label
-   matches the artifact's version history.
-5. Republish the live artifact from `dist/nav-stack-lab.html` to the URL above with downloads enabled. While a PR
-   is open the live artifact is not touched; a "preview" is a separate, new artifact of the branch's `dist/`.
+The tests run once per change, right before the merge: one person works on the project, so running them on the branch
+while working and again on `main` after the merge only repeats them.
+
+1. On the branch, while working: `./build.sh`, look at the change in the page, and commit the rebuilt `dist/` with
+   each source change so page and commit match. Add a line to `CHANGELOG.md` under `## Unreleased` and, for a
+   feature, a section to `docs/roadmap.md`. The page shows the changelog under the version label (What's new), so
+   write each entry for someone who uses the page. The repository is the only reference: there are no copies of the
+   roadmap elsewhere to keep in sync. No test gate yet. Open a PR; on every push CI (`.github/workflows/ci.yml`)
+   builds, checks that the committed `dist/` equals a fresh build, and runs the Node golden tests.
+2. When the PR is ready to merge, make the release commit on the branch: in `src/version.json` set `version` to the
+   artifact version the next publish will create (the previous publish's version + 1), with `date` and a short
+   `note`; rename `## Unreleased` to `## vNN · date` in `CHANGELOG.md`; rebuild and commit. The label in the header
+   (`v30 · 2026-10-15`) is the one users quote in bug reports, and this way it matches the artifact's version history.
+3. Run the gate, once: `npm run lint`, `npm run fmt:check`, `npm test` (the Node golden test, 10 s) and
+   `python3 tests/run_all.py` (the seven browser tests: `test.py`, `p5test.py`, `tles.py`, `chtest.py`, `dyntest.py`,
+   `extest.py`, `trtest.py`). The L1–L5 summary of `test.py` must not change unless the change intends it;
+   `p5test`, `chtest` and `dyntest` must report no errors. If a script fails, fix it and rerun what failed (the whole
+   gate when the fix touches shared code).
+4. Merge. Do not run the gate again on `main`: its tree is the branch that was tested. Only if something else landed
+   on `main` since, bring the branch up to date first and run the gate there. Pages deploys on its own when it is
+   turned on (`PAGES_ENABLED`, above). The browser gate also runs nightly and on demand
+   (`.github/workflows/browser-tests.yml`, Actions → Browser tests → Run workflow).
+5. Republish the live artifact from `dist/nav-stack-lab.html` to the URL above with downloads enabled, and check that
+   the Version in the publish result equals `src/version.json`. While a PR is open the live artifact is not touched;
+   a "preview" is a separate, new artifact of the branch's `dist/`.
 6. Delete the previous "Nav Stack Lab" page artifacts (PR previews and older builds), never the live one and never
    artifacts with other titles.
-7. Add a line to `CHANGELOG.md` (in the PR, under `## Unreleased`; at release, rename it `## vNN · date`) and, for a
-   feature, a section to `docs/roadmap.md`. The page shows the changelog under the version label (What's new), so
-   write each entry for someone who uses the page. The repository is the only
-   reference: there are no copies of the roadmap elsewhere to keep in sync.
+
+A change that leaves `dist/` as it is (documentation outside the lessons, chapters and changelog; CI files) needs no
+gate, no version and no republish.
 
 ## The regression baseline
 

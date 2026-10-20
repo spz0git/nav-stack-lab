@@ -12,15 +12,22 @@
 - Publishing rules:
   - Work on a branch and open a PR. While it is open, do not touch the live artifact; when asked to "preview", publish
     `dist/nav-stack-lab.html` as a separate new artifact and give its link.
-  - Whenever a change lands on `main` in this session (you merge a PR or push to main), rebuild, run the tests below,
-    and republish `dist/nav-stack-lab.html` to the live artifact URL above with `capabilities: {downloads: true}`.
-    Say in your reply that the live page was updated.
-  - The header shows the version from `src/version.json` (`v25 · 2026-10-14`). Before each republish of the live artifact,
-    set `version` to the artifact version the publish will create (the last publish result's version + 1), with the date
-    and a short note, rebuild, and commit it; the label then matches the artifact's version history.
+  - The tests run once per change, right before the merge (the owner works alone; running them on the branch and again
+    on `main` only repeats them). While working, build and check the change in the page; do not run the gate.
+    When the PR is ready to merge, make the release commit on the branch (version and changelog, below), rebuild, run
+    the gate (`npm run lint`, `npm run fmt:check`, `npm test`, `python3 tests/run_all.py`), then merge. If a script
+    fails, fix it and rerun what failed (the whole gate when the fix touches shared code). Do not run the gate again on
+    `main`: its tree is the one tested, unless something else landed in between; then bring the branch up to date first
+    and run the gate there. A change that leaves `dist/` as it is (documentation outside the lessons, chapters and
+    changelog, CI files) needs no gate, no version and no republish.
+  - Whenever a change to the page lands on `main` in this session, republish `dist/nav-stack-lab.html` to the live
+    artifact URL above with `capabilities: {downloads: true}`. Say in your reply that the live page was updated.
+  - The header shows the version from `src/version.json` (`v25 · 2026-10-14`). In the release commit, set `version` to
+    the artifact version the publish will create (the last publish result's version + 1), with the date and a short note;
+    the label then matches the artifact's version history (check the publish result's Version against it).
   - The version label opens What's new, which is `CHANGELOG.md` inlined by the build (`tools/changelog.mjs`; `## Unreleased`
     is left out). Write each entry for someone who uses the page; file names and internals go in the PR, not the log.
-    At release, rename `## Unreleased` to `## vNN · date`.
+    In the release commit, rename `## Unreleased` to `## vNN · date`.
   - After each live republish, delete the previous artifacts: list them (Artifact `action: "list"`) and delete every
     "Nav Stack Lab" page artifact except the live URL above (the PR previews and any older builds). Never delete the live
     artifact, and leave artifacts with other titles alone (e.g. "Nav Stack Lab — Companion Notes", other projects).
@@ -48,7 +55,7 @@
   (`tests/measure_loc.py` for localization, `tests/measure_per.py` for perception, `tests/measure_plan.py` for planning, which can press a Try button's cfg exactly; `tests/measure_dyn.py` for the car with tyre slip, which presses every Try of a control lesson by title; `tests/tles.py` prints the analysis numbers for the control lessons); derivations go in the chapter, the lesson keeps a short "where it comes from" and the link.
   A Predict's answer must be one the learner can check by looking (the plots, the status strip, the map, the log; not an
   RMS only a script computes), and one that holds at other seeds (`"seed": n` in the cfg) when it compares runs.
-- Before committing: `./build.sh`, then from `tests/`: `python3 test.py` (L1–L5 regression summary must not change unless
+- The gate (once, before the merge; see Publishing rules): `./build.sh`, then from `tests/`: `python3 test.py` (L1–L5 regression summary must not change unless
   intended), `python3 p5test.py` (all Try buttons, ERRORS must be []), `python3 tles.py` (lessons), `python3 chtest.py` (companion notes),
   `python3 dyntest.py` (the car with tyre slip against chapter 1's theory, Analyze against the simulator; FAILS must be []),
   `python3 extest.py` (every slot example against its built-in; FAILS must be []), `python3 trtest.py` (the Train tab: collect,

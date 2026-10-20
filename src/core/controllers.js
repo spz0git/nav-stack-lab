@@ -184,7 +184,7 @@ function ctlDWA() {
     whi = Math.min(P.wmax, w0 + AL * win);
   }
   const pts = ((S.agents && S.agents.staticPts) || S.scanPts).filter(p => hyp(p[0] - e.x, p[1] - e.y) < 4.5),
-    ags = agOn() ? agList(4.5 + P.dwaT * 2.5) : [];
+    ags = agOn() ? agListModes(4.5 + P.dwaT * 2.5) : [];
   const NV = 7,
     NW = 15,
     hor = P.dwaT,

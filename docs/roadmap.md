@@ -180,6 +180,32 @@ Owner request: retrain the learned blocks from the GUI, with the built-in model 
   model's first layer). Detection scoring moved to the robot's frame (`tests/measure_det.py`), so a pose error is
   not counted against a detector. Per-target scan matching is a Kalman velocity measurement from ICP of a track's
   hits (ICP got a minimum-pairs parameter for that).
+- Track B, second block (B2): the learned people predictor, `training/predictor/`, `src/models/predictor.json`,
+  `src/core/predict.js`, `tools/collect-pred.mjs`; Perceive → Prediction → Learned, per lesson 8, ch3 §10. Design
+  notes: one tracked person at a time in the person's frame (origin at the track, x along the last second's
+  displacement, towards the robot when standing), 24 inputs (five past positions from a per-id track history, the
+  tracked velocity, the robot's position and velocity, eight rays of free space in the robot's map), an MLP
+  24-64-64-39, K = 3 futures of six points (0.5–3 s) written as corrections to constant velocity, trained by the
+  negative log-likelihood of a mixture of Gaussians with a fixed σ = 0.3 m (`mixLoss` in `core/nn-train.js`, checked
+  against central differences; σ → 0 is winner-takes-all, measured: small σ gives distinct futures, large σ a better
+  most probable one). Labels are the true future seen through the pose estimate of the moment (a localization error
+  is not taught as motion); association to a person within 0.8 m in that frame. Data: 48 runs × 150 s on L5 and L6,
+  seeds 21–44, people scripted/reacting and the robot yielding/ignoring in turn, mission looping: 84 760 samples;
+  held out the last two seeds per level. The planners avoid the most probable future (`P.predModes` 'top') or every
+  future ≥ 20 % ('all', each a copy of the track with its mode, `agListModes`), with constant velocity's growing
+  radius, so only the centre differs; VO and the code slots still see the tracks. Both predictors are scored every
+  scan against the truth at 1 s and 2 s (`predScore`; the one not in use on what it would have said; frozen at
+  Mission complete), shown in the metrics and, with the learned one on, in the status strip. Measured (seeds 1–12,
+  L5): the error at 2 s falls on every seed with lidar tracks (by about a third, scripted; a quarter, reacting), but
+  contacts barely move (14 → 11 scripted, 1 → 0 reacting) and the mission is no faster; with reacting people the gain
+  is distance (closest approach larger on 10 of 12). Constant velocity wins outright with ground-truth tracks
+  (0.13 against 0.32 m at 2 s, every seed): most of the network's gain is undoing the lidar tracker's wobble, so an
+  upstream improvement can make it worse. With space-time A* it is worse (11 contacts against 6). The remaining
+  contacts are scripted walkers reaching a robot that has already slowed: speed-only avoidance along a fixed path,
+  not prediction, is the limit there. Not tested on other maps; it does not know the robot's plan (interaction is
+  the next step: the planned path as an input, or joint planning). Tools → Train collects, trains (the mixture
+  loss), compares, saves and picks predictor models (`tests/trtest.py`). The page is 4.5 MB with three models: a
+  fourth needs the lighter export (float16 or quantized weights, or the models inlined once instead of twice).
 - Track C, first block (C1): the end-to-end policy, `training/policy/`, `src/models/policy.json`, `policyPlan`. What
   was tried, in order, each measured (chapter 4 §10): driven trajectories as labels (compounding error, 2 of 4 on
   L1); noise injection with expert-route labels (L1 solved, the busy floor mostly); sector-minimum features, a wider
@@ -240,7 +266,7 @@ Owner request: retrain the learned blocks from the GUI, with the built-in model 
 - L7 Moose test — the car with tyre slip at 3.5 m/s through a two-box slalom: the kinematic against the tyre-model MPC.
 
 ## Candidate next steps
-- Agents: interaction-aware prediction (the predictor does not know people react); multi-modal prediction; JPDA/multi-hypothesis tracking.
+- Agents: interaction-aware prediction (the learned predictor of B2 knows the robot's position and velocity, not its plan); planners that weigh each learned future by its probability instead of the two ends offered; JPDA/multi-hypothesis tracking.
 - Localization: timestamped (lagged-state) filtering to absorb sensor latency; scan matching for SLAM without beacons. (A yaw-rate gyro with bias and a zero-velocity update was delivered in Phase 4, 2026-10-16: lesson 6 of the localization group, chapter 2 §9.)
 - Planning: space-time planning for the car (Hybrid A* in time).
 - Analysis: disturbance/noise spectra.

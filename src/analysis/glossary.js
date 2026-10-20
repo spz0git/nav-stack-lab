@@ -809,6 +809,36 @@ const GLOSS = {
     'Dense layers with a nonlinearity between them: the plainest neural network, a function of a flat input vector.',
     '',
     ['multilayer perceptron', 'dense layers']
+  ],
+  mixture: [
+    'mixture of Gaussians',
+    'A distribution that is a weighted sum of several Gaussians: here K futures for a person, each with a probability. Trained by its negative log-likelihood, it is a mixture density network.',
+    '',
+    ['mixture of three Gaussians', 'mixture of Gaussians', 'mixture']
+  ],
+  resp: [
+    'responsibility',
+    'How much of an outcome one mixture component explains: its probability times its likelihood, normalized over the components. It is the weight each future gets in the gradient.',
+    '',
+    ['responsibilities', 'responsibility']
+  ],
+  wta: [
+    'winner-takes-all',
+    'Train only the future nearest the outcome (and the probability to pick it): the limit of the mixture loss as σ goes to zero.',
+    '',
+    ['winner-takes-all', 'Winner-takes-all']
+  ],
+  multimodal: [
+    'multimodal',
+    'With more than one likely outcome: a person at the end of an aisle may walk on or turn back, and the average of the two is a place nobody goes.',
+    '',
+    ['multimodal', 'multi-modal', 'modes']
+  ],
+  prederr: [
+    'prediction error',
+    'The distance between where a predictor put a person t seconds ahead and where they were t seconds later (the displacement error at t). The metrics show it at 1 s and 2 s.',
+    '',
+    ['prediction error']
   ]
 };
 // Terms each lesson uses, in reading order (keyed by lesson title)
@@ -931,6 +961,8 @@ const LESSON_TERMS = {
   'Sensor latency: stale readings, moving prediction': 'latency tick lidar beacon nu Ts v nees ekf pf inject timestamp lagged biased',
   'A learned detector: people from the shape and motion of the hits':
     'conv1d precision recall distshift track cvkf cluster lidar logodds agent icp speedplanner odometry deadreck pf',
+  'A learned predictor: three futures for each person':
+    'mlp mixture resp wta multimodal prederr cvkf track speedplanner socialforce contacts closest groundtruth distshift',
   'Velocity obstacles: steering around people in velocity space':
     'vo rvo track cvkf agent speedplanner socialforce contacts closest lidar costmap tracker',
   'People who react': 'socialforce Fsf v0p edir vp tausf sumO Asf rij dpp Bsf ndir contacts closest',

@@ -31,9 +31,23 @@ function renderStatus() {
       ? cell('pose', 'known', '', 'Ground truth: the estimate is the true pose; pick an estimator in Localize to see an error')
       : cell('pose error', `${ep.toFixed(2)} m`, ep > 0.5 ? 'bad' : '', 'Distance between the true pose and the estimate')) +
     cell('collisions', String(nc), nc ? 'bad' : '', `${V.coll} static, ${V.collPed} people`) +
+    (!f && P.agPred === 'learned' && agOn() ? predCell(cell) : '') +
     (isCar() ? cell('gear · steer', `${r.v < -0.01 ? 'R' : r.v > 0.01 ? 'D' : '–'} · ${deg(r.d).toFixed(0)}°`) : '') +
     (f ? `<span class="st-replay" title="The page shows a recorded moment. Live or Run returns to the live state.">replay</span>` : '');
   $('#run').textContent = running ? 'Pause' : 'Run';
+}
+// With the learned predictor: both predictors' mean error at 2 s so far, the learned one first
+function predCell(cell) {
+  const pe = predErrors();
+  if (!pe || pe.ln[1] == null) return '';
+  return (
+    cell(
+      'pred. error 2 s',
+      `${pe.ln[1].toFixed(2)} m`,
+      pe.ln[1] > pe.cv[1] ? 'bad' : '',
+      `Mean distance between where the learned predictor put each person 2 s ahead and where they were: ${pe.ln[1].toFixed(2)} m (at 1 s ${pe.ln[0].toFixed(2)} m). Constant velocity: ${pe.cv[1].toFixed(2)} m (at 1 s ${pe.cv[0].toFixed(2)} m).`
+    ) + cell('cv', `${pe.cv[1].toFixed(2)} m`, '', 'Constant velocity’s mean error 2 s ahead, on the same people at the same moments')
+  );
 }
 function renderMetrics() {
   const r = S.robot,
@@ -76,6 +90,14 @@ function renderMetrics() {
     const tr = S.agents.tracks,
       cf = tr.filter(t => t.conf).length;
     items.push(['Agent tracks', `${cf} confirmed · ${tr.length - cf} tentative`, 'per']);
+    const pe = predErrors(),
+      m = v => (v == null ? '—' : v.toFixed(2));
+    if (pe && pe.n)
+      items.push([
+        'Prediction error 1 s · 2 s',
+        `constant velocity ${m(pe.cv[0])} · ${m(pe.cv[1])} m${pe.ln[0] != null ? ` · learned ${m(pe.ln[0])} · ${m(pe.ln[1])} m` : ''}`,
+        'per'
+      ]);
   }
   if (S.slam) items.push(['SLAM map', `${S.slam.n} of ${S.beacons.length} beacons · ${3 + 2 * S.slam.n} states`, 'loc']);
   if (S.pf) items.push(['Particles', `N_eff ${S.pf.neff.toFixed(0)}/${S.pf.N}, inj ${(S.pf.inj * 100).toFixed(0)}%`, 'loc']);

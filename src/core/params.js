@@ -89,6 +89,7 @@ const DEFAULTS = {
   actNoise: 0, // random perturbation of the executed command (σ in rad/s on the turn rate, relative on speed): the collectors use it
   detModel: 'builtin', // which detector the learned tracker runs: the built-in one or the id of a model trained in the Train tab
   polModel: 'builtin', // which end-to-end policy Plan → Learned policy runs (the same)
+  predModel: 'builtin', // which people predictor Perceive → Prediction → Learned runs (the same)
   policyGoal: 'final', // what the learned policy is pointed at: the mission goal, or a subgoal 3 m along the A* route
   odoK: 0,
   odoB: 0,
@@ -106,6 +107,7 @@ const DEFAULTS = {
   seed: 7,
   agents: 'off',
   agPred: 'cv',
+  predModes: 'top', // the learned predictor's futures the planners avoid: the most probable, or every one at least 20 % probable
   agT: 4,
   agGrow: 0.1,
   agSigA: 0.8,
@@ -129,7 +131,8 @@ const PARAM_OPTS = {
   per: ['oracle', 'mapping'],
   unknownAs: ['free', 'lethal'],
   agents: ['off', 'truth', 'lidar', 'learned'],
-  agPred: ['cv', 'static', 'custom'],
+  agPred: ['cv', 'static', 'learned', 'custom'],
+  predModes: ['top', 'all'],
   mis: ['sequential', 'greedy', 'optimal', 'explore'],
   plan: ['straight', 'astar', 'dstar', 'rrtstar', 'stastar', 'rs', 'hybrid', 'policy', 'custom'],
   policyGoal: ['final', 'subgoal'],

@@ -3,18 +3,25 @@
    sources (a map, its goals, how many runs), collect it headless in workers (core/dataset.js), pick a network and
    train it in workers (core/nn-train.js), compare it with the built-in model on the same held-out run, save it and
    drive with it. Trained models are kept in this browser (IndexedDB, guarded: a browser that blocks storage keeps
-   them until the page closes); the data is not kept. Perceive and Plan pick the model (P.detModel, P.polModel).
+   them until the page closes); the data is not kept. Perceive and Plan pick the model (P.detModel, P.predModel, P.polModel).
    ============================================================ */
 const TRN_BLOCKS = {
   detector: {name: 'People detector', unit: 'scans', prefix: 'det', use: {agents: 'learned'}, key: 'detModel', tab: 'per'},
+  predictor: {name: 'People predictor', unit: 'samples', prefix: 'prd', use: {agPred: 'learned'}, key: 'predModel', tab: 'per'},
   policy: {name: 'End-to-end policy', unit: 'samples', prefix: 'pol', use: {plan: 'policy'}, key: 'polModel', tab: 'plan'}
 };
+// the learned blocks that need people on the map
+const trnPeople = block => block !== 'policy';
 const TRN = {
   block: 'detector',
-  rows: {detector: null, policy: null}, // the data sources, made on first view
-  arch: {detector: 'builtin', policy: 'builtin'},
-  init: {detector: 'random', policy: 'random'},
-  hp: {detector: {epochs: 20, lr: 0.002, batch: 64}, policy: {epochs: 40, lr: 0.001, batch: 256}},
+  rows: {detector: null, predictor: null, policy: null}, // the data sources, made on first view
+  arch: {detector: 'builtin', predictor: 'builtin', policy: 'builtin'},
+  init: {detector: 'random', predictor: 'random', policy: 'random'},
+  hp: {
+    detector: {epochs: 20, lr: 0.002, batch: 64},
+    predictor: {epochs: 30, lr: 0.002, batch: 256},
+    policy: {epochs: 40, lr: 0.001, batch: 256}
+  },
   job: null, // {kind: 'collect' | 'train', done, total, stop, text}
   curve: [], // per finished epoch: {epoch, loss, ev, ms}
   curveBlock: null, // the block the curve belongs to
@@ -38,7 +45,7 @@ function trnRow(block, level, o) {
     nGoals: 6,
     runs: 4,
     seed0: 101, // the built-in models were trained on seeds 1–16 of the levels: a fair test needs others
-    secs: block === 'policy' ? 150 : 60,
+    secs: block === 'detector' ? 60 : 150,
     people: 'alt',
     noise: 0.4,
     driver: 'expert',
@@ -48,7 +55,7 @@ function trnRow(block, level, o) {
 }
 const trnLevel = id => LEVELS.findIndex(L => L.id === id);
 function trnDefaultRows(block) {
-  if (block === 'detector')
+  if (trnPeople(block))
     return LEVELS.map((L, i) => i)
       .filter(i => (LEVELS[i].peds || []).length)
       .map(i => trnRow(block, i));
@@ -59,6 +66,7 @@ function trnDefaultRows(block) {
 // the recipe the built-in model was trained with (training/*/README.md), as sources
 function trnRecipe(block) {
   if (block === 'detector') return trnDefaultRows(block).map(r => ({...r, runs: 8, secs: 120, seed0: 1}));
+  if (block === 'predictor') return trnDefaultRows(block).map(r => ({...r, runs: 22, secs: 150, seed0: 21}));
   return trnDefaultRows(block).map(r => ({...r, runs: 8, secs: 150, noise: 0.4, seed0: 1}));
 }
 const trnRows = () => TRN.rows[TRN.block] || (TRN.rows[TRN.block] = trnDefaultRows(TRN.block));
@@ -128,16 +136,21 @@ const trnOpts = block => [['builtin', 'Built-in'], ...trnModels(block).map(m => 
 const pct = v => (100 * v).toFixed(1) + ' %';
 function trnArchText(m) {
   if (m.layers[0].type === 'conv1d') return m.layers.map(L => `${L.cout}×k${L.k}`).join(' → ');
+  // (the predictor's last layer: K logits and K futures)
   return [m.layers[0].nin, ...m.layers.map(L => L.nout)].join(' → ');
 }
 function trnEvText(block, ev) {
   if (!ev) return '—';
+  if (block === 'predictor')
+    return `error at 1 s ${ev.top[0].toFixed(2)} m, at 2 s ${ev.top[1].toFixed(2)} m (constant velocity ${ev.cv[0].toFixed(2)}, ${ev.cv[1].toFixed(2)})`;
   return block === 'detector'
     ? `precision ${pct(ev.precision)}, recall ${pct(ev.recall)}, F1 ${ev.f1.toFixed(3)}`
     : `RMS ${ev.rms.toFixed(2)} m (first waypoint ${ev.perWp[0].toFixed(2)}, last ${ev.perWp[POLICY_N - 1].toFixed(2)})`;
 }
-// one number to rank by: F1 for the detector (higher is better), the RMS error for the policy (lower)
-const trnScore = (block, ev) => (ev ? (block === 'detector' ? ev.f1 : ev.rms) : null);
+// one number to rank by: F1 for the detector (higher is better), the RMS error for the policy, the error at 2 s for the
+// predictor (lower)
+const trnScore = (block, ev) => (ev ? (block === 'detector' ? ev.f1 : block === 'predictor' ? ev.top[1] : ev.rms) : null);
+const trnScoreName = block => (block === 'detector' ? 'F1' : block === 'predictor' ? 'error at 2 s' : 'RMS error');
 function sameShape(a, b) {
   return (
     a.layers.length === b.layers.length &&
@@ -161,7 +174,8 @@ function builtinSaw(block, r, seed) {
   const id = LEVELS[r.level].id,
     M = MODELS[block];
   if (!M) return false;
-  if (block === 'detector') return (M.trained_on.runs || []).some(x => x.level === id && x.seed === seed);
+  if (block !== 'policy')
+    return [...(M.trained_on.runs || []), ...(block === 'predictor' ? M.held_out || [] : [])].some(x => x.level === id && x.seed === seed);
   return ['L1', 'L2', 'L3', 'L4'].includes(id) && ((seed >= 1 && seed <= 8) || (seed >= 11 && seed <= 16));
 }
 /* ---------- the data ---------- */
@@ -186,8 +200,8 @@ function trnSpecs(r, block) {
 // every collected run in source order; the held-out run is the last run of the first source that has data
 function trnAssemble(block) {
   const rows = (TRN.rows[block] || []).filter(r => r.data),
-    NF = block === 'detector' ? NBEAM * DET_CH : NBEAM + 19,
-    NY = block === 'detector' ? NBEAM : 2 * POLICY_N;
+    NF = block === 'detector' ? NBEAM * DET_CH : block === 'predictor' ? PRED_NF : NBEAM + 19,
+    NY = block === 'detector' ? NBEAM : block === 'predictor' ? 2 * PRED_H.length : 2 * POLICY_N;
   if (!rows.length) return null;
   const runs = rows.flatMap((r, ri) => r.data.runs.map(d => ({...d, ri, label: r.label}))),
     holdI = runs.length > 1 ? rows[0].data.runs.length - 1 : -1,
@@ -225,7 +239,10 @@ function trnDataLine(block) {
     n = got.reduce((a, r) => a + r.data.n, 0),
     pos = got.reduce((a, r) => a + r.data.positives, 0),
     h = got[0].data.runs[got[0].data.runs.length - 1],
-    mb = (n * (block === 'detector' ? NBEAM * 25 : (NBEAM + 19 + 2 * POLICY_N) * 4)) / 1e6;
+    mb =
+      (n *
+        (block === 'detector' ? NBEAM * 25 : block === 'predictor' ? (PRED_NF + 2 * PRED_H.length) * 4 : (NBEAM + 19 + 2 * POLICY_N) * 4)) /
+      1e6;
   return `${runs} run${runs === 1 ? '' : 's'}, ${n} ${TRN_BLOCKS[block].unit}${block === 'detector' ? ` (${pct(pos / Math.max(1, n * NBEAM))} of the beams on a person)` : ''}, ${mb.toFixed(mb < 10 ? 1 : 0)} MB in memory. ${runs > 1 ? `Held out for testing: the last run of the first source (${got[0].label}, seed ${h.seed}, ${h.n} ${TRN_BLOCKS[block].unit}).` : 'One run only: the numbers below are on the training data itself; collect at least two runs to test on one the network has not seen.'}`;
 }
 
@@ -302,7 +319,12 @@ async function trnTrain() {
         ? {...fresh, layers: from.layers.map(L => ({...L, w: Float32Array.from(L.w), b: Float32Array.from(L.b)}))}
         : fresh,
     pos = ds.pos / Math.max(1, ds.n * NBEAM),
-    task = block === 'detector' ? {loss: 'bce', n: NBEAM, posW: pos > 0 ? Math.sqrt((1 - pos) / pos) : 1} : {loss: 'mse', n: 1},
+    task =
+      block === 'detector'
+        ? {loss: 'bce', n: NBEAM, posW: pos > 0 ? Math.sqrt((1 - pos) / pos) : 1}
+        : block === 'predictor'
+          ? {loss: 'mix', n: 1, K: PRED_K, ny: 2 * PRED_H.length, sigma: PRED_SIG}
+          : {loss: 'mse', n: 1},
     nW = Math.max(1, Math.min(trnWorkers(), Math.floor(ds.n / 32) || 1)),
     workers = Array.from({length: nW}, makeCoreWorker),
     cut = Array.from({length: nW + 1}, (_, i) => Math.round((i * ds.n) / nW));
@@ -416,6 +438,7 @@ async function trnTrain() {
       label: `${A[1]} · ${ds.n} ${TRN_BLOCKS[block].unit} · ${new Date().toLocaleDateString(undefined, {day: 'numeric', month: 'short'})}`
     };
     if (block === 'detector') Object.assign(TRN.result, {threshold: DET_THR, minBeams: DET_MIN});
+    if (block === 'predictor') Object.assign(TRN.result, {K: PRED_K, horizon: PRED_H, sigma: PRED_SIG});
     logE(
       `Train: ${TRN_BLOCKS[block].name.toLowerCase()} trained for ${last.epoch} epoch${last.epoch === 1 ? '' : 's'}${stopped ? ' (stopped)' : ''}: ${trnEvText(block, last.ev)}`,
       'ok'
@@ -463,6 +486,7 @@ function trnJSON(m) {
     params: m.params,
     ...(m.threshold ? {threshold: m.threshold} : {}),
     ...(m.minBeams ? {minBeams: m.minBeams} : {}),
+    ...(m.K ? {K: m.K, horizon: m.horizon, sigma: m.sigma} : {}),
     trained_on: m.trained_on,
     held_out: m.held_out,
     trained_in: 'Nav Stack Lab, Tools → Train',
@@ -471,7 +495,9 @@ function trnJSON(m) {
 }
 function trnImport(text) {
   const j = JSON.parse(text),
-    block = j.name === 'policy' || (j.layers && j.layers[0] && j.layers[0].type === 'dense') ? 'policy' : 'detector',
+    dense = j.layers && j.layers[0] && j.layers[0].type === 'dense',
+    block =
+      j.name === 'predictor' || (dense && j.layers[0].nin === PRED_NF) ? 'predictor' : j.name === 'policy' || dense ? 'policy' : 'detector',
     want = nnInit(block, trnHidden(block, 'builtin'), 1).layers;
   if (!Array.isArray(j.layers) || !j.layers.length) throw new Error('no layers');
   const L0 = j.layers[0],
@@ -520,20 +546,22 @@ function trnRowHTML(r, i, block) {
     num = (f, v, lo, hi, step, w) =>
       `<input type="number" data-trow="${n}" data-f="${f}" value="${v}" min="${lo}" max="${hi}" step="${step || 1}"${w ? ` style="width:${w}px"` : ''}>`,
     st = r.data
-      ? `<span class="trn-ok">Collected: ${r.data.runs.length} runs, ${r.data.n} ${TRN_BLOCKS[block].unit}${block === 'detector' ? `, ${pct(r.data.positives / Math.max(1, r.data.n * NBEAM))} person beams` : ''}${r.data.runs.some(d => d.goals) ? `, goals reached ${r.data.runs.reduce((a, d) => a + d.goalsDone, 0)}/${r.data.runs.reduce((a, d) => a + d.goals, 0)}` : ''}</span>`
+      ? `<span class="trn-ok">Collected: ${r.data.runs.length} runs, ${r.data.n} ${TRN_BLOCKS[block].unit}${block === 'detector' ? `, ${pct(r.data.positives / Math.max(1, r.data.n * NBEAM))} person beams` : block === 'predictor' ? ' (tracked people near a person, with where they went)' : ''}${r.data.runs.some(d => d.goals) ? `, goals reached ${r.data.runs.reduce((a, d) => a + d.goalsDone, 0)}/${r.data.runs.reduce((a, d) => a + d.goals, 0)}` : ''}</span>`
       : '<span class="lbl">Not collected</span>',
     warn =
       block === 'detector' && !(LEVELS[r.level].peds || []).length
         ? '<p class="lbl">No people on this map: every beam is labelled static (it teaches the network what is not a person).</p>'
-        : block === 'policy' && LEVELS[r.level].cfg.model === 'car'
-          ? '<p class="lbl">A car level: the policy is a robot that turns on the spot; its paths may not suit the car.</p>'
-          : '';
-  return `<div class="trn-src" data-sys="${block === 'detector' ? 'per' : 'plan'}">
+        : block === 'predictor' && !(LEVELS[r.level].peds || []).length
+          ? '<p class="lbl">No people on this map: it gives no samples.</p>'
+          : block === 'policy' && LEVELS[r.level].cfg.model === 'car'
+            ? '<p class="lbl">A car level: the policy is a robot that turns on the spot; its paths may not suit the car.</p>'
+            : '';
+  return `<div class="trn-src" data-sys="${block === 'policy' ? 'plan' : 'per'}">
   <div class="trn-srchead"><select class="sel" data-trow="${n}" data-f="map" aria-label="Map of source ${n + 1}">${mapOpts}</select><button type="button" class="ibtn" data-trdel="${n}" aria-label="Remove this source" title="Remove this source">×</button></div>
   <div class="exprow"><span>Goals</span><div class="seg" data-trow="${n}" data-f="goals"><button data-v="map" aria-pressed="${r.goals === 'map'}">The map's</button><button data-v="random" aria-pressed="${r.goals === 'random'}">Random</button></div>${r.goals === 'random' ? `<label>${num('nGoals', r.nGoals, 1, 12)} goals a run</label>` : `<span class="lbl">${r.cfg && r.cfg.goals ? `${r.cfg.goals.length} placed` : `${(LEVELS[r.level].wps || []).length} of the level's`}</span>`}</div>
   <div class="exprow"><label>${num('runs', r.runs, 1, 40)} runs</label><label>seeds from ${num('seed0', r.seed0, 1, 999)}</label><label>${num('secs', r.secs, 10, 600, 10)} s each</label><label title="Scatter boxes of 0.4–2 m on an empty floor instead of the map's obstacles, a new layout every run (the start and fixed goals are kept clear)">random obstacles ${num('random', r.random, 0, 40)}</label></div>
   ${
-    block === 'detector'
+    trnPeople(block)
       ? `<div class="exprow"><span>People</span><div class="seg" data-trow="${n}" data-f="people"><button data-v="alt" aria-pressed="${r.people === 'alt'}">Alternate</button><button data-v="scripted" aria-pressed="${r.people === 'scripted'}">Scripted</button><button data-v="reactive" aria-pressed="${r.people === 'reactive'}">Reacting</button></div></div>`
       : `<div class="exprow"><span>Driver</span><div class="seg" data-trow="${n}" data-f="driver"><button data-v="expert" aria-pressed="${r.driver === 'expert'}">The classical stack</button><button data-v="policy" aria-pressed="${r.driver === 'policy'}" title="DAgger: the policy picked in Plan drives, the expert labels where it went">The policy in use (DAgger)</button></div><label>command noise ${num('noise', r.noise, 0, 1, 0.05, 56)}</label></div>`
   }
@@ -558,7 +586,7 @@ function trnModelsHTML(block) {
       )
     )
     .join('')}</ul>
-  ${mine.length ? '' : `<p class="note">No trained ${block === 'detector' ? 'detectors' : 'policies'} in this browser yet.</p>`}
+  ${mine.length ? '' : `<p class="note">No trained ${{detector: 'detectors', predictor: 'predictors', policy: 'policies'}[block]} in this browser yet.</p>`}
   <div class="controls"><label class="btn small trn-file">Import JSON<input type="file" id="trn-import" accept=".json,application/json" hidden></label>${TRN.stored === false ? '<span class="lbl">This browser does not keep data for this page: trained models last until it closes (save them as JSON).</span>' : '<span class="lbl">Kept in this browser only.</span>'}</div>`;
 }
 function trnResultHTML(block) {
@@ -566,6 +594,7 @@ function trnResultHTML(block) {
   if (!R || R.block !== block) return ''; // still training, or a model of the other block
   const B = TRN.baseEv || {},
     better = (a, b) => (block === 'detector' ? a > b : a < b),
+    pred = block === 'predictor',
     s = trnScore(block, R.ev),
     sb = B.builtin ? trnScore(block, B.builtin) : null,
     rows = [
@@ -573,17 +602,20 @@ function trnResultHTML(block) {
       ...(B.start && B.startLabel !== 'Built-in' ? [[`Where it started (${esc(B.startLabel)})`, B.start]] : []),
       ['Built-in', B.builtin]
     ].filter(r => r[1]);
-  const cols =
-    block === 'detector'
+  const cols = pred
+    ? ['1 s', '2 s', 'best of 3 at 2 s', 'constant velocity at 2 s'].map(c => `<th>${c}</th>`).join('')
+    : block === 'detector'
       ? ['Precision', 'Recall', 'F1'].map(c => `<th>${c}</th>`).join('')
       : `<th>RMS</th>${[0, 3, 7].map(k => `<th>${((k + 1) * DS_STEP).toFixed(1)} m ahead</th>`).join('')}`;
   const cells = ev =>
-    block === 'detector'
-      ? `<td>${pct(ev.precision)}</td><td>${pct(ev.recall)}</td><td>${ev.f1.toFixed(3)}</td>`
-      : `<td>${ev.rms.toFixed(3)} m</td>${[0, 3, 7].map(k => `<td>${ev.perWp[k].toFixed(2)} m</td>`).join('')}`;
+    pred
+      ? `<td>${ev.top[0].toFixed(2)} m</td><td>${ev.top[1].toFixed(2)} m</td><td>${ev.best[1].toFixed(2)} m</td><td>${ev.cv[1].toFixed(2)} m</td>`
+      : block === 'detector'
+        ? `<td>${pct(ev.precision)}</td><td>${pct(ev.recall)}</td><td>${ev.f1.toFixed(3)}</td>`
+        : `<td>${ev.rms.toFixed(3)} m</td>${[0, 3, 7].map(k => `<td>${ev.perWp[k].toFixed(2)} m</td>`).join('')}`;
   return `<div class="trn-result"><h4>The new model, on the held-out run</h4>
   <div class="exptab"><table><tr><th></th>${cols}</tr>${rows.map(([l, ev]) => `<tr><td>${l}</td>${cells(ev)}</tr>`).join('')}</table></div>
-  <p class="note">${sb == null ? '' : better(s, sb) ? `Better than the built-in model on this run (${block === 'detector' ? 'F1' : 'RMS error'} ${s.toFixed(3)} against ${sb.toFixed(3)}).` : `Not better than the built-in model on this run (${block === 'detector' ? 'F1' : 'RMS error'} ${s.toFixed(3)} against ${sb.toFixed(3)}): more data, more epochs or another network may help.`} ${R.held_out.separate ? `Held out: ${esc(R.held_out.map)}, seed ${R.held_out.seed}, which the network did not see.` : 'Tested on its training data (one run only).'}${R.held_out.builtinSaw ? ' <b>The built-in model was trained on this very run</b>, so it has the advantage here: for a fair test, start the first source at another seed.' : ''} ${block === 'detector' ? `Per beam at the threshold ${DET_THR}.` : 'The error of each predicted waypoint against the expert route, in metres.'}</p>
+  <p class="note">${sb == null ? '' : better(s, sb) ? `Better than the built-in model on this run (${trnScoreName(block)} ${s.toFixed(3)} against ${sb.toFixed(3)}).` : `Not better than the built-in model on this run (${trnScoreName(block)} ${s.toFixed(3)} against ${sb.toFixed(3)}): more data, more epochs or another network may help.`} ${R.held_out.separate ? `Held out: ${esc(R.held_out.map)}, seed ${R.held_out.seed}, which the network did not see.` : 'Tested on its training data (one run only).'}${R.held_out.builtinSaw ? ' <b>The built-in model was trained on this very run</b>, so it has the advantage here: for a fair test, start the first source at another seed.' : ''} ${block === 'detector' ? `Per beam at the threshold ${DET_THR}.` : pred ? 'The distance between the most probable future and where the person really was, 1 s and 2 s ahead, in metres; best of 3: the nearest of the three futures.' : 'The error of each predicted waypoint against the expert route, in metres.'}</p>
   <form class="chg-save" id="trn-save"><input type="text" id="trn-name" maxlength="60" value="${esc(R.label)}" aria-label="Model name"><button type="submit" class="btn small">Save</button><button type="button" class="btn small primary" id="trn-saveuse">Save and use</button></form></div>`;
 }
 function trainPane() {
@@ -614,7 +646,7 @@ function trainPane() {
     .join('')}</div></div>
   <h3 class="fhead">Models</h3>${trnModelsHTML(block)}
   <h3 class="fhead">1 · Data</h3>
-  <p class="note">${block === 'detector' ? 'Every lidar scan of a run, each beam labelled person or static from the true positions. The robot drives the map’s goals with ground-truth tracking; people walk on the levels that have them. The map changes with the seed, in turn: the prior map, the map the robot builds, and the prior map with the pose drifting on dead reckoning, so the network learns how far to trust it.' : 'Every scan of a run where the robot drives to a goal, labelled with the expert’s A* route ahead (eight points 0.4 m apart). The classical stack drives with its commands perturbed (noise) so the data also shows how to come back to the route; DAgger lets the policy drive and labels where it went.'}</p>
+  <p class="note">${block === 'predictor' ? 'At every lidar scan of a run, each confirmed track near a person: its last second, the robot’s place and motion and the free space around it, labelled with where that person really went over the next 3 s. The robot drives the map’s goals in a loop with the lidar tracker, yielding to people (speed planning) and ignoring them in turn so that reacting people also meet it up close.' : block === 'detector' ? 'Every lidar scan of a run, each beam labelled person or static from the true positions. The robot drives the map’s goals with ground-truth tracking; people walk on the levels that have them. The map changes with the seed, in turn: the prior map, the map the robot builds, and the prior map with the pose drifting on dead reckoning, so the network learns how far to trust it.' : 'Every scan of a run where the robot drives to a goal, labelled with the expert’s A* route ahead (eight points 0.4 m apart). The classical stack drives with its commands perturbed (noise) so the data also shows how to come back to the route; DAgger lets the policy drive and labels where it went.'}</p>
   ${rows.map((r, i) => trnRowHTML(r, i, block)).join('')}
   <div class="controls"><button type="button" class="btn small" id="trn-add">Add a source</button><button type="button" class="btn small" id="trn-recipe" title="The sources the built-in model was trained on (training/${block}/README.md)">The built-in recipe</button>${ds ? '<button type="button" class="btn small" id="trn-clear">Clear the data</button>' : ''}</div>
   <div class="controls"><button type="button" class="btn primary" id="trn-collect" ${J || !todo || daggerNoModel ? 'disabled' : ''}>${todo ? `Collect ${todo} run${todo === 1 ? '' : 's'}` : 'All collected'}</button><span class="lbl">${daggerNoModel ? 'DAgger needs the policy picked in Plan, which is not in this browser.' : ''}</span></div>
@@ -630,11 +662,11 @@ function trainPane() {
   <h3 class="fhead">3 · Train</h3>
   <div class="controls"><button type="button" class="btn primary" id="trn-train" ${J || !ds ? 'disabled' : ''}>Train</button><button type="button" class="btn" id="trn-stop" ${J ? '' : 'hidden'}>Stop</button>${ds && (trnModels(block).length || MODELS[block]) ? `<button type="button" class="btn small" id="trn-cmp" ${J ? 'disabled' : ''}>Test every model on the held-out run</button>` : ''}<span class="lbl" id="trn-prog">${J ? J.text || '' : ''}</span></div>
   <div class="expbar" ${J ? '' : 'hidden'}><i id="trn-bar" style="width:${J ? (100 * J.done) / Math.max(1, J.total) : 0}%"></i></div>
-  ${TRN.curveBlock === block && (TRN.curve.length || (J && J.kind === 'train')) ? `<canvas class="expchart" id="cv-trn" aria-label="Training curve"></canvas><p class="lbl trn-key"><span class="trn-k1"></span> training loss (left scale) · <span class="trn-k2"></span> held out ${block === 'detector' ? 'F1' : 'RMS error, m'} (right) · <span class="trn-k3"></span> built-in on the same run</p>` : ''}
+  ${TRN.curveBlock === block && (TRN.curve.length || (J && J.kind === 'train')) ? `<canvas class="expchart" id="cv-trn" aria-label="Training curve"></canvas><p class="lbl trn-key"><span class="trn-k1"></span> training loss (left scale) · <span class="trn-k2"></span> held out ${block === 'detector' ? 'F1' : block === 'predictor' ? 'error at 2 s, m' : 'RMS error, m'} (right) · <span class="trn-k3"></span> built-in on the same run</p>` : ''}
   ${trnResultHTML(block)}
-  ${C ? `<div class="trn-result"><h4>Every model on the held-out run (${esc(C.hold)})</h4><div class="exptab"><table><tr><th></th><th>${block === 'detector' ? 'Precision' : 'RMS'}</th><th>${block === 'detector' ? 'Recall' : 'Last waypoint'}</th><th>${block === 'detector' ? 'F1' : ''}</th></tr>${C.rows.map(r => `<tr><td>${esc(r.label)}</td>${r.ev ? (block === 'detector' ? `<td>${pct(r.ev.precision)}</td><td>${pct(r.ev.recall)}</td><td>${r.ev.f1.toFixed(3)}</td>` : `<td>${r.ev.rms.toFixed(3)} m</td><td>${r.ev.perWp[POLICY_N - 1].toFixed(2)} m</td><td></td>`) : '<td colspan="3">failed</td>'}</tr>`).join('')}</table></div><p class="note">${C.saw ? 'The built-in model was trained on this run, so it has the advantage. ' : ''}To compare them driving, vary <i>${block === 'detector' ? 'Detector model' : 'Policy model'}</i> in Experiments.</p></div>` : ''}
+  ${C ? `<div class="trn-result"><h4>Every model on the held-out run (${esc(C.hold)})</h4><div class="exptab"><table><tr><th></th>${(block === 'detector' ? ['Precision', 'Recall', 'F1'] : block === 'predictor' ? ['1 s', '2 s', 'best of 3 at 2 s'] : ['RMS', 'Last waypoint', '']).map(c => `<th>${c}</th>`).join('')}</tr>${C.rows.map(r => `<tr><td>${esc(r.label)}</td>${r.ev ? (block === 'detector' ? `<td>${pct(r.ev.precision)}</td><td>${pct(r.ev.recall)}</td><td>${r.ev.f1.toFixed(3)}</td>` : block === 'predictor' ? `<td>${r.ev.top[0].toFixed(2)} m</td><td>${r.ev.top[1].toFixed(2)} m</td><td>${r.ev.best[1].toFixed(2)} m</td>` : `<td>${r.ev.rms.toFixed(3)} m</td><td>${r.ev.perWp[POLICY_N - 1].toFixed(2)} m</td><td></td>`) : '<td colspan="3">failed</td>'}</tr>`).join('')}</table></div><p class="note">${C.saw ? 'The built-in model was trained on this run, so it has the advantage. ' : ''}${block === 'predictor' && C.rows[0] && C.rows[0].ev ? `Constant velocity on the same samples: ${C.rows[0].ev.cv[0].toFixed(2)} m at 1 s, ${C.rows[0].ev.cv[1].toFixed(2)} m at 2 s. ` : ''}To compare them driving, vary <i>${{detector: 'Detector model', predictor: 'Predictor model', policy: 'Policy model'}[block]}</i> in Experiments.</p></div>` : ''}
   <details class="how"><summary>How it works</summary><div class="how-body">
-    <p>${block === 'detector' ? 'The detector is a stack of circular 1D convolutions over the 120 beams (ReLU between them, a sigmoid at the end) trained with binary cross-entropy, the person beams weighted by the square root of their rarity so that recall does not drown in false beams.' : 'The policy is a multilayer perceptron (ReLU) from 139 numbers (the scan, its 12 sector minima, the goal in the robot frame, the odometry) to 16 (eight waypoints), trained by behaviour cloning: mean squared error against the expert route.'} Training is Adam on minibatches, an epoch being one pass over the data in a new random order; the gradients are computed by backpropagation in plain loops (<code>nnGrad</code> in core/nn-train.js), split over ${trnWorkers()} worker${trnWorkers() === 1 ? '' : 's'} that each hold part of the data. After every epoch the network is tested on the held-out run. The trained weights are the same JSON as <code>src/models/${block}.json</code>: <i>JSON</i> saves a file that can replace it.</p>
+    <p>${block === 'predictor' ? 'The predictor is a multilayer perceptron (ReLU) from 24 numbers (the track’s last second in the person’s own frame, the robot’s position and velocity, eight rays of free space) to 39: three logits and three futures of six points each, as corrections to constant velocity. It is trained by the negative log-likelihood of a mixture of three Gaussians of fixed σ (0.3 m): each future is pulled towards the outcomes it explains best and each probability towards how often it does, so the three futures can split between walking on, stopping and turning back.' : block === 'detector' ? 'The detector is a stack of circular 1D convolutions over the 120 beams (ReLU between them, a sigmoid at the end) trained with binary cross-entropy, the person beams weighted by the square root of their rarity so that recall does not drown in false beams.' : 'The policy is a multilayer perceptron (ReLU) from 139 numbers (the scan, its 12 sector minima, the goal in the robot frame, the odometry) to 16 (eight waypoints), trained by behaviour cloning: mean squared error against the expert route.'} Training is Adam on minibatches, an epoch being one pass over the data in a new random order; the gradients are computed by backpropagation in plain loops (<code>nnGrad</code> in core/nn-train.js), split over ${trnWorkers()} worker${trnWorkers() === 1 ? '' : 's'} that each hold part of the data. After every epoch the network is tested on the held-out run. The trained weights are the same JSON as <code>src/models/${block}.json</code>: <i>JSON</i> saves a file that can replace it.</p>
     <p>Whether a model is better is a question of the run it is tested on: one held-out run is a small sample. Drive with it, and compare it in Experiments over several seeds.</p>
     <button class="linkbtn" data-source="core/nn-train.js">View the source</button></div></details>`;
 }
@@ -662,7 +694,7 @@ function trnDrawCurve() {
     lmax = Math.max(1e-6, ...C.map(p => p.loss)) * 1.1,
     base = TRN.baseEv && TRN.baseEv.builtin ? trnScore(block, TRN.baseEv.builtin) : null,
     vals = C.map(p => trnScore(block, p.ev)),
-    rmax = block === 'detector' ? 1 : Math.max(0.1, ...vals, base || 0) * 1.1,
+    rmax = block === 'detector' ? 1 : Math.max(0.1, ...vals, base || 0) * 1.1, // the predictor: error at 2 s, m
     YL = v => padT + (1 - v / lmax) * (h - padT - padB),
     YR = v => padT + (1 - v / rmax) * (h - padT - padB);
   g.strokeStyle = TOK.line;
@@ -725,7 +757,7 @@ function trnRowSet(r, f, v) {
         v === 'screen'
           ? `${cfg.level} as on screen (${new Date().toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'})})`
           : 'Saved: ' + setupsLoad()[+v.slice(1)].name;
-      if (cfg.goals && r.goals === 'random' && block === 'detector') r.goals = 'map';
+      if (cfg.goals && r.goals === 'random' && trnPeople(block)) r.goals = 'map';
     } else {
       r.level = +v.slice(1);
       r.cfg = null;

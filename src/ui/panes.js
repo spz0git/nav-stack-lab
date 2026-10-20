@@ -369,7 +369,9 @@ const TIPS = {
   unknownAs: 'Whether unobserved cells block the planner.',
   infl: 'Width of the soft cost band outside the lethal radius.',
   agents: 'Off: people reach the stack only as lidar hits. Ground truth: perfect tracks. Lidar: clustering plus a Kalman filter per agent.',
-  agPred: 'Constant velocity extrapolates each track; Static freezes it where it is now.',
+  agPred:
+    'Constant velocity extrapolates each track; Static freezes it where it is now; Learned asks a network trained on the simulator’s walkers for three futures.',
+  predModes: 'Which of the learned futures the speed planner, space-time A*, DWA and MPC treat as obstacles.',
   agT: 'How far ahead agents are predicted and the speed planner plans.',
   agGrow: 'How fast the predicted radius grows per second of prediction.',
   agSigA: 'White acceleration noise of the constant-velocity model. Higher follows turns faster but gives noisier velocity.',

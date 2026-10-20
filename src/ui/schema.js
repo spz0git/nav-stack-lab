@@ -283,9 +283,38 @@ const SCHEMA = {
       opts: [
         ['cv', 'Constant velocity'],
         ['static', 'Static (frozen)'],
+        ['learned', 'Learned (network)'],
         ['custom', 'Your code']
       ],
       show: agOn
+    },
+    {
+      type: 'info',
+      text: () => {
+        const M = nnModel('predictor');
+        if (!M)
+          return 'No predictor model in this build: train one in Tools → Train, or with training/predictor/train.py and rebuild. Constant velocity is used.';
+        const mine = M !== MODELS.predictor;
+        return `A multilayer perceptron (${M.params} parameters, ${mine ? `trained in this browser (Tools → Train) on ${M.trained_on ? M.trained_on.samples : '?'} samples` : `trained in training/predictor on ${M.trained_on.samples} tracked people`}) reads each track's last second, where the robot is and how it moves, and the free space around the person, and draws three futures for the next 3 s with a probability each (bold: likely). The grey dashed line is constant velocity. The metrics show both predictors' error at 1 s and 2 s against where the people really went.`;
+      },
+      show: () => agOn() && P.agPred === 'learned'
+    },
+    {
+      k: 'predModel',
+      type: 'seg',
+      label: 'Predictor model',
+      opts: () => trnOpts('predictor'),
+      show: () => agOn() && P.agPred === 'learned'
+    },
+    {
+      k: 'predModes',
+      type: 'seg',
+      label: 'Plan against',
+      opts: [
+        ['top', 'The most probable future'],
+        ['all', 'Every future ≥ 20 %']
+      ],
+      show: () => agOn() && P.agPred === 'learned'
     },
     {
       type: 'info',
@@ -303,7 +332,7 @@ const SCHEMA = {
       max: 0.5,
       step: 0.05,
       unit: 'm/s',
-      show: () => agOn() && P.agPred === 'cv'
+      show: () => agOn() && (P.agPred === 'cv' || P.agPred === 'learned')
     },
     {k: 'agSigA', label: 'Tracker process noise σ_a', min: 0.1, max: 3, step: 0.1, unit: 'm/s²', show: () => P.agents === 'lidar'}
   ],

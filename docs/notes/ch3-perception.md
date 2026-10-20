@@ -160,6 +160,92 @@ The reading: with a good map and a good pose the two are level (over seeds 2 to 
 
 [try: The learned detector, the pose drifting | {"sim":true,"level":4,"set":{"agents":"learned","spd":"st","loc":"dr"},"tab":"per","layers":{"lidar":true,"agents":true}}] [try: The rule, the pose drifting | {"sim":true,"level":4,"set":{"agents":"lidar","spd":"st","loc":"dr"},"tab":"per"}]
 
-## 10. What to carry into the next chapters
+## 10. A learned predictor
+
+**What it replaces.** §6 predicts every person by constant velocity, $p(t) = p + v\,t$, and grows the radius. That prediction is wrong in its mean (a walker turns back at the end of an aisle, a reacting person steps aside, and the tracker's $v$ itself wobbles, every wobble multiplied by $t$) and in its shape: a person who may walk on or turn back has two likely futures, and one line through their middle is a place nobody goes. The learned predictor replaces that one function. It still hands the planners a disc per person and time through `agPred`, so the speed planner, space-time A*, DWA and MPC do not know which predictor they are using.
+
+**The network.** One tracked person at a time, in the person's frame: the origin at the tracked position now, the $x$ axis along the displacement over the last second (towards the robot when they stand). A walker in an aisle then looks the same whichever way the aisle runs, and the network does not have to learn every heading. Twenty-four inputs: the five past positions at 0.2, 0.4, … 1.0 s ago relative to now (from the track's history, kept by id), the tracked velocity, the robot's position (divided by 4, clipped at 8 m) and velocity, and the free space along eight rays from the person, every 45°, in the robot's map (sphere-traced on the distance transform, divided by 4, clipped at 4 m). A multilayer perceptron $24 \to 64 \to 64 \to 39$ with ReLU, 8 295 parameters. The 39 outputs are three logits $z_k$ and, for each of the $K = 3$ futures, six points at $t_j = 0.5, 1, \dots, 3$ s written as corrections $\Delta_{kj}$ to constant velocity:
+
+$$
+\pi_k = \frac{e^{z_k}}{\sum_m e^{z_m}}, \qquad \mu_k(t_j) = v\,t_j + \Delta_{kj}
+$$
+
+so that a network whose last layer outputs zeros is constant velocity, with three equal probabilities. The futures are turned back into the map by the frame, and between the six points the position is linear (from the person's position at $t = 0$; past 3 s the last segment continues).
+
+**The loss and its gradient.** Let $y \in \mathbb{R}^{12}$ be where the person really went (six points) and $\mu_k \in \mathbb{R}^{12}$ future $k$. A mixture of $K$ Gaussians of fixed spread $\sigma$ gives the outcome a likelihood, and its negative logarithm is the loss:
+
+$$
+p(y \mid x) = \sum_{k=1}^{K} \pi_k\, \mathcal{N}\big(y;\ \mu_k,\ \sigma^2 I\big), \qquad L = -\log \sum_{k=1}^{K} \pi_k \exp\!\Big(-\frac{\lVert y - \mu_k \rVert^2}{2\sigma^2}\Big)
+$$
+
+up to a constant that does not depend on the weights. Write $a_k = \log \pi_k - \lVert y - \mu_k \rVert^2 / 2\sigma^2$, so that $L = -\log \sum_k e^{a_k}$, and define the responsibilities
+
+$$
+\gamma_k = \frac{e^{a_k}}{\sum_m e^{a_m}} = \frac{\pi_k\, e^{-\lVert y - \mu_k \rVert^2 / 2\sigma^2}}{\sum_m \pi_m\, e^{-\lVert y - \mu_m \rVert^2 / 2\sigma^2}}
+$$
+
+the posterior probability that future $k$ is the one that happened. The derivative of $-\log \sum e^{a}$ with respect to each $a_k$ is $-\gamma_k$. Only $a_k$ depends on $\mu_k$, with $\partial a_k / \partial \mu_k = -(\mu_k - y)/\sigma^2$; and every $a_k$ depends on every logit through $\log \pi_k = z_k - \log \sum_m e^{z_m}$, with $\partial \log \pi_k / \partial z_m = \delta_{km} - \pi_m$. By the chain rule
+
+$$
+\frac{\partial L}{\partial \mu_k} = \gamma_k\, \frac{\mu_k - y}{\sigma^2}, \qquad \frac{\partial L}{\partial z_m} = -\sum_k \gamma_k (\delta_{km} - \pi_m) = \pi_m - \gamma_m
+$$
+
+using $\sum_k \gamma_k = 1$. The first says that each future moves towards the outcome in proportion to how much of it it explains; the second, that each probability moves towards its responsibility. A future that never explains anything gets no gradient and stays where it is (the mixture's well-known dead component, which the K = 3 here mostly escapes: the held-out mean probabilities are 0.67, 0.18 and 0.15). Since $\mu_k = v\,t + \Delta_k$ and the $v\,t$ term does not depend on the weights, $\partial L / \partial \Delta_k = \partial L / \partial \mu_k$: the correction trains exactly like the positions would. These two lines are `mixLoss` in `src/core/nn-train.js`; the gradient check of `tests/node/train.test.mjs` compares them with central differences.
+
+**σ, and winner-takes-all.** As $\sigma \to 0$ the responsibilities become one-hot on the future nearest the outcome: only that future gets a gradient, and the logits learn to pick it. That limit is the winner-takes-all loss many trajectory predictors use. A small σ gives the most distinct futures and the least accurate most probable one; a large σ pulls all three towards the mean. Measured on the held-out runs (the last two seeds of each level, 7 868 samples; 60 epochs each):
+
+| σ | most probable, 1 s · 2 s | best of three, 1 s · 2 s | constant velocity, 1 s · 2 s |
+| --- | --- | --- | --- |
+| 0.2 m | 0.21 · 0.35 m | 0.14 · 0.21 m | 0.28 · 0.52 m |
+| 0.3 m (built in) | 0.21 · 0.34 m | 0.14 · 0.21 m | 0.28 · 0.52 m |
+| 0.5 m | 0.20 · 0.31 m | 0.15 · 0.22 m | 0.28 · 0.52 m |
+
+σ is fixed rather than learned: a learned spread per future is the full mixture density network, less stable to train, and the planners here would not use it, since they give the learned futures the same growing radius $r + g\,t$ as constant velocity, so that the two differ only in their centres.
+
+**Training.** `tools/collect-pred.mjs` runs 48 headless missions of 150 s on L5 and L6 (seeds 21 to 44), the people scripted and reacting in turn, the robot yielding with the speed planner and driving through with Ignore in turn (so that reacting people also meet it up close), the mission looping. At every scan each confirmed lidar track within 0.8 m of a person gives a sample: its 24 inputs, and where that person really was 0.5 to 3 s later, seen through the robot's pose estimate of the moment (the true displacement from the true robot pose, placed at the estimated one), so that a localization error is not taught as motion; minus the constant-velocity points. 84 760 samples, 76 892 for training. `training/predictor/train.py` minimizes the loss above with Adam and a cosine decay, sixty epochs in ten seconds; per held-out run, at 1 s and 2 s:
+
+| Held-out run | constant velocity | learned, most probable | best of three |
+| --- | --- | --- | --- |
+| L5 seed 43, scripted, robot ignoring | 0.31 · 0.61 m | 0.18 · 0.31 m | 0.13 · 0.21 m |
+| L5 seed 44, reacting, robot yielding | 0.28 · 0.54 m | 0.24 · 0.45 m | 0.17 · 0.30 m |
+| L6 seed 43, scripted | 0.28 · 0.50 m | 0.19 · 0.28 m | 0.12 · 0.16 m |
+| L6 seed 44, reacting | 0.26 · 0.50 m | 0.21 · 0.33 m | 0.14 · 0.21 m |
+
+The weights go to `src/models/predictor.json` (67 KB), the build inlines them, and `mlpForward` runs them in plain loops for every confirmed track every scan.
+
+**In the page,** scored per scan against the truth (the error of the most probable future and of constant velocity, 1 s and 2 s after each prediction, on the tracks near a person; the predictor not in use is scored on what it would have said), L5 at seed 7, read at Mission complete:
+
+| Run | Mission complete | Contacts | Closest to a person | Constant velocity, 1 s · 2 s | Learned, 1 s · 2 s |
+| --- | --- | --- | --- | --- | --- |
+| constant velocity, scripted people | 121 s | 1 | contact | 0.24 · 0.45 m | (0.15 · 0.26 m) |
+| learned, scripted people | 119 s | 1 | contact | 0.24 · 0.46 m | 0.18 · 0.34 m |
+| constant velocity, reacting people | 122 s | 0 | 0.18 m | 0.27 · 0.55 m | (0.22 · 0.42 m) |
+| learned, reacting people | 124 s | 0 | 0.46 m | 0.23 · 0.45 m | 0.20 · 0.36 m |
+| learned, every future ≥ 20 % | 121 s | 0 | 0.14 m | 0.24 · 0.47 m | 0.16 · 0.29 m |
+| learned, ground-truth tracks | 127 s | 0 | 0.25 m | 0.03 · 0.13 m | 0.18 · 0.32 m |
+| constant velocity, L6 | 148 s | 0 | 0.32 m | 0.27 · 0.48 m | (0.21 · 0.32 m) |
+| learned, L6 | 162 s | 0 | 0.06 m | 0.25 · 0.46 m | 0.21 · 0.34 m |
+
+and over seeds 1 to 12, the same core in Node (contacts in all, the mean time to Mission complete over the runs that finished in 240 s):
+
+| Case | constant velocity | learned |
+| --- | --- | --- |
+| L5, scripted | 14 contacts, 131 s | 11 contacts, 135 s |
+| L5, reacting | 1 contact, 139 s | 0 contacts, 135 s |
+| L6, scripted | 4 contacts, 164 s | 2 contacts, 168 s |
+| L6, reacting | 0 contacts, 161 s | 0 contacts, 171 s |
+| L5, scripted, every future ≥ 20 % | | 8 contacts, 147 s |
+| L5, scripted, space-time A* | 6 contacts, 146 s (11 finished) | 11 contacts, 126 s (9 finished) |
+| L5, scripted, ground-truth tracks | 7 contacts, 139 s | 7 contacts, 139 s |
+
+The learned error at 2 s is lower than constant velocity's on every seed with lidar tracks, on both levels, scripted or reacting (by about a third with scripted people at L5, a quarter with reacting ones), and higher on every seed with ground-truth tracks (0.32 m against 0.13 m).
+
+**What it did not learn, and where constant velocity still wins.** The reading is sobering, and it is the point of the section. *A better prediction is not safer driving by itself:* the speed planner's margin and growing radius already absorb most of constant velocity's error, and the contacts that remain on L5 are scripted walkers reaching a robot that has already slowed for them, from the side or the front; the speed planner only changes the speed along a fixed path, and slowing is no escape from someone who walks through where the robot stands. The network moves such a contact to another encounter (at seeds 2, 3, 7 and 11 constant velocity's contact is at about 52 s, the network's at about 102 s); it does not remove the kind. With reacting people the gain is distance (the closest approach larger on ten seeds of twelve), not goals or seconds. *It learned the tracker as much as the people:* given exact tracks it keeps correcting a wobble that is not there, and constant velocity, which is exact for a scripted walker on a straight line, wins by a factor of two and a half. An upstream improvement (a better tracker, per-target scan matching) can make it worse. *With space-time A* it does worse* (11 contacts against 6 over twelve seeds, two more runs unfinished): that planner commits to a path through gaps in the predicted futures, and a confident wrong future, unlike a growing constant-velocity disc, leaves a gap that is not there. *It does not know the robot's plan,* only its position and velocity now, so it cannot model people who react to where the robot will be: prediction and planning each treat the other as given. *It was trained on two levels* and has not been tested on another map; the rays that let it anticipate the end of an aisle may have learned these levels' layouts. *It cannot know when a pause ends,* only how often pauses end each way, which is why the futures split near the ends of a walk (a second future of 20 % or more about half the time within a metre of the end, one time in five in mid-walk, on L6) and why the car waits longer on L6. Velocity obstacles (lesson 6) still read the track's velocity, not the learned futures, and the predictor slot of the Code tab receives the tracks, not the network's output.
+
+**Planning against three futures.** The default gives the planners the most probable future of each person. *Every future ≥ 20 %* makes each likely future an obstacle of its own: fewer contacts (8 against 11 over twelve seeds) and slower (147 s against 135 s), the robot waiting for turns that do not happen. Weighting each future by its probability inside the planner's cost, and replanning as the futures resolve, is how real stacks sit between the two; the lab offers the two ends.
+
+[try: Learned, scripted people | {"sim":true,"level":4,"set":{"agPred":"learned"},"tab":"per","layers":{"agents":true}}] [try: Where the network is wrong: perfect tracks | {"sim":true,"level":4,"set":{"agPred":"learned","agents":"truth"},"tab":"per","layers":{"agents":true}}]
+
+## 11. What to carry into the next chapters
 
 The log-odds map and the costmap are what the planners of chapter 4 search; the inflation penalty is the term that makes A* prefer the middle of an aisle, and the unknown-cell policy decides whether an unexplored room is a route or a wall. The tracks and their growing radii are what the space-time planner blocks cells with and what the speed planner slows down for, and everything in §7 is why those planners work on timestamps rather than on "now". The pattern from chapter 2 holds throughout: the covariance, or its stand-in, is consumed downstream, and a tracker that reports a velocity it does not really know yet is as dangerous to the speed planner as an overconfident EKF is to the costmap.

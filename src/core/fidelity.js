@@ -262,7 +262,7 @@ function stAstar(sx, sy, gx, gy) {
     }
   if (leth[gj * gw + gi]) return {ok: false, reason: goalBlocked(gx, gy) || 'goal is inside an inflated obstacle'};
   // agent discs per time slice
-  const ags = agList(40),
+  const ags = agListModes(40),
     marg = P.stMarg,
     discs = [];
   for (let k = 0; k < nt; k++) {

@@ -4,6 +4,22 @@ The version label in the page header (`v51 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- A learned people predictor: Perceive → Prediction → Learned (network). For each tracked person it draws three
+  possible paths for the next 3 s with a probability each (bold: likely), next to constant velocity as a grey dashed
+  line, and the speed planner, space-time A*, DWA and MPC plan against the most probable one, or, with Plan against →
+  Every future ≥ 20 %, against all the likely ones. Where people pause or reach the end of their walk, the paths
+  split.
+- The metrics now show the prediction error at 1 s and 2 s of both predictors, against where the people really
+  went, whichever one is driving; with the learned one on, the status strip shows the two at 2 s.
+- Perceive lesson 8 compares the two on scripted and reacting people, and shows where the network is worse than
+  constant velocity (perfect tracks) and what planning against every likely future costs; chapter 3 §10 derives the
+  training loss and has the measured tables. In short: the learned paths are closer to the truth on every seed,
+  but the robot touches people about as often.
+- Tools → Train can retrain the predictor: collect runs on the levels with people, train, compare with the built-in
+  model on a run it has not seen, save, and pick it under Perceive → Predictor model.
+
 ## v51 · 2026-10-20
 
 - The learned people detector (Perceive → Agent tracking → Learned detector) now also weighs how well the map

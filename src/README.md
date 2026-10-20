@@ -35,6 +35,7 @@ src/
     custom-controller.js  user code in a Web Worker
     slots.js        the other code slots (planner, localizer, predictor)
     agents.js       agent detection, tracking, prediction, ST speed planning
+    predict.js      the learned people predictor: features, three futures, the prediction score
     fidelity.js     sensor latency, reactive pedestrians, the other vehicle, the tyre model
     step.js         one simulation tick, advance()
     log.js          event log (data only)

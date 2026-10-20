@@ -594,6 +594,27 @@ function drawAgents(dpr, k, px) {
         ctx.stroke();
       }
       ctx.setLineDash([]);
+      if (P.agPred === 'learned' && t.lp) {
+        // the learned futures, the more probable the bolder, next to constant velocity (thin, dashed, grey)
+        const H = PRED_H[PRED_H.length - 1];
+        ctx.strokeStyle = rgba(TOK.muted, 0.9);
+        ctx.lineWidth = px(1);
+        ctx.setLineDash([px(4), px(3)]);
+        ctx.beginPath();
+        ctx.moveTo(t.x, t.y);
+        ctx.lineTo(t.x + t.vx * H, t.y + t.vy * H);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        for (const m of t.lp.modes) {
+          if (m.p < 0.05) continue;
+          ctx.strokeStyle = rgba(TOK.warn, 0.25 + 0.7 * m.p);
+          ctx.lineWidth = px(1 + 2.5 * m.p);
+          ctx.beginPath();
+          ctx.moveTo(t.x, t.y);
+          for (const q of m.pts) ctx.lineTo(q[0], q[1]);
+          ctx.stroke();
+        }
+      }
       ctx.strokeStyle = TOK.warn;
       ctx.lineWidth = px(2);
       ctx.beginPath();
@@ -749,9 +770,17 @@ function drawOverlays(dpr, k, px) {
       ctx.fillText('#' + t.id, sx + 2 * dpr, sy);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      if (P.agPred === 'learned' && t.lp)
+        for (const m of t.lp.modes) {
+          if (m.p < 0.05) continue;
+          const e = m.pts[m.pts.length - 1],
+            [qx, qy] = toS(e[0], e[1]);
+          ctx.fillStyle = rgba(TOK.warn, 0.95);
+          ctx.fillText(`${Math.round(100 * m.p)}%`, qx, qy - 8 * dpr);
+        }
       for (let k = 1; k <= P.agT + 1e-6; k++) {
         const q = agPred(t, k);
-        if (P.agPred !== 'cv') break;
+        if (P.agPred !== 'cv' && !(P.agPred === 'learned' && t.lp)) break;
         const [qx, qy] = toS(q[0], q[1]);
         ctx.fillStyle = rgba(TOK.warn, 0.9);
         ctx.fillText(String(k), qx, qy);

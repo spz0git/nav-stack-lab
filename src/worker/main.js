@@ -1,6 +1,7 @@
 /* ============================================================
    Headless runner (Web Worker). The same simulation core as the page, no DOM.
-   Message in:  {cmd:'run', id, level, seed, overrides:{param:value}, secs, stopWhenDone, models}
+   Message in:  {cmd:'run', id, level, seed, overrides:{param:value}, secs, stopWhenDone, models}; level: a built-in
+   level's index, a level in the format of core/levels.js or a generator spec (core/worldgen.js)
    Messages out: {id, progress} … {id, done:true, summary, ms}
    The Train tab (ui/train.js) also uses: {cmd:'collect', id, spec, models} → {id, done, data} (core/dataset.js);
    {cmd:'tdata', id, X, Y, model, task} gives a worker its shard of the training set, then {cmd:'tgrad', id, w, idx}
@@ -92,10 +93,32 @@ self.__core = {
   get P() {
     return P;
   },
+  levelOf,
+  levelToJSON,
+  levelFromJSON,
+  levelRef,
+  genLevel,
+  genSpec,
+  GEN_FAMILIES,
   RES,
-  GW,
-  GH,
-  NC
+  get LV() {
+    return LV;
+  },
+  get W() {
+    return W;
+  },
+  get H() {
+    return H;
+  },
+  get GW() {
+    return GW;
+  },
+  get GH() {
+    return GH;
+  },
+  get NC() {
+    return NC;
+  }
 };
 const TR = {X: null, Y: null, model: null, task: null};
 async function trainMsg(m) {

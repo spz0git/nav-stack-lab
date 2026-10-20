@@ -3,7 +3,10 @@
    ============================================================ */
 const Rc = (x, y, w, h) => ({t: 'r', x, y, w, h}),
   Ci = (x, y, r) => ({t: 'c', x, y, r});
-const BORDER = [Rc(0, 0, 24, 0.2), Rc(0, 15.8, 24, 0.2), Rc(0, 0, 0.2, 16), Rc(23.8, 0, 0.2, 16)];
+// The outer walls of a w × h floor, 0.2 m thick; marked, so that an empty floor (Mission → Map) keeps them
+const border = (w, h) =>
+  [Rc(0, 0, w, 0.2), Rc(0, h - 0.2, w, 0.2), Rc(0, 0, 0.2, h), Rc(w - 0.2, 0, 0.2, h)].map(s => ({...s, border: true}));
+const BORDER = border(24, 16);
 function warehouse() {
   const s = [...BORDER];
   for (const y of [3.2, 6.4, 9.6, 12.8]) {
@@ -61,6 +64,7 @@ const LEVELS = [
   {
     id: 'L1',
     name: 'Open floor',
+    size: [24, 16],
     adds: 'Perfect pose and a known map, a few pillars, straight-line paths. Everything is ideal except the controller, so this is where you tune tracking.',
     tries: [
       {
@@ -120,6 +124,7 @@ const LEVELS = [
   {
     id: 'L2',
     name: 'Warehouse aisles',
+    size: [24, 16],
     adds: 'Shelving rows block straight lines. Pose and map are still perfect, so the global planner is the only thing that changes outcomes.',
     tries: [
       {
@@ -177,6 +182,7 @@ const LEVELS = [
   {
     id: 'L3',
     name: 'Noisy odometry',
+    size: [24, 16],
     adds: 'Wheel odometry is noisy and slightly miscalibrated. The filter is not told about the calibration bias. Wall beacons give range and bearing.',
     tries: [
       {
@@ -249,6 +255,7 @@ const LEVELS = [
   {
     id: 'L4',
     name: 'Unknown building',
+    size: [24, 16],
     adds: 'No prior map. Lidar builds an occupancy grid in the estimated frame, and the planner treats unknown space as free and replans as walls appear.',
     tries: [
       {t: '<b>Mission:</b> follow the replans in the event log as rooms are discovered.', b: [['Run', {tab: 'mis'}]]},
@@ -329,6 +336,7 @@ const LEVELS = [
   {
     id: 'L5',
     name: 'Busy floor',
+    size: [24, 16],
     adds: 'Prior map, but people walk the aisles. A lidar tracker estimates where they are and how fast they move, and a speed planner predicts where they will be. Acceleration limits and actuator lag are on, and beacons are unlabeled with false detections.',
     tries: [
       {
@@ -421,6 +429,7 @@ const LEVELS = [
   {
     id: 'L6',
     name: 'Parking lot',
+    size: [24, 16],
     adds: 'The robot becomes a car: kinematic bicycle model, 32° steering limit, a turning radius near 1 m, and a body that cannot turn in place. Goals now carry a heading: reverse into a bay, nose into another, then parallel park. People cross the lanes on their way to and from cars, pausing before they turn back.',
     tries: [
       {
@@ -563,6 +572,7 @@ const LEVELS = [
   {
     id: 'L7',
     name: 'Moose test',
+    size: [24, 16],
     adds: "Speed. The car with tyre slip, on the slippery floor, enters a two-lane road at 3.5 m/s, above its characteristic speed of 2.6 m/s. A box blocks the right lane, a second one the left lane 7 m on: swerve left, then back (a slalom like the moose test). The map is known and the plan is fixed; what decides the run is whether the controller's model knows the tyres. The MPC starts with the kinematic model.",
     tries: [
       {

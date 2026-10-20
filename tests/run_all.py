@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-# Runs the test gate: test.py, p5test.py, tles.py, chtest.py, dyntest.py, extest.py, trtest.py (about six minutes), from any directory.
-#   python3 tests/run_all.py            the seven gate tests
+# Runs the test gate: test.py, p5test.py, tles.py, chtest.py, dyntest.py, extest.py, trtest.py, lvtest.py (about seven minutes), from any directory.
+#   python3 tests/run_all.py            the eight gate tests
 #   python3 tests/run_all.py p5test     a subset, by name
 #   python3 tests/run_all.py --quick    passes --quick to dyntest.py
 # Each script's output is shown as it runs; at the end a table says which passed. A test passes when it exits 0 and
 # prints its "no errors" marker (ERRORS [] etc.). Exit status 1 if any failed.
 import os,re,subprocess,sys,time
 HERE=os.path.dirname(os.path.abspath(__file__))
-GATE=[('test.py',[r'ERRORS: \[\]']),('p5test.py',[r'ERRORS \[\]']),('tles.py',[r'ERR \[\]']),('chtest.py',[r'ERRORS \[\]']),('dyntest.py',[r'ERRORS: \[\]',r'FAILS: \[\]']),('extest.py',[r'ERRORS: \[\]',r'FAILS: \[\]']),('trtest.py',[r'ERRORS \[\]'])]
+GATE=[('test.py',[r'ERRORS: \[\]']),('p5test.py',[r'ERRORS \[\]']),('tles.py',[r'ERR \[\]']),('chtest.py',[r'ERRORS \[\]']),('dyntest.py',[r'ERRORS: \[\]',r'FAILS: \[\]']),('extest.py',[r'ERRORS: \[\]',r'FAILS: \[\]']),('trtest.py',[r'ERRORS \[\]']),('lvtest.py',[r'ERRORS \[\]'])]
 args=[a for a in sys.argv[1:] if not a.startswith('--')]; flags=[a for a in sys.argv[1:] if a.startswith('--')]
 todo=[g for g in GATE if not args or g[0] in args or g[0][:-3] in args]
 if args and not todo: sys.exit('no such test; gate tests: '+', '.join(n for n,_ in GATE))

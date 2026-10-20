@@ -1,12 +1,18 @@
 /* ============================================================
    Constants & helpers
    ============================================================ */
-const W = 24,
+// The world's size is the level's (setWorld, called by loadLevel): W × H metres on a grid of RES cells, GW × GH of
+// them, NC in all. The built-in levels are 24 × 16 m; a custom or generated one may be up to WORLD_MAX (its area at
+// most WORLD_AREA, so that the grids a phone rebuilds stay small enough).
+let W = 24,
   H = 16,
-  RES = 0.1,
   GW = 240,
   GH = 160,
-  NC = GW * GH,
+  NC = GW * GH;
+const WORLD_MIN = [8, 6],
+  WORLD_MAX = [48, 32],
+  WORLD_AREA = 48 * 32;
+const RES = 0.1,
   DT = 0.05,
   RR = 0.3,
   LETHAL = 0.4,
@@ -72,6 +78,19 @@ function makeRng(seed) {
       return r * Math.cos(TAU * b);
     }
   };
+}
+// Sets the world's size (metres, a multiple of 0.4 m, the paint grid's cell); the grids that depend on it follow
+function setWorld(w, h) {
+  if (w === W && h === H) return false;
+  W = w;
+  H = h;
+  GW = Math.round(W / RES);
+  GH = Math.round(H / RES);
+  NC = GW * GH;
+  PGW = Math.round(W / PAINT);
+  PGH = Math.round(H / PAINT);
+  hySize();
+  return true;
 }
 const cellI = x => Math.floor(x / RES),
   cellIdx = (x, y) => {

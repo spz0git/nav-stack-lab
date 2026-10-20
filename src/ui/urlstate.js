@@ -1,6 +1,7 @@
 /* ============================================================
    URL state (Phase 2.3): the hash always says what the page shows. In Simulate and Analyze it is the setup link
-   (#l=L3&seed=7&loc=ekf…, as Copy link writes it) plus mode=an in Analyze and t=<s> while a recorded moment is
+   (#l=L3&seed=7&loc=ekf…, as Copy link writes it; a custom level is l=C with the level itself, lz= deflated or lj= plain
+   JSON in base64url, a generated one l=G&gen=family:…,seed:…) plus mode=an in Analyze and t=<s> while a recorded moment is
    replayed; in Learn it is #learn, #lesson=… or #notes=… (learn.js, chapters.js). Written with replaceState, so the
    back button is untouched and a pasted link reproduces the setup; a link with t= runs the setup headless to that
    moment and shows it paused. Writes are debounced and skipped when nothing changed.
@@ -38,7 +39,7 @@ function hashSoon() {
   hashTimer = setTimeout(hashSync, 250);
 }
 // A pasted or edited setup link while the page is open: apply it (our own writes do not fire hashchange)
-window.addEventListener('hashchange', () => {
+window.addEventListener('hashchange', async () => {
   const h = location.hash.slice(1);
   if (h === hashLast) return;
   if (h === 'learn') {
@@ -46,9 +47,9 @@ window.addEventListener('hashchange', () => {
     hashLast = h;
     return;
   }
-  const c = configFromHash();
-  if (!c) return;
   try {
+    const c = await configResolve(configFromHash());
+    if (!c) return;
     applyConfig(c);
     hashLast = h;
     if (c.mode === 'an') setMode('an');

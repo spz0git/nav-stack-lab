@@ -1,1 +1,1 @@
-{"version": 51, "date": "2026-10-20", "note": "The learned people detector weighs the map's evidence and was retrained on built and drifting maps: no phantom people on walls; lesson 7 shows where it beats the rule (PR #104)"}
+{"version": 52, "date": "2026-10-20", "note": "A learned people predictor (three futures per person), Perceive lesson 8; the page carries its models once and is 0.7 MB lighter (PRs #105, #106)"}

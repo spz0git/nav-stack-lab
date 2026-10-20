@@ -1,10 +1,10 @@
 # Changelog
 
-The version label in the page header (`v51 · 2026-10-20`) is the number used here; `src/version.json` holds it.
+The version label in the page header (`v52 · 2026-10-20`) is the number used here; `src/version.json` holds it.
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v52 · 2026-10-20
 
 - A learned people predictor: Perceive → Prediction → Learned (network). For each tracked person it draws three
   possible paths for the next 3 s with a probability each (bold: likely), next to constant velocity as a grey dashed
@@ -19,7 +19,7 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   but the robot touches people about as often.
 - Tools → Train can retrain the predictor: collect runs on the levels with people, train, compare with the built-in
   model on a run it has not seen, save, and pick it under Perceive → Predictor model.
-- The page is about 0.7 MB lighter: the learned models were included twice.
+- The page is about 0.7 MB lighter: the learned models were included twice. (PRs #105, #106)
 
 ## v51 · 2026-10-20
 

@@ -1661,7 +1661,20 @@ const DEFAULTS = {
   people: 'scripted',
   sensLat: 0,
   vehicles: true,
-  guard: false
+  guard: false,
+  // the ultrasonic ring (core/sensors.js), off by default; what reads it: mapSrc, guardSrc, pfSonar
+  sonar: false,
+  sonN: 8, // sonars round the hull (4–16)
+  sonBeam: 30, // each cone's beam width [°]
+  sonMax: 4, // reach [m]
+  sonMin: 0.2, // dead zone: echoes closer than this are lost in the ring-down [m]
+  sonSig: 0.01, // range noise σ [m]
+  sonSpec: 30, // incidence beyond which a surface sends the echo away (specular) [°]
+  sonXt: 2, // crosstalk: share of readings that are a neighbour's echo [%]
+  sonPing: 0.05, // time per ping; the ring fires in turn, one cycle is sonN pings [s]
+  mapSrc: 'lidar', // what builds the occupancy map with the sonar on: lidar, sonar or both
+  guardSrc: 'lidar', // what the safety stop reads with the sonar on: lidar, sonar or both
+  pfSonar: false // the particle filter also weights particles by the sonars against the prior map
 };
 const P = {...DEFAULTS};
 // The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
@@ -1684,7 +1697,9 @@ const PARAM_OPTS = {
   model: ['diff', 'car'],
   carPhys: ['kin', 'dyn'],
   people: ['scripted', 'reactive'],
-  map: ['level', 'empty']
+  map: ['level', 'empty'],
+  mapSrc: ['lidar', 'sonar', 'both'],
+  guardSrc: ['lidar', 'sonar', 'both']
 };
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
@@ -1719,7 +1734,8 @@ const LAYERS = {
   sweep: true,
   frontier: true,
   graph: true,
-  vo: true
+  vo: true,
+  sonar: true
 };
 
 /* ---- core/record.js ---- */
@@ -1747,6 +1763,7 @@ function recFrame() {
     peds: S.peds.map(p => ({x: p.x, y: p.y, vx: p.vx || 0, vy: p.vy || 0, r: p.r, wait: p.wait || 0})),
     scan: sc,
     lastZ: S.lastZ,
+    sonArcs: S.sonArcs || null, // replaced, not changed, at each delivery (sonarApply)
     bDown: S.bDown ? S.bDown.slice() : null,
     nT: S.trailT.length,
     nE: S.trailE.length,
@@ -2819,6 +2836,8 @@ function beaconUse() {
   if (P.loc === 'dr') return 'dead reckoning never uses the beacons (odometry only)';
   if (P.loc === 'pf' && P.pfLidar && P.per === 'oracle')
     return 'the particle filter also matches lidar against the prior map, so it can localize without beacons';
+  if (P.loc === 'pf' && P.pfSonar && P.sonar && P.per === 'oracle')
+    return 'the particle filter also matches the sonar ring against the prior map, so it can localize without beacons';
   if (P.loc === 'pgslam') return 'pose-graph SLAM uses the lidar only: the beacons are ignored';
   if (P.loc === 'ekf' && P.scanMatch && P.per === 'oracle')
     return 'the EKF also matches the lidar scan against the prior map, so it can localize without beacons';
@@ -2882,6 +2901,167 @@ function senseBeacons() {
   }
   return out;
 }
+
+/* ---------- ultrasonic ring (P.sonar; off by default) ----------
+   P.sonN transducers spaced evenly round the hull, each a cone P.sonBeam wide that reports one number: the range of
+   the nearest echo anywhere in the cone, from a fan of rays SON_FAN° apart. Each ray stops at the first thing it hits;
+   its echo comes back only if the surface faces the sensor (incidence under P.sonSpec, a specular reflector otherwise
+   sends it away), only if it is beyond the ring-down dead zone P.sonMin, and only inside the reach P.sonMax. No echo
+   at all reads as the maximum range. With probability P.sonXt a sonar hears a neighbour's echo instead of its own.
+   The sonars fire in turn, one ping every P.sonPing seconds, so the ring's cycle is N · ping (0.4 s for 8 at 50 ms,
+   against the lidar's 0.1 s): each reading is as old as the time since that sonar last fired. The lab models no
+   materials: glass and dark surfaces, which a lidar can miss and a sonar sees, are walls like any other here.
+   Sensors registry: when SENSORS exists, its entry is {key: 'sonar', label: 'Ultrasonic ring', flag: 'sonar', feeds:
+   'mapping (P.mapSrc), the safety stop (P.guardSrc), the particle filter (P.pfSonar), the Code tab's localizer and predictor'}. */
+const SON_FAN = 2; // degrees between the rays of a cone's fan
+// a sonar's mount on the hull and its axis, in the body frame: the circle of radius RR (unicycle), the body's rectangle (car)
+function sonMountB(i, N) {
+  const phi = (i * TAU) / N;
+  if (!isCar()) return {x: RR * Math.cos(phi), y: RR * Math.sin(phi), a: phi};
+  const hl = carLen() / 2,
+    hw = CAR.width / 2,
+    c = Math.cos(phi),
+    s = Math.sin(phi),
+    t = Math.min(Math.abs(c) > 1e-9 ? hl / Math.abs(c) : Infinity, Math.abs(s) > 1e-9 ? hw / Math.abs(s) : Infinity),
+    off = carLen() / 2 - CAR.rear;
+  return {x: off + t * c, y: t * s, a: phi};
+}
+// rayCast with the cosine of the incidence angle at the hit (1: the surface faces the ray, 0: grazing)
+function sonRay(ox, oy, dx, dy, maxR, shapes) {
+  let best = maxR,
+    cs = 0;
+  for (const s of shapes) {
+    if (s.t === 'r') {
+      let tmin = -Infinity,
+        tmax = Infinity,
+        ax = 0;
+      if (Math.abs(dx) < 1e-12) {
+        if (ox < s.x || ox > s.x + s.w) continue;
+      } else {
+        const t1 = (s.x - ox) / dx,
+          t2 = (s.x + s.w - ox) / dx;
+        tmin = Math.min(t1, t2);
+        tmax = Math.max(t1, t2);
+      }
+      if (Math.abs(dy) < 1e-12) {
+        if (oy < s.y || oy > s.y + s.h) continue;
+      } else {
+        const t1 = (s.y - oy) / dy,
+          t2 = (s.y + s.h - oy) / dy;
+        if (Math.min(t1, t2) > tmin) {
+          tmin = Math.min(t1, t2);
+          ax = 1;
+        }
+        tmax = Math.min(tmax, Math.max(t1, t2));
+      }
+      if (tmin <= tmax && tmin >= 0 && tmin < best) {
+        best = tmin;
+        cs = Math.abs(ax ? dy : dx);
+      }
+    } else {
+      const fx = ox - s.x,
+        fy = oy - s.y,
+        b = fx * dx + fy * dy,
+        c = fx * fx + fy * fy - s.r * s.r,
+        disc = b * b - c;
+      if (disc < 0) continue;
+      const t = -b - Math.sqrt(disc);
+      if (t >= 0 && t < best) {
+        best = t;
+        cs = Math.abs(((fx + t * dx) * dx + (fy + t * dy) * dy) / s.r);
+      }
+    }
+  }
+  return {d: best, c: cs};
+}
+// One cone's echo from the true pose: {d, why}, d = Infinity when nothing answers; why: ok, spec (every hit too oblique),
+// dead (the only hits inside the dead zone), none (nothing within reach)
+function sonEcho(i, N, sh) {
+  const r = S.robot,
+    m = sonMountB(i, N),
+    c = Math.cos(r.th),
+    s = Math.sin(r.th),
+    ox = r.x + m.x * c - m.y * s,
+    oy = r.y + m.x * s + m.y * c,
+    w = (P.sonBeam * Math.PI) / 180,
+    nr = Math.max(3, Math.round(P.sonBeam / SON_FAN) + 1),
+    cmin = Math.cos((P.sonSpec * Math.PI) / 180);
+  let d = Infinity,
+    spec = false,
+    dead = false;
+  for (let k = 0; k < nr; k++) {
+    const a = r.th + m.a - w / 2 + (k * w) / (nr - 1),
+      h = sonRay(ox, oy, Math.cos(a), Math.sin(a), P.sonMax, sh);
+    if (h.d >= P.sonMax) continue;
+    if (h.d < P.sonMin) dead = true;
+    else if (h.c < cmin - 1e-9) spec = true;
+    else if (h.d < d) d = h.d;
+  }
+  return {d, why: d < Infinity ? 'ok' : spec ? 'spec' : dead ? 'dead' : 'none'};
+}
+// @code sonar-sense | sonarSense: a ring of cones fired in turn, each reporting its nearest echo
+function sonarSense() {
+  const N = clamp(Math.round(P.sonN), 4, 16);
+  if (!S.son || S.son.N !== N) S.son = {N, next: 0, acc: 0, g: makeRng(P.seed * 6151 + 5)}; // its own noise stream
+  const R = S.son,
+    g = R.g,
+    sh = allShapes(),
+    out = [],
+    ping = Math.max(10, Math.round(1000 * P.sonPing));
+  R.acc += Math.round(1000 * DT);
+  while (R.acc >= ping) {
+    R.acc -= ping;
+    const i = R.next;
+    R.next = (i + 1) % N;
+    let e = sonEcho(i, N, sh);
+    if (P.sonXt > 0 && g.u() < P.sonXt / 100) {
+      const j = (i + (g.u() < 0.5 ? N - 1 : 1)) % N; // a neighbour's ping, heard by this sonar
+      e = {...sonEcho(j, N, sh), why: 'xt'};
+    }
+    const m = sonMountB(i, N),
+      d = e.d < Infinity ? clamp(e.d + P.sonSig * g.n(), P.sonMin, P.sonMax) : P.sonMax;
+    out.push({i, r: d, max: e.d === Infinity, why: e.why, mx: m.x, my: m.y, a: m.a, w: (P.sonBeam * Math.PI) / 180, t: S.t});
+  }
+  return out;
+}
+// @end
+// The ring's cycle: how old the oldest reading is [s]
+const sonCycle = () => clamp(Math.round(P.sonN), 4, 16) * Math.max(0.01, P.sonPing);
+// Readings delivered (after the sensor latency, like the lidar): placed with the estimate now, as the lidar's hits are,
+// kept per sonar in S.sonArcs (what the map draws and the safety stop reads), and passed to whatever uses them
+function sonarApply(list) {
+  const e = S.est,
+    c = Math.cos(e.th),
+    s = Math.sin(e.th),
+    N = clamp(Math.round(P.sonN), 4, 16);
+  if (!S.sonArcs || S.sonArcs.length !== N) S.sonArcs = new Array(N).fill(null);
+  S.sonArcs = S.sonArcs.slice(); // a new array per delivery: a replay frame keeps the one it saw
+  for (const z of list) {
+    const A = {...z, x: e.x + z.mx * c - z.my * s, y: e.y + z.mx * s + z.my * c, th: e.th + z.a};
+    S.sonArcs[z.i] = A;
+    if (P.per === 'mapping' && P.mapSrc !== 'lidar') integrateSonar(A);
+  }
+  if (P.loc === 'pf' && P.pfSonar && P.per === 'oracle') pfSonarUpdate(list);
+  S.sonTick = S.tick;
+}
+// The returned arcs as points for the safety stop: an echo says something is at that range somewhere in the cone, so
+// every point of the arc counts (one per 3°); readings older than two ring cycles are dropped
+function sonarPts() {
+  const out = [],
+    old = S.t - 2 * sonCycle() - 1e-6;
+  for (const A of S.sonArcs || []) {
+    if (!A || A.max || A.t < old) continue;
+    const n = Math.max(2, Math.round((A.w * 180) / Math.PI / 3));
+    for (let k = 0; k <= n; k++) {
+      const a = A.th - A.w / 2 + (k * A.w) / n;
+      out.push([A.x + A.r * Math.cos(a), A.y + A.r * Math.sin(a)]);
+    }
+  }
+  return out;
+}
+// What the Code tab's localizer and predictor receive: the readings delivered this tick, in the body frame
+const sonarObs = list =>
+  list ? list.map(z => ({i: z.i, r: +z.r.toFixed(4), max: z.max, bearing: z.a, width: z.w, mount: [z.mx, z.my]})) : null;
 
 /* ---- core/localization.js ---- */
 /* ============================================================
@@ -2995,6 +3175,7 @@ function locPredict() {
     const mv = Math.abs(v) * DT + 0.5 * Math.abs(w) * DT;
     f.mB += mv;
     f.mL += mv;
+    f.mS = (f.mS || 0) + mv; // since the last sonar weighting (pfSonarUpdate)
     pfEstimate();
   }
 }
@@ -3136,6 +3317,62 @@ function pfLidarUpdate(ranges) {
   }
   pfResample(0, null);
 }
+// @code pf-sonar | pfSonarUpdate: weighting the particles by the sonars against the prior map (the cone likelihood)
+// For each reading, the range the particle expects is the nearest obstacle of the prior map inside that sonar's cone,
+// beyond the dead zone and within reach, from SON_LRAYS rays marched on the map's distance field. A returned reading is
+// scored by a Gaussian on its difference from the expectation, with a floor for what the map cannot explain (people,
+// crosstalk); a reading at maximum range by how often a cone reads nothing: nearly always when the map has nothing in
+// reach, SON_PDROP of the time when it has (a specular miss). Chapter 3 §11 derives it. Standing still, nothing is
+// weighted: the same readings again are not new evidence.
+const SON_LRAYS = 7,
+  SON_PDROP = 0.3;
+function sonExpect(D, ox, oy, th, z) {
+  let best = P.sonMax;
+  for (let k = 0; k < SON_LRAYS; k++) {
+    const a = th + z.a - z.w / 2 + (k * z.w) / (SON_LRAYS - 1),
+      c = Math.cos(a),
+      s = Math.sin(a);
+    for (let t = P.sonMin; t < best;) {
+      const idx = cellIdx(ox + t * c, oy + t * s);
+      if (idx < 0) {
+        best = t; // the edge of the world is a wall
+        break;
+      }
+      const d = D[idx];
+      if (d < RES / 2) {
+        best = t;
+        break;
+      }
+      t += Math.max(d - RES / 2, RES / 2);
+    }
+  }
+  return best;
+}
+function pfSonarUpdate(list) {
+  const f = S.pf,
+    N = f.N,
+    D = LV.truthDist,
+    SIG = 0.15,
+    TEMPER = 0.5;
+  if (!list.length || (f.mS || 0) < 0.02) return;
+  f.mS = 0;
+  for (let i = 0; i < N; i++) {
+    const x = f.x[i],
+      y = f.y[i],
+      th = f.th[i],
+      c = Math.cos(th),
+      s = Math.sin(th);
+    let ll = 0;
+    for (const z of list) {
+      const ex = sonExpect(D, x + z.mx * c - z.my * s, y + z.mx * s + z.my * c, th, z);
+      const p = z.max ? (ex >= P.sonMax - 1e-6 ? 0.9 : SON_PDROP) : 0.85 * Math.exp(-0.5 * ((z.r - ex) / SIG) ** 2) + 0.05;
+      ll += Math.log(p);
+    }
+    f.lw[i] += TEMPER * ll;
+  }
+  pfResample(0, null);
+}
+// @end
 // @code pf-resample | pfResample: N_eff, low-variance resampling and the injected samples
 function pfResample(pinj, z) {
   const f = S.pf,
@@ -4256,6 +4493,49 @@ function segClear(ax, ay, bx, by, margin, allowExit) {
   }
   return true;
 }
+// @code sonar-arc | integrateSonar: one sonar reading into the log-odds grid (the arc inverse sensor model)
+// A reading at range r says: something on the arc at r inside the cone echoed, and nothing inside the cone before it
+// did. The echo's bearing within the cone is unknown, so the occupied evidence is shared over the n cells of the arc
+// that could have echoed, those the map does not already know to be free (l above L_KNOWN): each is the obstacle with
+// probability 1/n, which in log-odds is ln((n + 1)/(n − 1)) (chapter 3 §11), capped at the lidar's hit. As other cones
+// clear the cells in front of a wall, n shrinks and the arc's evidence gathers on the wall. The cells before the arc
+// get L_SFREE, weaker than a lidar beam's: a surface too oblique to echo can sit inside a cone that read farther.
+// A reading at maximum range (no echo) is no evidence: an empty cone and a specular miss read the same.
+const L_SFREE = -0.2,
+  L_KNOWN = -0.5;
+function integrateSonar(A) {
+  if (A.max) return;
+  const lo = S.lo,
+    r = A.r,
+    half = A.w / 2,
+    band = RES * 0.71, // half the arc's thickness: a cell whose centre is within it is on the arc
+    i0 = Math.max(0, cellI(A.x - r - RES)),
+    i1 = Math.min(GW - 1, cellI(A.x + r + RES)),
+    j0 = Math.max(0, cellI(A.y - r - RES)),
+    j1 = Math.min(GH - 1, cellI(A.y + r + RES)),
+    arc = [],
+    free = [];
+  for (let j = j0; j <= j1; j++)
+    for (let i = i0; i <= i1; i++) {
+      const dx = (i + 0.5) * RES - A.x,
+        dy = (j + 0.5) * RES - A.y,
+        rho = hyp(dx, dy);
+      if (rho > r + band || Math.abs(wrap(Math.atan2(dy, dx) - A.th)) > half) continue;
+      (rho >= r - band ? arc : free).push(j * GW + i);
+    }
+  const cand = arc.filter(idx => lo[idx] > L_KNOWN || lo[idx] === L_GAP),
+    n = cand.length,
+    lArc = n > 1 ? Math.min(L_OCC, Math.log((n + 1) / (n - 1))) : L_OCC;
+  for (const idx of free) {
+    if (lo[idx] === L_GAP) lo[idx] = 0;
+    lo[idx] = clamp(lo[idx] + L_SFREE, -L_CLAMP, L_CLAMP);
+  }
+  for (const idx of cand) {
+    if (lo[idx] === L_GAP) lo[idx] = 0;
+    lo[idx] = clamp(lo[idx] + lArc, -L_CLAMP, L_CLAMP);
+  }
+}
+// @end
 
 /* ---- core/planning.js ---- */
 /* ============================================================
@@ -7153,6 +7433,14 @@ function builtinCmd() {
 // that the arc approaches. DWA and MPC check the scan themselves; a controller in the Code tab gets the guard like the trackers.
 const GUARD_CTL = ['pp', 'pid', 'stanley', 'rwf', 'custom'], // your code is a path tracker too (switch the guard off to drive without it)
   GUARD_MARG = 0.05;
+// What the safety stop reads (P.guardSrc, with the ultrasonic ring on): the lidar's hits, the sonars' arcs, or both
+const guardLidar = () => !P.sonar || P.guardSrc !== 'sonar',
+  guardSonar = () => !!P.sonar && P.guardSrc !== 'lidar',
+  guardSrcName = () => (guardLidar() ? (guardSonar() ? 'lidar and sonar' : 'lidar') : 'sonar');
+function guardPts() {
+  const L = guardLidar() ? S.scanPts : [];
+  return guardSonar() ? L.concat(sonarPts()) : L;
+}
 function lidarGuard(c) {
   S.guard = null;
   if (!P.guard || !GUARD_CTL.includes(P.ctl) || S.fsm.state !== 'DRIVE' || !S.track) return c;
@@ -7162,7 +7450,7 @@ function lidarGuard(c) {
   const e = S.est,
     A = P.accel ? P.amax : 0.8,
     D = Math.min(3, (sp * sp) / (2 * A) + 0.4),
-    pts = S.scanPts.filter(p => hyp(p[0] - e.x, p[1] - e.y) < D + 1);
+    pts = guardPts().filter(p => hyp(p[0] - e.x, p[1] - e.y) < D + 1);
   if (!pts.length) return c;
   const k = isCar() ? Math.tan(c.steer != null ? c.steer : 0) / P.wheelbase : (c.w || 0) / v; // curvature per metre driven (signed with v)
   const clear = (x, y, th) => {
@@ -7197,7 +7485,10 @@ function lidarGuard(c) {
   S.guard = {free, v: vm};
   if (!S.guardLogT || S.t - S.guardLogT > 3) {
     S.guardLogT = S.t;
-    logE(`Safety stop: lidar points ${free.toFixed(2)} m ahead on the commanded arc · speed capped at ${vm.toFixed(2)} m/s`, 'warn');
+    logE(
+      `Safety stop: ${guardSrcName()} points ${free.toFixed(2)} m ahead on the commanded arc · speed capped at ${vm.toFixed(2)} m/s`,
+      'warn'
+    );
   }
   const o = {...c, v: v * f};
   if (!isCar() && o.w != null) o.w = c.w * f;
@@ -7488,6 +7779,7 @@ async function customLocalize() {
     beacons: z,
     map: S.beacons.map(b => ({id: b.id, x: b.x, y: b.y})),
     scan: S.deliv && S.deliv.scan ? Array.from(S.deliv.scan) : null,
+    sonar: P.sonar && S.deliv ? sonarObs(S.deliv.sonar) : null, // the ultrasonic readings delivered this tick
     field: first && P.per === 'oracle' ? {w: GW, h: GH, res: RES, dist: Array.from(LV.truthDist)} : null, // the prior map, once
     t: S.t
   };
@@ -7520,7 +7812,14 @@ async function customPredict() {
       horizon: P.agT,
       dt,
       grid: {w: GW, h: GH, res: RES},
-      lethal: LV.truthOcc
+      lethal: LV.truthOcc,
+      // the ultrasonic ring's latest arc per sonar, placed with the estimate (world frame), and how old it is
+      sonar:
+        P.sonar && S.sonArcs
+          ? S.sonArcs
+              .filter(Boolean)
+              .map(A => ({i: A.i, r: A.r, max: A.max, x: A.x, y: A.y, th: A.th, width: A.w, age: +(S.t - A.t).toFixed(2)}))
+          : null
     };
   const r = await w.call(obs);
   if (!r.ok) {
@@ -9635,7 +9934,7 @@ function sensEnqueue(kind, data) {
 }
 // @code sens-deliver | sensDeliver: readings delivered late, by latency
 function sensDeliver() {
-  S.deliv = {scan: null, z: null};
+  S.deliv = {scan: null, z: null, sonar: null};
   if (!S.sensQ || !S.sensQ.length) return;
   const keep = [];
   for (const it of S.sensQ) {
@@ -9646,6 +9945,9 @@ function sensDeliver() {
     if (it.kind === 'lidar') {
       lidarApply(it.data);
       S.deliv.scan = it.data;
+    } else if (it.kind === 'sonar') {
+      sonarApply(it.data);
+      S.deliv.sonar = it.data;
     } else {
       beaconsApply(it.data);
       S.deliv.z = it.data;
@@ -9665,7 +9967,7 @@ function lidarApply(ranges) {
   }
   S.scanPts = pts;
   S.scanTick = S.tick;
-  if (P.per === 'mapping') integrateScan(ranges);
+  if (P.per === 'mapping' && (P.mapSrc !== 'sonar' || !P.sonar)) integrateScan(ranges); // Map source: the lidar unless sonar only
   if (P.loc === 'pf' && P.pfLidar && P.per === 'oracle' && S.tick % 4 === 3) pfLidarUpdate(ranges);
   if (P.loc === 'ekf' && P.scanMatch && P.per === 'oracle' && S.tick % 4 === 3) ekfScanUpdate(ranges); // 5 Hz, like the PF's
   if (P.loc === 'pgslam') pgLidar(ranges);
@@ -10011,6 +10313,7 @@ function preSense() {
   if (P.loc !== 'custom') locPredict();
   if (S.tick % 2 === 1) sensEnqueue('lidar', lidarSense());
   if (S.tick % 4 === 1) sensEnqueue('beacons', senseBeacons());
+  if (P.sonar) sensEnqueue('sonar', sonarSense()); // the ultrasonic ring fires its own schedule (core/sensors.js)
   sensDeliver();
   if (P.loc === 'truth') S.est = {x: S.robot.x, y: S.robot.y, th: S.robot.th};
 }

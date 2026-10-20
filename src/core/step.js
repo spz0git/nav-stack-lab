@@ -9,6 +9,7 @@ function preSense() {
   if (P.loc !== 'custom') locPredict();
   if (S.tick % 2 === 1) sensEnqueue('lidar', lidarSense());
   if (S.tick % 4 === 1) sensEnqueue('beacons', senseBeacons());
+  if (P.sonar) sensEnqueue('sonar', sonarSense()); // the ultrasonic ring fires its own schedule (core/sensors.js)
   sensDeliver();
   if (P.loc === 'truth') S.est = {x: S.robot.x, y: S.robot.y, th: S.robot.th};
 }

@@ -822,7 +822,7 @@ const SCHEMA = {
     {k: 'alpha', label: 'Angular accel', min: 0.2, max: 8, step: 0.1, unit: 'rad/s²', show: () => P.accel && !isCar()},
     {k: 'lag', label: 'Actuator lag τ', min: 0, max: 0.6, step: 0.01, unit: 's'},
     {k: 'latency', label: 'Control latency (whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
-    {k: 'sensLat', label: 'Sensor latency (lidar and beacons, whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
+    {k: 'sensLat', label: 'Sensor latency (lidar, beacons and sonar, whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
     {
       k: 'people',
       type: 'seg',
@@ -839,3 +839,69 @@ const SCHEMA = {
     {k: 'seed', label: 'Random seed (applies on Reset)', min: 1, max: 99, step: 1}
   ]
 };
+
+// The ultrasonic ring's settings (core/sensors.js; P.sonar is off by default), kept in one block and placed into the
+// tabs: the ring at the end of Perceive and what builds the map under its Map source, the cone likelihood under the
+// particle filter's lidar switch (Localize), the safety stop's source under the safety stop (Control).
+function sonarInfo() {
+  const N = clamp(Math.round(P.sonN), 4, 16),
+    gap = 360 / N - P.sonBeam;
+  return `${N} cones of ${P.sonBeam}° ${gap > 0 ? `leave ${gap.toFixed(0)}° blind between neighbours (${((100 * N * P.sonBeam) / 360).toFixed(0)} % of the circle covered)` : 'overlap: the whole circle is covered'}. The ring fires in turn, one ping every ${(1000 * P.sonPing).toFixed(0)} ms, so each sonar reads every ${sonCycle().toFixed(2)} s (the lidar every 0.1 s). A reading is one number: the nearest echo somewhere in the cone, ±${(P.sonBeam / 2).toFixed(0)}° about its axis, ${P.sonMin} to ${P.sonMax} m from the hull; a surface met at more than ${P.sonSpec}° from square-on sends the echo away and the sonar reads its maximum. <b>Good for:</b> cheap, short range, and on real robots glass and dark surfaces that a lidar can miss (the lab models no materials: here every surface reflects alike). <b>Fails:</b> the bearing within the cone, oblique walls, anything in the dead zone, crosstalk, and the slow ring. Perceive lesson 9 tries each.`;
+}
+(() => {
+  const after = (k, items) => {
+    for (const tab of Object.values(SCHEMA)) {
+      const i = tab.findIndex(f => f.k === k);
+      if (i >= 0) return tab.splice(i + 1, 0, ...items);
+    }
+    throw new Error(`schema: no setting ${k} to place the sonar's after`);
+  };
+  const on = () => P.sonar;
+  after('per', [
+    {
+      k: 'mapSrc',
+      type: 'seg',
+      label: 'What builds the map',
+      opts: [
+        ['lidar', 'Lidar'],
+        ['sonar', 'Sonar ring'],
+        ['both', 'Both']
+      ],
+      show: () => on() && P.per === 'mapping'
+    }
+  ]);
+  SCHEMA.per.push(
+    {type: 'head', label: 'Ultrasonic ring'},
+    {k: 'sonar', type: 'bool', label: 'Ultrasonic ring: sonars round the hull, each reporting the nearest echo in its cone'},
+    {k: 'sonN', label: 'Sonars', min: 4, max: 16, step: 1, show: on},
+    {k: 'sonBeam', label: 'Beam width of each cone', min: 5, max: 60, step: 1, unit: '°', show: on},
+    {k: 'sonMax', label: 'Reach', min: 1, max: 6, step: 0.25, unit: 'm', show: on},
+    {k: 'sonMin', label: 'Dead zone (ring-down)', min: 0, max: 0.5, step: 0.05, unit: 'm', show: on},
+    {k: 'sonSig', label: 'Sonar range noise σ', min: 0, max: 0.1, step: 0.005, unit: 'm', show: on},
+    {k: 'sonSpec', label: 'Specular beyond incidence', min: 5, max: 90, step: 5, unit: '°', show: on},
+    {k: 'sonXt', label: "Crosstalk (readings that are a neighbour's echo)", min: 0, max: 50, step: 1, unit: '%', show: on},
+    {k: 'sonPing', label: 'Time per ping (the ring fires in turn)', min: 0.025, max: 0.2, step: 0.025, unit: 's', show: on},
+    {type: 'info', text: sonarInfo, show: on}
+  );
+  after('pfLidar', [
+    {
+      k: 'pfSonar',
+      type: 'bool',
+      label: 'Also weight particles by the sonar ring against the prior map (cone likelihood)',
+      show: () => pf_() && P.per === 'oracle' && on()
+    }
+  ]);
+  after('guard', [
+    {
+      k: 'guardSrc',
+      type: 'seg',
+      label: 'The safety stop reads',
+      opts: [
+        ['lidar', 'Lidar'],
+        ['sonar', 'Sonar'],
+        ['both', 'Both']
+      ],
+      show: () => GUARD_CTL.includes(P.ctl) && P.guard && on()
+    }
+  ]);
+})();

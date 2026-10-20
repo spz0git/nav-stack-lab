@@ -14,6 +14,14 @@ function builtinCmd() {
 // that the arc approaches. DWA and MPC check the scan themselves; a controller in the Code tab gets the guard like the trackers.
 const GUARD_CTL = ['pp', 'pid', 'stanley', 'rwf', 'custom'], // your code is a path tracker too (switch the guard off to drive without it)
   GUARD_MARG = 0.05;
+// What the safety stop reads (P.guardSrc, with the ultrasonic ring on): the lidar's hits, the sonars' arcs, or both
+const guardLidar = () => !P.sonar || P.guardSrc !== 'sonar',
+  guardSonar = () => !!P.sonar && P.guardSrc !== 'lidar',
+  guardSrcName = () => (guardLidar() ? (guardSonar() ? 'lidar and sonar' : 'lidar') : 'sonar');
+function guardPts() {
+  const L = guardLidar() ? S.scanPts : [];
+  return guardSonar() ? L.concat(sonarPts()) : L;
+}
 function lidarGuard(c) {
   S.guard = null;
   if (!P.guard || !GUARD_CTL.includes(P.ctl) || S.fsm.state !== 'DRIVE' || !S.track) return c;
@@ -23,7 +31,7 @@ function lidarGuard(c) {
   const e = S.est,
     A = P.accel ? P.amax : 0.8,
     D = Math.min(3, (sp * sp) / (2 * A) + 0.4),
-    pts = S.scanPts.filter(p => hyp(p[0] - e.x, p[1] - e.y) < D + 1);
+    pts = guardPts().filter(p => hyp(p[0] - e.x, p[1] - e.y) < D + 1);
   if (!pts.length) return c;
   const k = isCar() ? Math.tan(c.steer != null ? c.steer : 0) / P.wheelbase : (c.w || 0) / v; // curvature per metre driven (signed with v)
   const clear = (x, y, th) => {
@@ -58,7 +66,10 @@ function lidarGuard(c) {
   S.guard = {free, v: vm};
   if (!S.guardLogT || S.t - S.guardLogT > 3) {
     S.guardLogT = S.t;
-    logE(`Safety stop: lidar points ${free.toFixed(2)} m ahead on the commanded arc · speed capped at ${vm.toFixed(2)} m/s`, 'warn');
+    logE(
+      `Safety stop: ${guardSrcName()} points ${free.toFixed(2)} m ahead on the commanded arc · speed capped at ${vm.toFixed(2)} m/s`,
+      'warn'
+    );
   }
   const o = {...c, v: v * f};
   if (!isCar() && o.w != null) o.w = c.w * f;

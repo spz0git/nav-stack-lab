@@ -63,7 +63,9 @@ const LESSON_LAYERS = {
     ['lidar', 'agents'],
     ['agents', 'lidar'],
     ['agents', 'vo', 'trail'],
-    ['lidar', 'agents']
+    ['lidar', 'agents'],
+    null, // lesson 8 keeps the default layers
+    ['sonar', 'ghost', 'trail'] // lesson 9, the ultrasonic ring
   ],
   plan: [
     ['search', 'cost'],

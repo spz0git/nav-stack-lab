@@ -276,6 +276,7 @@ const LAYER_DEFS = [
   ['beam', 'Beacon readings', 'Rays from the estimate', 'loc'],
   ['trail', 'Trails', 'Solid = truth, dashed = estimate', 'loc'],
   ['lidar', 'Lidar hits', 'As perceived', 'per'],
+  ['sonar', 'Sonar ring', 'Each cone and its returned arc, where it was measured (Perceive → Ultrasonic ring)', 'per'],
   ['cost', 'Costmap', 'Inflation', 'per'],
   ['ghost', 'True-map outline', 'Over the built map', 'per'],
   ['agents', 'Agents', 'Tracks, predictions, ego positions at the same times', 'per'],
@@ -309,6 +310,10 @@ function layerStatus(k) {
       return S.trailT.length > 1 ? [1, `${S.trailT.length} points`] : [0, 'starts when the robot moves'];
     case 'lidar':
       return S.scanPts.length ? [1, `${S.scanPts.length} hits`] : [0, 'no scan yet'];
+    case 'sonar':
+      return P.sonar
+        ? [S.sonArcs ? 1 : 0, `${clamp(Math.round(P.sonN), 4, 16)} sonars · cycle ${sonCycle().toFixed(2)} s`]
+        : [0, 'the ultrasonic ring is off (Perceive)'];
     case 'cost':
       return [1, `inflation ${P.infl} m`];
     case 'ghost':

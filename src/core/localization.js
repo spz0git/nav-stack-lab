@@ -109,6 +109,7 @@ function locPredict() {
     const mv = Math.abs(v) * DT + 0.5 * Math.abs(w) * DT;
     f.mB += mv;
     f.mL += mv;
+    f.mS = (f.mS || 0) + mv; // since the last sonar weighting (pfSonarUpdate)
     pfEstimate();
   }
 }
@@ -250,6 +251,62 @@ function pfLidarUpdate(ranges) {
   }
   pfResample(0, null);
 }
+// @code pf-sonar | pfSonarUpdate: weighting the particles by the sonars against the prior map (the cone likelihood)
+// For each reading, the range the particle expects is the nearest obstacle of the prior map inside that sonar's cone,
+// beyond the dead zone and within reach, from SON_LRAYS rays marched on the map's distance field. A returned reading is
+// scored by a Gaussian on its difference from the expectation, with a floor for what the map cannot explain (people,
+// crosstalk); a reading at maximum range by how often a cone reads nothing: nearly always when the map has nothing in
+// reach, SON_PDROP of the time when it has (a specular miss). Chapter 3 §11 derives it. Standing still, nothing is
+// weighted: the same readings again are not new evidence.
+const SON_LRAYS = 7,
+  SON_PDROP = 0.3;
+function sonExpect(D, ox, oy, th, z) {
+  let best = P.sonMax;
+  for (let k = 0; k < SON_LRAYS; k++) {
+    const a = th + z.a - z.w / 2 + (k * z.w) / (SON_LRAYS - 1),
+      c = Math.cos(a),
+      s = Math.sin(a);
+    for (let t = P.sonMin; t < best;) {
+      const idx = cellIdx(ox + t * c, oy + t * s);
+      if (idx < 0) {
+        best = t; // the edge of the world is a wall
+        break;
+      }
+      const d = D[idx];
+      if (d < RES / 2) {
+        best = t;
+        break;
+      }
+      t += Math.max(d - RES / 2, RES / 2);
+    }
+  }
+  return best;
+}
+function pfSonarUpdate(list) {
+  const f = S.pf,
+    N = f.N,
+    D = LV.truthDist,
+    SIG = 0.15,
+    TEMPER = 0.5;
+  if (!list.length || (f.mS || 0) < 0.02) return;
+  f.mS = 0;
+  for (let i = 0; i < N; i++) {
+    const x = f.x[i],
+      y = f.y[i],
+      th = f.th[i],
+      c = Math.cos(th),
+      s = Math.sin(th);
+    let ll = 0;
+    for (const z of list) {
+      const ex = sonExpect(D, x + z.mx * c - z.my * s, y + z.mx * s + z.my * c, th, z);
+      const p = z.max ? (ex >= P.sonMax - 1e-6 ? 0.9 : SON_PDROP) : 0.85 * Math.exp(-0.5 * ((z.r - ex) / SIG) ** 2) + 0.05;
+      ll += Math.log(p);
+    }
+    f.lw[i] += TEMPER * ll;
+  }
+  pfResample(0, null);
+}
+// @end
 // @code pf-resample | pfResample: N_eff, low-variance resampling and the injected samples
 function pfResample(pinj, z) {
   const f = S.pf,

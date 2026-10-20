@@ -120,7 +120,20 @@ const DEFAULTS = {
   people: 'scripted',
   sensLat: 0,
   vehicles: true,
-  guard: false
+  guard: false,
+  // the ultrasonic ring (core/sensors.js), off by default; what reads it: mapSrc, guardSrc, pfSonar
+  sonar: false,
+  sonN: 8, // sonars round the hull (4–16)
+  sonBeam: 30, // each cone's beam width [°]
+  sonMax: 4, // reach [m]
+  sonMin: 0.2, // dead zone: echoes closer than this are lost in the ring-down [m]
+  sonSig: 0.01, // range noise σ [m]
+  sonSpec: 30, // incidence beyond which a surface sends the echo away (specular) [°]
+  sonXt: 2, // crosstalk: share of readings that are a neighbour's echo [%]
+  sonPing: 0.05, // time per ping; the ring fires in turn, one cycle is sonN pings [s]
+  mapSrc: 'lidar', // what builds the occupancy map with the sonar on: lidar, sonar or both
+  guardSrc: 'lidar', // what the safety stop reads with the sonar on: lidar, sonar or both
+  pfSonar: false // the particle filter also weights particles by the sonars against the prior map
 };
 const P = {...DEFAULTS};
 // The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
@@ -143,7 +156,9 @@ const PARAM_OPTS = {
   model: ['diff', 'car'],
   carPhys: ['kin', 'dyn'],
   people: ['scripted', 'reactive'],
-  map: ['level', 'empty']
+  map: ['level', 'empty'],
+  mapSrc: ['lidar', 'sonar', 'both'],
+  guardSrc: ['lidar', 'sonar', 'both']
 };
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
@@ -178,5 +193,6 @@ const LAYERS = {
   sweep: true,
   frontier: true,
   graph: true,
-  vo: true
+  vo: true,
+  sonar: true
 };

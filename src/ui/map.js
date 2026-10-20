@@ -220,6 +220,7 @@ function draw() {
   drawTrails(dpr, k, px);
   drawBeam(dpr, k, px);
   drawLidar(dpr, k, px);
+  drawSonar(dpr, k, px);
   drawPath(dpr, k, px);
   drawRollouts(dpr, k, px);
   drawAgents(dpr, k, px);
@@ -515,6 +516,42 @@ function drawLidar(dpr, k, px) {
       if (bp) ctx.fillStyle = bp[p[2] != null ? p[2] : i] > S.agents.beamThr ? TOK.rose : TOK.amber;
       ctx.fillRect(p[0] - px(1.5), p[1] - px(1.5), px(3), px(3));
     });
+  }
+}
+// The ultrasonic ring: each sonar's cone where it was measured, out to its reading (to the reach when no echo came
+// back: dashed, in the warning colour for a specular miss, in the bad colour for a dead-zone miss), and the returned
+// arc, rose when it was a neighbour's echo
+function drawSonar(dpr, k, px) {
+  if (!LAYERS.sonar || !P.sonar || !S.sonArcs) return;
+  const old = S.t - 2 * sonCycle() - 1e-6;
+  for (const A of S.sonArcs) {
+    if (!A || A.t < old) continue;
+    const R = A.max ? P.sonMax : A.r,
+      a0 = A.th - A.w / 2,
+      a1 = A.th + A.w / 2;
+    ctx.beginPath();
+    ctx.moveTo(A.x, A.y);
+    ctx.arc(A.x, A.y, R, a0, a1);
+    ctx.closePath();
+    ctx.fillStyle = rgba(TOK.ok, A.max ? 0.04 : 0.1);
+    ctx.fill();
+    ctx.lineWidth = px(0.8);
+    ctx.strokeStyle = !A.max
+      ? rgba(TOK.ok, 0.45)
+      : A.why === 'spec'
+        ? rgba(TOK.warn, 0.6)
+        : A.why === 'dead'
+          ? rgba(TOK.bad, 0.7)
+          : rgba(TOK.ok, 0.25);
+    if (A.max) ctx.setLineDash([px(3), px(3)]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (A.max) continue;
+    ctx.beginPath();
+    ctx.arc(A.x, A.y, A.r, a0, a1);
+    ctx.lineWidth = px(2.6);
+    ctx.strokeStyle = A.why === 'xt' ? TOK.rose : TOK.ok;
+    ctx.stroke();
   }
 }
 function drawPath(dpr, k, px) {

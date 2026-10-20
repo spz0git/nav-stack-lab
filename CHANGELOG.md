@@ -19,6 +19,7 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   but the robot touches people about as often.
 - Tools → Train can retrain the predictor: collect runs on the levels with people, train, compare with the built-in
   model on a run it has not seen, save, and pick it under Perceive → Predictor model.
+- The page is about 0.7 MB lighter: the learned models were included twice.
 
 ## v51 · 2026-10-20
 

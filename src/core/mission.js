@@ -73,7 +73,7 @@ const exploring = () => P.mis === 'explore' && P.per === 'mapping';
 function frontiers() {
   const lo = S.lo,
     isF = new Uint8Array(NC),
-    unk = i => Math.abs(lo[i]) < 0.05,
+    unk = i => unseen(lo[i]),
     n = Math.ceil(LETHAL / RES);
   // a seen obstacle within the lethal radius (not the unknown: that would rule out every frontier under the cautious policy)
   const nearWall = (i, j) => {
@@ -89,7 +89,7 @@ function frontiers() {
   for (let j = 1; j < GH - 1; j++)
     for (let i = 1; i < GW - 1; i++) {
       const k = j * GW + i;
-      if (lo[k] < -0.05 && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW)) && !nearWall(i, j)) isF[k] = 1;
+      if (lo[k] < -0.05 && !unk(k) && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW)) && !nearWall(i, j)) isF[k] = 1;
     }
   const seen = new Uint8Array(NC),
     out = [];
@@ -154,7 +154,7 @@ function nearestKnownFree(s) {
   for (let h = 0; h < q.length; h++) {
     const u = q[h];
     if (!S.cm.lethal[u]) {
-      if (S.lo[u] < -0.05) {
+      if (S.lo[u] < -0.05 && !unseen(S.lo[u])) {
         if (S.cm.dist[u] >= LETHAL + 0.2) return u;
         if (fallback < 0) fallback = u;
       } else if (last < 0) last = u;
@@ -229,15 +229,15 @@ function exploredFrac() {
   for (let i = 0; i < NC; i++) {
     if (tr[i]) continue;
     n++;
-    if (Math.abs(lo[i]) >= 0.05) k++;
+    if (!unseen(lo[i])) k++;
   }
   return n ? k / n : 0;
 }
 // a frontier goal is pointless once none of its cells borders unknown space any more (seen on the way there)
 function frontierGone(wp) {
   const lo = S.lo,
-    unk = i => Math.abs(lo[i]) < 0.05;
-  for (const k of wp.cells) if (lo[k] < -0.05 && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW))) return false;
+    unk = i => unseen(lo[i]);
+  for (const k of wp.cells) if (lo[k] < -0.05 && !unk(k) && (unk(k - 1) || unk(k + 1) || unk(k - GW) || unk(k + GW))) return false;
   return true;
 }
 // how much of the built map agrees with the truth: among the known cells, the share whose class (occupied above
@@ -249,7 +249,7 @@ function mapAgree() {
   let n = 0,
     ok = 0;
   for (let i = 0; i < NC; i++) {
-    if (Math.abs(lo[i]) < 0.05) continue;
+    if (unseen(lo[i])) continue;
     n++;
     if ((lo[i] > 0.5 ? 1 : 0) === (tr[i] ? 1 : 0)) ok++;
   }

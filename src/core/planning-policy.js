@@ -5,7 +5,8 @@
    training/policy from what the classical stack drove, or one trained in the Train tab (nnModel). No map, no
    search: what the policy knows is in its weights.
    ============================================================ */
-const POLICY_N = 8; // waypoints, about 0.4 m apart (the expert path it was cloned from)
+const POLICY_N = 8, // waypoints, about 0.4 m apart (the expert path it was cloned from)
+  POLICY_CLEAR = LETHAL + 0.1; // the distance from obstacles the safety layer keeps the path at
 // @code policy | policyPlan: the scan and the goal in, a trajectory out
 function policyFeatures(scan, e, wp, odo) {
   // 120 ranges/8, the nearest range in each of 12 sectors of 30° (an obstacle signal a flat network reads more easily
@@ -83,12 +84,13 @@ function policyPlan(e, wp) {
   }
   S.policyOut = pts.slice(1);
   // the safety layer every learned planner needs: a waypoint inside an inflated obstacle (the policy's error is about
-  // 20 cm, the expert's clearance 40) is moved to the nearest free cell, counted; the path is cut only where no free
-  // cell is near
+  // 20 cm, the expert's clearance 40), or less than 10 cm outside one, is moved to the nearest cell that clear,
+  // counted; the path is cut only where no such cell is near. The 10 cm are the margin A*'s smoothing keeps: the
+  // costmap's cells put an obstacle up to half a cell farther than it is, so the lethal edge itself is touching.
   for (let i = 1; i < pts.length; i++) {
     const k = cellIdx(pts[i][0], pts[i][1]);
-    if (k >= 0 && !S.cm.lethal[k]) continue;
-    const f = k >= 0 ? nearestFree(k) : -1;
+    if (k >= 0 && S.cm.dist[k] >= POLICY_CLEAR) continue;
+    const f = k >= 0 ? nearestFree(k, POLICY_CLEAR) : -1;
     if (f >= 0 && hyp(((f % GW) + 0.5) * RES - pts[i][0], (((f / GW) | 0) + 0.5) * RES - pts[i][1]) < 0.6) {
       pts[i] = [((f % GW) + 0.5) * RES, (((f / GW) | 0) + 0.5) * RES];
       S.policySnap = (S.policySnap || 0) + 1;
@@ -98,7 +100,48 @@ function policyPlan(e, wp) {
       break;
     }
   }
+  policyShield(pts, e, target);
   if (pathLen(pts) < 0.05) return {ok: false, reason: 'the policy proposes no motion'};
   return {ok: true, pts, exp: 0, cost: pathLen(pts)};
+}
+// The rest of the safety layer. Points alone are not enough: two free waypoints 0.4 m apart can have a shelf end
+// between them, and a policy that averages "left of it" and "right of it" draws exactly that line. Each segment is
+// checked against the inflated obstacles; one that comes too close is replaced by A* between its two ends, if that detour is
+// short, and the path is cut before it otherwise. What is left can be too short to drive: pinned against a shelf,
+// the policy keeps asking for forward (the demonstrations never show backing out), every point lands in the shelf,
+// and the same scan gives the same answer at every refresh. Then the robot gets 1.5 m of the A* route instead, which
+// takes it to a state where the policy can drive again.
+function policyShield(pts, e, target) {
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1],
+      [bx, by] = pts[i],
+      L = hyp(bx - ax, by - ay);
+    // the first segment may start inside the margin, on its way out
+    if (segClear(ax, ay, bx, by, POLICY_CLEAR, i === 1)) continue;
+    const R = astar(ax, ay, bx, by);
+    S.searchTrace = null;
+    if (R.ok && pathLen(R.pts) < 3 * L + 1) {
+      pts.splice(i, 1, ...R.pts.slice(1));
+      i += R.pts.length - 2;
+      S.policyRepair = (S.policyRepair || 0) + 1;
+    } else {
+      S.policyBad = (S.policyBad || 0) + 1;
+      pts.length = i;
+      break;
+    }
+  }
+  if (pathLen(pts) >= 0.3) return;
+  const R = astar(e.x, e.y, target.x, target.y);
+  S.searchTrace = null;
+  if (!R.ok) return;
+  pts.length = 1;
+  for (let i = 1, acc = 0; i < R.pts.length && acc < 1.5; i++) {
+    const [ax, ay] = R.pts[i - 1],
+      d = hyp(R.pts[i][0] - ax, R.pts[i][1] - ay),
+      f = Math.min(1, (1.5 - acc) / d);
+    pts.push([ax + f * (R.pts[i][0] - ax), ay + f * (R.pts[i][1] - ay)]);
+    acc += d;
+  }
+  S.policyFallback = (S.policyFallback || 0) + 1;
 }
 // @end

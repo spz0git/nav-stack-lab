@@ -44,7 +44,7 @@ Answer: 2
 ## Code: integrateScan
 snippet: logodds
 focus: lo[idx] = clamp(lo[idx] + (last && hit ? L_OCC : L_FREE), -L_CLAMP, L_CLAMP);
-Note: One line is the whole lesson: every cell on the beam gets L_FREE added, the last one L_OCC if the beam hit something, and the value is clamped. The rest is Bresenham's walk from the robot's cell to the endpoint. Perception has no code slot; the planner slot sees the result as obs.lethal.
+Note: One line is the whole lesson: every cell on the beam gets L_FREE added, the last one L_OCC if the beam hit something, and the value is clamped. The rest is Bresenham's walk from the robot's cell to the endpoint (rayCells), and the virtual rays between neighbouring beams, which only add free evidence to fill the gaps the 3° spacing leaves beyond about 2 m. Perception has no code slot; the planner slot sees the result as obs.lethal.
 
 ## Think about
 Q: Why use log-odds instead of storing a probability per cell?

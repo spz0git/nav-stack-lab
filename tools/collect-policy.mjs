@@ -6,11 +6,14 @@
 //   policy: the current learned policy drives (the build must carry it) and the expert labels the states it reaches,
 //           which is DAgger: the student's mistakes get the teacher's answer.
 // Each call writes one tagged dataset into training/data/ (policy-<tag>.json, -x.f32, -y.f32); the trainer uses all.
-//   node tools/collect-policy.mjs <tag> [mode = expert|policy] [noise = 0.3] [seeds = 1..6] [seconds = 150]
+//   node tools/collect-policy.mjs <tag> [mode = expert|policy] [noise = 0.3] [seeds = 1..6] [seconds = 150] [--gen …]
+// With --gen (families, or spec JSON) the runs are on generated worlds instead of L1–L4, one per seed: rooms with
+// doors and warehouse aisles give the corners and doorways the levels have few of (tests/node/core.mjs, collectSources).
 import fs from 'node:fs';
 import path from 'node:path';
-import {loadCore, ROOT} from '../tests/node/core.mjs';
+import {loadCore, ROOT, collectSources} from '../tests/node/core.mjs';
 loadCore();
+const SRC = collectSources(process.argv, L => !(L.peds || []).length && L.cfg.model !== 'car');
 const C = globalThis.__core,
   TAG = process.argv[2] || 'expert',
   MODE = process.argv[3] || 'expert',
@@ -24,18 +27,26 @@ const C = globalThis.__core,
 const X = [],
   Y = [],
   runs = [];
-for (let L = 0; L < C.LEVELS.length; L++) {
-  if ((C.LEVELS[L].peds || []).length || C.LEVELS[L].cfg.model === 'car') continue;
+for (const src of SRC) {
   for (const seed of SEEDS) {
     // the run itself is the core's (core/dataset.js: six random goals, the expert's A* route as the label), the same
     // code the page's Train tab collects with
-    const d = await C.collectRun({block: 'policy', level: L, seed, secs: SECS, goals: {random: 6}, noise: NOISE, driver: MODE});
+    const d = await C.collectRun({
+      block: 'policy',
+      level: src.level,
+      gen: src.gen,
+      seed,
+      secs: SECS,
+      goals: {random: 6},
+      noise: NOISE,
+      driver: MODE
+    });
     for (let i = 0; i < d.n; i++) {
       X.push(d.x.subarray(i * NF, (i + 1) * NF));
       Y.push(d.y.subarray(i * 2 * NW, (i + 1) * 2 * NW));
     }
-    runs.push({level: C.LEVELS[L].id, seed, samples: d.n, mode: MODE, noise: NOISE});
-    console.log(`${C.LEVELS[L].id} seed ${seed} (${MODE}): ${d.n} samples`);
+    runs.push({level: src.label, seed, samples: d.n, mode: MODE, noise: NOISE});
+    console.log(`${src.label} seed ${seed} (${MODE}): ${d.n} samples`);
   }
 }
 const dir = path.join(ROOT, 'training', 'data');

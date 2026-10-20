@@ -14,8 +14,10 @@ src/
   manifest.json     the module order (declaration order matters for const/let)
   version.json      the version label in the header
   core/             the simulation; no DOM
-    constants.js    world size, grid, helpers, footprint geometry
+    constants.js    world size (setWorld), grid, helpers, footprint geometry
     worlds.js       obstacle layouts, beacons, people, the levels
+    levels.js       the level format (JSON): to and from the built-in levels, checking, levelOf
+    worldgen.js     seeded world generator: rooms and corridors, warehouse, open hall
     params.js       DEFAULTS, P (live parameters), LAYERS
     record.js       replay frames, ghost of the previous run
     state.js        S (simulation state), reset(), people motion

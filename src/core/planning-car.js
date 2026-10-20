@@ -11,10 +11,15 @@ function rsPlan(e, wp) {
 
 /* ---------- Hybrid A* (Dolgov et al. 2008) ---------- */
 const HY = {XY: 0.2, NT: 72};
-HY.NX = Math.ceil(W / HY.XY);
-HY.NY = Math.ceil(H / HY.XY);
-HY.N = HY.NX * HY.NY * HY.NT;
 let HYB = null;
+// the search's lattice follows the world's size (setWorld); its buffers are made again at the next search
+function hySize() {
+  HY.NX = Math.ceil(W / HY.XY);
+  HY.NY = Math.ceil(H / HY.XY);
+  HY.N = HY.NX * HY.NY * HY.NT;
+  HYB = null;
+}
+hySize();
 function hyBuf() {
   if (!HYB)
     HYB = {

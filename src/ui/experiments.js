@@ -446,9 +446,10 @@ async function download(name, text, type) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   return true;
 }
+// the page's copy of the worker source has no built-in weights (build.mjs); they come from this page's MODELS
 function makeCoreWorker() {
   const src = document.getElementById('core-worker-src').textContent;
-  return new Worker(URL.createObjectURL(new Blob([src], {type: 'text/javascript'})));
+  return new Worker(URL.createObjectURL(new Blob([`self.__MODELS=${JSON.stringify(MODELS)};\n`, src], {type: 'text/javascript'})));
 }
 async function expRun() {
   const pl = paramList(),

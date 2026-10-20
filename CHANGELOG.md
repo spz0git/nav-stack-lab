@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v55 · 2026-10-20
 
 - Lidar mapping with Perceive → Unknown space → Lethal: the planners can now plan through the space between the
   beams. The 120 beams are 3° apart, so beyond about 2 m they left unseen cells between them, each of which was
@@ -24,7 +24,7 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   detour. When the robot is pinned against an obstacle and the policy keeps pushing into it, the robot follows
   1.5 m of the A* route instead, and the policy takes over again from there. The Plan tab counts each of these.
   On the warehouse aisles the policy now reaches 3 of 4 goals, where it reached none; pointed at the subgoal, it
-  takes all four goals on the aisles and in the building, with no collision.
+  takes all four goals on the aisles and in the building, with no collision. (PR #111)
 
 ## v54 · 2026-10-20
 

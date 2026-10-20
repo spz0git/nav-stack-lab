@@ -4,6 +4,20 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- Plan → Learned policy: the policy now proposes four candidate paths with a score each instead of one, and the
+  robot drives the best-scoring one that stays out of the inflated obstacles; the others are drawn faint on the map
+  (rose where they run into an obstacle). Before, where the demonstrations went either way around a shelf, the one
+  path was the average of the two and went through the shelf. The warehouse aisles (L2) now reach three of four goals
+  instead of none, the busy floor (L5) all five without touching a shelf, and with a classical subgoal both the aisles
+  and the building (L4) are completed. The Plan tab counts how often a lower-scored candidate was taken.
+- Lesson "An end-to-end policy" and chapter 4 §10: new measurements, the mixture loss, and a sixth Try, the building
+  with a subgoal.
+- Tools → Train: the policy is trained with the same mixture loss, and the results show the error of the best of
+  the four candidates next to the best-scoring one's. Policies trained in the page before this still run (as one
+  candidate).
+
 ## v54 · 2026-10-20
 
 - Perceive: with agent tracking off, a note now says that people prediction (including the learned predictor) is

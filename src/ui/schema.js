@@ -58,11 +58,14 @@ function policyStackNote() {
                 : `and Control → Response to agents (${segShort('spd')}) slows the tracker for them`
               : 'and the tracker does not react to them'
       }`;
-  const cut = S && (S.policySnap || S.policyBad) ? ` This run: ${S.policySnap || 0} waypoints moved, ${S.policyBad || 0} paths cut.` : '';
+  const cut =
+    S && (S.policyAlt || S.policySnap || S.policyBad)
+      ? ` This run: ${S.policyAlt || 0} lower-scored candidates taken, ${S.policySnap || 0} waypoints moved, ${S.policyBad || 0} paths cut.`
+      : '';
   return [
     '<b>Still running while the policy drives</b>',
     `<b>Localize</b> (${segLabel('loc')}): the goal goes into the robot frame and the waypoints back onto the map through the estimated pose, so an estimate that drifts moves the path.`,
-    `<b>Perceive</b>, the costmap (${segLabel('per').toLowerCase()}): the safety layer moves a waypoint that lands in an inflated obstacle to the nearest free cell, or cuts the path there.${cut}`,
+    `<b>Perceive</b>, the costmap (${segLabel('per').toLowerCase()}): of the candidate paths, the best-scoring one that keeps out of the inflated obstacles drives; when none does, the safety layer moves the best one's waypoints that land in the inflation to the nearest free cell, or cuts the path there.${cut}`,
     `<b>People</b>: ${ppl}.`,
     `<b>Plan</b>: ${P.policyGoal === 'subgoal' ? 'A* still searches the map at every refresh, for the subgoal the policy is pointed at.' : 'no search, and nothing else plans.'}`,
     `<b>Control</b> (${segLabel('ctl')}): follows the waypoints.`,
@@ -456,7 +459,7 @@ const SCHEMA = {
         const M = nnModel('policy');
         if (!M) return 'No policy model in this build: train one in Tools → Train, or with training/policy/train.py and rebuild.';
         const mine = M !== MODELS.policy;
-        return `An end-to-end policy: the scan (with the nearest range per 30° sector), the odometry and the goal in the robot frame go into a multilayer perceptron (${M.params} parameters, ${mine ? `trained in this browser (Tools → Train) on ${M.trained_on ? M.trained_on.samples : '?'} samples` : `behaviour-cloned in training/policy from ${M.trained_on.samples} moments of the classical stack's driving`}) and eight waypoints over the next 4 s come out, refreshed every 0.5 s. The network takes the global planner's place and reads no map; the rest of the stack runs as before (below).`;
+        return `An end-to-end policy: the scan (with the nearest range per 30° sector), the odometry and the goal in the robot frame go into a multilayer perceptron (${M.params} parameters, ${mine ? `trained in this browser (Tools → Train) on ${M.trained_on ? M.trained_on.samples : '?'} samples` : `behaviour-cloned in training/policy from ${M.trained_on.samples} moments of the classical stack's driving`}) and ${policyK(M) > 1 ? `${policyK(M)} candidate paths of eight waypoints over the next 4 s come out, each with a score; the best-scoring one that clears the costmap drives (the others are drawn faint on the map)` : 'eight waypoints over the next 4 s come out'}, refreshed every 0.5 s. The network takes the global planner's place and reads no map; the rest of the stack runs as before (below).`;
       },
       show: () => P.plan === 'policy'
     },

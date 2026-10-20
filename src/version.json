@@ -1,1 +1,1 @@
-{"version": 52, "date": "2026-10-20", "note": "A learned people predictor (three futures per person), Perceive lesson 8; the page carries its models once and is 0.7 MB lighter (PRs #105, #106)"}
+{"version": 53, "date": "2026-10-20", "note": "Pin the previous run to compare runs across Reset; lessons keep the previous run on the map (PR #107)"}

@@ -152,10 +152,10 @@ and the highest score is the next goal. Size per metre is the crudest estimate o
 | The level's four goals | 96 % | 67 s | 50 m | – | – |
 | $N_{\min}$ = 20 | 99 % | 102 s | 78 m | 13 | 12 |
 | $N_{\min}$ = 2 | 100 % | 141 s | 107 m | 15 | 14 |
-| Unknown as lethal | 100 % | 158 s | 112 m | 16 | 14 |
+| Unknown as lethal | 100 % | 171 s | 127 m | 19 | 16 |
 | DWA tracker | 100 % | 187 s | 86 m | 17 | 11, four given up, one retried |
 
-Over six seeds the default run takes 111 to 147 s and 80 to 108 m, always to 100 %, with at most one brush against a shelf. The cautious policy (§5 explains why a hand-placed goal in an unseen room stalls under it) does not block exploration, because a frontier goal is on seen floor by construction; it only forbids the plans to cut through rooms not yet looked into, which costs about a third more time.
+Over six seeds the default run takes 111 to 147 s and 80 to 108 m, always to 100 %, with at most one brush against a shelf. The cautious policy (§5 explains why a hand-placed goal in an unseen room stalls under it) does not block exploration, because a frontier goal is on seen floor by construction; it only forbids the plans to cut through rooms not yet looked into, which costs about two fifths more time here and from nothing to a minute and a quarter on seeds 1 to 5.
 
 [try: Explore the building | {"sim":true,"level":3,"set":{"mis":"explore"},"tab":"mis"}] [try: Explore with unknown as lethal | {"sim":true,"level":3,"set":{"mis":"explore","unknownAs":"lethal"},"tab":"per"}]
 
@@ -236,7 +236,7 @@ Its gradient pulls each candidate towards the routes it explains best, $\partial
 | --- | --- | --- | --- | --- |
 | driven trajectories as labels, clean demonstrations | 2 of 4 | 1 of 4, 1 collision | 0 of 4, 1 | 4 of 5, 3 |
 | + noise injection, expert-route labels | 4 of 4 | 1 of 4, 3 | 0 of 4, 4 | 4 of 5, 1 |
-| + sector features, two DAgger rounds, the safety layer | 4 of 4 | 0 of 4, 3 | 1 of 4, 1 | 4 of 5, 2 |
+| + sector features, two DAgger rounds, points moved out of obstacles | 4 of 4 | 0 of 4, 3 | 1 of 4, 1 | 4 of 5, 2 |
 | the same, pointed at a classical subgoal | 4 of 4 | 1 of 4, 2 | 0 of 4, 4 | – |
 | + four candidate paths (mixture loss), the best one that clears | 4 of 4 | 3 of 4, 2 | 1 of 4, 1 | 5 of 5, 0 |
 | the same, pointed at a classical subgoal | 4 of 4 | 4 of 4, 0 | 4 of 4, 0 | – |

@@ -9,7 +9,8 @@
    ============================================================ */
 const POLICY_N = 8, // waypoints, about 0.4 m apart (the expert path it was cloned from)
   POLICY_K = 4, // candidate paths, each with a score
-  POLICY_SIG = 0.05; // the mixture's σ in training, in the outputs' units of 4 m (0.2 m)
+  POLICY_SIG = 0.05, // the mixture's σ in training, in the outputs' units of 4 m (0.2 m)
+  POLICY_CLEAR = LETHAL + 0.1; // the distance from obstacles the safety layer keeps the path at
 // The candidates a model outputs: K scores then K paths, or one path alone (a model trained before the candidates)
 function policyK(M) {
   const n = M.layers[M.layers.length - 1].nout;
@@ -97,20 +98,23 @@ function policyPlan(e, wp) {
     return {pts, p};
   }).sort((a, b) => b.p - a.p);
   for (const C of cands) C.p /= z;
-  // the best-scoring candidate whose segments clear the costmap; a lower-scored one taken instead is counted
-  const pick = cands.find(C => (C.clear = policyClear(C.pts)));
+  // the best-scoring candidate whose segments clear the costmap (POLICY_CLEAR, the first one may start inside the
+  // margin, on its way out); a lower-scored one taken instead is counted
+  const pick = cands.find(C => (C.clear = C.pts.every((q, i) => !i || segClear(...C.pts[i - 1], ...q, POLICY_CLEAR, i === 1))));
   if (pick && pick !== cands[0]) S.policyAlt = (S.policyAlt || 0) + 1;
   S.policyCands = cands;
   (pick || cands[0]).used = true;
   const pts = (pick || cands[0]).pts.map(q => q.slice());
   S.policyOut = pts.slice(1);
   // none clears: the safety layer every learned planner needs, on the best-scoring one: a waypoint inside an inflated
-  // obstacle (the policy's error is about 20 cm, the expert's clearance 40) is moved to the nearest free cell, counted;
-  // the path is cut only where no free cell is near
+  // obstacle (the policy's error is about 20 cm, the expert's clearance 40), or less than 10 cm outside one, is moved
+  // to the nearest cell that clear, counted; the path is cut only where no such cell is near. The 10 cm are the margin
+  // A*'s smoothing keeps: the costmap's cells put an obstacle up to half a cell farther than it is, so the lethal edge
+  // itself is touching.
   for (let i = 1; i < pts.length && !pick; i++) {
     const k = cellIdx(pts[i][0], pts[i][1]);
-    if (k >= 0 && !S.cm.lethal[k]) continue;
-    const f = k >= 0 ? nearestFree(k) : -1;
+    if (k >= 0 && S.cm.dist[k] >= POLICY_CLEAR) continue;
+    const f = k >= 0 ? nearestFree(k, POLICY_CLEAR) : -1;
     if (f >= 0 && hyp(((f % GW) + 0.5) * RES - pts[i][0], (((f / GW) | 0) + 0.5) * RES - pts[i][1]) < 0.6) {
       pts[i] = [((f % GW) + 0.5) * RES, (((f / GW) | 0) + 0.5) * RES];
       S.policySnap = (S.policySnap || 0) + 1;
@@ -120,30 +124,48 @@ function policyPlan(e, wp) {
       break;
     }
   }
+  if (!pick) policyShield(pts, e, target);
   if (pathLen(pts) < 0.05) return {ok: false, reason: 'the policy proposes no motion'};
   return {ok: true, pts, exp: 0, cost: pathLen(pts)};
 }
-// Does a candidate clear the costmap? Every 5 cm along its segments, the distance to the nearest obstacle must be at
-// least the lethal radius, except that a robot already inside the inflation may leave it, never closer to the
-// obstacle than it is now
-function policyClear(pts) {
-  const d = S.cm.dist;
-  if (!d) return true;
-  const k0 = cellIdx(pts[0][0], pts[0][1]),
-    d0 = k0 >= 0 ? d[k0] : 0;
-  let exiting = d0 < LETHAL;
+// The rest of the safety layer. Points alone are not enough: two free waypoints 0.4 m apart can have a shelf end
+// between them, and a policy that averages "left of it" and "right of it" draws exactly that line. Each segment is
+// checked against the inflated obstacles; one that comes too close is replaced by A* between its two ends, if that detour is
+// short, and the path is cut before it otherwise. What is left can be too short to drive: pinned against a shelf,
+// the policy keeps asking for forward (the demonstrations never show backing out), every point lands in the shelf,
+// and the same scan gives the same answer at every refresh. Then the robot gets 1.5 m of the A* route instead, which
+// takes it to a state where the policy can drive again.
+function policyShield(pts, e, target) {
   for (let i = 1; i < pts.length; i++) {
     const [ax, ay] = pts[i - 1],
-      dx = pts[i][0] - ax,
-      dy = pts[i][1] - ay,
-      n = Math.max(1, Math.ceil(hyp(dx, dy) / (RES / 2)));
-    for (let j = 1; j <= n; j++) {
-      const k = cellIdx(ax + (dx * j) / n, ay + (dy * j) / n);
-      if (k < 0) return false;
-      if (d[k] >= LETHAL) exiting = false;
-      else if (!exiting || d[k] < d0 - 0.02) return false;
+      [bx, by] = pts[i],
+      L = hyp(bx - ax, by - ay);
+    // the first segment may start inside the margin, on its way out
+    if (segClear(ax, ay, bx, by, POLICY_CLEAR, i === 1)) continue;
+    const R = astar(ax, ay, bx, by);
+    S.searchTrace = null;
+    if (R.ok && pathLen(R.pts) < 3 * L + 1) {
+      pts.splice(i, 1, ...R.pts.slice(1));
+      i += R.pts.length - 2;
+      S.policyRepair = (S.policyRepair || 0) + 1;
+    } else {
+      S.policyBad = (S.policyBad || 0) + 1;
+      pts.length = i;
+      break;
     }
   }
-  return true;
+  if (pathLen(pts) >= 0.3) return;
+  const R = astar(e.x, e.y, target.x, target.y);
+  S.searchTrace = null;
+  if (!R.ok) return;
+  pts.length = 1;
+  for (let i = 1, acc = 0; i < R.pts.length && acc < 1.5; i++) {
+    const [ax, ay] = R.pts[i - 1],
+      d = hyp(R.pts[i][0] - ax, R.pts[i][1] - ay),
+      f = Math.min(1, (1.5 - acc) / d);
+    pts.push([ax + f * (R.pts[i][0] - ax), ay + f * (R.pts[i][1] - ay)]);
+    acc += d;
+  }
+  S.policyFallback = (S.policyFallback || 0) + 1;
 }
 // @end

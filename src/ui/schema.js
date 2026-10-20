@@ -59,13 +59,13 @@ function policyStackNote() {
               : 'and the tracker does not react to them'
       }`;
   const cut =
-    S && (S.policyAlt || S.policySnap || S.policyBad)
-      ? ` This run: ${S.policyAlt || 0} lower-scored candidates taken, ${S.policySnap || 0} waypoints moved, ${S.policyBad || 0} paths cut.`
+    S && (S.policyAlt || S.policySnap || S.policyBad || S.policyRepair || S.policyFallback)
+      ? ` This run: ${S.policyAlt || 0} lower-scored candidates taken, ${S.policySnap || 0} waypoints moved, ${S.policyRepair || 0} segments rerouted, ${S.policyBad || 0} paths cut, ${S.policyFallback || 0} fallbacks to A*.`
       : '';
   return [
     '<b>Still running while the policy drives</b>',
     `<b>Localize</b> (${segLabel('loc')}): the goal goes into the robot frame and the waypoints back onto the map through the estimated pose, so an estimate that drifts moves the path.`,
-    `<b>Perceive</b>, the costmap (${segLabel('per').toLowerCase()}): of the candidate paths, the best-scoring one that keeps out of the inflated obstacles drives; when none does, the safety layer moves the best one's waypoints that land in the inflation to the nearest free cell, or cuts the path there.${cut}`,
+    `<b>Perceive</b>, the costmap (${segLabel('per').toLowerCase()}): of the candidate paths, the best-scoring one whose segments keep 10 cm clear of the inflated obstacles drives; when none does, the safety layer moves the best one's waypoints that land in or near the inflation to the nearest clear cell, reroutes a segment that crosses it with a short A* detour (or cuts the path there), and when what is left is too short to drive (the robot pinned against an obstacle, every candidate pushing into it) drives 1.5 m of the A* route instead.${cut}`,
     `<b>People</b>: ${ppl}.`,
     `<b>Plan</b>: ${P.policyGoal === 'subgoal' ? 'A* still searches the map at every refresh, for the subgoal the policy is pointed at.' : 'no search, and nothing else plans.'}`,
     `<b>Control</b> (${segLabel('ctl')}): follows the waypoints.`,
@@ -265,7 +265,7 @@ const SCHEMA = {
     {
       type: 'info',
       text: () =>
-        'Lethal: the planners plan only through cells the lidar has already seen free (and 0.4 m clear of unseen ones). At the start that is a small island around the robot, and nothing in this lab explores (picks goals at the edge of the seen space to grow it), so a goal in an unseen room has no plan, the robot never moves, and it never sees more. Frontier exploration is what makes the cautious policy usable; with Free the planner goes optimistically and replans as walls appear.',
+        'Lethal: the planners plan only through cells the lidar has already seen free (and 0.4 m clear of unseen ones). At the start that is what one scan covers, at most the lidar\'s 8 m and nothing behind a wall, so a goal farther away or in an unseen room has no plan, the robot never moves, and it never sees more. Mission → Explore makes the cautious policy usable: it picks goals at the edge of the seen space and grows it. With Free the planner goes optimistically and replans as walls appear.',
       show: () => P.per === 'mapping' && P.unknownAs === 'lethal'
     },
     {k: 'infl', label: 'Inflation band beyond lethal', min: 0, max: 1.5, step: 0.05, unit: 'm'},

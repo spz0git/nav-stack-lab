@@ -12,6 +12,22 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   their own. D* Lite's periodic replan now says what the status strip shows: on a map that does not change,
   most of its replans have nothing to repair.
 
+## v56 · 2026-10-20
+
+- Plan → Learned policy: the policy now proposes four candidate paths with a score each instead of one, and the
+  robot drives one that stays clear of the inflated obstacles, the best-scoring one, or the one closest to the path
+  it is already driving unless another is much likelier; the others are drawn faint on the map (rose where they run
+  into an obstacle). Before, where the demonstrations went either way around a shelf, the one path was the average of
+  the two and went through the shelf. When no candidate is clear, the safety layer of version 55 takes over as
+  before. Over five runs each, the building (L4) now has 4 collisions where it had 9, and the busy floor (L5) reaches
+  21 of 25 goals with 1 collision where it reached 19 with 3; the aisles (L2) are about the same, 16 of 20 goals.
+  The Plan tab also counts how often a lower-scored candidate was taken.
+- Lesson "An end-to-end policy" and chapter 4 §10: new measurements, the mixture loss, and a sixth Try, the building
+  with a subgoal.
+- Tools → Train: the policy is trained with the same mixture loss, and the results show the error of the best of
+  the four candidates next to the best-scoring one's. Policies trained in the page before this still run (as one
+  candidate). (PR #112)
+
 ## v55 · 2026-10-20
 
 - Lidar mapping with Perceive → Unknown space → Lethal: the planners can now plan through the space between the

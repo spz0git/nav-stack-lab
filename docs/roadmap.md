@@ -215,6 +215,15 @@ Owner request: retrain the learned blocks from the GUI, with the built-in model 
   decimal, so the result is the policy's. Honest next steps if the track is pursued: a convolutional encoder over
   the beams, data concentrated at corners and doors, a recovery behaviour in the safety layer, RL fine-tuning (C3).
   The page is 3.7 MB with both models; a third would want a lighter export (float16 or quantized weights).
+  Then (2026-10-20) the averaging diagnosed: at the first contact on L2 four of the eight raw waypoints were inside the
+  shelf, the least-squares mean of routes that went either way round it. The output became K = 4 candidate paths with
+  a score each, trained by the predictor's mixture loss (σ 0.2 m), and `policyPlan` takes the best-scoring candidate
+  whose segments clear the costmap (`policyClear`), falling back to the snap layer only when none does. L2 went from
+  0 to 3 of 4 goals at seed 7 (6 → 18 of 20 over seeds 1–5), and the subgoal hybrid from failing to completing L2 and
+  L4 on every seed; L4 pointed at the goal is unchanged (no candidate knows the door). K = 3 was less steady across
+  training seeds, K = 2 helped least; the single-path model through the same check gains almost nothing, so the
+  gain is the head's. Left: the robot inside the inflation with every candidate pointing into the shelf (the
+  segment-level safety-layer fix is separate work).
 - The code behind every lesson (owner's direction: show the code and let the learner change it; "Your code" was a
   button with no explanation). A function marked `// @code <id> | <title>` … `// @end` in the source is a snippet; the
   build indexes the markers (`tools/code.mjs`) and the page cuts the text from its own script tag at runtime

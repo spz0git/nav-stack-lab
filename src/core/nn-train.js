@@ -1,8 +1,8 @@
 /* ============================================================
    Training the learned blocks in the page (Tools → Train): backpropagation for the two layer types nn.js runs (a
-   circular 1D convolution over the beams, a dense layer), Adam, and the two losses the Python trainers use
-   (training/detector: class-weighted binary cross-entropy per beam; training/policy: mean squared error on the
-   waypoints). Plain loops over Float32Arrays, no dependency. A model is the same JSON as src/models/*.json, so a model
+   circular 1D convolution over the beams, a dense layer), Adam, and the losses the Python trainers use
+   (training/detector: class-weighted binary cross-entropy per beam; training/predictor and training/policy: the
+   negative log-likelihood of a mixture, over futures or candidate paths). Plain loops over Float32Arrays, no dependency. A model is the same JSON as src/models/*.json, so a model
    trained here runs through nnForward / mlpForward unchanged.
    The work is split so that it can run in several workers: nnGrad sums the gradient over a list of samples, the caller
    adds the workers' sums and takes the Adam step (ui/train.js; tests/node/train.test.mjs runs it in one process).
@@ -105,7 +105,7 @@ function nnInit(block, hidden, seed) {
     });
   } else {
     let nin = NN_IN[block].features;
-    const spec = [...hidden, block === 'predictor' ? PRED_NO : 2 * POLICY_N];
+    const spec = [...hidden, block === 'predictor' ? PRED_NO : POLICY_K * (1 + 2 * POLICY_N)];
     spec.forEach((nout, i) => {
       const lim = 1 / Math.sqrt(nin);
       layers.push({type: 'dense', nin, nout, act: i < spec.length - 1 ? 'relu' : 'none', w: uni(nout * nin, lim), b: uni(nout, lim)});
@@ -302,8 +302,8 @@ function nnLoss(task, z, y, m, dz) {
     }
   return loss;
 }
-// 'mix', the predictor's: R samples, each with the K logits and K futures of ny numbers in z (nout = K + K ny wide) and
-// its true future in y (ny wide). The loss is the negative log-likelihood of a mixture of K Gaussians with a fixed σ,
+// 'mix', the predictor's and the policy's: R samples, each with the K logits and K futures (or candidate paths) of ny
+// numbers in z (nout = K + K ny wide) and its true future (the expert's route) in y (ny wide). The loss is the negative log-likelihood of a mixture of K Gaussians with a fixed σ,
 //   L = −log Σ_k π_k exp(−|y − μ_k|² / 2σ²),  π = softmax(logits)
 // and with γ_k the responsibilities (π_k exp(·) normalized: how well future k explains y),
 //   ∂L/∂μ_k = γ_k (μ_k − y) / σ²,   ∂L/∂logit_k = π_k − γ_k
@@ -395,7 +395,7 @@ function nnGrad(model, X, Y, idx, task) {
     }
     for (let l = 0; l < nL; l++) convT(Ls[l], wk[l].gwt, g[l].w, true);
   } else {
-    const ny = task.ny || nout, // the targets per sample: the outputs, or the predictor's one future
+    const ny = task.ny || nout, // the targets per sample: the outputs, or the mixture's one future
       xb = task.xb || (task.xb = new Float32Array(NN_CHUNK * nin)),
       yb = task.yb || (task.yb = new Float32Array(NN_CHUNK * ny));
     for (let c0 = 0; c0 < idx.length; c0 += NN_CHUNK) {
@@ -494,7 +494,8 @@ function nnPredict(model, X, ns, n) {
   return out;
 }
 // How a model does on a set of samples, the numbers the Python trainers print: the detector's precision and recall at
-// its threshold (per beam), the policy's RMS error per waypoint in metres
+// its threshold (per beam), the policy's RMS error per waypoint in metres (of its best-scoring candidate, and of the
+// best of its K: the candidate nearest the expert's route)
 function nnEvaluate(model, X, Y, block) {
   if (block === 'detector') {
     const n = NBEAM,
@@ -516,18 +517,39 @@ function nnEvaluate(model, X, Y, block) {
     return {precision, recall, f1: precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0, samples: ns};
   }
   if (block === 'predictor') return predEvaluate(model, X, Y);
-  const NO = 2 * POLICY_N,
-    ns = Y.length / NO,
+  const ny = 2 * POLICY_N,
+    ns = Y.length / ny,
+    K = policyK(model),
+    NO = K > 1 ? K * (1 + ny) : ny,
     out = nnPredict(model, X, ns, 1),
-    se = new Float64Array(POLICY_N);
-  for (let s = 0; s < ns; s++)
-    for (let k = 0; k < POLICY_N; k++) {
-      const dx = (out[s * NO + 2 * k] - Y[s * NO + 2 * k]) * 4,
-        dy = (out[s * NO + 2 * k + 1] - Y[s * NO + 2 * k + 1]) * 4;
-      se[k] += dx * dx + dy * dy;
+    se = new Float64Array(POLICY_N), // the best-scoring candidate's squared error per waypoint, summed over samples
+    sb = new Float64Array(POLICY_N), // the same for the candidate nearest the route
+    e2 = new Float64Array(K * POLICY_N);
+  for (let s = 0; s < ns; s++) {
+    const z = s * NO;
+    let top = 0,
+      best = 0,
+      bestSum = Infinity;
+    for (let k = 1; k < K; k++) if (out[z + k] > out[z + top]) top = k;
+    for (let k = 0; k < K; k++) {
+      const o = z + (K > 1 ? K + k * ny : 0);
+      let sum = 0;
+      for (let i = 0; i < POLICY_N; i++) {
+        const dx = (out[o + 2 * i] - Y[s * ny + 2 * i]) * 4,
+          dy = (out[o + 2 * i + 1] - Y[s * ny + 2 * i + 1]) * 4;
+        sum += e2[k * POLICY_N + i] = dx * dx + dy * dy;
+      }
+      if (sum < bestSum) [best, bestSum] = [k, sum];
     }
-  const perWp = Array.from(se, v => Math.sqrt(v / Math.max(1, ns)));
-  return {perWp, rms: Math.sqrt(perWp.reduce((a, v) => a + v * v, 0) / POLICY_N), samples: ns};
+    for (let i = 0; i < POLICY_N; i++) {
+      se[i] += e2[top * POLICY_N + i];
+      sb[i] += e2[best * POLICY_N + i];
+    }
+  }
+  const perWp = Array.from(se, v => Math.sqrt(v / Math.max(1, ns))),
+    bestWp = Array.from(sb, v => Math.sqrt(v / Math.max(1, ns))),
+    rmsOf = a => Math.sqrt(a.reduce((q, v) => q + v * v, 0) / POLICY_N);
+  return {perWp, rms: rmsOf(perWp), bestWp, best: rmsOf(bestWp), K, samples: ns};
 }
 // The predictor's numbers: the error at 1 s and 2 s of its most probable future (top), of the best of its K (best),
 // and of constant velocity (a zero correction: the label itself), in metres

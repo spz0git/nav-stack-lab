@@ -25736,6 +25736,43 @@ function dynPreset(n) {
   for (const [k, v] of Object.entries(DYN_PRESETS[n])) setParam(k, v, false);
   renderAllPanes();
 }
+// The label a choice setting shows for its current value
+function segLabel(k) {
+  const f = Object.values(SCHEMA)
+      .flat()
+      .find(x => x.k === k && x.type === 'seg'),
+    o = f && (typeof f.opts === 'function' ? f.opts() : f.opts).find(([v]) => v === P[k]);
+  return o ? o[1] : P[k];
+}
+const segShort = k => String(segLabel(k)).replace(/ \(.*\)$/, ''); // without its gloss: "Lidar", "Speed planning"
+// Plan → Learned policy: what still runs around the network, for the settings in use
+function policyStackNote() {
+  const ppl = !agOn()
+    ? 'agent tracking is off, so people are only lidar hits in the scan the policy reads'
+    : `${segShort('agents')} tracking with ${segLabel('agPred').toLowerCase()} prediction; the policy sees people only as lidar hits, ${
+        P.ctl === 'dwa'
+          ? 'and DWA scores its arcs against the tracks'
+          : P.ctl === 'mpc'
+            ? P.spd === 'st'
+              ? 'and MPC follows the speed plan made around them'
+              : 'and MPC keeps them as constraints'
+            : AG_ST_CTL.includes(P.ctl)
+              ? P.spd === 'none'
+                ? 'and Control → Response to agents is Ignore, so nothing slows down for them'
+                : `and Control → Response to agents (${segShort('spd')}) slows the tracker for them`
+              : 'and the tracker does not react to them'
+      }`;
+  const cut = S && (S.policySnap || S.policyBad) ? ` This run: ${S.policySnap || 0} waypoints moved, ${S.policyBad || 0} paths cut.` : '';
+  return [
+    '<b>Still running while the policy drives</b>',
+    `<b>Localize</b> (${segLabel('loc')}): the goal goes into the robot frame and the waypoints back onto the map through the estimated pose, so an estimate that drifts moves the path.`,
+    `<b>Perceive</b>, the costmap (${segLabel('per').toLowerCase()}): the safety layer moves a waypoint that lands in an inflated obstacle to the nearest free cell, or cuts the path there.${cut}`,
+    `<b>People</b>: ${ppl}.`,
+    `<b>Plan</b>: ${P.policyGoal === 'subgoal' ? 'A* still searches the map at every refresh, for the subgoal the policy is pointed at.' : 'no search, and nothing else plans.'}`,
+    `<b>Control</b> (${segLabel('ctl')}): follows the waypoints.`,
+    '<b>Mission</b>: takes the goals in turn and replans on the usual triggers (the event log names each one).'
+  ].join('<br>');
+}
 const SCHEMA = {
   loc: [
     {
@@ -25960,6 +25997,14 @@ const SCHEMA = {
     {
       type: 'info',
       text: () => {
+        const ids = LEVELS.filter(l => l.peds.length).map(l => l.id);
+        return `People prediction (constant velocity, the learned predictor, or your code) is set here once agent tracking is on. Tracking is on by default on ${ids.join(' and ')}, the levels with people. <button type="button" class="linkbtn" data-setp="agents:lidar">Turn on lidar tracking</button>`;
+      },
+      show: () => !agOn()
+    },
+    {
+      type: 'info',
+      text: () => {
         const M = nnModel('detector');
         if (!M) return 'No detector model in this build: train one in Tools → Train, or with training/detector/train.py and rebuild.';
         const mine = M !== MODELS.detector;
@@ -26115,8 +26160,13 @@ const SCHEMA = {
         const M = nnModel('policy');
         if (!M) return 'No policy model in this build: train one in Tools → Train, or with training/policy/train.py and rebuild.';
         const mine = M !== MODELS.policy;
-        return `An end-to-end policy: the scan (with the nearest range per 30° sector), the odometry and the goal in the robot frame go into a multilayer perceptron (${M.params} parameters, ${mine ? `trained in this browser (Tools → Train) on ${M.trained_on ? M.trained_on.samples : '?'} samples` : `behaviour-cloned in training/policy from ${M.trained_on.samples} moments of the classical stack's driving`}) and eight waypoints over the next 4 s come out, refreshed every 0.5 s; the tracker follows them. No map, no search.${S && (S.policySnap || S.policyBad) ? ` This run: ${S.policySnap || 0} waypoints moved out of an inflated obstacle, ${S.policyBad || 0} paths cut.` : ''}`;
+        return `An end-to-end policy: the scan (with the nearest range per 30° sector), the odometry and the goal in the robot frame go into a multilayer perceptron (${M.params} parameters, ${mine ? `trained in this browser (Tools → Train) on ${M.trained_on ? M.trained_on.samples : '?'} samples` : `behaviour-cloned in training/policy from ${M.trained_on.samples} moments of the classical stack's driving`}) and eight waypoints over the next 4 s come out, refreshed every 0.5 s. The network takes the global planner's place and reads no map; the rest of the stack runs as before (below).`;
       },
+      show: () => P.plan === 'policy'
+    },
+    {
+      type: 'info',
+      text: () => policyStackNote(),
       show: () => P.plan === 'policy'
     },
     {
@@ -27158,7 +27208,7 @@ function wirePane(t) {
       $('#o-' + f.k).textContent = fmtVal(f, rg.value);
       setParam(f.k, +rg.value, true);
       pane.querySelectorAll('[data-info]').forEach(el => {
-        el.textContent = infoFns[+el.dataset.info]();
+        el.innerHTML = el.dataset.last = infoFns[+el.dataset.info](); // the lines carry markup (buttons, line breaks)
       });
     };
     rg.onchange = () => setParam(f.k, +rg.value, false);
@@ -27834,6 +27884,14 @@ function codeHowHTML(k) {
 document.addEventListener('click', e => {
   const b = e.target && e.target.closest ? e.target.closest('[data-code]') : null;
   if (b) codeOpen(b.dataset.code, null);
+});
+// and some carry a button that sets one setting (Perceive: "Turn on lidar tracking")
+document.addEventListener('click', e => {
+  const b = e.target && e.target.closest ? e.target.closest('[data-setp]') : null;
+  if (!b) return;
+  const [k, v] = b.dataset.setp.split(':');
+  setParam(k, v);
+  renderAllPanes();
 });
 
 /* ---- analysis/num.js ---- */

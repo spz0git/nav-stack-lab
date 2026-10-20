@@ -4,12 +4,18 @@
 /* ============================================================
    Constants & helpers
    ============================================================ */
-const W = 24,
+// The world's size is the level's (setWorld, called by loadLevel): W × H metres on a grid of RES cells, GW × GH of
+// them, NC in all. The built-in levels are 24 × 16 m; a custom or generated one may be up to WORLD_MAX (its area at
+// most WORLD_AREA, so that the grids a phone rebuilds stay small enough).
+let W = 24,
   H = 16,
-  RES = 0.1,
   GW = 240,
   GH = 160,
-  NC = GW * GH,
+  NC = GW * GH;
+const WORLD_MIN = [8, 6],
+  WORLD_MAX = [48, 32],
+  WORLD_AREA = 48 * 32;
+const RES = 0.1,
   DT = 0.05,
   RR = 0.3,
   LETHAL = 0.4,
@@ -75,6 +81,19 @@ function makeRng(seed) {
       return r * Math.cos(TAU * b);
     }
   };
+}
+// Sets the world's size (metres, a multiple of 0.4 m, the paint grid's cell); the grids that depend on it follow
+function setWorld(w, h) {
+  if (w === W && h === H) return false;
+  W = w;
+  H = h;
+  GW = Math.round(W / RES);
+  GH = Math.round(H / RES);
+  NC = GW * GH;
+  PGW = Math.round(W / PAINT);
+  PGH = Math.round(H / PAINT);
+  hySize();
+  return true;
 }
 const cellI = x => Math.floor(x / RES),
   cellIdx = (x, y) => {
@@ -213,7 +232,10 @@ class Heap {
    ============================================================ */
 const Rc = (x, y, w, h) => ({t: 'r', x, y, w, h}),
   Ci = (x, y, r) => ({t: 'c', x, y, r});
-const BORDER = [Rc(0, 0, 24, 0.2), Rc(0, 15.8, 24, 0.2), Rc(0, 0, 0.2, 16), Rc(23.8, 0, 0.2, 16)];
+// The outer walls of a w × h floor, 0.2 m thick; marked, so that an empty floor (Mission → Map) keeps them
+const border = (w, h) =>
+  [Rc(0, 0, w, 0.2), Rc(0, h - 0.2, w, 0.2), Rc(0, 0, 0.2, h), Rc(w - 0.2, 0, 0.2, h)].map(s => ({...s, border: true}));
+const BORDER = border(24, 16);
 function warehouse() {
   const s = [...BORDER];
   for (const y of [3.2, 6.4, 9.6, 12.8]) {
@@ -271,6 +293,7 @@ const LEVELS = [
   {
     id: 'L1',
     name: 'Open floor',
+    size: [24, 16],
     adds: 'Perfect pose and a known map, a few pillars, straight-line paths. Everything is ideal except the controller, so this is where you tune tracking.',
     tries: [
       {
@@ -330,6 +353,7 @@ const LEVELS = [
   {
     id: 'L2',
     name: 'Warehouse aisles',
+    size: [24, 16],
     adds: 'Shelving rows block straight lines. Pose and map are still perfect, so the global planner is the only thing that changes outcomes.',
     tries: [
       {
@@ -387,6 +411,7 @@ const LEVELS = [
   {
     id: 'L3',
     name: 'Noisy odometry',
+    size: [24, 16],
     adds: 'Wheel odometry is noisy and slightly miscalibrated. The filter is not told about the calibration bias. Wall beacons give range and bearing.',
     tries: [
       {
@@ -459,6 +484,7 @@ const LEVELS = [
   {
     id: 'L4',
     name: 'Unknown building',
+    size: [24, 16],
     adds: 'No prior map. Lidar builds an occupancy grid in the estimated frame, and the planner treats unknown space as free and replans as walls appear.',
     tries: [
       {t: '<b>Mission:</b> follow the replans in the event log as rooms are discovered.', b: [['Run', {tab: 'mis'}]]},
@@ -539,6 +565,7 @@ const LEVELS = [
   {
     id: 'L5',
     name: 'Busy floor',
+    size: [24, 16],
     adds: 'Prior map, but people walk the aisles. A lidar tracker estimates where they are and how fast they move, and a speed planner predicts where they will be. Acceleration limits and actuator lag are on, and beacons are unlabeled with false detections.',
     tries: [
       {
@@ -631,6 +658,7 @@ const LEVELS = [
   {
     id: 'L6',
     name: 'Parking lot',
+    size: [24, 16],
     adds: 'The robot becomes a car: kinematic bicycle model, 32° steering limit, a turning radius near 1 m, and a body that cannot turn in place. Goals now carry a heading: reverse into a bay, nose into another, then parallel park. People cross the lanes on their way to and from cars, pausing before they turn back.',
     tries: [
       {
@@ -773,6 +801,7 @@ const LEVELS = [
   {
     id: 'L7',
     name: 'Moose test',
+    size: [24, 16],
     adds: "Speed. The car with tyre slip, on the slippery floor, enters a two-lane road at 3.5 m/s, above its characteristic speed of 2.6 m/s. A box blocks the right lane, a second one the left lane 7 m on: swerve left, then back (a slalom like the moose test). The map is known and the plan is fixed; what decides the run is whether the controller's model knows the tyres. The MPC starts with the kinematic model.",
     tries: [
       {
@@ -850,6 +879,664 @@ const LEVELS = [
     layers: {cost: false}
   }
 ];
+
+/* ---- core/levels.js ---- */
+/* ============================================================
+   Levels as data. A level is a plain JSON object: the page imports and exports it, keeps it in the browser, carries
+   it in a link, and the world generator (worldgen.js) writes it. The built-in levels (worlds.js) convert to it and
+   back without a change in behaviour, and loadLevel runs every level, built-in or not, through the same code.
+     {format: 'nav-stack-lab-level', version: 1,
+      name, about (a sentence or two, optional),
+      size: [w, h] in metres (rounded to the 0.4 m paint grid; from WORLD_MIN to WORLD_MAX, area at most WORLD_AREA),
+      walls: true (the 0.2 m outer walls are added and `shapes` lists the rest; false: shapes is the whole map),
+      shapes: [{rect: [x, y, w, h]} | {circle: [x, y, r]}, …],
+      beacons: [[x, y], …],
+      start: [x, y, θ],
+      goals: [[x, y] or [x, y, θ], …],
+      people: [{from: [x, y], to: [x, y], speed, phase (0–1: where on the route it starts), mode: 'shuttle' (turns back
+               at once) | 'pause' (waits `wait` s at each end)}, …],
+      cars: [{loop: [[x, y], …], speed, phase}, …] (optional: the parking lot's moving car),
+      settings: {key: value} (the level's own setup: keys of DEFAULTS in core/params.js),
+      layers: {cost: true} (optional: map layers the level shows),
+      gen: the generator spec it was made from (optional; informational)}
+   The runtime level (what LV holds) keeps the old field names: shapes as {t, x, y, …}, peds, wps, cfg.
+   ============================================================ */
+const LEVEL_FORMAT = 'nav-stack-lab-level';
+const LEVEL_LIMITS = {shapes: 4000, beacons: 120, goals: 40, people: 32, cars: 4, loop: 32, name: 60, about: 600};
+const levelSize = L => L.size || [24, 16];
+// the settings a level may set: every parameter but the ones that belong to a run or to the browser
+const LEVEL_NOSET = ['seed', 'map', 'mapAdd', 'mapDel', 'bOff', 'detModel', 'polModel', 'predModel'];
+const r2 = v => Math.round(v * 100) / 100;
+const plainText = (s, n) =>
+  String(s == null ? '' : s)
+    .replace(/[<>&"'`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, n);
+// The runtime level → the format. edits: the map as it is on screen (painted cells and erased obstacles applied, the
+// goals placed, the beacons switched off left out) instead of the level as designed.
+function levelToJSON(L, edits) {
+  const [w, h] = levelSize(L),
+    src = edits ? L.shapes : L.shapes0 || L.shapes,
+    off = new Set(edits ? idList(P.bOff) : []),
+    walls = src.filter(s => s.border).length === 4;
+  // the numbers as they are (a level converted and back is the same level), but the painted cells and the goals
+  // placed by hand, whose float noise (1.2000000000000002) would only lengthen the file, to the centimetre
+  const shape = s => {
+    const f = s.painted ? r2 : v => v;
+    return s.t === 'c' ? {circle: [s.x, s.y, s.r].map(f)} : {rect: [s.x, s.y, s.w, s.h].map(f)};
+  };
+  const placed = edits && WPS.length && !WPS.some(g => g.explore),
+    goals = placed ? WPS.map(g => (g.th == null ? [r2(g.x), r2(g.y)] : [r2(g.x), r2(g.y), +g.th.toFixed(4)])) : L.wps.map(g => [...g]);
+  const settings = {};
+  for (const [k, v] of Object.entries(L.cfg || {})) if (!LEVEL_NOSET.includes(k)) settings[k] = v;
+  const out = {
+    format: LEVEL_FORMAT,
+    version: 1,
+    name: L.name,
+    about: plainText(L.adds, LEVEL_LIMITS.about),
+    size: [w, h],
+    walls,
+    shapes: src.filter(s => !(walls && s.border)).map(shape),
+    beacons: L.beacons.filter((b, i) => !off.has(i)).map(b => [b[0], b[1]]),
+    start: [...L.start],
+    goals,
+    people: L.peds.map(p => ({
+      from: [...p.a],
+      to: [...p.b],
+      speed: p.v,
+      phase: p.s0 || 0,
+      mode: p.dw ? 'pause' : 'shuttle',
+      ...(p.dw ? {wait: p.dw} : {})
+    })),
+    settings
+  };
+  if (L.cars && L.cars.length) out.cars = L.cars.map(c => ({loop: c.loop.map(q => [...q]), speed: c.v, phase: c.s0 || 0}));
+  if (L.layers && L.layers.cost) out.layers = {cost: true};
+  if (L.gen && !edits) out.gen = L.gen;
+  return out;
+}
+// The format → a runtime level, checked: throws an Error that says what is wrong. id: what the header shows.
+function levelFromJSON(j, id) {
+  const bad = m => {
+    throw new Error(m);
+  };
+  if (!j || typeof j !== 'object') bad('a level is a JSON object');
+  if (j.format !== LEVEL_FORMAT) bad(`not a level (format should be "${LEVEL_FORMAT}")`);
+  if (j.version !== 1) bad('level format version ' + j.version + ' is not known to this page');
+  const num = (v, what) => (typeof v === 'number' && isFinite(v) ? v : bad(what + ' is not a number')),
+    arr = (v, what, n) => (Array.isArray(v) && (n == null || v.length >= n) ? v : bad(what + ' is not a list' + (n ? ` of ${n}` : ''))),
+    list = (v, what, max) => {
+      if (v == null) return [];
+      arr(v, what);
+      if (v.length > max) bad(`${what}: at most ${max}`);
+      return v;
+    };
+  const sz = arr(j.size, 'size', 2),
+    w = Math.round(num(sz[0], 'size[0]') * 2.5) / 2.5,
+    h = Math.round(num(sz[1], 'size[1]') * 2.5) / 2.5;
+  if (w < WORLD_MIN[0] || h < WORLD_MIN[1] || w > WORLD_MAX[0] || h > WORLD_MAX[1])
+    bad(`size ${w} × ${h} m: from ${WORLD_MIN.join(' × ')} to ${WORLD_MAX.join(' × ')} m`);
+  if (w * h > WORLD_AREA + 1e-9) bad(`size ${w} × ${h} m: the area is at most ${WORLD_AREA} m²`);
+  const inside = (p, what) => {
+    const x = num(p[0], what + ' x'),
+      y = num(p[1], what + ' y');
+    if (x < 0 || y < 0 || x > w || y > h) bad(`${what} (${x}, ${y}) is outside the ${w} × ${h} m floor`);
+    return [x, y];
+  };
+  const shapes = j.walls === false ? [] : border(w, h);
+  for (const s of list(j.shapes, 'shapes', LEVEL_LIMITS.shapes)) {
+    if (s && s.rect) {
+      const [x, y, sw, sh] = arr(s.rect, 'rect', 4).map((v, k) => num(v, 'rect[' + k + ']'));
+      if (!(sw > 0 && sh > 0)) bad('a rect needs a positive width and height');
+      shapes.push(Rc(x, y, sw, sh));
+    } else if (s && s.circle) {
+      const [x, y, r] = arr(s.circle, 'circle', 3).map((v, k) => num(v, 'circle[' + k + ']'));
+      if (!(r > 0)) bad('a circle needs a positive radius');
+      shapes.push(Ci(x, y, r));
+    } else bad('a shape is {rect: [x, y, w, h]} or {circle: [x, y, r]}');
+  }
+  const st = arr(j.start, 'start', 2);
+  const start = [...inside(st, 'start'), st.length > 2 ? num(st[2], 'start θ') : 0];
+  const goals = list(j.goals, 'goals', LEVEL_LIMITS.goals).map((g, k) => {
+    arr(g, 'goal ' + (k + 1), 2);
+    const p = inside(g, 'goal ' + (k + 1));
+    return g.length > 2 && g[2] != null ? [...p, num(g[2], 'goal θ')] : p;
+  });
+  const peds = list(j.people, 'people', LEVEL_LIMITS.people).map((p, k) => {
+    const what = 'person ' + (k + 1);
+    if (!p || typeof p !== 'object') bad(what + ' is not an object');
+    const a = inside(arr(p.from, what + ' from', 2), what + ' from'),
+      b = inside(arr(p.to, what + ' to', 2), what + ' to');
+    if (hyp(b[0] - a[0], b[1] - a[1]) < 0.5) bad(what + ': the route is shorter than 0.5 m');
+    const out = {
+      a,
+      b,
+      v: clamp(num(p.speed == null ? 0.7 : p.speed, what + ' speed'), 0.1, 2),
+      s0: clamp(num(p.phase || 0, what + ' phase'), 0, 1)
+    };
+    if (p.mode === 'pause') out.dw = clamp(num(p.wait == null ? 2 : p.wait, what + ' wait'), 0.1, 30);
+    else if (p.mode != null && p.mode !== 'shuttle') bad(what + ': mode is "shuttle" or "pause"');
+    return out;
+  });
+  const cars = list(j.cars, 'cars', LEVEL_LIMITS.cars).map((c, k) => ({
+    loop: list(c && c.loop, 'car ' + (k + 1) + ' loop', LEVEL_LIMITS.loop).map(q => inside(arr(q, 'loop point', 2), 'car ' + (k + 1))),
+    v: clamp(num(c.speed == null ? 0.6 : c.speed, 'car speed'), 0.1, 2),
+    s0: clamp(num(c.phase || 0, 'car phase'), 0, 1)
+  }));
+  if (cars.some(c => c.loop.length < 2)) bad('a car loop needs two points or more');
+  const cfg = {};
+  for (const [k, v] of Object.entries(j.settings || {})) {
+    if (!(k in DEFAULTS) || LEVEL_NOSET.includes(k)) continue; // a key this page does not know is left out, not an error
+    if (typeof v !== typeof DEFAULTS[k]) bad(`setting ${k}: a ${typeof DEFAULTS[k]}`);
+    cfg[k] = v;
+  }
+  const L = {
+    id: id || 'C',
+    name: plainText(j.name, LEVEL_LIMITS.name) || 'Custom level',
+    adds: plainText(j.about, LEVEL_LIMITS.about) || 'A level loaded from a file or a link.',
+    tries: [],
+    custom: true,
+    size: [w, h],
+    shapes,
+    beacons: list(j.beacons, 'beacons', LEVEL_LIMITS.beacons).map((b, k) => inside(arr(b, 'beacon', 2), 'beacon ' + (k + 1))),
+    peds,
+    start,
+    wps: goals,
+    cfg,
+    layers: {cost: !!(j.layers && j.layers.cost)}
+  };
+  if (cars.length) L.cars = cars;
+  if (j.gen && typeof j.gen === 'object') L.gen = {...j.gen};
+  return L;
+}
+// What loadLevel accepts, as a runtime level: an index into LEVELS, a runtime level, a level in the format, or a
+// generator spec ({gen: 'rooms', seed: 3, …}, worldgen.js). The last two are made once per distinct object and kept,
+// so that a worker running many seeds on one level, or a tryGo on the current one, does not build it again.
+const LEVEL_CACHE = new Map();
+function levelOf(x) {
+  if (typeof x === 'number') {
+    if (!LEVELS[x]) throw new Error('no level ' + x);
+    return LEVELS[x];
+  }
+  if (!x || typeof x !== 'object') throw new Error('not a level');
+  if (x.shapes && x.wps && x.cfg) return x; // a runtime level
+  const key = JSON.stringify(x);
+  let L = LEVEL_CACHE.get(key);
+  if (!L) {
+    if (x.gen && x.format !== LEVEL_FORMAT) {
+      L = levelFromJSON(genLevel(x), 'G');
+      L.genSpec = {...x};
+    } else L = levelFromJSON(x, x.gen ? 'G' : 'C');
+    if (LEVEL_CACHE.size >= 8) LEVEL_CACHE.delete(LEVEL_CACHE.keys().next().value);
+    LEVEL_CACHE.set(key, L);
+  }
+  return L;
+}
+// How a level travels to a worker or into a link: a built-in by its index, a generated one by its spec (unedited: a
+// spec is a few bytes), any other by its JSON
+const levelRef = L => (LEVELS.includes(L) ? LEVELS.indexOf(L) : L.genSpec || levelToJSON(L));
+
+/* ---- core/worldgen.js ---- */
+/* ============================================================
+   World generator: a seeded level in the level format (levels.js), of one of three families. The same spec gives the
+   same level on every machine (mulberry32, never Math.random). Core only, no DOM; it works on grids of its own and
+   leaves the world's (W, H, GW, GH) alone, so it can run while another level is on screen.
+     spec: {gen: family, seed, w, h, goals, people, beacons (0: about one per 32 m²), like: the built-in level whose
+           settings the level takes ('L1' … 'L5'; by default L5 with people, L2 without), and the family's own
+           parameters (GEN_FAMILIES)}
+   Every family places, on the free floor the robot can reach from its start (a grid search on the costmap's lethal
+   cells, LETHAL from the obstacles, which is where the grid planners can go): the start in the lower left corner, the
+   goals spread over that floor, the beacons on walls next to it, and the people's routes along straight runs of free
+   floor 0.6 m clear on both sides.
+   ============================================================ */
+// [default, min, max, step, label]
+const GEN_COMMON = {
+  w: [24, WORLD_MIN[0], WORLD_MAX[0], 0.4, 'width (m)'],
+  h: [16, WORLD_MIN[1], WORLD_MAX[1], 0.4, 'depth (m)'],
+  goals: [5, 1, 12, 1, 'goals'],
+  people: [0, 0, 12, 1, 'people'],
+  beacons: [0, 0, 60, 1, 'beacons (0: one per 32 m²)']
+};
+const GEN_FAMILIES = {
+  rooms: {
+    name: 'Rooms and corridors',
+    about: 'rooms split off one another by walls with doors, some of them along corridors, with furniture against the walls',
+    params: {
+      room: [4, 3, 10, 0.5, 'smallest room side (m)'],
+      door: [1.2, 1, 2, 0.1, 'door width (m)'],
+      corridor: [0.4, 0, 1, 0.1, 'how often a split leaves a corridor'],
+      clutter: [1, 0, 3, 1, 'furniture per room']
+    }
+  },
+  warehouse: {
+    name: 'Warehouse',
+    about: 'rows of racks with aisles between them, cross aisles and a few gaps through the racks',
+    params: {
+      aisle: [2, 1.2, 3.2, 0.1, 'aisle width (m)'],
+      depth: [0.8, 0.4, 1.6, 0.1, 'rack depth (m)'],
+      cross: [1, 0, 4, 1, 'cross aisles'],
+      gaps: [0.2, 0, 1, 0.05, 'chance of a gap in a rack']
+    }
+  },
+  hall: {
+    name: 'Open hall',
+    about: 'an open floor with pillars and boxes scattered over it',
+    params: {
+      density: [6, 0, 25, 1, 'obstacles per 100 m²'],
+      gap: [1.2, 0.9, 3, 0.1, 'least gap between obstacles (m)'],
+      round: [0.5, 0, 1, 0.1, 'share of round pillars']
+    }
+  }
+};
+const GEN_LIKE = ['L1', 'L2', 'L3', 'L4', 'L5'];
+const snap1 = v => Math.round(v * 10) / 10;
+// A spec with every field present and within its range (snapped to its step); throws on an unknown family
+function genSpec(sp) {
+  const F = GEN_FAMILIES[sp && sp.gen];
+  if (!F) throw new Error(`unknown generator "${sp && sp.gen}" (${Object.keys(GEN_FAMILIES).join(', ')})`);
+  const out = {gen: sp.gen, seed: clamp(Math.round(+sp.seed || 1), 1, 99999)};
+  for (const [k, [d, lo, hi, st]] of Object.entries({...GEN_COMMON, ...F.params})) {
+    const v = sp[k] == null || !isFinite(+sp[k]) ? d : clamp(+sp[k], lo, hi);
+    out[k] = +(lo + Math.round((v - lo) / st) * st).toFixed(2);
+  }
+  out.like = GEN_LIKE.includes(sp.like) ? sp.like : out.people > 0 ? 'L5' : 'L2';
+  return out;
+}
+// The gap between two shapes ({t: 'r' | 'c'}), 0 when they touch or overlap
+function shapeGap(a, b) {
+  if (a.t === 'c' && b.t === 'c') return Math.max(0, hyp(a.x - b.x, a.y - b.y) - a.r - b.r);
+  if (a.t === 'c' || b.t === 'c') {
+    const c = a.t === 'c' ? a : b,
+      r = a.t === 'c' ? b : a;
+    return Math.max(0, hyp(c.x - clamp(c.x, r.x, r.x + r.w), c.y - clamp(c.y, r.y, r.y + r.h)) - c.r);
+  }
+  const dx = Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w)),
+    dy = Math.max(0, a.y - (b.y + b.h), b.y - (a.y + a.h));
+  return hyp(dx, dy);
+}
+
+/* ---------- the families: interior obstacles of a w × h floor (the outer walls are added by the format) ---------- */
+// Rooms: binary space partition of the floor. Each split is a 0.2 m wall with one door, so every room is reachable;
+// a split may leave a corridor (two walls, a door in each, and a door from every room along it). A new wall never
+// meets a wall where that wall has a door.
+function genRooms(w, h, p, u) {
+  const dw = p.door,
+    minS = p.room,
+    cw = Math.max(1.6, dw + 0.4),
+    walls = [],
+    shapes = [],
+    rnd = (a, b) => a + u() * (b - a);
+  const door = (wall, lo, hi) => {
+    const a = lo + 0.5,
+      b = hi - 0.5 - dw;
+    if (!wall || b < a) return null;
+    const d0 = snap1(rnd(a, b)),
+      g = [d0, d0 + dw];
+    wall.gaps.push(g);
+    return g;
+  };
+  const near = (ints, s) => ints.some(g => s > g[0] - 0.5 && s < g[1] + 0.5),
+    within = (ints, lo, hi) => ints.filter(g => g[1] > lo && g[0] < hi);
+  const leaf = R => {
+    if (R.corr) return;
+    // a door into every corridor the room lies along
+    const span = {L: [R.y0, R.y1], R: [R.y0, R.y1], B: [R.x0, R.x1], T: [R.x0, R.x1]};
+    for (const k of ['L', 'R', 'B', 'T'])
+      if (R.cside[k] && !within(R.doors[k], ...span[k]).length) {
+        const g = door(R.walls[k], ...span[k]);
+        if (g) R.doors[k] = R.doors[k].concat([g]);
+      }
+    // furniture against the walls, clear of the doors and of one another, leaving 1.6 m of the room free
+    const doorPts = [];
+    for (const k of ['L', 'R', 'B', 'T'])
+      for (const g of within(R.doors[k], ...span[k])) {
+        const m = (g[0] + g[1]) / 2;
+        doorPts.push(k === 'L' ? [R.x0, m] : k === 'R' ? [R.x1, m] : k === 'B' ? [m, R.y0] : [m, R.y1]);
+      }
+    const mine = [];
+    for (let n = 0, t = 0; n < p.clutter && t < 30; t++) {
+      const side = ['L', 'R', 'B', 'T'][Math.floor(u() * 4)],
+        horiz = side === 'B' || side === 'T',
+        along = snap1(rnd(0.6, 1.6)),
+        deep = snap1(rnd(0.4, 1.0)),
+        roomAlong = horiz ? R.x1 - R.x0 : R.y1 - R.y0,
+        roomDeep = horiz ? R.y1 - R.y0 : R.x1 - R.x0;
+      if (roomDeep - 0.2 - deep < 1.6 || roomAlong - 0.8 < along) continue;
+      const a = snap1(rnd((horiz ? R.x0 : R.y0) + 0.4, (horiz ? R.x1 : R.y1) - 0.4 - along)),
+        s =
+          side === 'B'
+            ? Rc(a, R.y0 + 0.1, along, deep)
+            : side === 'T'
+              ? Rc(a, R.y1 - 0.1 - deep, along, deep)
+              : side === 'L'
+                ? Rc(R.x0 + 0.1, a, deep, along)
+                : Rc(R.x1 - 0.1 - deep, a, deep, along);
+      if (doorPts.some(q => shapeGap(s, Ci(q[0], q[1], 0.01)) < dw + 0.4)) continue;
+      if (mine.some(o => shapeGap(s, o) < 1.0)) continue;
+      mine.push(s);
+      n++;
+    }
+    shapes.push(...mine);
+  };
+  const split = (R, depth) => {
+    const rw = R.x1 - R.x0,
+      rh = R.y1 - R.y0,
+      canV = rw >= 2 * minS,
+      canH = rh >= 2 * minS;
+    // a room of up to twice the smallest side's area is sometimes kept whole
+    if ((!canV && !canH) || depth > 14 || (rw * rh < 3 * minS * minS && u() < 0.3)) return leaf(R);
+    const vert = canV && (!canH || rw > rh * 1.2 || (rh <= rw * 1.2 && u() < 0.5)),
+      len = vert ? rw : rh,
+      lo = vert ? R.x0 : R.y0,
+      corr = !R.corr && u() < p.corridor && len >= 2 * minS + cw,
+      room = len - 2 * minS - (corr ? cw : 0),
+      ends = vert ? [...R.doors.B, ...R.doors.T] : [...R.doors.L, ...R.doors.R];
+    for (let t = 0; t < 12; t++) {
+      const s = snap1(lo + minS + u() * room),
+        s2 = corr ? snap1(s + cw) : s;
+      if (near(ends, s) || (corr && near(ends, s2))) continue;
+      const mk = c => {
+        const wl = {v: vert, c, a: vert ? R.y0 : R.x0, b: vert ? R.y1 : R.x1, gaps: []};
+        walls.push(wl);
+        return wl;
+      };
+      const w1 = mk(s),
+        g1 = door(w1, w1.a, w1.b),
+        w2 = corr ? mk(s2) : w1,
+        g2 = corr ? door(w2, w2.a, w2.b) : g1,
+        sub = (a, b, lw, lg, hw, hg, corrL, corrH, isCorr) => {
+          // the part between a and b along the split; lw/hw: the walls at its low and high end, lg/hg their doors
+          const box = vert ? {x0: a, x1: b, y0: R.y0, y1: R.y1} : {x0: R.x0, x1: R.x1, y0: a, y1: b},
+            lk = vert ? 'L' : 'B',
+            hk = vert ? 'R' : 'T',
+            ok = vert ? ['B', 'T'] : ['L', 'R'];
+          const N = {...box, corr: isCorr, doors: {}, walls: {}, cside: {}};
+          for (const k of ok) {
+            N.doors[k] = within(R.doors[k], a, b);
+            N.walls[k] = R.walls[k];
+            N.cside[k] = R.cside[k];
+          }
+          N.doors[lk] = lw === R.walls[lk] ? R.doors[lk] : lg ? [lg] : [];
+          N.walls[lk] = lw;
+          N.cside[lk] = lw === R.walls[lk] ? R.cside[lk] : corrL;
+          N.doors[hk] = hw === R.walls[hk] ? R.doors[hk] : hg ? [hg] : [];
+          N.walls[hk] = hw;
+          N.cside[hk] = hw === R.walls[hk] ? R.cside[hk] : corrH;
+          return N;
+        };
+      const lk = vert ? 'L' : 'B',
+        hk = vert ? 'R' : 'T',
+        hi = vert ? R.x1 : R.y1;
+      split(sub(lo, s, R.walls[lk], null, w1, g1, false, corr, false), depth + 1);
+      if (corr) leaf(sub(s, s2, w1, g1, w2, g2, false, false, true));
+      split(sub(s2, hi, w2, g2, R.walls[hk], null, corr, false, false), depth + 1);
+      return;
+    }
+    leaf(R);
+  };
+  const none = {L: [], R: [], B: [], T: []};
+  split({x0: 0.1, y0: 0.1, x1: w - 0.1, y1: h - 0.1, doors: none, walls: {L: null, R: null, B: null, T: null}, cside: {}}, 0);
+  // the walls, less their doors, as 0.2 m rectangles reaching the centre lines of the walls they meet
+  for (const wl of walls) {
+    const gaps = wl.gaps.slice().sort((a, b) => a[0] - b[0]);
+    let a = wl.a;
+    for (const g of gaps.concat([[wl.b, wl.b]])) {
+      if (g[0] - a > 0.05)
+        shapes.push(wl.v ? Rc(snap1(wl.c - 0.1), snap1(a), 0.2, snap1(g[0] - a)) : Rc(snap1(a), snap1(wl.c - 0.1), snap1(g[0] - a), 0.2));
+      a = Math.max(a, g[1]);
+    }
+  }
+  return {shapes, startAt: [1.2, 1.2]};
+}
+// Warehouse: rows of racks across the floor, a perimeter aisle round them, cross aisles at random places, and, with
+// some chance per rack, a gap through it as wide as an aisle
+function genWarehouse(w, h, p, u) {
+  const a = p.aisle,
+    d = p.depth,
+    m = Math.max(a, 1.6) + 0.2,
+    shapes = [];
+  let n = Math.floor((h - 2 * m + a) / (d + a));
+  if (n < 1) n = 1;
+  const used = n * d + (n - 1) * a,
+    y0 = Math.max(0.2 + 1.2, m + (h - 2 * m - used) / 2),
+    x0 = m,
+    x1 = w - m;
+  // the cross aisles: k cuts of width a at random places, every rack piece at least 1.6 m long
+  let cuts = [];
+  for (let k = p.cross; k > 0 && !cuts.length; k--) {
+    for (let t = 0; t < 40 && cuts.length < k; t++) {
+      const c = x0 + 1.6 + u() * (x1 - x0 - 3.2 - a);
+      if (cuts.every(q => Math.abs(q - c) >= a + 1.6)) cuts.push(c);
+    }
+    if (cuts.length < k) cuts = [];
+  }
+  cuts.sort((q, r) => q - r);
+  const pieces = [];
+  let s = x0;
+  for (const c of cuts) {
+    pieces.push([s, c]);
+    s = c + a;
+  }
+  pieces.push([s, x1]);
+  for (let r = 0; r < n; r++) {
+    const y = snap1(y0 + r * (d + a));
+    if (y + d > h - 1.4) break;
+    for (const [pa, pb] of pieces) {
+      if (pb - pa < 1.2) continue;
+      if (u() < p.gaps && pb - pa >= 2 * 1.2 + a) {
+        const g = pa + 1.2 + u() * (pb - pa - 2.4 - a);
+        shapes.push(Rc(snap1(pa), y, snap1(g - pa), d), Rc(snap1(g + a), y, snap1(pb - g - a), d));
+      } else shapes.push(Rc(snap1(pa), y, snap1(pb - pa), d));
+    }
+  }
+  return {shapes, startAt: [1.0, 1.0]};
+}
+// Open hall: pillars (circles) and boxes at random places, each at least `gap` from the others and from the walls
+function genHall(w, h, p, u) {
+  const shapes = [],
+    count = Math.round((p.density * w * h) / 100),
+    wallsIn = [Rc(0, 0, w, 0.2), Rc(0, h - 0.2, w, 0.2), Rc(0, 0, 0.2, h), Rc(w - 0.2, 0, 0.2, h)],
+    keep = Ci(1.5, 1.5, 1.2);
+  for (let t = 0; t < count * 40 && shapes.length < count; t++) {
+    let s;
+    if (u() < p.round) {
+      const r = snap1(0.25 + u() * 0.55);
+      s = Ci(snap1(r + u() * (w - 2 * r)), snap1(r + u() * (h - 2 * r)), r);
+    } else {
+      const bw = snap1(0.4 + u() * 2),
+        bh = snap1(0.4 + u() * 2);
+      s = Rc(snap1(u() * (w - bw)), snap1(u() * (h - bh)), bw, bh);
+    }
+    if (wallsIn.some(q => shapeGap(s, q) < p.gap) || shapeGap(s, keep) < 0.3) continue;
+    if (shapes.some(q => shapeGap(s, q) < p.gap)) continue;
+    shapes.push(s);
+  }
+  return {shapes, startAt: [1.5, 1.5]};
+}
+const GEN_BUILD = {rooms: genRooms, warehouse: genWarehouse, hall: genHall};
+
+/* ---------- placing the start, the goals, the beacons and the people ---------- */
+// The level of a spec, in the level format
+function genLevel(spec) {
+  const sp = genSpec(spec),
+    F = GEN_FAMILIES[sp.gen],
+    {w, h} = sp,
+    u = mulberry32((Math.imul(sp.seed, 2654435761) ^ [...sp.gen].reduce((a, c) => a * 31 + c.charCodeAt(0), 7)) >>> 0),
+    built = GEN_BUILD[sp.gen](w, h, sp, u),
+    shapes = built.shapes,
+    gw = Math.round(w / RES),
+    gh = Math.round(h / RES),
+    occ = rasterize(border(w, h).concat(shapes), gw, gh),
+    dist = distanceTransform(occ, gw, gh),
+    at = (x, y) => {
+      const i = Math.floor(x / RES),
+        j = Math.floor(y / RES);
+      return i < 0 || j < 0 || i >= gw || j >= gh ? -1 : j * gw + i;
+    },
+    cx = k => ((k % gw) + 0.5) * RES,
+    cy = k => (((k / gw) | 0) + 0.5) * RES;
+  // the free cells connected to k through cells at least thr from an obstacle, 8-connected without cutting corners
+  const flood = (k, thr) => {
+    const m = new Uint8Array(gw * gh),
+      q = [k];
+    if (k < 0 || dist[k] < thr) return m;
+    m[k] = 1;
+    while (q.length) {
+      const c = q.pop(),
+        i = c % gw,
+        j = (c / gw) | 0;
+      for (let dj = -1; dj <= 1; dj++)
+        for (let di = -1; di <= 1; di++) {
+          const ii = i + di,
+            jj = j + dj;
+          if ((!di && !dj) || ii < 0 || jj < 0 || ii >= gw || jj >= gh) continue;
+          const v = jj * gw + ii;
+          if (m[v] || dist[v] < thr) continue;
+          if (di && dj && (dist[j * gw + ii] < thr || dist[jj * gw + i] < thr)) continue;
+          m[v] = 1;
+          q.push(v);
+        }
+    }
+    return m;
+  };
+  // the start: the free cell 0.7 m clear nearest the family's corner, facing the longest free run of the eight directions
+  let s0 = -1,
+    best = Infinity;
+  for (let k = 0; k < gw * gh; k++) {
+    if (dist[k] < 0.7) continue;
+    const d = hyp(cx(k) - built.startAt[0], cy(k) - built.startAt[1]);
+    if (d < best) {
+      best = d;
+      s0 = k;
+    }
+  }
+  if (s0 < 0) throw new Error('the generated floor has no free space for the start');
+  const sx = snap1(cx(s0)),
+    sy = snap1(cy(s0));
+  let th = 0,
+    run = -1;
+  for (let a = 0; a < 8; a++) {
+    const t = (a * Math.PI) / 4;
+    let r = 0;
+    while (r < 8) {
+      const k = at(sx + (r + 0.1) * Math.cos(t), sy + (r + 0.1) * Math.sin(t));
+      if (k < 0 || dist[k] < LETHAL) break;
+      r += 0.1;
+    }
+    if (r > run + 1e-9) {
+      run = r;
+      th = t;
+    }
+  }
+  const reach = flood(at(sx, sy), LETHAL + 0.05),
+    cells = [];
+  for (let k = 0; k < gw * gh; k++) if (reach[k] && dist[k] >= 0.6) cells.push(k);
+  if (cells.length < 50) throw new Error('the generated floor leaves the robot almost no room');
+  // the goals: spread out over the reachable floor, each at least dmin from the start and the goals before it
+  const goals = [],
+    away = (x, y, pts, dm) => pts.every(q => hyp(q[0] - x, q[1] - y) >= dm);
+  let dmin = clamp(Math.sqrt((w * h) / (sp.goals + 1)) * 0.8, 2, 8);
+  while (goals.length < sp.goals && dmin > 0.5) {
+    let got = false;
+    for (let t = 0; t < 300 && !got; t++) {
+      const k = cells[Math.floor(u() * cells.length)],
+        x = snap1(cx(k)),
+        y = snap1(cy(k)),
+        kk = at(x, y);
+      if (!reach[kk] || dist[kk] < 0.6 || !away(x, y, [[sx, sy], ...goals], dmin)) continue;
+      goals.push([x, y]);
+      got = true;
+    }
+    if (!got) dmin *= 0.8;
+  }
+  // the beacons: farthest-point sampling over the cells 0.2–0.32 m from a wall that open onto the robot's floor
+  const loose = flood(at(sx, sy), 0.15),
+    cand = [];
+  for (let k = 0; k < gw * gh; k++) if (loose[k] && dist[k] >= 0.2 && dist[k] <= 0.32) cand.push(k);
+  const nb = Math.min(cand.length, sp.beacons || Math.max(4, Math.round((w * h) / 32))),
+    beacons = [];
+  if (nb) {
+    const md = new Float64Array(cand.length).fill(Infinity);
+    let pick = Math.floor(u() * cand.length);
+    for (let b = 0; b < nb; b++) {
+      const bx = cx(cand[pick]),
+        by = cy(cand[pick]);
+      beacons.push([Math.round(bx * 100) / 100, Math.round(by * 100) / 100]);
+      let far = -1;
+      for (let c = 0; c < cand.length; c++) {
+        const d = hyp(cx(cand[c]) - bx, cy(cand[c]) - by);
+        if (d < md[c]) md[c] = d;
+        if (md[c] > far) {
+          far = md[c];
+          pick = c;
+        }
+      }
+      if (far < 1) break;
+    }
+  }
+  // the people: straight runs of floor 0.6 m clear, 4–16 m long, along x or y, not over the start
+  const people = [];
+  for (let t = 0; t < 400 && people.length < sp.people; t++) {
+    const k = cells[Math.floor(u() * cells.length)],
+      along = sp.gen === 'warehouse' ? u() < 0.7 : u() < 0.5,
+      ox = cx(k),
+      oy = cy(k);
+    if (dist[k] < 0.7) continue;
+    const ext = dir => {
+      let r = 0;
+      while (r < 8) {
+        const kk = along ? at(ox + dir * (r + 0.1), oy) : at(ox, oy + dir * (r + 0.1));
+        if (kk < 0 || dist[kk] < 0.6) break;
+        r += 0.1;
+      }
+      return r;
+    };
+    const r0 = ext(-1),
+      r1 = ext(1);
+    if (r0 + r1 < 4) continue;
+    const a = along ? [snap1(ox - r0 + 0.2), snap1(oy)] : [snap1(ox), snap1(oy - r0 + 0.2)],
+      b = along ? [snap1(ox + r1 - 0.2), snap1(oy)] : [snap1(ox), snap1(oy + r1 - 0.2)];
+    // clear of the start, and not on top of another route
+    const segD = (q, A, B) => {
+      const L2 = (B[0] - A[0]) ** 2 + (B[1] - A[1]) ** 2,
+        f = clamp(((q[0] - A[0]) * (B[0] - A[0]) + (q[1] - A[1]) * (B[1] - A[1])) / L2, 0, 1);
+      return hyp(q[0] - A[0] - f * (B[0] - A[0]), q[1] - A[1] - f * (B[1] - A[1]));
+    };
+    if (segD([sx, sy], a, b) < 1.5) continue;
+    const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    if (people.some(q => segD(mid, q.from, q.to) < 1.5)) continue;
+    const pause = u() < 0.3;
+    people.push({
+      from: a,
+      to: b,
+      speed: snap1(0.5 + u() * 0.4),
+      phase: Math.round(u() * 20) / 20,
+      mode: pause ? 'pause' : 'shuttle',
+      ...(pause ? {wait: snap1(1 + u() * 2)} : {})
+    });
+  }
+  const like = LEVELS.find(L => L.id === sp.like),
+    settings = {};
+  for (const [k, v] of Object.entries(like.cfg)) if (!LEVEL_NOSET.includes(k)) settings[k] = v;
+  const fmt = s => (s.t === 'c' ? {circle: [s.x, s.y, s.r]} : {rect: [s.x, s.y, s.w, s.h]});
+  return {
+    format: LEVEL_FORMAT,
+    version: 1,
+    name: `${F.name} ${w} × ${h} · seed ${sp.seed}`,
+    about: `Generated: ${F.about}. ${goals.length} goals, ${people.length ? people.length + (people.length > 1 ? ' people' : ' person') : 'nobody'} walking, the settings of ${like.id} ${like.name}.`,
+    size: [w, h],
+    walls: true,
+    shapes: shapes.map(fmt),
+    beacons,
+    start: [sx, sy, th],
+    goals,
+    people,
+    settings,
+    ...(like.layers && like.layers.cost ? {layers: {cost: true}} : {}),
+    gen: sp
+  };
+}
 
 /* ---- core/params.js ---- */
 /* ============================================================
@@ -952,7 +1639,7 @@ const DEFAULTS = {
   clutter: 0,
   bOff: '',
   map: 'level', // the obstacles: the level's ('level') or none but the outer walls ('empty'); beacons and people stay
-  mapAdd: '', // obstacles painted on the map: cells of the 0.4 m paint grid (j·60 + i), comma-separated
+  mapAdd: '', // obstacles painted on the map: cells of the 0.4 m paint grid (j·PGW + i; PGW = 60 on a 24 m floor), comma-separated
   mapDel: '', // the level's obstacles erased on the map: their indices in the level's shape list, comma-separated
   misLoop: false, // after the last goal the mission starts again from the first, until stopped
   bOut: 0,
@@ -1193,15 +1880,27 @@ const dirty = {occ: true, cost: true, search: true};
 
 function prepLevel(L) {
   if (L.truthOcc) return;
-  const occ = new Uint8Array(NC);
-  for (let j = 0; j < GH; j++)
-    for (let i = 0; i < GW; i++) {
-      const x = (i + 0.5) * RES,
-        y = (j + 0.5) * RES;
-      if (insideAny(x, y, L.shapes)) occ[j * GW + i] = 1;
-    }
+  const occ = rasterize(L.shapes, GW, GH);
   L.truthOcc = occ;
   L.truthDist = distanceTransform(occ);
+}
+// The cells of a gw × gh grid whose centres lie in a shape (insideAny's test, cell by cell over each shape's bounding box)
+function rasterize(shapes, gw, gh) {
+  const occ = new Uint8Array(gw * gh);
+  for (const s of shapes) {
+    const one = [s],
+      bx0 = s.t === 'r' ? s.x : s.x - s.r,
+      by0 = s.t === 'r' ? s.y : s.y - s.r,
+      bx1 = s.t === 'r' ? s.x + s.w : s.x + s.r,
+      by1 = s.t === 'r' ? s.y + s.h : s.y + s.r,
+      i0 = Math.max(0, Math.floor(bx0 / RES) - 1),
+      j0 = Math.max(0, Math.floor(by0 / RES) - 1),
+      i1 = Math.min(gw - 1, Math.ceil(bx1 / RES) + 1),
+      j1 = Math.min(gh - 1, Math.ceil(by1 / RES) + 1);
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) if (!occ[j * gw + i] && insideAny((i + 0.5) * RES, (j + 0.5) * RES, one)) occ[j * gw + i] = 1;
+  }
+  return occ;
 }
 function insideAny(x, y, shapes) {
   for (const s of shapes) {
@@ -1267,37 +1966,39 @@ function rayCast(ox, oy, dx, dy, maxR, shapes) {
   }
   return best;
 }
-function distanceTransform(occ) {
-  const d = new Float32Array(NC);
+// (on the world's grid, or on a gw × gh one: the world generator's, which is not the world's while it runs)
+function distanceTransform(occ, gw = GW, gh = GH) {
+  const nc = gw * gh;
+  const d = new Float32Array(nc);
   const INF = 1e9;
-  for (let i = 0; i < NC; i++) d[i] = occ[i] ? 0 : INF;
-  for (let j = 0; j < GH; j++)
-    for (let i = 0; i < GW; i++) {
-      const k = j * GW + i;
+  for (let i = 0; i < nc; i++) d[i] = occ[i] ? 0 : INF;
+  for (let j = 0; j < gh; j++)
+    for (let i = 0; i < gw; i++) {
+      const k = j * gw + i;
       let m = d[k];
       if (m === 0) continue;
       if (i > 0) m = Math.min(m, d[k - 1] + 1);
       if (j > 0) {
-        m = Math.min(m, d[k - GW] + 1);
-        if (i > 0) m = Math.min(m, d[k - GW - 1] + SQ2);
-        if (i < GW - 1) m = Math.min(m, d[k - GW + 1] + SQ2);
+        m = Math.min(m, d[k - gw] + 1);
+        if (i > 0) m = Math.min(m, d[k - gw - 1] + SQ2);
+        if (i < gw - 1) m = Math.min(m, d[k - gw + 1] + SQ2);
       }
       d[k] = m;
     }
-  for (let j = GH - 1; j >= 0; j--)
-    for (let i = GW - 1; i >= 0; i--) {
-      const k = j * GW + i;
+  for (let j = gh - 1; j >= 0; j--)
+    for (let i = gw - 1; i >= 0; i--) {
+      const k = j * gw + i;
       let m = d[k];
       if (m === 0) continue;
-      if (i < GW - 1) m = Math.min(m, d[k + 1] + 1);
-      if (j < GH - 1) {
-        m = Math.min(m, d[k + GW] + 1);
-        if (i < GW - 1) m = Math.min(m, d[k + GW + 1] + SQ2);
-        if (i > 0) m = Math.min(m, d[k + GW - 1] + SQ2);
+      if (i < gw - 1) m = Math.min(m, d[k + 1] + 1);
+      if (j < gh - 1) {
+        m = Math.min(m, d[k + gw] + 1);
+        if (i < gw - 1) m = Math.min(m, d[k + gw + 1] + SQ2);
+        if (i > 0) m = Math.min(m, d[k + gw - 1] + SQ2);
       }
       d[k] = m;
     }
-  for (let i = 0; i < NC; i++) d[i] *= RES;
+  for (let i = 0; i < nc; i++) d[i] *= RES;
   return d;
 }
 
@@ -1462,8 +2163,10 @@ function kidnapTo(p) {
   UI.draw();
   UI.refresh();
 }
+// i: a built-in level's index, a level (the runtime object, the JSON format) or a generator spec (levelOf, levels.js)
 function loadLevel(i) {
-  LV = LEVELS[i];
+  LV = levelOf(i);
+  setWorld(...levelSize(LV));
   // every setting goes back to the level's, except the seed and the trained models picked in Perceive and Plan, so that
   // a model trained in the page can be tried on every level (Agent tracking / Planner still follow the level)
   Object.assign(P, DEFAULTS, {seed: P.seed, detModel: P.detModel, polModel: P.polModel, predModel: P.predModel}, LV.cfg);
@@ -1523,8 +2226,8 @@ function switchLevel(i) {
 // The map as edited: the level's obstacles (all of them, none but the outer walls with map = 'empty', less the ones
 // erased in mapDel) plus the painted cells of mapAdd, a 0.4 m grid merged into one rectangle per run along a row. The
 // level keeps its designed list in shapes0; the occupancy and distance grids are rebuilt only when the edit changed.
-const PAINT = 0.4,
-  PGW = Math.round(W / PAINT),
+const PAINT = 0.4;
+let PGW = Math.round(W / PAINT),
   PGH = Math.round(H / PAINT);
 const idList = s =>
   String(s || '')
@@ -1543,7 +2246,7 @@ function applyMap() {
   const key = `${P.map}|${P.mapAdd}|${P.mapDel}`;
   if (L.mapKey === key) return false;
   const del = new Set(idList(P.mapDel)),
-    out = L.shapes0.filter((s, i) => BORDER.includes(s) || (P.map !== 'empty' && !del.has(i)));
+    out = L.shapes0.filter((s, i) => s.border || (P.map !== 'empty' && !del.has(i)));
   const cells = [...new Set(idList(P.mapAdd))].filter(c => c < PGW * PGH).sort((a, b) => a - b);
   for (let k = 0; k < cells.length;) {
     const j = Math.floor(cells[k] / PGW),
@@ -4970,10 +5673,15 @@ function rsPlan(e, wp) {
 
 /* ---------- Hybrid A* (Dolgov et al. 2008) ---------- */
 const HY = {XY: 0.2, NT: 72};
-HY.NX = Math.ceil(W / HY.XY);
-HY.NY = Math.ceil(H / HY.XY);
-HY.N = HY.NX * HY.NY * HY.NT;
 let HYB = null;
+// the search's lattice follows the world's size (setWorld); its buffers are made again at the next search
+function hySize() {
+  HY.NX = Math.ceil(W / HY.XY);
+  HY.NY = Math.ceil(H / HY.XY);
+  HY.N = HY.NX * HY.NY * HY.NT;
+  HYB = null;
+}
+hySize();
 function hyBuf() {
   if (!HYB)
     HYB = {
@@ -9193,7 +9901,8 @@ function agListModes(rng) {
                (the network predicts the correction); the mission loops so the robot keeps meeting people
      policy:   the policy's 139 inputs (policyFeatures) and the expert's answer from that state: the A* route to the
                goal, resampled to eight points 0.4 m apart in the robot frame, in units of 4 m
-   A run is described by a spec: {block, level (index), seed, secs, map: {map, mapAdd, mapDel} or null, randomMap:
+   A run is described by a spec: {block, level (an index, a level in the format of levels.js or a generator spec),
+   gen (a generator spec without its seed: the run's world is generated with the run's seed, a new one every run), seed, secs, map: {map, mapAdd, mapDel} or null, randomMap:
    number of random obstacles or 0, goals: 'level' | {random: n} | [[x, y, θ or null], …], people: 'alt' | 'scripted'
    | 'reactive', cond: the detector's map condition (detCond), noise (σ of the executed command's perturbation), driver: 'expert' | 'policy' (DAgger), polModel}.
    ============================================================ */
@@ -9260,7 +9969,7 @@ const detCond = sp => (DET_CONDS.includes(sp.cond) ? sp.cond : DET_CONDS[sp.seed
 // Sets the core up for one run of a spec: the level and its seed, the map, the people, the driver, the goals
 function dsSetup(sp) {
   P.seed = sp.seed;
-  loadLevel(sp.level);
+  loadLevel(sp.gen ? {...sp.gen, seed: sp.seed} : sp.level);
   if (sp.map) for (const k of ['map', 'mapAdd', 'mapDel']) if (sp.map[k] != null) setParam(k, sp.map[k], false);
   const fixed = Array.isArray(sp.goals) ? sp.goals : sp.goals === 'level' ? (sp.map && sp.map.goals) || LV.wps : [];
   if (sp.randomMap > 0) {
@@ -9981,7 +10690,8 @@ let logDirty = true;
 
 /* ============================================================
    Headless runner (Web Worker). The same simulation core as the page, no DOM.
-   Message in:  {cmd:'run', id, level, seed, overrides:{param:value}, secs, stopWhenDone, models}
+   Message in:  {cmd:'run', id, level, seed, overrides:{param:value}, secs, stopWhenDone, models}; level: a built-in
+   level's index, a level in the format of core/levels.js or a generator spec (core/worldgen.js)
    Messages out: {id, progress} … {id, done:true, summary, ms}
    The Train tab (ui/train.js) also uses: {cmd:'collect', id, spec, models} → {id, done, data} (core/dataset.js);
    {cmd:'tdata', id, X, Y, model, task} gives a worker its shard of the training set, then {cmd:'tgrad', id, w, idx}
@@ -10073,10 +10783,32 @@ self.__core = {
   get P() {
     return P;
   },
+  levelOf,
+  levelToJSON,
+  levelFromJSON,
+  levelRef,
+  genLevel,
+  genSpec,
+  GEN_FAMILIES,
   RES,
-  GW,
-  GH,
-  NC
+  get LV() {
+    return LV;
+  },
+  get W() {
+    return W;
+  },
+  get H() {
+    return H;
+  },
+  get GW() {
+    return GW;
+  },
+  get GH() {
+    return GH;
+  },
+  get NC() {
+    return NC;
+  }
 };
 const TR = {X: null, Y: null, model: null, task: null};
 async function trainMsg(m) {

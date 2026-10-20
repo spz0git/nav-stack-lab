@@ -73,6 +73,25 @@ export function loadCore(file = CORE_FILE) {
     }
   };
 }
+// The collectors' maps (tools/collect-*.mjs): the built-in levels that pass keep, or with --gen, generated worlds
+// instead, a new one for every run (its seed is the run's): --gen warehouse, --gen rooms,hall, or specs as JSON,
+// --gen '{"gen":"rooms","w":32,"h":24}' (core/worldgen.js); defaults fill what a spec leaves out. Removes the flag
+// from argv, so that the positional arguments stay where they were.
+export function collectSources(argv, keep, defaults = {}) {
+  const C = globalThis.__core,
+    i = argv.indexOf('--gen');
+  if (i < 0)
+    return C.LEVELS.map((L, level) => ({label: L.id, level, L}))
+      .filter(s => keep(s.L))
+      .map(({label, level}) => ({label, level}));
+  const v = argv[i + 1] || '';
+  argv.splice(i, 2);
+  const specs = /^\s*[[{]/.test(v) ? [].concat(JSON.parse(v)) : v.split(',').map(gen => ({gen}));
+  return specs.map(g => {
+    const gen = C.genSpec({...defaults, ...g});
+    return {label: `${gen.gen} ${gen.w}x${gen.h}`, level: 0, gen};
+  });
+}
 export const pick = s => Object.fromEntries(Object.keys(FIELDS).map(k => [k, s[k] ?? null]));
 // Compares a summary with its golden entry; returns the list of differences (empty when it matches).
 export function diffs(got, want) {

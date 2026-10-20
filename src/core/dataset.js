@@ -11,7 +11,8 @@
                (the network predicts the correction); the mission loops so the robot keeps meeting people
      policy:   the policy's 139 inputs (policyFeatures) and the expert's answer from that state: the A* route to the
                goal, resampled to eight points 0.4 m apart in the robot frame, in units of 4 m
-   A run is described by a spec: {block, level (index), seed, secs, map: {map, mapAdd, mapDel} or null, randomMap:
+   A run is described by a spec: {block, level (an index, a level in the format of levels.js or a generator spec),
+   gen (a generator spec without its seed: the run's world is generated with the run's seed, a new one every run), seed, secs, map: {map, mapAdd, mapDel} or null, randomMap:
    number of random obstacles or 0, goals: 'level' | {random: n} | [[x, y, θ or null], …], people: 'alt' | 'scripted'
    | 'reactive', cond: the detector's map condition (detCond), noise (σ of the executed command's perturbation), driver: 'expert' | 'policy' (DAgger), polModel}.
    ============================================================ */
@@ -78,7 +79,7 @@ const detCond = sp => (DET_CONDS.includes(sp.cond) ? sp.cond : DET_CONDS[sp.seed
 // Sets the core up for one run of a spec: the level and its seed, the map, the people, the driver, the goals
 function dsSetup(sp) {
   P.seed = sp.seed;
-  loadLevel(sp.level);
+  loadLevel(sp.gen ? {...sp.gen, seed: sp.seed} : sp.level);
   if (sp.map) for (const k of ['map', 'mapAdd', 'mapDel']) if (sp.map[k] != null) setParam(k, sp.map[k], false);
   const fixed = Array.isArray(sp.goals) ? sp.goals : sp.goals === 'level' ? (sp.map && sp.map.goals) || LV.wps : [];
   if (sp.randomMap > 0) {

@@ -24,6 +24,23 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   the error. Chapter 2 §12 derives the slowly wandering error, what it does to a Kalman filter that takes the fixes
   as independent, and the filter that carries the bias, with the measured table and what the model leaves out.
 
+## v57 · 2026-10-20
+
+- Custom levels: the level menu has a new entry, Custom level. Import a level from a JSON file, export the one on
+  screen as JSON (with what you painted and erased, and the goals you placed), copy a link that carries the level
+  itself, and keep levels in this browser; kept levels appear in the menu after the seven built-in floors.
+- Generate a level: rooms and corridors with doors, a warehouse of racks and aisles, or an open hall with pillars and
+  boxes, from 8 × 6 m up to 48 × 32 m. Pick the size, the number of goals, people and beacons, a few settings of the
+  family (room size and door width; aisle width, rack depth and cross aisles; how many obstacles and how far apart),
+  whose settings it takes (L1–L5) and a seed; the same seed always gives the same level, and Next seed gives another.
+  The goals are always ones the robot can reach. A large floor runs at full speed on the desktop; on a phone keep it
+  smaller.
+- Tools → Train: a source's map can be generated worlds (rooms, warehouses or halls, a new world every run), so you
+  can collect training data on many different floors in one go, or the custom level on screen.
+- Something to try: a 48 × 32 m generated warehouse with the busy floor's settings. With unlabeled beacons in rows of
+  identical aisles the particle filter can lock onto the wrong aisle; switch Localize → Beacon association to Known
+  IDs and it holds. (PR #114)
+
 ## v56 · 2026-10-20
 
 - Plan → Learned policy: the policy now proposes four candidate paths with a score each instead of one, and the

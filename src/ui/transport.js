@@ -421,7 +421,7 @@ function strokeAt(x, y) {
   if (P.map === 'empty') return;
   const del = idList(P.mapDel);
   LV.shapes0.forEach((q, i) => {
-    if (!BORDER.includes(q) && !del.includes(i) && !st.del.has(i) && circleHits(x, y, 0.1, [q])) st.del.add(i);
+    if (!q.border && !del.includes(i) && !st.del.has(i) && circleHits(x, y, 0.1, [q])) st.del.add(i);
   });
 }
 function strokeEnd() {

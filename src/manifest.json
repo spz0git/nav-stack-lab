@@ -1,6 +1,8 @@
 [
  "core/constants.js",
  "core/worlds.js",
+ "core/levels.js",
+ "core/worldgen.js",
  "core/params.js",
  "core/record.js",
  "core/state.js",
@@ -48,6 +50,7 @@
  "ui/chapters.js",
  "ui/experiments.js",
  "ui/train.js",
+ "ui/levelmenu.js",
  "ui/replay.js",
  "ui/source.js",
  "ui/transport.js",

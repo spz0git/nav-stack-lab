@@ -13,6 +13,7 @@ UI.levelChanged = () => {
   REPLAY.playing = false;
   REPLAY.loop = null;
   buildLevels();
+  levelLinkPrep(LV);
   applyTabLayers(true);
   plotDefault();
   renderAllPanes();
@@ -23,17 +24,39 @@ buildTabs();
 loadLevel(0);
 let linkCfg = null;
 {
-  const c = configFromHash();
-  if (c) {
-    try {
+  const fail = e => logE('Could not restore the setup from the link: ' + e.message, 'warn'),
+    apply = c => {
       applyConfig(c);
-      linkCfg = c;
       logE('Setup restored from the link', 'ok');
+      return c;
+    };
+  let c = null;
+  try {
+    c = configFromHash();
+  } catch (e) {
+    fail(e);
+  }
+  // a link that carries a compressed level is read asynchronously, after the page is up
+  if (c && c.lz)
+    configResolve(c).then(c2 => {
+      try {
+        apply(c2);
+        hashLast = location.hash.slice(1);
+        if (c2.mode === 'an') setMode('an');
+        else if (c2.t > 0) runToMoment(c2.t);
+      } catch (e) {
+        fail(e);
+      }
+    }, fail);
+  else if (c) {
+    try {
+      linkCfg = apply(c);
     } catch (e) {
-      logE('Could not restore the setup from the link: ' + e.message, 'warn');
+      fail(e);
     }
   }
 }
+custLoadSaved();
 syncModeUI();
 renderLearn();
 lessonFromHash() || chapterFromHash() || (location.hash === '#learn' && setUIMode('learn'));
@@ -91,6 +114,10 @@ window.__nav = {
   },
   P,
   LEVELS,
+  levelToJSON,
+  get world() {
+    return [W, H, GW, GH];
+  },
   loadLevel,
   switchLevel,
   advance,

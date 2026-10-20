@@ -33,13 +33,15 @@ const TRN = {
   mapName: '',
   delArm: null
 };
-// one data source: a map (a level, the map on screen, a saved setup), its goals, the runs
+// one data source: a map (a level, the map on screen, a saved setup, a custom level or generated worlds), its goals, the runs
 function trnRow(block, level, o) {
   const L = LEVELS[level];
   return {
-    level,
-    label: `${L.id} ${L.name}`,
+    level, // a built-in level's index, or -1 for a custom level (lvRef) or generated worlds (gen)
+    label: L ? `${L.id} ${L.name}` : '',
     cfg: null, // the map on screen or a saved setup: {map, mapAdd, mapDel, goals}
+    lvRef: null, // a custom level: its JSON (core/levels.js) or its generator spec
+    gen: null, // generated worlds: a generator spec whose seed is each run's, so that every run has a world of its own
     random: 0, // random obstacles on an empty floor, a new layout every run (0: the map as it is)
     goals: block === 'policy' ? 'random' : 'map',
     nGoals: 6,
@@ -54,6 +56,18 @@ function trnRow(block, level, o) {
   };
 }
 const trnLevel = id => LEVELS.findIndex(L => L.id === id);
+// what a source's map is, for its notes: the level, the custom level, or for generated worlds what every one of them has
+function trnLv(r) {
+  if (r.gen) return {peds: r.gen.people ? [0] : [], cfg: LEVELS.find(L => L.id === r.gen.like).cfg, wps: new Array(r.gen.goals)};
+  return r.lvRef != null ? levelOf(r.lvRef) : LEVELS[r.level];
+}
+// the generator settings of the level menu's Generate form (ui/levelmenu.js) for one family; the blocks that learn from
+// people get some when the form has none
+function trnGen(block, fam) {
+  const g = genSpec({...CUST.gen, gen: fam});
+  if (trnPeople(block) && !g.people) return genSpec({...g, people: 4, like: g.like === 'L2' ? 'L5' : g.like});
+  return g;
+}
 function trnDefaultRows(block) {
   if (trnPeople(block))
     return LEVELS.map((L, i) => i)
@@ -72,13 +86,15 @@ function trnRecipe(block) {
 const trnRows = () => TRN.rows[TRN.block] || (TRN.rows[TRN.block] = trnDefaultRows(TRN.block));
 const trnModels = block => TRN.models.filter(m => m.block === block);
 
-/* ---------- keeping models in this browser ---------- */
+/* ---------- keeping models in this browser (and the custom levels, ui/levelmenu.js: store 'levels') ---------- */
 let trnDB = null;
 function trnOpenDB() {
   return new Promise(res => {
     try {
-      const r = indexedDB.open('nav-stack-lab', 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('models', {keyPath: 'id'});
+      const r = indexedDB.open('nav-stack-lab', 2);
+      r.onupgradeneeded = () => {
+        for (const n of ['models', 'levels']) if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, {keyPath: 'id'});
+      };
       r.onsuccess = () => res(r.result);
       r.onerror = r.onblocked = () => res(null);
     } catch (_) {
@@ -86,12 +102,12 @@ function trnOpenDB() {
     }
   });
 }
-async function trnDBdo(op, val) {
+async function trnDBdo(op, val, store = 'models') {
   if (!trnDB) trnDB = await trnOpenDB();
   if (!trnDB) return null;
   return new Promise(res => {
     try {
-      const st = trnDB.transaction('models', op === 'all' ? 'readonly' : 'readwrite').objectStore('models'),
+      const st = trnDB.transaction(store, op === 'all' ? 'readonly' : 'readwrite').objectStore(store),
         rq = op === 'all' ? st.getAll() : op === 'put' ? st.put(val) : st.delete(val);
       rq.onsuccess = () => res(op === 'all' ? rq.result : true);
       rq.onerror = () => res(null);
@@ -170,7 +186,7 @@ function trnShapeModel(block) {
 // Did the built-in model train on this run? The detector lists its runs; the policy was trained on L1–L4 (no people, not
 // the car) with seeds 1–8 (expert) and 11–16 (DAgger), as training/policy/README.md says. Only an unedited level counts.
 function builtinSaw(block, r, seed) {
-  if (!r || r.cfg || r.random) return false;
+  if (!r || r.cfg || r.random || r.gen || r.lvRef != null) return false;
   const id = LEVELS[r.level].id,
     M = MODELS[block];
   if (!M) return false;
@@ -184,7 +200,8 @@ function trnSpecs(r, block) {
   for (let k = 0; k < r.runs; k++)
     out.push({
       block,
-      level: r.level,
+      level: r.lvRef != null ? r.lvRef : r.level,
+      ...(r.gen ? {gen: r.gen} : {}),
       seed: r.seed0 + k,
       secs: r.secs,
       map: r.cfg,
@@ -536,30 +553,35 @@ function trnRowHTML(r, i, block) {
     opt = (v, l, sel) => `<option value="${v}" ${sel ? 'selected' : ''}>${l}</option>`,
     setups = setupsLoad(),
     mapOpts =
-      LEVELS.map((L, li) => opt('L' + li, `${L.id} ${esc(L.name)}`, !r.cfg && r.level === li)).join('') +
+      LEVELS.map((L, li) => opt('L' + li, `${L.id} ${esc(L.name)}`, !r.cfg && !r.gen && r.lvRef == null && r.level === li)).join('') +
+      Object.entries(GEN_FAMILIES)
+        .map(([k, F]) => opt('G' + k, `Generated: ${F.name.toLowerCase()}, a new world every run`, !!r.gen && r.gen.gen === k))
+        .join('') +
       opt(
         'screen',
         `The map on screen now (${LV.id}${idList(P.mapAdd).length || idList(P.mapDel).length || P.map === 'empty' ? ', edited' : ''})`,
         false
       ) +
       setups.map((s, si) => opt('S' + si, 'Saved: ' + esc(s.name), false)).join('') +
-      (r.cfg ? opt('keep', esc(r.label), true) : ''),
+      (r.cfg || r.lvRef != null ? opt('keep', esc(r.label), true) : ''),
     num = (f, v, lo, hi, step, w) =>
       `<input type="number" data-trow="${n}" data-f="${f}" value="${v}" min="${lo}" max="${hi}" step="${step || 1}"${w ? ` style="width:${w}px"` : ''}>`,
     st = r.data
       ? `<span class="trn-ok">Collected: ${r.data.runs.length} runs, ${r.data.n} ${TRN_BLOCKS[block].unit}${block === 'detector' ? `, ${pct(r.data.positives / Math.max(1, r.data.n * NBEAM))} person beams` : block === 'predictor' ? ' (tracked people near a person, with where they went)' : ''}${r.data.runs.some(d => d.goals) ? `, goals reached ${r.data.runs.reduce((a, d) => a + d.goalsDone, 0)}/${r.data.runs.reduce((a, d) => a + d.goals, 0)}` : ''}</span>`
       : '<span class="lbl">Not collected</span>',
     warn =
-      block === 'detector' && !(LEVELS[r.level].peds || []).length
+      block === 'detector' && !(trnLv(r).peds || []).length
         ? '<p class="lbl">No people on this map: every beam is labelled static (it teaches the network what is not a person).</p>'
-        : block === 'predictor' && !(LEVELS[r.level].peds || []).length
+        : block === 'predictor' && !(trnLv(r).peds || []).length
           ? '<p class="lbl">No people on this map: it gives no samples.</p>'
-          : block === 'policy' && LEVELS[r.level].cfg.model === 'car'
-            ? '<p class="lbl">A car level: the policy is a robot that turns on the spot; its paths may not suit the car.</p>'
-            : '';
+          : r.gen
+            ? `<p class="lbl">${r.gen.w} × ${r.gen.h} m, ${r.gen.people} people, the settings of ${r.gen.like}: the level menu's Generate form sets these (pick the source again after changing it). Run k has the world of seed ${r.seed0} + k.</p>`
+            : block === 'policy' && trnLv(r).cfg.model === 'car'
+              ? '<p class="lbl">A car level: the policy is a robot that turns on the spot; its paths may not suit the car.</p>'
+              : '';
   return `<div class="trn-src" data-sys="${block === 'policy' ? 'plan' : 'per'}">
   <div class="trn-srchead"><select class="sel" data-trow="${n}" data-f="map" aria-label="Map of source ${n + 1}">${mapOpts}</select><button type="button" class="ibtn" data-trdel="${n}" aria-label="Remove this source" title="Remove this source">×</button></div>
-  <div class="exprow"><span>Goals</span><div class="seg" data-trow="${n}" data-f="goals"><button data-v="map" aria-pressed="${r.goals === 'map'}">The map's</button><button data-v="random" aria-pressed="${r.goals === 'random'}">Random</button></div>${r.goals === 'random' ? `<label>${num('nGoals', r.nGoals, 1, 12)} goals a run</label>` : `<span class="lbl">${r.cfg && r.cfg.goals ? `${r.cfg.goals.length} placed` : `${(LEVELS[r.level].wps || []).length} of the level's`}</span>`}</div>
+  <div class="exprow"><span>Goals</span><div class="seg" data-trow="${n}" data-f="goals"><button data-v="map" aria-pressed="${r.goals === 'map'}">The map's</button><button data-v="random" aria-pressed="${r.goals === 'random'}">Random</button></div>${r.goals === 'random' ? `<label>${num('nGoals', r.nGoals, 1, 12)} goals a run</label>` : `<span class="lbl">${r.cfg && r.cfg.goals ? `${r.cfg.goals.length} placed` : `${(trnLv(r).wps || []).length} of ${r.gen ? "each world's" : "the level's"}`}</span>`}</div>
   <div class="exprow"><label>${num('runs', r.runs, 1, 40)} runs</label><label>seeds from ${num('seed0', r.seed0, 1, 999)}</label><label>${num('secs', r.secs, 10, 600, 10)} s each</label><label title="Scatter boxes of 0.4–2 m on an empty floor instead of the map's obstacles, a new layout every run (the start and fixed goals are kept clear)">random obstacles ${num('random', r.random, 0, 40)}</label></div>
   ${
     trnPeople(block)
@@ -653,7 +675,7 @@ function trainPane() {
   <div class="controls"><button type="button" class="btn primary" id="trn-collect" ${J || !todo || daggerNoModel ? 'disabled' : ''}>${todo ? `Collect ${todo} run${todo === 1 ? '' : 's'}` : 'All collected'}</button><span class="lbl">${daggerNoModel ? 'DAgger needs the policy picked in Plan, which is not in this browser.' : ''}</span></div>
   <p class="note" id="trn-data">${trnDataLine(block)}</p>
   <details class="how"><summary>Maps of your own</summary><div class="how-body">
-    <p>A source's map is a level, <b>the map on screen now</b> (the level with what you painted and erased, and the goals you placed), or a <b>saved</b> map. To make one: pick a level, set Mission → Map to <i>Empty floor</i> for a blank floor if you like, paint obstacles with the brush (W), erase with the eraser (E), place goals (G), then save it here. Saved maps are kept with your saved setups (Changed → Saved setups) and appear in every source's map list. For many maps at once, give a source <b>random obstacles</b>: each run scatters that many boxes on an empty floor, a new layout every run.</p>
+    <p>A source's map is a level, <b>the map on screen now</b> (the level with what you painted and erased, and the goals you placed), or a <b>saved</b> map. To make one: pick a level, set Mission → Map to <i>Empty floor</i> for a blank floor if you like, paint obstacles with the brush (W), erase with the eraser (E), place goals (G), then save it here. Saved maps are kept with your saved setups (Changed → Saved setups) and appear in every source's map list. For many maps at once, give a source <b>random obstacles</b>: each run scatters that many boxes on an empty floor, a new layout every run; or pick <b>Generated</b> rooms, warehouses or halls: each run is on a world of its own, generated with the run's seed at the size and settings of the level menu's Generate form (Custom level).</p>
     <form class="chg-save" id="trn-mapsave"><input type="text" id="trn-mapname" maxlength="60" placeholder="Name this map (${LV.id}${idList(P.mapAdd).length ? `, ${idList(P.mapAdd).length} painted blocks` : ''}, ${WPS.length} goals)" aria-label="Map name"><button type="submit" class="btn small">Save the map on screen</button></form>
   </div></details>
   <h3 class="fhead">2 · Network</h3>
@@ -749,19 +771,29 @@ function trnRowSet(r, f, v) {
     if (v === 'screen' || v[0] === 'S') {
       const cfg = v === 'screen' ? currentConfig() : (setupsLoad()[+v.slice(1)] || {}).cfg;
       if (!cfg) return;
-      const lv = trnLevel(cfg.level),
+      const lv = cfg.gen ? genSpec(cfg.gen) : cfg.levelData || trnLevel(cfg.level),
         p = cfg.params || {};
-      if (lv < 0) return;
-      r.level = lv;
+      if (lv === -1) return;
+      r.level = typeof lv === 'number' ? lv : -1;
+      r.lvRef = typeof lv === 'number' ? null : lv;
+      r.gen = null;
       r.cfg = {map: p.map || 'level', mapAdd: p.mapAdd || '', mapDel: p.mapDel || '', goals: cfg.goals || null};
       r.label =
         v === 'screen'
-          ? `${cfg.level} as on screen (${new Date().toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'})})`
+          ? `${typeof lv === 'number' ? cfg.level : levelOf(lv).name} as on screen (${new Date().toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'})})`
           : 'Saved: ' + setupsLoad()[+v.slice(1)].name;
       if (cfg.goals && r.goals === 'random' && trnPeople(block)) r.goals = 'map';
+    } else if (v[0] === 'G') {
+      r.gen = trnGen(block, v.slice(1));
+      r.level = -1;
+      r.lvRef = null;
+      r.cfg = null;
+      r.label = `Generated: ${GEN_FAMILIES[r.gen.gen].name.toLowerCase()}`;
     } else {
       r.level = +v.slice(1);
       r.cfg = null;
+      r.gen = null;
+      r.lvRef = null;
       r.label = `${LEVELS[r.level].id} ${LEVELS[r.level].name}`;
     }
   } else if (f === 'goals' || f === 'people' || f === 'driver') r[f] = v;
@@ -817,7 +849,13 @@ function wireTrain(pane) {
   };
   on('#trn-add', () => {
     const last = rows[rows.length - 1];
-    rows.push(last ? {...last, data: null, seed0: last.seed0 + last.runs} : trnRow(block, LEVELS.indexOf(LV)));
+    rows.push(
+      last
+        ? {...last, data: null, seed0: last.seed0 + last.runs}
+        : LEVELS.includes(LV)
+          ? trnRow(block, LEVELS.indexOf(LV))
+          : trnRow(block, -1, {lvRef: levelRef(LV), label: LV.name})
+    );
     rerender();
   });
   on('#trn-recipe', () => {

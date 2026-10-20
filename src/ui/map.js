@@ -497,6 +497,19 @@ function drawLidar(dpr, k, px) {
   }
 }
 function drawPath(dpr, k, px) {
+  // the learned policy's other candidate paths, faint by their probability: rose where they hit the inflation
+  if (P.plan === 'policy' && S.policyCands && !(SP.on && SP.n < SP.tr.n))
+    for (const C of S.policyCands) {
+      if (C.used || C.pts.length < 2) continue;
+      ctx.globalAlpha = 0.25 + 0.5 * C.p;
+      ctx.strokeStyle = C.clear === false ? TOK.rose : TOK.accent;
+      ctx.lineWidth = px(1.2);
+      ctx.setLineDash([px(3), px(3)]);
+      polyline(C.pts);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    }
   // global path: forward legs solid, reverse legs dashed, finished legs faded
   if (S.plan && !(SP.on && SP.n < SP.tr.n)) {
     S.plan.segs.forEach((g, i) => {

@@ -812,7 +812,7 @@ const GLOSS = {
   ],
   mixture: [
     'mixture of Gaussians',
-    'A distribution that is a weighted sum of several Gaussians: here K futures for a person, each with a probability. Trained by its negative log-likelihood, it is a mixture density network.',
+    'A distribution that is a weighted sum of several Gaussians: here K futures for a person, or K candidate paths for the end-to-end policy, each with a probability. Trained by its negative log-likelihood, it is a mixture density network.',
     '',
     ['mixture of three Gaussians', 'mixture of Gaussians', 'mixture']
   ],
@@ -971,7 +971,7 @@ const LESSON_TERMS = {
   'Hybrid A*: planning for a car': 'hybrid heading minturn arcs reverse heur hcost eps dijkstra rs analytic steerlimit fulllock tracker',
   'Replanning and the behaviour layer': 'fsm replan lethal estimate speedplanner agent states costmap',
   'An end-to-end policy: from the scan to a path, and why it is hard':
-    'bc compounding dagger dart mlp distshift astar costmap inflation tracker lidar precision speedplanner',
+    'bc compounding dagger dart mlp mixture resp wta multimodal distshift astar costmap inflation tracker lidar precision speedplanner',
   'D* Lite: repairing the plan instead of starting over':
     'dstar rhs km astar heur expansions costmap lethal inflation penalty replan fsm eps node',
   'Frontier exploration: the robot picks its own goals':

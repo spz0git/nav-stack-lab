@@ -1,8 +1,8 @@
 # Safety lab: design
 
 Status: design only, nothing built (2026-10-22, written against v59). This document proposes a new track inside Nav Stack
-Lab that teaches the ideas of four safety standards by doing them on the simulator. It is the input to a decision, not a
-plan anyone has agreed to: the open questions at the end are for the owner.
+Lab that teaches the ideas of four safety standards by doing them on the simulator. The owner's decisions on the design
+questions are recorded in section 9; the clause numbers the track cites wait for the owner's check in section 10.
 
 - [1. What the track is for](#1-what-the-track-is-for)
 - [2. The standards, and how they map onto this lab](#2-the-standards-and-how-they-map-onto-this-lab)
@@ -12,7 +12,8 @@ plan anyone has agreed to: the open questions at the end are for the owner.
 - [6. Core changes and their effect on the baseline, the lesson numbers and the page size](#6-core-changes-and-their-effect)
 - [7. Overlap with the roadmap](#7-overlap-with-the-roadmap)
 - [8. Phased plan and draft lesson list](#8-phased-plan-and-draft-lesson-list)
-- [9. Open questions for the owner](#9-open-questions-for-the-owner)
+- [9. Decisions](#9-decisions)
+- [10. Clause numbers to confirm](#10-clause-numbers-to-confirm)
 
 ## 1. What the track is for
 
@@ -36,7 +37,8 @@ The learner should leave able to:
 
 What the track is not: a certification course, a replacement for the standards' text, or a claim that this robot meets
 any of them. The lab's robots are a warehouse robot and small cars at walking to running speed; the four standards are
-written for road vehicles. The track uses them as a vocabulary and a method, and says so in its first lesson.
+written for road vehicles. The track uses them as a vocabulary and a method, and says so in its first lesson. It
+teaches these four standards and no others (decision 1).
 
 ### Rules for writing it
 
@@ -46,7 +48,7 @@ written for road vehicles. The track uses them as a vocabulary and a method, and
 - **Cite the edition and clause.** ISO 26262:2018 (parts 1–12), ISO 21448:2022, ISO/PAS 8800:2024 and ANSI/UL 4600
   third edition (2023). A citation reads "ISO 21448, clause 7" or "ISO 26262-3, 6.4.3". The clause numbers in this
   document were checked against public tables of contents and secondary descriptions, not against licensed copies;
-  every number a lesson cites is confirmed against the licensed text before that lesson is released (open question 2).
+  every number a lesson cites is confirmed against the licensed text before that lesson is released (section 10).
 - **Measured, not asserted.** As everywhere in the lab, every number in a lesson's "What you will see" is measured
   headless first, and a Predict's answer holds at other seeds and can be checked by looking at the page.
 - **The lab's own scales are labelled as such.** Where the track needs a scale the standards define for cars (severity,
@@ -61,9 +63,8 @@ written for road vehicles. The track uses them as a vocabulary and a method, and
 | ISO/PAS 8800:2024, safety and AI | The SOTIF and functional-safety questions for **learned components**: data requirements and coverage, distribution shift, verification of a model, monitoring in operation. | The learned people detector, the learned predictor and the end-to-end policy, with their training runs listed in the model files; the Train tab to retrain them. |
 | ANSI/UL 4600 ed. 3, safety of autonomous products | A **safety case** for a product with no human driver: claims, arguments and evidence covering the ODD, hazards, every autonomy function, testing, and **safety performance indicators** that check the case keeps holding in operation. | The whole stack in a level; the argument graph (new); SPIs from run metrics such as close approaches and safety-stop interventions. |
 
-Two companion standards are referred to but not taught: ISO 34503:2023 (a taxonomy for describing an ODD) and
-ISO 34502:2022 (a framework for scenario-based safety evaluation). The GSN notation follows the GSN Community Standard,
-version 3 (SCSC-141C, 2021).
+The GSN notation follows the GSN Community Standard, version 3 (SCSC-141C, 2021); it is a notation, not a safety
+standard, and the track uses it only to draw the argument.
 
 The 26262 / SOTIF split is the track's backbone, and the lab draws it cleanly: the switchboard and the fault parameters
 make malfunctions; weather, geometry and people's behaviour make insufficiencies with every part working. Lesson 3 and
@@ -86,8 +87,8 @@ today and what is missing. Section 5 collects the inventory; section 6 the core 
 the conditions it is meant to work in; clause 13 asks that the operating domain be watched in use. UL 4600 clause 8
 asks the safety case to define the ODD and to argue that the system behaves acceptably inside it and recognises when
 it is outside it. ISO/PAS 8800 clause 9 derives the AI component's requirements from that domain, and clause 11 asks
-that the training and test data cover it. ISO 34503 offers a taxonomy (scenery, environmental conditions, dynamic
-elements) that the lab's ODD sheet follows.
+that the training and test data cover it. The lab's ODD sheet groups its attributes as the layout, the environment
+(weather, beacons, GNSS, grip) and the moving things (people and their speeds), with the robot's own limits beside them.
 
 **The exercise.** The learner writes an ODD for the stack on the busy floor as a sheet of ranges, then tests it:
 
@@ -126,8 +127,8 @@ measures:
    out of a bay with people in the lane (L6), the avoidance manoeuvre at 3.5 m/s (L7), parked while a person walks by.
 2. **Hazardous events.** The robot strikes a person; the robot strikes a rack or wall; the robot stops in a doorway or
    lane and is struck (in this lab, "a person walked into the stopped robot", which the core already counts).
-3. **Severity.** Cars use injury scales; the lab defines its own from the relative speed at contact (for example under
-   0.3 m/s, 0.3–1 m/s, over 1 m/s), labelled as the lab's scale. The core counts contacts but does not record the
+3. **Severity.** Cars use injury scales; the lab defines its own from the relative speed at contact (under 0.3 m/s,
+   0.3–1 m/s, over 1 m/s; decision 3), labelled as the lab's scale. The core counts contacts but does not record the
    speed of each one: that is change C1.
 4. **Exposure.** The fraction of operating time spent in each situation, measured over runs (time with a person within
    2 m, time in a doorway, time reversing). Measured exposure is a teaching point the standard's tables do not offer:
@@ -155,7 +156,7 @@ whether the system's response to each is acceptable; clause 8 modifies the funct
 (better sensing, a restricted ODD, handing over, a minimal-risk manoeuvre). ISO/PAS 8800 clause 13 extends the
 analysis to the causes of errors in a learned component. On the fault side, ISO 26262-4 clause 6 (technical safety
 concept) asks for safety mechanisms that detect a fault and bring the system to a safe state, within the fault
-tolerant time interval defined in ISO 26262-1; ISO 26262-9 clause 8 covers the inductive and deductive safety analyses
+tolerant time interval defined in ISO 26262-1 clause 3; ISO 26262-9 clause 8 covers the inductive and deductive safety analyses
 (FMEA, FTA) used to find those faults.
 
 **The exercises.** Two lessons on the same mission.
@@ -208,8 +209,7 @@ detection, which needs the health lights' state in the headless summary (C5).
 **What the standards say.** ISO 21448 clause 9 defines a verification and validation strategy with validation targets;
 clause 10 evaluates the known scenarios (do the known triggering conditions now behave acceptably?) and clause 11
 explores for unknown ones; clause 12 judges, from both, whether the residual risk is acceptable. UL 4600 clause 12
-requires the testing to be argued as adequate for the ODD, not merely extensive. ISO 34502 describes building scenario
-spaces from parameters and sampling them.
+requires the testing to be argued as adequate for the ODD, not merely extensive.
 
 **The exercise.** The learner searches for situations in which the stack on L5's settings fails, inside the ODD of 3.1:
 
@@ -315,7 +315,7 @@ Tools tabs (Experiments, Train, Code) that work on runs while the map stays visi
 
 **Recommendation: both a Learn group and a Tools tab, not a fourth mode.**
 
-- **Learn group `saf`**, "Safety", after `ctl`: the lessons of section 8 and a ninth chapter, "Safety: domains, hazards,
+- **Learn group `saf`**, "Safety", after `ctl`: the lessons of section 8 and a new chapter 8, "Safety: domains, hazards,
   scenarios and arguments", with the derivations the lessons link to (the rule of three and Poisson intervals,
   importance sampling, the robustness measures, the ASIL rule explained without the table).
 - **Tools → Safety**, a tab with four sections that share one store: ODD sheets, the hazard log, Search (beside
@@ -326,15 +326,16 @@ Why not a mode: a mode replaces the stage, but safety work happens on simulation
 map, a red evidence node is rerun and watched, a hazard is pointed at in a replay. The Tools tabs already do this for
 Experiments and Train. The one part that wants room is the argument graph; it can open in the plot dock at full height
 or as an overlay on the stage with the map behind it. If, once built, it does not fit, promoting Safety to a mode is a
-UI change, not a redesign (open question 4).
+UI change, not a redesign; the owner decided to revisit the question after phase 2 (decision 4).
 
 **Registering the group** touches, as for every group today: `GROUPS` in `tools/lessons.mjs`, the placeholder in
 `src/analysis/lessons-data.js`, `SIM_LESSONS` in `src/analysis/lessons2.js`, `LESSON_GROUPS` in
 `src/analysis/lessons.js`, `LESSON_LAYERS` in `src/ui/learn.js`, `LESSON_TERMS` and new `GLOSS` entries in
 `src/analysis/glossary.js` (ODD, HARA, ASIL, SOTIF, triggering condition, functional insufficiency, FTTI, GSN, SPI,
 residual risk, …), a subsystem colour (`[data-sys]` in `src/styles.css`, `SYS` in `src/ui/tabs.js`). Safety is not a
-pipeline subsystem, so it gets no health light. Chapters are picked up in file-name order, so the new chapter is
-`ch9-safety.md` after `ch8` Notation (open question 8).
+pipeline subsystem, so it gets no health light. Chapters are picked up in file-name order and Notation stays last
+(decision 8): the safety chapter is `ch8-safety.md` and Notation becomes `ch9-notation.md` (`id: ch9`, `num: 9`). No
+lesson or chapter links to `#notes=ch8/…` today, so the renumbering moves one file and its front matter.
 
 ## 5. What the lab already has, and what is missing
 
@@ -389,7 +390,8 @@ the core additions about 12 KB, counted twice because the page embeds the core's
 entries about 10 KB. Total about 320 KB, so the page grows to about 4.65 MB (+7 %). `dist/core-worker.js` grows by
 about 12 KB. There is no stated byte budget; the roadmap's notes on size concern the models (4.5 MB "with three
 models" for the policy at the time). If 4.65 MB is too much for the phone, the cheapest saving is the models' export
-(float16 weights would roughly halve the 0.9 MB), which is independent of this track (open question 5).
+(float16 weights would roughly halve the 0.9 MB), which is independent of this track. The owner accepted the growth
+(decision 5).
 
 ## 7. Overlap with the roadmap
 
@@ -399,11 +401,12 @@ the track touches:
 - **Safety: the lidar safety stop as a default once tuned not to fire in normal runs** (Candidate next steps; the
   reason it is off is in "Moose test, MPC with the tyre model, lidar safety stop": on, it fires near pillars and shelves
   and changes the L1–L5 regression). This is lesson 7's material: the stop is a mitigation whose price is false stops,
-  the SOTIF trade between the hazard and the function's availability, and the search is the tool to tune it. The track
-  should not make it the default (that changes the baseline, a separate decision); it measures the trade and leaves the
-  default to that roadmap item.
+  the SOTIF trade between the hazard and the function's availability, and the search is the tool to tune it. The tuning
+  ships inside the track (decision 7), opt-in: the track does not make the stop the default (that changes the baseline,
+  a separate decision); it measures the trade and leaves the default to that roadmap item.
 - **The radar's time to contact: "an emergency brake on it is the obvious next use"** (Radar and weather, limits). A
-  second mitigation for lesson 7, measured against the same scenario set. It is a behaviour change, opt-in like C6.
+  second mitigation for lesson 7, measured against the same scenario set, built inside the track (decision 7). It is a
+  behaviour change, opt-in like C6.
 - **The residual contact of the speed planner, a person reversing at the end of their walk** (Moving agents, results).
   The track's first known-unsafe scenario, and the predictor lessons' motivation seen from the safety side.
 - **"the tyre-model MPC does not brake for a swerve it cannot make"** and **"the moose obstacle detected late"**
@@ -412,8 +415,8 @@ the track touches:
 - **Unknown space as lethal** (the lidar safety stop section). A fail-safe design choice that lesson 7 can show:
   treating the unknown as an obstacle trades mission time for one hazard class.
 - **Environments: lessons and Train recipes on generated worlds.** The safety track would be the first lessons that use
-  generated worlds, which settles the open problem of how a Predict on a generated world holds at other seeds (open
-  question 9).
+  generated worlds, which settles the open problem of how a Predict on a generated world holds at other seeds
+  (decision 9).
 - **Learning tracks: distribution shift (grippy → slippery, L2 → L4) and debuggability.** Lesson 5 (ISO/PAS 8800) is
   the distribution-shift lesson that item asks for; the per-slice metrics it needs serve both.
 - **Sensor noise that follows the weather** (Sensors, next). Each new weather effect is a new triggering condition; the
@@ -429,14 +432,15 @@ and the Candidate next steps line points here.
 Each phase is one or more PRs released the usual way (`docs/maintaining.md`): the release commit, the gate, the merge,
 the republish. Each phase ends with something a learner can use.
 
-**Phase 0, this document.** Agreed or changed by the owner; open questions answered.
+**Phase 0, this document.** Decisions recorded (section 9); clause numbers confirmed by the owner (section 10).
 
 **Phase 1, the vocabulary on what exists.** Core: C1, C2, C3 (observational; baseline unchanged). Page: the `saf` group,
-the glossary, chapter 9's first sections, the Experiments tab's new metrics (impact speed, `minObs`, close-approach
+the glossary, the safety chapter's first sections (and Notation renumbered to chapter 9), the Experiments tab's new metrics (impact speed, `minObs`, close-approach
 seconds). Lessons 1, 2 and 4, built from existing levels and settings. The ODD sheet and hazard log are written in the
 lessons as tables; the tools come later.
 
-**Phase 2, faults in time, and search.** Core: C4, C5, C7. Page: Tools → Safety with ODD sheets (check and sample) and
+**Phase 2, faults in time, and search.** Core: C4 (with the page's kidnap and scatter moved onto the schedule, and
+loc/03, loc/04 and loc/07 re-measured in the same PR; decision 10), C5, C7. Page: Tools → Safety with ODD sheets (check and sample) and
 Search (random, refinement, the worst cases with Open, saved scenario sets), `tools/search.mjs`, `tests/saftest.py`.
 Lessons 3 and 6.
 
@@ -445,52 +449,94 @@ out-of-distribution score from the training runs the model files list. The radar
 mitigation. Lessons 5 and 7.
 
 **Phase 4, risk and the argument.** Rates with intervals and importance sampling in Search; the SPI chart; the GSN
-format, renderer, editor and evidence runner; C6 if the owner wants the ODD monitor taught. Lessons 8 and 9, and the
-rest of chapter 9.
+format, renderer, editor and evidence runner, with arguments, ODD sheets, hazard logs and scenario sets stored in the
+browser like custom levels, with JSON export and links (decision 6); C6, the ODD monitor, off by default (decision 11).
+Lessons 8 and 9, and the rest of the safety chapter.
 
 Draft lessons (titles in the lab's style; each with Trys, Predicts, Think about and Check yourself):
 
 | # | Title | Standards | Built on |
 | --- | --- | --- | --- |
-| saf/01 | What the stack was built for: the operating domain | UL 4600 cl. 8; ISO 21448 cl. 5; ISO 34503 | L5; generated warehouses inside and outside the sheet; fog |
+| saf/01 | What the stack was built for: the operating domain | UL 4600 cl. 8; ISO 21448 cl. 5 | L5; generated warehouses inside and outside the sheet; fog |
 | saf/02 | Hazards and risk: from situations to safety goals | ISO 26262-3 cl. 6; ISO 21448 cl. 6; UL 4600 cl. 6 | L4, L5, L6, L7; scripted against reactive people; impact speeds (C1) |
-| saf/03 | Something breaks: detect it, react, in time | ISO 26262-1 (FTTI), 26262-4 cl. 6, 26262-9 cl. 8 | L3, L5; the switchboard in mid-mission (C4); health-light times (C5) |
+| saf/03 | Something breaks: detect it, react, in time | ISO 26262-1 cl. 3 (FTTI), 26262-4 cl. 6, 26262-9 cl. 8 | L3, L5; the switchboard in mid-mission (C4); health-light times (C5) |
 | saf/04 | Nothing breaks, and it still fails: triggering conditions | ISO 21448 cl. 4, 7, 8 | The matrix of 3.3, with and without each condition on the same seeds |
 | saf/05 | Learned blocks: the data is the specification | ISO/PAS 8800 cl. 9, 11, 12, 13 | Detector and policy across L2, L4, fog and generated rooms; the Train tab |
-| saf/06 | Looking for the failures nobody wrote down | ISO 21448 cl. 10, 11; UL 4600 cl. 12; ISO 34502 | Search over generated warehouses; the person who steps out (C7) |
+| saf/06 | Looking for the failures nobody wrote down | ISO 21448 cl. 10, 11; UL 4600 cl. 12 | Search over generated warehouses; the person who steps out (C7) |
 | saf/07 | Mitigations, and what they cost | ISO 21448 cl. 8 | The lidar safety stop, the radar brake, unknown as lethal, a smaller ODD; false stops against contacts |
 | saf/08 | How many hours make it safe enough | ISO 21448 6.5, cl. 9, cl. 12; UL 4600 cl. 16 | Rates and the rule of three; importance sampling; leading indicators |
 | saf/09 | The safety argument: claims, evidence, and what breaks it | UL 4600 cl. 5; ISO 26262-2 6.4.8; ISO/PAS 8800 cl. 8; GSN v3 | The argument for L5 in ODD-1, live evidence, one setting changed |
 
-## 9. Open questions for the owner
+## 9. Decisions
 
-1. **Which robot, which standards.** The lab's robots are a warehouse robot and small cars; ISO 26262, ISO 21448 and
-   ISO/PAS 8800 are written for road vehicles, and UL 4600 covers autonomous products generally. The standards written
-   for this kind of robot are ISO 3691-4:2023 (driverless industrial trucks) and ANSI/A3 R15.08 (industrial mobile
-   robots). Keep the track to the four standards, as asked, with a sidebar in lesson 1 naming the robot-specific ones,
-   or teach the robot-specific ones too?
-2. **Checking clause numbers.** The citations here come from public outlines, not the licensed text. Do you have access
-   to the four standards to confirm each clause a lesson cites, or should lessons cite at clause level only (no
-   subclauses) until someone checks?
-3. **Severity scale.** Is a lab-defined severity scale from impact speed acceptable, clearly marked as not the
-   standard's injury classes? And which thresholds (the draft uses 0.3 and 1 m/s)?
-4. **Tools tab or mode.** The recommendation is a Learn group plus Tools → Safety. Do you want a fourth mode instead,
-   or would you rather decide after phase 2, when the argument graph's space needs are known?
-5. **Page size.** About +320 KB for the whole track (to about 4.65 MB). Acceptable, or should the models' lighter export
-   come first?
-6. **Persistence.** ODD sheets, hazard logs, scenario sets and arguments: stored in the browser (IndexedDB, like custom
-   levels) with JSON export and links, or only built-in examples the learner edits for the session?
-7. **Roadmap items.** Should the radar emergency brake and the lidar safety stop's tuning ship inside this track as its
-   mitigations (lesson 7), or as their own PRs first, with the track measuring them afterwards?
-8. **Names.** Group id `saf` and title "Safety"; chapter 9 after the Notation chapter, or renumber Notation to the end?
-9. **Predicts on searches.** A search's findings depend on its samples. The proposal is that Predicts ask about
-   properties that hold across seeds (failures are rare inside the ODD; the refinement finds more than random sampling
-   on the same budget; a leading indicator moves before contacts do) and never about a specific found scenario. Agreed?
-10. **Moving the kidnap into the core (C4).** It lets scripts inject timed faults and makes the page's `act` one code
-    path, at the cost of re-measuring loc/03, loc/04 and loc/07. Do it, or keep `act` in the page and add the schedule
-    beside it?
-11. **The ODD monitor (C6).** It teaches the minimal-risk manoeuvre and UL 4600's "know when you are outside the ODD",
-    but it is the largest behaviour addition in the track. In scope for phase 4, or left as a later step?
+The owner's answers to the design questions (2026-10-22). Question 2, the clause numbers, is section 10.
+
+| # | Question | Decision |
+| --- | --- | --- |
+| 1 | Which standards | Only the four: ISO 26262, ISO 21448, ISO/PAS 8800 and UL 4600. No sidebar on the robot-specific standards, and no companion standards cited; GSN is used as a notation only. |
+| 2 | Clause numbers | The owner checks them in section 10. Until a row is confirmed there, no lesson cites it. |
+| 3 | Severity scale | The lab's own scale from the relative speed at contact, labelled as the lab's: under 0.3 m/s, 0.3–1 m/s, over 1 m/s. |
+| 4 | Tools tab or mode | A Learn group `saf` plus Tools → Safety; whether Safety becomes a mode is revisited after phase 2. |
+| 5 | Page size | About +320 KB (to about 4.65 MB) accepted; the models' lighter export stays a separate item. |
+| 6 | Persistence | ODD sheets, hazard logs, scenario sets and arguments are stored in the browser (IndexedDB, like custom levels) with JSON export and links. |
+| 7 | Roadmap mitigations | The radar emergency brake and the lidar safety stop's tuning are built inside the track as lesson 7's mitigations, opt-in, with default runs unchanged. |
+| 8 | Names | Group id `saf`, title "Safety"; the safety chapter is chapter 8 and Notation moves to chapter 9, so it stays last. |
+| 9 | Predicts on searches | Predicts ask only about properties that hold at any seed, never about one found scenario. |
+| 10 | The kidnap in the core | The page's kidnap and scatter move onto the core's fault schedule (C4); loc/03, loc/04 and loc/07 are re-measured in the same PR. |
+| 11 | The ODD monitor | In scope for phase 4 (C6), off by default. |
+
+## 10. Clause numbers to confirm
+
+Every clause number this document and the draft lessons cite, against the 2018 edition of ISO 26262, ISO 21448:2022,
+ISO/PAS 8800:2024 and the third edition of ANSI/UL 4600 (2023). None was checked against a licensed copy: the
+"Checked against" column says what each one rests on, from strongest to weakest:
+
+- **Public contents.** A public table of contents or preview names the clause.
+- **Secondary, agreed.** Two or more published descriptions (papers, training material, vendor guides) agree on the
+  number.
+- **Secondary, one.** One published description gives the number.
+- **Secondary, disagree.** Published descriptions give different numbers.
+- **Memory.** From the author's knowledge of the standard, not found in any public source during this check.
+
+The topic column is this document's own paraphrase of what the clause is about. Fill in the last column: `OK`, or the
+right number (and title if it differs). A lesson cites a row only once it is answered.
+
+| # | Standard | Clause cited | Topic, as this document uses it | Where cited | Checked against | Your answer |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | ISO 26262-1 | 3 | Terms and definitions, including the fault tolerant time interval | 3.3; saf/03 | Memory | |
+| 2 | ISO 26262-2 | 6.4.8 | The safety case | 3.5; saf/09 | Secondary, one (the number); secondary, agreed (that Part 2 requires an argument-based safety case) | |
+| 3 | ISO 26262-3 | 5 | Item definition | 2 | Memory | |
+| 4 | ISO 26262-3 | 6 | Hazard analysis and risk assessment | 3.2; saf/02 | Public contents (ANSI preview of Part 3) and secondary, agreed | |
+| 5 | ISO 26262-3 | 6.4.3 | Classifying hazardous events by severity, exposure and controllability | 3.2 | Secondary, agreed | |
+| 6 | ISO 26262-3 | 6.4.4 | Determining the ASIL | 3.2 | Memory | |
+| 7 | ISO 26262-3 | 6.4.5 | Safety goals | 3.2 | Memory | |
+| 8 | ISO 26262-4 | 6 | Technical safety concept: safety mechanisms, safe state | 3.3; saf/03 | Memory | |
+| 9 | ISO 26262-9 | 8 | Safety analyses (inductive and deductive: FMEA, FTA) | 3.3; saf/03 | Memory | |
+| 10 | ISO 21448 | 4 | Overview of SOTIF activities; the four areas (known or unknown, safe or unsafe) | 3.3; saf/04 | Secondary, one, which places the four areas in the Introduction, not clause 4 | |
+| 11 | ISO 21448 | 5 | Specification and design, including the conditions of use | 3.1; saf/01 | Secondary, one | |
+| 12 | ISO 21448 | 6 | Identification and evaluation of hazards | 3.2; saf/02 | Public contents | |
+| 13 | ISO 21448 | 6.3 | Hazard identification | 3.2 | Public contents | |
+| 14 | ISO 21448 | 6.4 | Risk evaluation | 3.2 | Public contents | |
+| 15 | ISO 21448 | 6.5 | Acceptance criteria for the residual risk | 3.2; 3.6; saf/08 | Public contents | |
+| 16 | ISO 21448 | 7 | Functional insufficiencies and triggering conditions, and whether the response to them is acceptable | 3.3; saf/04 | Secondary, agreed | |
+| 17 | ISO 21448 | 8 | Functional modifications that address SOTIF risks (better function, restricted use, minimal-risk behaviour) | 3.3; saf/04; saf/07 | Secondary, disagree (one source puts acceptance criteria here) | |
+| 18 | ISO 21448 | 9 | Verification and validation strategy, validation targets | 3.4; 3.6; saf/08 | Secondary, disagree (one source puts design measures here) | |
+| 19 | ISO 21448 | 10 | Evaluation of known scenarios | 3.4; saf/06 | Secondary, agreed | |
+| 20 | ISO 21448 | 11 | Evaluation of unknown scenarios | 3.4; saf/06 | Secondary, agreed | |
+| 21 | ISO 21448 | 12 | Evaluating whether SOTIF is achieved (the residual risk) | 3.4; 3.6; saf/08 | Secondary, agreed | |
+| 22 | ISO 21448 | 13 | Activities in operation | 3.1; 3.6 | Memory | |
+| 23 | ISO 21448 | Annex (no letter cited) | Informative guidance on verification and validation: from a target to an amount of testing | 3.6 | Memory (believed to be Annex C) | |
+| 24 | ISO/PAS 8800 | 8 | Assurance argument for the AI system | 3.5; saf/09 | Secondary, agreed | |
+| 25 | ISO/PAS 8800 | 9 | Deriving the AI system's safety requirements | 3.1; saf/05 | Secondary, agreed | |
+| 26 | ISO/PAS 8800 | 11 | Data-related considerations (requirements on data, coverage) | 3.1; saf/05 | Secondary, agreed | |
+| 27 | ISO/PAS 8800 | 12 | Verification and validation of the AI system | saf/05 | Secondary, agreed | |
+| 28 | ISO/PAS 8800 | 13 | Safety analysis of AI systems (causes of AI errors) | 3.3; saf/05 | Secondary, agreed | |
+| 29 | ISO/PAS 8800 | 14 | Measures during operation | 3.6 | Memory (sources list clauses up to 15 but this title was not seen) | |
+| 30 | UL 4600 ed. 3 | 5 | Safety case and arguments | 3.5; saf/09 | Public contents of edition 2 (ANSI listing); edition 3 assumed unchanged | |
+| 31 | UL 4600 ed. 3 | 6 | Hazards and risk assessment | 3.2; saf/02 | Public contents of edition 2 (ANSI listing); edition 3 assumed unchanged | |
+| 32 | UL 4600 ed. 3 | 8 | Autonomy functions and support, including the ODD and sensing | 3.1; saf/01 | Public contents of edition 2 for sensing; where the ODD sits within it: memory | |
+| 33 | UL 4600 ed. 3 | 12 | Verification, validation and test | 3.4; saf/06 | Memory | |
+| 34 | UL 4600 ed. 3 | 16 | Metrics and safety performance indicators | 3.6; saf/08 | Secondary, agreed (one cites a subclause of 16 by number) | |
 
 ## Sources for the clause outlines
 

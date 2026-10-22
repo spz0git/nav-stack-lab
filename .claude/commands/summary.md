@@ -49,7 +49,7 @@ confidential: <true | false>
 ```
 
 Rules:
-- 250–450 words in total. Pick what matters for planning across projects; detail stays in the repo's own docs.
+- 250–450 words, not counting the frontmatter. Pick what matters for planning across projects; detail stays in the repo's own docs.
 - Frontmatter values are single lines, no comments. Absolute dates only (2026-10-22, not "yesterday").
 - Never drop a section; write "None" if one is empty.
 - No priority field and no ranking against other projects: the vault does that.

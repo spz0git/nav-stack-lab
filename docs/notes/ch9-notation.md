@@ -1,5 +1,5 @@
-id: ch8
-num: 8
+id: ch9
+num: 9
 sys: 
 summary: One table of the symbols the lessons and chapters share, the conventions behind them, the letters that mean two things, and the books and papers the material draws on.
 

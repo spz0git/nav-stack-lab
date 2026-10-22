@@ -11538,13 +11538,14 @@ function safeContact(kind, v0) {
     v = best ? hyp((best.vx || 0) - rx, (best.vy || 0) - ry) : 0;
     still = Math.abs(r.v) < 0.05;
   }
+  v = +v.toFixed(2); // the class of the speed as shown, so that "0.30 m/s" never reads as a touch
   Z.events.push({
     t: +S.t.toFixed(2),
     kind,
     still,
     x: +r.x.toFixed(2),
     y: +r.y.toFixed(2),
-    v: +v.toFixed(2),
+    v,
     sev: sevClass(v),
     state: S.fsm.state,
     conds: safeConds()

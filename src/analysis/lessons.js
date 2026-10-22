@@ -48,5 +48,11 @@ const LESSON_GROUPS = () => [
     title: 'The control loop (linear analysis)',
     note: 'Each button sets up the lab and shows the loop analysis on the left; <b>A</b> switches between it and the map.',
     items: LESSONS.concat(LESSONS_EXTRA)
+  },
+  {
+    id: 'saf',
+    title: 'Safety',
+    note: 'The ideas of ISO 26262, ISO 21448 (SOTIF), ISO/PAS 8800 and UL 4600, done on the simulator; the lab paraphrases them and is not a substitute for their text.',
+    items: SIM_LESSONS.saf
   }
 ];

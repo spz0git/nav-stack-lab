@@ -1067,7 +1067,143 @@ Object.assign(GLOSS, {
     ['outage', 'outages']
   ]
 });
+// the Safety lessons (docs/lessons/saf, chapter 8): the standards' ideas in the lab's words
+Object.assign(GLOSS, {
+  odd: [
+    'operating domain',
+    'The conditions a system is designed to work in (ODD, operational design domain): each attribute of the world, the mission and the robot with the values it may take. Safety claims are made about the domain, not the world.',
+    '',
+    ['operating domain', 'ODD']
+  ],
+  margin: [
+    'margin',
+    'What is left between the robot and an obstacle once the errors are taken off: in an aisle, half the width beside the centred robot, minus the position and tracking errors.',
+    'm',
+    ['margins', 'margin']
+  ],
+  wallclear: [
+    'wall clearance',
+    "The smallest gap between the robot's true footprint and a rack or wall over the run (Metrics).",
+    'm',
+    ['wall clearance']
+  ],
+  hara: [
+    'hazard analysis and risk assessment',
+    'Listing the situations a system meets and the harm it could do in each, and rating each by severity, exposure and controllability, to decide which need a safety goal.',
+    '',
+    ['hazard analysis and risk assessment', 'hazard analysis']
+  ],
+  hazard: [
+    'hazard',
+    'Something the system can do that could hurt someone: drive into a person, into a rack, stop where a person walks into it.',
+    '',
+    ['hazard']
+  ],
+  hazevent: [
+    'hazardous event',
+    'A hazard in a given operational situation: driving into a person while passing them in an aisle.',
+    '',
+    ['hazardous events', 'hazardous event']
+  ],
+  opsit: [
+    'operational situation',
+    'A situation the system meets in use: driving down an aisle a person is walking, reversing out of a bay.',
+    '',
+    ['operational situations', 'operational situation']
+  ],
+  severity: [
+    'severity',
+    'How badly a hazardous event could hurt. The lab rates the relative speed at contact: touch below 0.3 m/s, bump up to 1 m/s, strike above (the lab’s own scale, not a standard’s).',
+    '',
+    ['severity']
+  ],
+  sevclass: [
+    'touch, bump, strike',
+    'The lab’s severity classes for a contact, by relative speed: below 0.3 m/s, 0.3 to 1 m/s, above 1 m/s (Metrics → Contacts by speed).',
+    '',
+    ['strikes', 'strike', 'bumps', 'bump']
+  ],
+  vrel: [
+    'relative speed',
+    'The speed of the robot relative to the person at contact: the difference of their true velocities.',
+    'm/s',
+    ['relative speed']
+  ],
+  exposure: [
+    'exposure',
+    'How often a situation occurs; the lab measures it as the share of the operating time spent in it.',
+    '',
+    ['exposure']
+  ],
+  controllability: [
+    'controllability',
+    'Whether the people involved can avoid the harm. With no driver, it is the person in the aisle stepping aside.',
+    '',
+    ['controllability']
+  ],
+  asil: [
+    'integrity level',
+    'ISO 26262’s rating of a hazardous event, from QM through A to D, set by its severity, exposure and controllability; it sets how rigorous the development must be.',
+    '',
+    ['integrity level', 'ASIL']
+  ],
+  safetygoal: [
+    'safety goal',
+    'The top-level requirement for a hazardous event, stated so it can be checked: no contact with a person above 0.3 m/s.',
+    '',
+    ['safety goals', 'safety goal']
+  ],
+  sotif: [
+    'SOTIF',
+    'Safety of the intended functionality (ISO 21448): risk from a function that is not good enough for some situations, with nothing broken.',
+    '',
+    ['SOTIF']
+  ],
+  funcins: [
+    'functional insufficiency',
+    'A way a function, or its sensors and algorithms, is not good enough for some situations, though working as specified.',
+    '',
+    ['functional insufficiency', 'insufficiency']
+  ],
+  trigcond: [
+    'triggering condition',
+    'A situation that exposes a functional insufficiency: fog for a lidar, a person turning back for a constant-velocity prediction.',
+    '',
+    ['triggering conditions', 'triggering condition']
+  ],
+  fourareas: [
+    'known and unknown, safe and unsafe',
+    'The four areas situations fall into. The work is to fix or restrict the known-unsafe and to search for the unknown-unsafe.',
+    '',
+    ['known-unsafe']
+  ],
+  fault: ['fault', 'Something broken: a sensor that fails, a bias nobody was told about. The subject of ISO 26262.', '', ['fault']],
+  degraded: [
+    'degraded mode',
+    'What a system does when it notices it cannot do its job fully: slower, stopped, or holding to relocalize.',
+    '',
+    ['degraded mode']
+  ],
+  lostguard: [
+    'lost guard',
+    'Holds the robot and turns it in place when the position σ passes 1 m, until the estimate has relocalized.',
+    '',
+    ['lost guard']
+  ],
+  ttcsafe: [
+    'time to contact',
+    'The gap to a person divided by the speed the two are closing at: how long until contact if both keep their velocities (Metrics).',
+    's',
+    ['time to contact']
+  ]
+});
 const LESSON_TERMS = {
+  'What the stack was built for: the operating domain':
+    'odd margin wallclear contacts sevclass speedplanner pf unlabeled costmap inflation lidar beacon fog track',
+  'Hazards and risk: from situations to safety goals':
+    'hara hazard hazevent opsit severity sevclass vrel exposure controllability asil safetygoal speedplanner socialforce contacts closest sotif',
+  'Nothing breaks, and it still fails: triggering conditions':
+    'sotif funcins trigcond fourareas fault speedplanner multimodal fog lidar track lostguard mirror unlabeled pf sonar deadzone guard ttcsafe degraded contacts sevclass',
   'GNSS: the noise is not white':
     'gnss gaussmarkov white bias augstate multipath outage gate d2 chi2 nees band2s overconf consistent ekf Hjac K odometry deadreck kidnap',
   'Placing the poles on purpose: pole placement and LQR': 'poleplace lqr pole zeta wn Ke kth rwf DM pm overshoot ts plantgain hold',

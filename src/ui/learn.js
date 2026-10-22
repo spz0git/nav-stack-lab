@@ -77,7 +77,8 @@ const LESSON_LAYERS = {
     ['search', 'cost', 'trail'],
     ['cost', 'lidar', 'trail']
   ],
-  ctl: []
+  ctl: [],
+  saf: []
 };
 // The previous run is not one of them: it stays as the user set it, so that a Try can be compared with the run before.
 function lessonLayers(id) {

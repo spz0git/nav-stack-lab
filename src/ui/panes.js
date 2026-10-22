@@ -156,7 +156,7 @@ async function tryGo(cfg) {
   if (cfg.seed === 'next') P.seed = (P.seed % 99) + 1;
   else if (typeof cfg.seed === 'number') P.seed = cfg.seed;
   else if (cfg.level != null) P.seed = DEFAULTS.seed;
-  if (cfg.level != null) LV = LEVELS[cfg.level];
+  if (cfg.level != null) LV = levelOf(cfg.level); // a built-in's index, or a generator spec (the safety lessons' worlds)
   if (!cfg.keep) loadLevel(LV);
   for (const [k, v] of Object.entries(cfg.set || {})) setParam(k, v, false);
   if (cfg.goals) setGoals(cfg.goals); // a Try with its own goals (a loop to close): the mission restarts on them

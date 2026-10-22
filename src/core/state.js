@@ -198,6 +198,7 @@ function reset() {
     agents: agInit(),
     collPedStill: 0,
     minPed: Infinity,
+    safe: safeInit(), // contact events, clearances and leading indicators (core/safety.js)
     lap: 1 // the lap of the goal list (Repeat the goals)
   };
   for (const w of WPS) {

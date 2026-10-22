@@ -41,6 +41,7 @@ function actuate() {
   }
   const n = dyn || integ(r.x, r.y, r.th, vt, wt, DT);
   if (bodyHits(n.x, n.y, n.th, S.shapes)) {
+    const v0 = hyp(r.v, r.vy || 0); // the speed it hit at (core/safety.js)
     if (!isCar()) r.th = wrap(r.th + wt * DT);
     r.v = 0;
     r.w = isCar() ? 0 : wt;
@@ -50,6 +51,7 @@ function actuate() {
     }
     if (!r.contact && Math.abs(vt) > 0.01) {
       S.coll++;
+      safeContact('static', v0);
       logE('Collision with static obstacle', 'bad');
       S.halt = true;
     }
@@ -70,15 +72,18 @@ function actuate() {
   let pc = false;
   if (isCar()) pc = S.peds.length > 0 && carHits(r.x, r.y, r.th, pedShapes());
   else for (const c of pedShapes()) if (hyp(c.x - r.x, c.y - r.y) < RR + c.r) pc = true;
+  S.safe.gap = Infinity;
   if (S.peds.length) {
     let g = Infinity;
     for (const p of S.peds) g = Math.min(g, bodyGap(r, p));
     if (g < S.minPed) S.minPed = g;
+    S.safe.gap = g;
   }
   if (pc && !r.pedContact) {
     S.collPed++;
     const still = Math.abs(r.v) < 0.05;
     if (still) S.collPedStill = (S.collPedStill || 0) + 1;
+    safeContact('person');
     logE(still ? 'A person walked into the stopped robot' : 'Contact with a person', 'bad');
     S.halt = true;
   }

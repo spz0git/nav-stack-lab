@@ -38,6 +38,7 @@ function metrics() {
     ep = hyp(ex, ey);
   S.errSq += ep * ep;
   S.errN++;
+  safeTick();
   let cte = null;
   if (S.track && S.fsm.state === 'DRIVE') {
     cte = project(r.x, r.y, false).d;

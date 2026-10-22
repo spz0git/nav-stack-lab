@@ -23,6 +23,7 @@
  "core/examples-data.js", "core/slots.js",
  "core/models-data.js", "core/nn.js", "core/nn-train.js", "core/agents.js", "core/radar.js", "core/predict.js", "core/dataset.js",
  "core/fidelity.js",
+ "core/safety.js",
  "core/step.js",
  "core/log.js",
  "ui/st-plot.js",

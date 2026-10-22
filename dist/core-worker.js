@@ -1029,6 +1029,7 @@ function levelFromJSON(j, id) {
   for (const [k, v] of Object.entries(j.settings || {})) {
     if (!(k in DEFAULTS) || LEVEL_NOSET.includes(k)) continue; // a key this page does not know is left out, not an error
     if (typeof v !== typeof DEFAULTS[k]) bad(`setting ${k}: a ${typeof DEFAULTS[k]}`);
+    if (k === 'sched' && schedError(v)) bad(`setting sched: ${schedError(v)}`);
     cfg[k] = v;
   }
   const L = {
@@ -1682,7 +1683,8 @@ const DEFAULTS = {
   radRes: 8, // its angular resolution [°]: two echoes closer than this (and in range and Doppler) become one
   radClutter: 0.5, // false detections per scan, on average
   radGhost: 5, // the chance per scan that a person's echo also comes back by a bounce off a wall [%]
-  trkIn: 'lidar' // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
+  trkIn: 'lidar', // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
+  sched: [] // the fault schedule: events at set times, [{t, set: {key: value}} or {t, act: 'kidnap' | 'scatter'}] (core/config.js)
 };
 const P = {...DEFAULTS};
 // The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
@@ -2194,6 +2196,48 @@ function kidnapTo(p) {
   UI.draw();
   UI.refresh();
 }
+/* ---------- the fault schedule (P.sched): settings changed, or the robot kidnapped, at set times ----------
+   An event {t, set: {key: value, …}} or {t, act: 'kidnap' | 'scatter', to: [x, y]} applies just before the first tick
+   that starts at or after t seconds: a sensor switched off at 30 s, fog rolling in, the kidnap of the localization
+   lessons (a Try's act, 8 s). It is a setting, so a Try's set, a worker run's overrides and a level's settings carry it,
+   and a reset replays it. Events apply in list order; each once per run. */
+const SCHED_ACTS = ['kidnap', 'scatter'];
+function schedError(v) {
+  if (!Array.isArray(v)) return 'a list of events';
+  if (v.length > 32) return 'at most 32 events';
+  for (const e of v) {
+    if (!e || typeof e !== 'object' || typeof e.t !== 'number' || !(e.t >= 0)) return 'a time t ≥ 0 s in each event';
+    if (e.act != null && !SCHED_ACTS.includes(e.act)) return `act to be ${SCHED_ACTS.join(' or ')}`;
+    if (e.act == null && (!e.set || typeof e.set !== 'object')) return 'set: {setting: value} or an act in each event';
+    if (e.set)
+      for (const k of Object.keys(e.set)) if (!(k in DEFAULTS) || k === 'sched' || k === 'seed') return `settings it knows, not ${k}`;
+  }
+  return null;
+}
+function schedTick() {
+  const E = P.sched;
+  if (!E || !E.length) return;
+  if (S.schedRef !== E) {
+    S.schedRef = E;
+    S.schedDone = new Set();
+  }
+  for (let i = 0; i < E.length; i++) {
+    const e = E[i];
+    if (S.schedDone.has(i) || S.t + 1e-9 < e.t) continue;
+    S.schedDone.add(i);
+    if (e.act === 'kidnap') kidnapTo(e.to || null);
+    else if (e.act === 'scatter') scatterParticles();
+    else {
+      logE(
+        `Fault schedule at ${e.t} s: ${Object.entries(e.set)
+          .map(([k, v]) => `${k} → ${v}`)
+          .join(', ')}`,
+        'warn'
+      );
+      for (const [k, v] of Object.entries(e.set)) setParam(k, v, true);
+    }
+  }
+}
 // i: a built-in level's index, a level (the runtime object, the JSON format) or a generator spec (levelOf, levels.js)
 function loadLevel(i) {
   LV = levelOf(i);
@@ -2533,6 +2577,10 @@ function setParam(k, v, live) {
   }
   if (typeof DEFAULTS[k] === 'number' && !(typeof v === 'number' && isFinite(v))) {
     logE(`Ignored: ${k} needs a number, not "${v}"`, 'warn');
+    return;
+  }
+  if (k === 'sched' && schedError(v)) {
+    logE(`Ignored: the fault schedule needs ${schedError(v)}`, 'warn');
     return;
   }
   const old = P[k];
@@ -11608,6 +11656,7 @@ function safeSummary() {
 // One tick, in three parts so that user code in workers can be awaited between them:
 // sense → (custom localizer) → mission and tracking → (custom predictor) → speed planning
 function preSense() {
+  schedTick(); // the fault schedule's events due before this tick (core/config.js)
   S.tick++;
   S.t += DT;
   updatePeds(DT);

@@ -736,7 +736,8 @@ function configURL() {
   // the level: a spec as key:value pairs; a level as deflated JSON (lz), or plain until that is ready (lj)
   if (c.gen) q.push('gen=' + genLinkEnc(c.gen));
   else if (c.levelData) q.push(LV.lz ? 'lz=' + LV.lz : 'lj=' + b64uText(JSON.stringify(c.levelData)));
-  for (const [k, v] of Object.entries(c.params)) q.push(`${k}=${encodeURIComponent(typeof v === 'boolean' ? (v ? 1 : 0) : v)}`);
+  for (const [k, v] of Object.entries(c.params))
+    q.push(`${k}=${encodeURIComponent(typeof v === 'boolean' ? (v ? 1 : 0) : typeof v === 'object' ? JSON.stringify(v) : v)}`); // the fault schedule as JSON
   if (c.goals) q.push('goals=' + c.goals.map(g => g.map(v => (v == null ? '' : v)).join(',')).join(';'));
   return location.href.split('#')[0] + '#' + q.join('&');
 }
@@ -757,7 +758,11 @@ function configFromHash() {
     else if (k === 't') c.t = +val;
     else if (k in DEFAULTS) {
       const d = DEFAULTS[k];
-      c.params[k] = typeof d === 'boolean' ? val === '1' || val === 'true' : typeof d === 'number' ? +val : val;
+      if (typeof d === 'object') {
+        try {
+          c.params[k] = JSON.parse(val);
+        } catch (_) {} // a broken schedule in a link is left out
+      } else c.params[k] = typeof d === 'boolean' ? val === '1' || val === 'true' : typeof d === 'number' ? +val : val;
     }
   }
   return c;

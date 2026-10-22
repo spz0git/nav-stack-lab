@@ -202,10 +202,11 @@ async function tryGo(cfg) {
     return;
   } // planning lessons: the search plays first, Run drives
   if (cfg.act) {
+    // the kidnap or scatter at 8 s, on the fault schedule (core/config.js); the first 8 s run at once, so the Try
+    // starts at the moment of the act
+    setParam('sched', [{t: 8, act: cfg.act}], false);
     running = false;
     await advance(160);
-    if (cfg.act === 'kidnap') kidnapTo(null);
-    else if (cfg.act === 'scatter') scatterParticles();
   }
   running = true;
   refreshAll();

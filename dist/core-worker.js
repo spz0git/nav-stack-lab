@@ -894,7 +894,8 @@ const LEVELS = [
       start: [x, y, θ],
       goals: [[x, y] or [x, y, θ], …],
       people: [{from: [x, y], to: [x, y], speed, phase (0–1: where on the route it starts), mode: 'shuttle' (turns back
-               at once) | 'pause' (waits `wait` s at each end)}, …],
+               at once) | 'pause' (waits `wait` s at each end), trigger (optional): {near: [x, y], r} (the person stands
+               still where the route starts until the robot comes within r m of near, then walks)}, …],
       cars: [{loop: [[x, y], …], speed, phase}, …] (optional: the parking lot's moving car),
       settings: {key: value} (the level's own setup: keys of DEFAULTS in core/params.js),
       layers: {cost: true} (optional: map layers the level shows),
@@ -947,7 +948,8 @@ function levelToJSON(L, edits) {
       speed: p.v,
       phase: p.s0 || 0,
       mode: p.dw ? 'pause' : 'shuttle',
-      ...(p.dw ? {wait: p.dw} : {})
+      ...(p.dw ? {wait: p.dw} : {}),
+      ...(p.tr ? {trigger: {near: [...p.tr.p], r: p.tr.r}} : {})
     })),
     settings
   };
@@ -1017,6 +1019,13 @@ function levelFromJSON(j, id) {
     };
     if (p.mode === 'pause') out.dw = clamp(num(p.wait == null ? 2 : p.wait, what + ' wait'), 0.1, 30);
     else if (p.mode != null && p.mode !== 'shuttle') bad(what + ': mode is "shuttle" or "pause"');
+    if (p.trigger != null) {
+      if (typeof p.trigger !== 'object') bad(what + ': trigger is {near: [x, y], r}');
+      out.tr = {
+        p: inside(arr(p.trigger.near, what + ' trigger near', 2), what + ' trigger'),
+        r: clamp(num(p.trigger.r == null ? 3 : p.trigger.r, what + ' trigger r'), 0.5, 10)
+      };
+    }
     return out;
   });
   const cars = list(j.cars, 'cars', LEVEL_LIMITS.cars).map((c, k) => ({
@@ -1083,8 +1092,8 @@ const levelRef = L => (LEVELS.includes(L) ? LEVELS.indexOf(L) : L.genSpec || lev
    World generator: a seeded level in the level format (levels.js), of one of three families. The same spec gives the
    same level on every machine (mulberry32, never Math.random). Core only, no DOM; it works on grids of its own and
    leaves the world's (W, H, GW, GH) alone, so it can run while another level is on screen.
-     spec: {gen: family, seed, w, h, goals, people, beacons (0: about one per 32 m²), like: the built-in level whose
-           settings the level takes ('L1' … 'L5'; by default L5 with people, L2 without), and the family's own
+     spec: {gen: family, seed, w, h, goals, people, stepout (people who wait for the robot), beacons (0: about one per
+           32 m²), like: the built-in level whose settings the level takes ('L1' … 'L5'; by default L5 with people, L2 without), and the family's own
            parameters (GEN_FAMILIES)}
    Every family places, on the free floor the robot can reach from its start (a grid search on the costmap's lethal
    cells, LETHAL from the obstacles, which is where the grid planners can go): the start in the lower left corner, the
@@ -1097,6 +1106,7 @@ const GEN_COMMON = {
   h: [16, WORLD_MIN[1], WORLD_MAX[1], 0.4, 'depth (m)'],
   goals: [5, 1, 12, 1, 'goals'],
   people: [0, 0, 12, 1, 'people'],
+  stepout: [0, 0, 6, 1, 'people who wait for the robot'],
   beacons: [0, 0, 60, 1, 'beacons (0: one per 32 m²)']
 };
 const GEN_FAMILIES = {
@@ -1141,7 +1151,7 @@ function genSpec(sp) {
     const v = sp[k] == null || !isFinite(+sp[k]) ? d : clamp(+sp[k], lo, hi);
     out[k] = +(lo + Math.round((v - lo) / st) * st).toFixed(2);
   }
-  out.like = GEN_LIKE.includes(sp.like) ? sp.like : out.people > 0 ? 'L5' : 'L2';
+  out.like = GEN_LIKE.includes(sp.like) ? sp.like : out.people + out.stepout > 0 ? 'L5' : 'L2';
   return out;
 }
 // The gap between two shapes ({t: 'r' | 'c'}), 0 when they touch or overlap
@@ -1478,7 +1488,9 @@ function genLevel(spec) {
   }
   // the people: straight runs of floor 0.6 m clear, 4–16 m long, along x or y, not over the start
   const people = [];
-  for (let t = 0; t < 400 && people.length < sp.people; t++) {
+  // then the people who wait for the robot (stepout): they stand at one end of their route until the robot comes
+  // within 3 m of its middle, then walk briskly, so they meet it as it passes
+  for (let t = 0; t < 400 && people.length < sp.people + sp.stepout; t++) {
     const k = cells[Math.floor(u() * cells.length)],
       along = sp.gen === 'warehouse' ? u() < 0.7 : u() < 0.5,
       ox = cx(k),
@@ -1507,6 +1519,10 @@ function genLevel(spec) {
     if (segD([sx, sy], a, b) < 1.5) continue;
     const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     if (people.some(q => segD(mid, q.from, q.to) < 1.5)) continue;
+    if (people.length >= sp.people) {
+      people.push({from: a, to: b, speed: snap1(0.9 + u() * 0.3), phase: 0, mode: 'shuttle', trigger: {near: mid, r: 3}});
+      continue;
+    }
     const pause = u() < 0.3;
     people.push({
       from: a,
@@ -2046,7 +2062,7 @@ function reset() {
     rngB: makeRng(P.seed * 7907 + 11),
     bDown: null,
     shapes: LV.shapes,
-    peds: LV.peds.map(p => ({...p, s: p.s0 || 0, dir: 1, x: p.a[0], y: p.a[1], r: 0.3})),
+    peds: LV.peds.map(p => ({...p, s: p.s0 || 0, dir: 1, x: p.a[0], y: p.a[1], r: 0.3, go: !p.tr})), // go: a triggered person walks
     beacons: LV.beacons.map((b, i) => ({id: i, x: b[0], y: b[1]})),
     robot: {x: st[0], y: st[1], th: st[2], v: 0, w: 0, d: 0, vy: 0, r: 0, contact: false, pedContact: false},
     cmd: {v: 0, w: 0, steer: 0},
@@ -2121,7 +2137,8 @@ function updatePeds(dt) {
   for (const p of S.peds) {
     if (p.car) continue;
     const L = hyp(p.b[0] - p.a[0], p.b[1] - p.a[1]);
-    if (p.dw) {
+    const go = pedGo(p); // a person with a trigger stands where the route starts until the robot comes near
+    if (go && p.dw) {
       if (p.wait > 0) p.wait -= dt;
       else {
         p.s += (p.dir * p.v * dt) / L;
@@ -2136,7 +2153,7 @@ function updatePeds(dt) {
           p.wait = p.dw;
         }
       }
-    } else {
+    } else if (go) {
       p.s += (p.dir * p.v * dt) / L;
       if (p.s > 1) {
         p.s = 2 - p.s;
@@ -2149,11 +2166,20 @@ function updatePeds(dt) {
     }
     p.x = p.a[0] + (p.b[0] - p.a[0]) * p.s;
     p.y = p.a[1] + (p.b[1] - p.a[1]) * p.s;
-    const mv = !(p.wait > 0);
+    const mv = go && !(p.wait > 0);
     p.vx = mv ? (p.dir * p.v * (p.b[0] - p.a[0])) / L : 0;
     p.vy = mv ? (p.dir * p.v * (p.b[1] - p.a[1])) / L : 0;
   }
   if (dt > 0) updateCars(dt);
+}
+// A person with a trigger (levels.js) stands still until the robot comes within r of the trigger point
+function pedGo(p) {
+  if (p.go) return true;
+  const r = S.robot;
+  if (hyp(r.x - p.tr.p[0], r.y - p.tr.p[1]) >= p.tr.r) return false;
+  p.go = true;
+  logE(`A person steps out at (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`);
+  return true;
 }
 function pedShapes() {
   return S.peds.flatMap(p => (p.car ? carCircles(p) : [{t: 'c', x: p.x, y: p.y, r: p.r}]));
@@ -11195,6 +11221,11 @@ function updatePedsReactive(dt) {
   const r = S.robot,
     ps = S.peds.filter(p => !p.car);
   for (const p of ps) {
+    if (!pedGo(p)) {
+      p.vx = 0;
+      p.vy = 0;
+      continue;
+    }
     if (p.wait > 0) {
       p.wait -= dt;
       p.vx = 0;

@@ -70,6 +70,11 @@ function updatePedsReactive(dt) {
   const r = S.robot,
     ps = S.peds.filter(p => !p.car);
   for (const p of ps) {
+    if (!pedGo(p)) {
+      p.vx = 0;
+      p.vy = 0;
+      continue;
+    }
     if (p.wait > 0) {
       p.wait -= dt;
       p.vx = 0;

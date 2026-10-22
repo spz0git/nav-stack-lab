@@ -6,6 +6,8 @@
    - Clearance to the walls and racks (C2): the true footprint's smallest gap to a static obstacle, read from the
      distance field of the true occupancy (LV.truthDist, 0.1 m cells; the car's footprint is its covering circles,
      which overstate the body by up to about 0.14 m at the bumpers).
+   - Health (C5): every 0.5 s the rules of core/health.js; the first time each check turned amber or red, and the
+     moments a subsystem's light did, so a run without a page can say when the stack noticed.
    - Leading indicators and exposure (C3), counted while the mission runs: seconds with a person closer than 0.3 m,
      the smallest time to contact with a person (both keeping their velocities), seconds with it under 1 s, seconds
      with a person within 2 m, seconds reversing, and seconds the safety stop capped the speed.
@@ -42,7 +44,21 @@ const SAFE_CONDS = [
 ];
 
 function safeInit() {
-  return {events: [], minObs: Infinity, nearS: 0, ttcMin: Infinity, ttc1S: 0, near2S: 0, revS: 0, guardS: 0, opS: 0, gap: Infinity};
+  return {
+    events: [],
+    minObs: Infinity,
+    nearS: 0,
+    ttcMin: Infinity,
+    ttc1S: 0,
+    near2S: 0,
+    revS: 0,
+    guardS: 0,
+    opS: 0,
+    gap: Infinity,
+    health: {}, // the first time each health check turned amber or red: 'sys/name' → {t, lvl, msg} (C5)
+    hprev: {},
+    hev: [] // the moments a subsystem's light turned amber or red, as the page marks them on its timeline
+  };
 }
 function safeConds() {
   const out = [];
@@ -96,6 +112,8 @@ function safeTick() {
   const r = S.robot,
     Z = S.safe,
     run = S.fsm.state !== 'IDLE' && S.fsm.state !== 'DONE';
+  if (S.lastZ && S.lastZ.length) S.zLastT = S.t; // the beacon-silence check reads it (core/health.js)
+  if (S.tick % 10 === 0) safeHealth();
   const D = LV.truthDist;
   if (D)
     for (const [x, y, rad] of fpCircles(r.x, r.y, r.th)) {
@@ -125,6 +143,22 @@ function safeTick() {
   if (ttc < Z.ttcMin) Z.ttcMin = ttc;
   if (ttc < 1) Z.ttc1S += DT;
 }
+// Every 0.5 s: the health rules of core/health.js, the same the page's lights show
+function safeHealth() {
+  const H = healthNow(null),
+    Z = S.safe,
+    t = +S.t.toFixed(2);
+  for (const [k] of H_SYS) {
+    for (const c of H.all[k] || []) {
+      const key = k + '/' + c.name;
+      if (c.on && H_RANK[c.lvl] >= 2 && !Z.health[key]) Z.health[key] = {t, lvl: c.lvl, msg: c.msg};
+    }
+    const lv = H[k][0],
+      pv = Z.hprev[k];
+    if (pv != null && H_RANK[lv] >= 2 && H_RANK[lv] > H_RANK[pv] && Z.hev.length < 200) Z.hev.push({t, sys: k, lvl: lv, msg: H[k][1]});
+    Z.hprev[k] = lv;
+  }
+}
 // The summary's safety fields (src/worker/main.js runSummary, the Experiments metrics)
 function safeSummary() {
   const Z = S.safe,
@@ -140,6 +174,8 @@ function safeSummary() {
     revS: f(Z.revS, 1),
     guardS: f(Z.guardS, 1),
     opS: f(Z.opS, 1),
-    events: Z.events
+    events: Z.events,
+    health: Z.health,
+    healthEv: Z.hev
   };
 }

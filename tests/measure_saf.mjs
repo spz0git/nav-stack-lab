@@ -1,7 +1,8 @@
 // Measures what the safety lessons' Try buttons show, headless in Node (the same core as the page): for each case
 // and seed, the run up to Mission complete (or secs), then the contacts with their relative speed and the lab's
 // severity class, the closest approach, the wall clearance, and the leading indicators and exposure of core/safety.js;
-// with them the relocalizations, the speed planner's yields and the skipped goals.
+// with them the relocalizations, the speed planner's yields, the skipped goals, and when each health check first
+// turned amber or red (core/health.js, as the page's lights).
 //   node tests/measure_saf.mjs '[{"name": "…", "cfg": {"level": 4, "set": {"spd": "none"}}, "seeds": [7, 1, 2], "secs": 300}]'
 // cfg is a Try's cfg as the lesson writes it: level (a built-in's index or a generator spec), set and goals; a cfg seed is
 // the default for seeds. With "every": n, a row every n seconds as well.
@@ -52,7 +53,8 @@ for (const c of cases) {
         reloc: log(/^Relocalized/),
         yields: log(/yield/i),
         dist: f(S.dist, 1),
-        ev
+        ev,
+        health: Object.entries(Z.health).map(([k, h]) => `${h.t}s ${k} ${h.lvl}`)
       })
     );
     for (const r of rows) console.log('   ', JSON.stringify(r));

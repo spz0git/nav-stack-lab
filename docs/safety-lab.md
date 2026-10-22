@@ -444,11 +444,11 @@ lessons as tables; the tools come later.
 **Phase 2, faults in time, and search.** Core: C4 (with the page's kidnap and scatter moved onto the schedule, and
 loc/03, loc/04 and loc/07 re-measured in the same PR; decision 10), C5, C7. Page: Tools → Safety with ODD sheets (check and sample) and
 Search (random, refinement, the worst cases with Open, saved scenario sets), `tools/search.mjs`, `tests/saftest.py`.
-Lessons 4 and 6.
+Lessons 4 and 6, which became 4 and 5 (the search moved before the learned blocks, so phase 3 appends its lessons).
 
 **Phase 3, the learned blocks and mitigations.** Per-slice metrics for the detector, predictor and policy; an
 out-of-distribution score from the training runs the model files list. The radar emergency brake as an opt-in
-mitigation. Lessons 5 and 7.
+mitigation. Lessons 6 (learned blocks) and 7.
 
 **Phase 4, risk and the argument.** Rates with intervals and importance sampling in Search; the SPI chart; the GSN
 format, renderer, editor and evidence runner, with arguments, ODD sheets, hazard logs and scenario sets stored in the
@@ -463,8 +463,8 @@ Draft lessons (titles in the lab's style; each with Trys, Predicts, Think about 
 | saf/02 | Hazards and risk: from situations to safety goals | ISO 26262-3 cl. 6; ISO 21448 cl. 6; UL 4600 cl. 6 | L4, L5, L6, L7; scripted against reactive people; impact speeds (C1) |
 | saf/03 | Nothing breaks, and it still fails: triggering conditions | ISO 21448 cl. 4, 7, 8 | The matrix of 3.3, with and without each condition on the same seeds |
 | saf/04 | Something breaks: detect it, react, in time | ISO 26262-1 cl. 3 (FTTI), 26262-4 cl. 6, 26262-9 cl. 8 | L3, L5; the switchboard in mid-mission (C4); health-light times (C5) |
-| saf/05 | Learned blocks: the data is the specification | ISO/PAS 8800 cl. 9, 11, 12, 13 | Detector and policy across L2, L4, fog and generated rooms; the Train tab |
-| saf/06 | Looking for the failures nobody wrote down | ISO 21448 cl. 10, 11; UL 4600 cl. 12 | Search over generated warehouses; the person who steps out (C7) |
+| saf/05 | Looking for the failures nobody wrote down | ISO 21448 cl. 9, 10, 11, 12; UL 4600 cl. 12 | Search over generated warehouses; the person who steps out (C7) |
+| saf/06 | Learned blocks: the data is the specification | ISO/PAS 8800 cl. 9, 11, 12, 13 | Detector and policy across L2, L4, fog and generated rooms; the Train tab |
 | saf/07 | Mitigations, and what they cost | ISO 21448 cl. 8 | The lidar safety stop, the radar brake, unknown as lethal, a smaller ODD; false stops against contacts |
 | saf/08 | How many hours make it safe enough | ISO 21448 6.5, cl. 9, cl. 12; UL 4600 cl. 16 | Rates and the rule of three; importance sampling; leading indicators |
 | saf/09 | The safety argument: claims, evidence, and what breaks it | UL 4600 cl. 5; ISO 26262-2 6.4.8; ISO/PAS 8800 cl. 8; GSN v3 | The argument for L5 in ODD-1, live evidence, one setting changed |
@@ -505,40 +505,40 @@ right number (and title if it differs). Since decision 2 changed, the lessons ci
 
 | # | Standard | Clause cited | Topic, as this document uses it | Where cited | Checked against | Your answer |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | ISO 26262-1 | 3 | Terms and definitions, including the fault tolerant time interval | 3.3; saf/04 | Memory || best available, unchecked (owner, 2026-10-22) |
+| 1 | ISO 26262-1 | 3 | Terms and definitions, including the fault tolerant time interval | 3.3; saf/04 | Memory | best available, unchecked (owner, 2026-10-22) |
 | 2 | ISO 26262-2 | 6.4.8 | The safety case | 3.5; saf/09 | Contents page of the 2018 edition: 6.4.8 is "Safety case", under clause 6, project-dependent safety management | OK (confirmed from the contents page) |
-| 3 | ISO 26262-3 | 5 | Item definition | 2 | Memory || best available, unchecked (owner, 2026-10-22) |
-| 4 | ISO 26262-3 | 6 | Hazard analysis and risk assessment | 3.2; saf/02 | Public contents (ANSI preview of Part 3) and secondary, agreed || best available, unchecked (owner, 2026-10-22) |
-| 5 | ISO 26262-3 | 6.4.3 | Classifying hazardous events by severity, exposure and controllability | 3.2 | Secondary, agreed || best available, unchecked (owner, 2026-10-22) |
-| 6 | ISO 26262-3 | 6.4.4 | Determining the ASIL | 3.2 | Memory || best available, unchecked (owner, 2026-10-22) |
-| 7 | ISO 26262-3 | 6.4.5 | Safety goals | 3.2 | Memory || best available, unchecked (owner, 2026-10-22) |
-| 8 | ISO 26262-4 | 6 | Technical safety concept: safety mechanisms, safe state | 3.3; saf/04 | Memory || best available, unchecked (owner, 2026-10-22) |
-| 9 | ISO 26262-9 | 8 | Safety analyses (inductive and deductive: FMEA, FTA) | 3.3; saf/04 | Memory || best available, unchecked (owner, 2026-10-22) |
-| 10 | ISO 21448 | 4 | Overview of SOTIF activities; the four areas (known or unknown, safe or unsafe) | 3.3; saf/03 | Secondary, one, which places the four areas in the Introduction, not clause 4 || best available, unchecked (owner, 2026-10-22) |
-| 11 | ISO 21448 | 5 | Specification and design, including the conditions of use | 3.1; saf/01 | Secondary, one || best available, unchecked (owner, 2026-10-22) |
-| 12 | ISO 21448 | 6 | Identification and evaluation of hazards | 3.2; saf/02 | Public contents || best available, unchecked (owner, 2026-10-22) |
-| 13 | ISO 21448 | 6.3 | Hazard identification | 3.2 | Public contents || best available, unchecked (owner, 2026-10-22) |
-| 14 | ISO 21448 | 6.4 | Risk evaluation | 3.2 | Public contents || best available, unchecked (owner, 2026-10-22) |
-| 15 | ISO 21448 | 6.5 | Acceptance criteria for the residual risk | 3.2; 3.6; saf/08 | Public contents || best available, unchecked (owner, 2026-10-22) |
-| 16 | ISO 21448 | 7 | Functional insufficiencies and triggering conditions, and whether the response to them is acceptable | 3.3; saf/03 | Secondary, agreed || best available, unchecked (owner, 2026-10-22) |
-| 17 | ISO 21448 | 8 | Functional modifications that address SOTIF risks (better function, restricted use, minimal-risk behaviour) | 3.3; saf/03; saf/07 | Secondary, disagree (one source puts acceptance criteria here) || best available, unchecked (owner, 2026-10-22) |
-| 18 | ISO 21448 | 9 | Verification and validation strategy, validation targets | 3.4; 3.6; saf/08 | Secondary, disagree (one source puts design measures here) || best available, unchecked (owner, 2026-10-22) |
-| 19 | ISO 21448 | 10 | Evaluation of known scenarios | 3.4; saf/06 | Secondary, agreed || best available, unchecked (owner, 2026-10-22) |
-| 20 | ISO 21448 | 11 | Evaluation of unknown scenarios | 3.4; saf/06 | Secondary, agreed || best available, unchecked (owner, 2026-10-22) |
-| 21 | ISO 21448 | 12 | Evaluating whether SOTIF is achieved (the residual risk) | 3.4; 3.6; saf/08 | Secondary, agreed || best available, unchecked (owner, 2026-10-22) |
-| 22 | ISO 21448 | 13 | Activities in operation | 3.1; 3.6 | Memory || best available, unchecked (owner, 2026-10-22) |
-| 23 | ISO 21448 | Annex (no letter cited) | Informative guidance on verification and validation: from a target to an amount of testing | 3.6 | Memory (believed to be Annex C) || best available, unchecked (owner, 2026-10-22) |
-| 24 | ISO/PAS 8800 | 8 | Assurance argument for the AI system | 3.5; saf/09 | Secondary, agreed || best available, unchecked (owner, 2026-10-22) |
-| 25 | ISO/PAS 8800 | 9 | Deriving the AI system's safety requirements | 3.1; saf/05 | Secondary, agreed || best available, unchecked (owner, 2026-10-22) |
-| 26 | ISO/PAS 8800 | 11 | Data-related considerations (requirements on data, coverage) | 3.1; saf/05 | Secondary, agreed || best available, unchecked (owner, 2026-10-22) |
-| 27 | ISO/PAS 8800 | 12 | Verification and validation of the AI system | saf/05 | Secondary, agreed || best available, unchecked (owner, 2026-10-22) |
-| 28 | ISO/PAS 8800 | 13 | Safety analysis of AI systems (causes of AI errors) | 3.3; saf/05 | Secondary, agreed || best available, unchecked (owner, 2026-10-22) |
-| 29 | ISO/PAS 8800 | 14 | Measures during operation | 3.6 | Memory (sources list clauses up to 15 but this title was not seen) || best available, unchecked (owner, 2026-10-22) |
-| 30 | UL 4600 ed. 3 | 5 | Safety case and arguments | 3.5; saf/09 | Public contents of edition 2 (ANSI listing); edition 3 assumed unchanged || best available, unchecked (owner, 2026-10-22) |
-| 31 | UL 4600 ed. 3 | 6 | Hazards and risk assessment | 3.2; saf/02 | Public contents of edition 2 (ANSI listing); edition 3 assumed unchanged || best available, unchecked (owner, 2026-10-22) |
-| 32 | UL 4600 ed. 3 | 8 | Autonomy functions and support, including the ODD and sensing | 3.1; saf/01 | Public contents of edition 2 for sensing; where the ODD sits within it: memory || best available, unchecked (owner, 2026-10-22) |
-| 33 | UL 4600 ed. 3 | 12 | Verification, validation and test | 3.4; saf/06 | Memory || best available, unchecked (owner, 2026-10-22) |
-| 34 | UL 4600 ed. 3 | 16 | Metrics and safety performance indicators | 3.6; saf/08 | Secondary, agreed (one cites a subclause of 16 by number) || best available, unchecked (owner, 2026-10-22) |
+| 3 | ISO 26262-3 | 5 | Item definition | 2 | Memory | best available, unchecked (owner, 2026-10-22) |
+| 4 | ISO 26262-3 | 6 | Hazard analysis and risk assessment | 3.2; saf/02 | Public contents (ANSI preview of Part 3) and secondary, agreed | best available, unchecked (owner, 2026-10-22) |
+| 5 | ISO 26262-3 | 6.4.3 | Classifying hazardous events by severity, exposure and controllability | 3.2 | Secondary, agreed | best available, unchecked (owner, 2026-10-22) |
+| 6 | ISO 26262-3 | 6.4.4 | Determining the ASIL | 3.2 | Memory | best available, unchecked (owner, 2026-10-22) |
+| 7 | ISO 26262-3 | 6.4.5 | Safety goals | 3.2 | Memory | best available, unchecked (owner, 2026-10-22) |
+| 8 | ISO 26262-4 | 6 | Technical safety concept: safety mechanisms, safe state | 3.3; saf/04 | Memory | best available, unchecked (owner, 2026-10-22) |
+| 9 | ISO 26262-9 | 8 | Safety analyses (inductive and deductive: FMEA, FTA) | 3.3; saf/04 | Memory | best available, unchecked (owner, 2026-10-22) |
+| 10 | ISO 21448 | 4 | Overview of SOTIF activities; the four areas (known or unknown, safe or unsafe) | 3.3; saf/03 | Secondary, one, which places the four areas in the Introduction, not clause 4 | best available, unchecked (owner, 2026-10-22) |
+| 11 | ISO 21448 | 5 | Specification and design, including the conditions of use | 3.1; saf/01 | Secondary, one | best available, unchecked (owner, 2026-10-22) |
+| 12 | ISO 21448 | 6 | Identification and evaluation of hazards | 3.2; saf/02 | Public contents | best available, unchecked (owner, 2026-10-22) |
+| 13 | ISO 21448 | 6.3 | Hazard identification | 3.2 | Public contents | best available, unchecked (owner, 2026-10-22) |
+| 14 | ISO 21448 | 6.4 | Risk evaluation | 3.2 | Public contents | best available, unchecked (owner, 2026-10-22) |
+| 15 | ISO 21448 | 6.5 | Acceptance criteria for the residual risk | 3.2; 3.6; saf/08 | Public contents | best available, unchecked (owner, 2026-10-22) |
+| 16 | ISO 21448 | 7 | Functional insufficiencies and triggering conditions, and whether the response to them is acceptable | 3.3; saf/03 | Secondary, agreed | best available, unchecked (owner, 2026-10-22) |
+| 17 | ISO 21448 | 8 | Functional modifications that address SOTIF risks (better function, restricted use, minimal-risk behaviour) | 3.3; saf/03; saf/07 | Secondary, disagree (one source puts acceptance criteria here) | best available, unchecked (owner, 2026-10-22) |
+| 18 | ISO 21448 | 9 | Verification and validation strategy, validation targets | 3.4; 3.6; saf/08 | Secondary, disagree (one source puts design measures here) | best available, unchecked (owner, 2026-10-22) |
+| 19 | ISO 21448 | 10 | Evaluation of known scenarios | 3.4; saf/05 | Secondary, agreed | best available, unchecked (owner, 2026-10-22) |
+| 20 | ISO 21448 | 11 | Evaluation of unknown scenarios | 3.4; saf/05 | Secondary, agreed | best available, unchecked (owner, 2026-10-22) |
+| 21 | ISO 21448 | 12 | Evaluating whether SOTIF is achieved (the residual risk) | 3.4; 3.6; saf/08 | Secondary, agreed | best available, unchecked (owner, 2026-10-22) |
+| 22 | ISO 21448 | 13 | Activities in operation | 3.1; 3.6 | Memory | best available, unchecked (owner, 2026-10-22) |
+| 23 | ISO 21448 | Annex (no letter cited) | Informative guidance on verification and validation: from a target to an amount of testing | 3.6 | Memory (believed to be Annex C) | best available, unchecked (owner, 2026-10-22) |
+| 24 | ISO/PAS 8800 | 8 | Assurance argument for the AI system | 3.5; saf/09 | Secondary, agreed | best available, unchecked (owner, 2026-10-22) |
+| 25 | ISO/PAS 8800 | 9 | Deriving the AI system's safety requirements | 3.1; saf/06 | Secondary, agreed | best available, unchecked (owner, 2026-10-22) |
+| 26 | ISO/PAS 8800 | 11 | Data-related considerations (requirements on data, coverage) | 3.1; saf/06 | Secondary, agreed | best available, unchecked (owner, 2026-10-22) |
+| 27 | ISO/PAS 8800 | 12 | Verification and validation of the AI system | saf/06 | Secondary, agreed | best available, unchecked (owner, 2026-10-22) |
+| 28 | ISO/PAS 8800 | 13 | Safety analysis of AI systems (causes of AI errors) | 3.3; saf/06 | Secondary, agreed | best available, unchecked (owner, 2026-10-22) |
+| 29 | ISO/PAS 8800 | 14 | Measures during operation | 3.6 | Memory (sources list clauses up to 15 but this title was not seen) | best available, unchecked (owner, 2026-10-22) |
+| 30 | UL 4600 ed. 3 | 5 | Safety case and arguments | 3.5; saf/09 | Public contents of edition 2 (ANSI listing); edition 3 assumed unchanged | best available, unchecked (owner, 2026-10-22) |
+| 31 | UL 4600 ed. 3 | 6 | Hazards and risk assessment | 3.2; saf/02 | Public contents of edition 2 (ANSI listing); edition 3 assumed unchanged | best available, unchecked (owner, 2026-10-22) |
+| 32 | UL 4600 ed. 3 | 8 | Autonomy functions and support, including the ODD and sensing | 3.1; saf/01 | Public contents of edition 2 for sensing; where the ODD sits within it: memory | best available, unchecked (owner, 2026-10-22) |
+| 33 | UL 4600 ed. 3 | 12 | Verification, validation and test | 3.4; saf/05 | Memory | best available, unchecked (owner, 2026-10-22) |
+| 34 | UL 4600 ed. 3 | 16 | Metrics and safety performance indicators | 3.6; saf/08 | Secondary, agreed (one cites a subclause of 16 by number) | best available, unchecked (owner, 2026-10-22) |
 
 ## Sources for the clause outlines
 

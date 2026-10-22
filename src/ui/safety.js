@@ -216,8 +216,12 @@ function safOpen(sc) {
 function safFromTry(c) {
   if (c.sheet) SAF.sheet = oddCopy(typeof c.sheet === 'string' ? ODD_SHEETS[c.sheet] : c.sheet);
   for (const k of ['budget', 'rounds', 'seed']) if (c[k] != null) SAF[k] = c[k];
-  if (SAF.running) SAF.cancel = true;
-  if (c.run) setTimeout(() => safSearch(), 0);
+  if (SAF.running) SAF.cancel = true; // a search already running stops after the runs in its workers
+  if (c.run)
+    (async () => {
+      while (SAF.running) await new Promise(r => setTimeout(r, 100));
+      safSearch();
+    })();
 }
 function drawSafChart() {
   const c = $('#cv-saf'),

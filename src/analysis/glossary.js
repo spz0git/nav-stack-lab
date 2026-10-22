@@ -1190,6 +1190,60 @@ Object.assign(GLOSS, {
     '',
     ['lost guard']
   ],
+  ftti: [
+    'fault tolerant time interval',
+    'The time from a fault to the harm it would lead to if nothing reacted. Detection and reaction together must fit inside it.',
+    's',
+    ['fault tolerant time interval']
+  ],
+  safetymech: [
+    'safety mechanism',
+    'What detects a fault and brings the system to a state where it can do no harm: here a health light and what reacts to it.',
+    '',
+    ['safety mechanisms', 'safety mechanism']
+  ],
+  safestate: [
+    'safe state',
+    'A state in which a fault can do no harm: stopped, or crawling. Rarely a useful one, so it is chosen for the situation.',
+    '',
+    ['safe state']
+  ],
+  faultsched: [
+    'fault schedule',
+    'The lab’s timetable of faults: settings changed at given seconds (a sensor off, a motor biased), applied during the run and logged.',
+    '',
+    ['fault schedule']
+  ],
+  fmea: [
+    'FMEA',
+    'Failure-mode and effects analysis: for each part, how it can fail, the effect, how the failure is detected, and what reacts.',
+    '',
+    ['FMEA', 'failure-mode']
+  ],
+  scenario: [
+    'scenario',
+    'One point of the operating domain: a generated world, the weather, the people’s behaviour and the run’s seed.',
+    '',
+    ['scenarios', 'scenario']
+  ],
+  runmargin: [
+    'margin',
+    'A run’s score in the search: minus the fastest contact’s speed if there was a contact, else the smallest gap to a person or a rack. Lower is worse.',
+    '',
+    ['margin']
+  ],
+  refine: [
+    'refinement',
+    'The second half of a search: runs near the worst found so far, each range moved by a step that shrinks every round.',
+    '',
+    ['refinement', 'refined']
+  ],
+  scenset: [
+    'scenario set',
+    'Scenarios kept from a search and rerun after every change, so that a fix is judged on all of them.',
+    '',
+    ['scenario sets', 'scenario set']
+  ],
   ttcsafe: [
     'time to contact',
     'The gap to a person divided by the speed the two are closing at: how long until contact if both keep their velocities (Metrics).',
@@ -1202,6 +1256,10 @@ const LESSON_TERMS = {
     'odd margin wallclear contacts sevclass speedplanner pf unlabeled costmap inflation lidar beacon fog track',
   'Hazards and risk: from situations to safety goals':
     'hara hazard hazevent opsit severity sevclass vrel exposure controllability asil safetygoal speedplanner socialforce contacts closest sotif',
+  'Something breaks: detect it, react, in time':
+    'fault ftti safetymech safestate faultsched fmea degraded lostguard lidar beacon pf sigx contacts sevclass speedplanner',
+  'Looking for the failures nobody wrote down':
+    'scenario runmargin refine scenset odd fourareas trigcond sevclass contacts guard speedplanner',
   'Nothing breaks, and it still fails: triggering conditions':
     'sotif funcins trigcond fourareas fault speedplanner multimodal fog lidar track lostguard mirror unlabeled pf sonar deadzone guard ttcsafe degraded contacts sevclass',
   'GNSS: the noise is not white':

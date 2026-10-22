@@ -155,7 +155,7 @@ function reset() {
     rngB: makeRng(P.seed * 7907 + 11),
     bDown: null,
     shapes: LV.shapes,
-    peds: LV.peds.map(p => ({...p, s: p.s0 || 0, dir: 1, x: p.a[0], y: p.a[1], r: 0.3})),
+    peds: LV.peds.map(p => ({...p, s: p.s0 || 0, dir: 1, x: p.a[0], y: p.a[1], r: 0.3, go: !p.tr})), // go: a triggered person walks
     beacons: LV.beacons.map((b, i) => ({id: i, x: b[0], y: b[1]})),
     robot: {x: st[0], y: st[1], th: st[2], v: 0, w: 0, d: 0, vy: 0, r: 0, contact: false, pedContact: false},
     cmd: {v: 0, w: 0, steer: 0},
@@ -230,7 +230,8 @@ function updatePeds(dt) {
   for (const p of S.peds) {
     if (p.car) continue;
     const L = hyp(p.b[0] - p.a[0], p.b[1] - p.a[1]);
-    if (p.dw) {
+    const go = pedGo(p); // a person with a trigger stands where the route starts until the robot comes near
+    if (go && p.dw) {
       if (p.wait > 0) p.wait -= dt;
       else {
         p.s += (p.dir * p.v * dt) / L;
@@ -245,7 +246,7 @@ function updatePeds(dt) {
           p.wait = p.dw;
         }
       }
-    } else {
+    } else if (go) {
       p.s += (p.dir * p.v * dt) / L;
       if (p.s > 1) {
         p.s = 2 - p.s;
@@ -258,11 +259,20 @@ function updatePeds(dt) {
     }
     p.x = p.a[0] + (p.b[0] - p.a[0]) * p.s;
     p.y = p.a[1] + (p.b[1] - p.a[1]) * p.s;
-    const mv = !(p.wait > 0);
+    const mv = go && !(p.wait > 0);
     p.vx = mv ? (p.dir * p.v * (p.b[0] - p.a[0])) / L : 0;
     p.vy = mv ? (p.dir * p.v * (p.b[1] - p.a[1])) / L : 0;
   }
   if (dt > 0) updateCars(dt);
+}
+// A person with a trigger (levels.js) stands still until the robot comes within r of the trigger point
+function pedGo(p) {
+  if (p.go) return true;
+  const r = S.robot;
+  if (hyp(r.x - p.tr.p[0], r.y - p.tr.p[1]) >= p.tr.r) return false;
+  p.go = true;
+  logE(`A person steps out at (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`);
+  return true;
 }
 function pedShapes() {
   return S.peds.flatMap(p => (p.car ? carCircles(p) : [{t: 'c', x: p.x, y: p.y, r: p.r}]));

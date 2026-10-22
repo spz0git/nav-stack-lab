@@ -4,6 +4,24 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v61 · 2026-10-22
+
+- Safety, two more lessons:
+  - *Something breaks: detect it, react, in time*: the lidar fails 30 s into the busy floor's mission, the beacons go
+    dark, a motor weakens. The health lights notice the lidar in half a second, but the first person is struck 21 s
+    later because nothing reacts; slowing down at 31 s prevents every strike, slowing down at 52 s prevents none. The
+    weak motor is never noticed at all.
+  - *Looking for the failures nobody wrote down*: a search over the busy floor's operating domain finds a contact in
+    about two of every five generated warehouses, more when it refines around the worst; people who wait for the
+    robot and then step out make it worse; the safety stop helps on most scenarios and hurts on a few.
+- Tools → Safety: the operating domain as a sheet of ranges, a check of the level on screen against it, a search that
+  samples generated warehouses from the sheet and refines around the worst runs, each run opened in the simulator with
+  one button, and scenario sets kept from a search and rerun after you change something, saved and loaded as JSON.
+- A fault schedule: any setting can change at a given second of a run (a sensor off, fog rolling in, a motor
+  weakened), from a lesson, an experiment or a level file; the event log says when.
+- People who wait for the robot: in a level file or the world generator, a person can stand still until the robot
+  comes near, then walk.
+
 ## v60 · 2026-10-22
 
 - A new Learn group, Safety: the ideas of the safety standards for automated vehicles and robots (ISO 26262,

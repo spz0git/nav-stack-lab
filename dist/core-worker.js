@@ -894,7 +894,8 @@ const LEVELS = [
       start: [x, y, θ],
       goals: [[x, y] or [x, y, θ], …],
       people: [{from: [x, y], to: [x, y], speed, phase (0–1: where on the route it starts), mode: 'shuttle' (turns back
-               at once) | 'pause' (waits `wait` s at each end)}, …],
+               at once) | 'pause' (waits `wait` s at each end), trigger (optional): {near: [x, y], r} (the person stands
+               still where the route starts until the robot comes within r m of near, then walks)}, …],
       cars: [{loop: [[x, y], …], speed, phase}, …] (optional: the parking lot's moving car),
       settings: {key: value} (the level's own setup: keys of DEFAULTS in core/params.js),
       layers: {cost: true} (optional: map layers the level shows),
@@ -947,7 +948,8 @@ function levelToJSON(L, edits) {
       speed: p.v,
       phase: p.s0 || 0,
       mode: p.dw ? 'pause' : 'shuttle',
-      ...(p.dw ? {wait: p.dw} : {})
+      ...(p.dw ? {wait: p.dw} : {}),
+      ...(p.tr ? {trigger: {near: [...p.tr.p], r: p.tr.r}} : {})
     })),
     settings
   };
@@ -1017,6 +1019,13 @@ function levelFromJSON(j, id) {
     };
     if (p.mode === 'pause') out.dw = clamp(num(p.wait == null ? 2 : p.wait, what + ' wait'), 0.1, 30);
     else if (p.mode != null && p.mode !== 'shuttle') bad(what + ': mode is "shuttle" or "pause"');
+    if (p.trigger != null) {
+      if (typeof p.trigger !== 'object') bad(what + ': trigger is {near: [x, y], r}');
+      out.tr = {
+        p: inside(arr(p.trigger.near, what + ' trigger near', 2), what + ' trigger'),
+        r: clamp(num(p.trigger.r == null ? 3 : p.trigger.r, what + ' trigger r'), 0.5, 10)
+      };
+    }
     return out;
   });
   const cars = list(j.cars, 'cars', LEVEL_LIMITS.cars).map((c, k) => ({
@@ -1029,6 +1038,7 @@ function levelFromJSON(j, id) {
   for (const [k, v] of Object.entries(j.settings || {})) {
     if (!(k in DEFAULTS) || LEVEL_NOSET.includes(k)) continue; // a key this page does not know is left out, not an error
     if (typeof v !== typeof DEFAULTS[k]) bad(`setting ${k}: a ${typeof DEFAULTS[k]}`);
+    if (k === 'sched' && schedError(v)) bad(`setting sched: ${schedError(v)}`);
     cfg[k] = v;
   }
   const L = {
@@ -1082,8 +1092,8 @@ const levelRef = L => (LEVELS.includes(L) ? LEVELS.indexOf(L) : L.genSpec || lev
    World generator: a seeded level in the level format (levels.js), of one of three families. The same spec gives the
    same level on every machine (mulberry32, never Math.random). Core only, no DOM; it works on grids of its own and
    leaves the world's (W, H, GW, GH) alone, so it can run while another level is on screen.
-     spec: {gen: family, seed, w, h, goals, people, beacons (0: about one per 32 m²), like: the built-in level whose
-           settings the level takes ('L1' … 'L5'; by default L5 with people, L2 without), and the family's own
+     spec: {gen: family, seed, w, h, goals, people, stepout (people who wait for the robot), beacons (0: about one per
+           32 m²), like: the built-in level whose settings the level takes ('L1' … 'L5'; by default L5 with people, L2 without), and the family's own
            parameters (GEN_FAMILIES)}
    Every family places, on the free floor the robot can reach from its start (a grid search on the costmap's lethal
    cells, LETHAL from the obstacles, which is where the grid planners can go): the start in the lower left corner, the
@@ -1096,6 +1106,7 @@ const GEN_COMMON = {
   h: [16, WORLD_MIN[1], WORLD_MAX[1], 0.4, 'depth (m)'],
   goals: [5, 1, 12, 1, 'goals'],
   people: [0, 0, 12, 1, 'people'],
+  stepout: [0, 0, 6, 1, 'people who wait for the robot'],
   beacons: [0, 0, 60, 1, 'beacons (0: one per 32 m²)']
 };
 const GEN_FAMILIES = {
@@ -1140,7 +1151,7 @@ function genSpec(sp) {
     const v = sp[k] == null || !isFinite(+sp[k]) ? d : clamp(+sp[k], lo, hi);
     out[k] = +(lo + Math.round((v - lo) / st) * st).toFixed(2);
   }
-  out.like = GEN_LIKE.includes(sp.like) ? sp.like : out.people > 0 ? 'L5' : 'L2';
+  out.like = GEN_LIKE.includes(sp.like) ? sp.like : out.people + out.stepout > 0 ? 'L5' : 'L2';
   return out;
 }
 // The gap between two shapes ({t: 'r' | 'c'}), 0 when they touch or overlap
@@ -1477,7 +1488,9 @@ function genLevel(spec) {
   }
   // the people: straight runs of floor 0.6 m clear, 4–16 m long, along x or y, not over the start
   const people = [];
-  for (let t = 0; t < 400 && people.length < sp.people; t++) {
+  // then the people who wait for the robot (stepout): they stand at one end of their route until the robot comes
+  // within 3 m of its middle, then walk briskly, so they meet it as it passes
+  for (let t = 0; t < 400 && people.length < sp.people + sp.stepout; t++) {
     const k = cells[Math.floor(u() * cells.length)],
       along = sp.gen === 'warehouse' ? u() < 0.7 : u() < 0.5,
       ox = cx(k),
@@ -1506,6 +1519,10 @@ function genLevel(spec) {
     if (segD([sx, sy], a, b) < 1.5) continue;
     const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     if (people.some(q => segD(mid, q.from, q.to) < 1.5)) continue;
+    if (people.length >= sp.people) {
+      people.push({from: a, to: b, speed: snap1(0.9 + u() * 0.3), phase: 0, mode: 'shuttle', trigger: {near: mid, r: 3}});
+      continue;
+    }
     const pause = u() < 0.3;
     people.push({
       from: a,
@@ -1682,7 +1699,8 @@ const DEFAULTS = {
   radRes: 8, // its angular resolution [°]: two echoes closer than this (and in range and Doppler) become one
   radClutter: 0.5, // false detections per scan, on average
   radGhost: 5, // the chance per scan that a person's echo also comes back by a bounce off a wall [%]
-  trkIn: 'lidar' // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
+  trkIn: 'lidar', // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
+  sched: [] // the fault schedule: events at set times, [{t, set: {key: value}} or {t, act: 'kidnap' | 'scatter'}] (core/config.js)
 };
 const P = {...DEFAULTS};
 // The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
@@ -2044,7 +2062,7 @@ function reset() {
     rngB: makeRng(P.seed * 7907 + 11),
     bDown: null,
     shapes: LV.shapes,
-    peds: LV.peds.map(p => ({...p, s: p.s0 || 0, dir: 1, x: p.a[0], y: p.a[1], r: 0.3})),
+    peds: LV.peds.map(p => ({...p, s: p.s0 || 0, dir: 1, x: p.a[0], y: p.a[1], r: 0.3, go: !p.tr})), // go: a triggered person walks
     beacons: LV.beacons.map((b, i) => ({id: i, x: b[0], y: b[1]})),
     robot: {x: st[0], y: st[1], th: st[2], v: 0, w: 0, d: 0, vy: 0, r: 0, contact: false, pedContact: false},
     cmd: {v: 0, w: 0, steer: 0},
@@ -2119,7 +2137,8 @@ function updatePeds(dt) {
   for (const p of S.peds) {
     if (p.car) continue;
     const L = hyp(p.b[0] - p.a[0], p.b[1] - p.a[1]);
-    if (p.dw) {
+    const go = pedGo(p); // a person with a trigger stands where the route starts until the robot comes near
+    if (go && p.dw) {
       if (p.wait > 0) p.wait -= dt;
       else {
         p.s += (p.dir * p.v * dt) / L;
@@ -2134,7 +2153,7 @@ function updatePeds(dt) {
           p.wait = p.dw;
         }
       }
-    } else {
+    } else if (go) {
       p.s += (p.dir * p.v * dt) / L;
       if (p.s > 1) {
         p.s = 2 - p.s;
@@ -2147,11 +2166,20 @@ function updatePeds(dt) {
     }
     p.x = p.a[0] + (p.b[0] - p.a[0]) * p.s;
     p.y = p.a[1] + (p.b[1] - p.a[1]) * p.s;
-    const mv = !(p.wait > 0);
+    const mv = go && !(p.wait > 0);
     p.vx = mv ? (p.dir * p.v * (p.b[0] - p.a[0])) / L : 0;
     p.vy = mv ? (p.dir * p.v * (p.b[1] - p.a[1])) / L : 0;
   }
   if (dt > 0) updateCars(dt);
+}
+// A person with a trigger (levels.js) stands still until the robot comes within r of the trigger point
+function pedGo(p) {
+  if (p.go) return true;
+  const r = S.robot;
+  if (hyp(r.x - p.tr.p[0], r.y - p.tr.p[1]) >= p.tr.r) return false;
+  p.go = true;
+  logE(`A person steps out at (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`);
+  return true;
 }
 function pedShapes() {
   return S.peds.flatMap(p => (p.car ? carCircles(p) : [{t: 'c', x: p.x, y: p.y, r: p.r}]));
@@ -2193,6 +2221,48 @@ function kidnapTo(p) {
   logE(`Robot kidnapped to (${p[0].toFixed(1)}, ${p[1].toFixed(1)}). The estimate was not told.`, 'bad');
   UI.draw();
   UI.refresh();
+}
+/* ---------- the fault schedule (P.sched): settings changed, or the robot kidnapped, at set times ----------
+   An event {t, set: {key: value, …}} or {t, act: 'kidnap' | 'scatter', to: [x, y]} applies just before the first tick
+   that starts at or after t seconds: a sensor switched off at 30 s, fog rolling in, the kidnap of the localization
+   lessons (a Try's act, 8 s). It is a setting, so a Try's set, a worker run's overrides and a level's settings carry it,
+   and a reset replays it. Events apply in list order; each once per run. */
+const SCHED_ACTS = ['kidnap', 'scatter'];
+function schedError(v) {
+  if (!Array.isArray(v)) return 'a list of events';
+  if (v.length > 32) return 'at most 32 events';
+  for (const e of v) {
+    if (!e || typeof e !== 'object' || typeof e.t !== 'number' || !(e.t >= 0)) return 'a time t ≥ 0 s in each event';
+    if (e.act != null && !SCHED_ACTS.includes(e.act)) return `act to be ${SCHED_ACTS.join(' or ')}`;
+    if (e.act == null && (!e.set || typeof e.set !== 'object')) return 'set: {setting: value} or an act in each event';
+    if (e.set)
+      for (const k of Object.keys(e.set)) if (!(k in DEFAULTS) || k === 'sched' || k === 'seed') return `settings it knows, not ${k}`;
+  }
+  return null;
+}
+function schedTick() {
+  const E = P.sched;
+  if (!E || !E.length) return;
+  if (S.schedRef !== E) {
+    S.schedRef = E;
+    S.schedDone = new Set();
+  }
+  for (let i = 0; i < E.length; i++) {
+    const e = E[i];
+    if (S.schedDone.has(i) || S.t + 1e-9 < e.t) continue;
+    S.schedDone.add(i);
+    if (e.act === 'kidnap') kidnapTo(e.to || null);
+    else if (e.act === 'scatter') scatterParticles();
+    else {
+      logE(
+        `Fault schedule at ${e.t} s: ${Object.entries(e.set)
+          .map(([k, v]) => `${k} → ${v}`)
+          .join(', ')}`,
+        'warn'
+      );
+      for (const [k, v] of Object.entries(e.set)) setParam(k, v, true);
+    }
+  }
 }
 // i: a built-in level's index, a level (the runtime object, the JSON format) or a generator spec (levelOf, levels.js)
 function loadLevel(i) {
@@ -2533,6 +2603,10 @@ function setParam(k, v, live) {
   }
   if (typeof DEFAULTS[k] === 'number' && !(typeof v === 'number' && isFinite(v))) {
     logE(`Ignored: ${k} needs a number, not "${v}"`, 'warn');
+    return;
+  }
+  if (k === 'sched' && schedError(v)) {
+    logE(`Ignored: the fault schedule needs ${schedError(v)}`, 'warn');
     return;
   }
   const old = P[k];
@@ -11147,6 +11221,11 @@ function updatePedsReactive(dt) {
   const r = S.robot,
     ps = S.peds.filter(p => !p.car);
   for (const p of ps) {
+    if (!pedGo(p)) {
+      p.vx = 0;
+      p.vy = 0;
+      continue;
+    }
     if (p.wait > 0) {
       p.wait -= dt;
       p.vx = 0;
@@ -11466,6 +11545,8 @@ function stAstar(sx, sy, gx, gy) {
    - Clearance to the walls and racks (C2): the true footprint's smallest gap to a static obstacle, read from the
      distance field of the true occupancy (LV.truthDist, 0.1 m cells; the car's footprint is its covering circles,
      which overstate the body by up to about 0.14 m at the bumpers).
+   - Health (C5): every 0.5 s the rules of core/health.js; the first time each check turned amber or red, and the
+     moments a subsystem's light did, so a run without a page can say when the stack noticed.
    - Leading indicators and exposure (C3), counted while the mission runs: seconds with a person closer than 0.3 m,
      the smallest time to contact with a person (both keeping their velocities), seconds with it under 1 s, seconds
      with a person within 2 m, seconds reversing, and seconds the safety stop capped the speed.
@@ -11502,7 +11583,21 @@ const SAFE_CONDS = [
 ];
 
 function safeInit() {
-  return {events: [], minObs: Infinity, nearS: 0, ttcMin: Infinity, ttc1S: 0, near2S: 0, revS: 0, guardS: 0, opS: 0, gap: Infinity};
+  return {
+    events: [],
+    minObs: Infinity,
+    nearS: 0,
+    ttcMin: Infinity,
+    ttc1S: 0,
+    near2S: 0,
+    revS: 0,
+    guardS: 0,
+    opS: 0,
+    gap: Infinity,
+    health: {}, // the first time each health check turned amber or red: 'sys/name' → {t, lvl, msg} (C5)
+    hprev: {},
+    hev: [] // the moments a subsystem's light turned amber or red, as the page marks them on its timeline
+  };
 }
 function safeConds() {
   const out = [];
@@ -11556,6 +11651,8 @@ function safeTick() {
   const r = S.robot,
     Z = S.safe,
     run = S.fsm.state !== 'IDLE' && S.fsm.state !== 'DONE';
+  if (S.lastZ && S.lastZ.length) S.zLastT = S.t; // the beacon-silence check reads it (core/health.js)
+  if (S.tick % 10 === 0) safeHealth();
   const D = LV.truthDist;
   if (D)
     for (const [x, y, rad] of fpCircles(r.x, r.y, r.th)) {
@@ -11585,6 +11682,22 @@ function safeTick() {
   if (ttc < Z.ttcMin) Z.ttcMin = ttc;
   if (ttc < 1) Z.ttc1S += DT;
 }
+// Every 0.5 s: the health rules of core/health.js, the same the page's lights show
+function safeHealth() {
+  const H = healthNow(null),
+    Z = S.safe,
+    t = +S.t.toFixed(2);
+  for (const [k] of H_SYS) {
+    for (const c of H.all[k] || []) {
+      const key = k + '/' + c.name;
+      if (c.on && H_RANK[c.lvl] >= 2 && !Z.health[key]) Z.health[key] = {t, lvl: c.lvl, msg: c.msg};
+    }
+    const lv = H[k][0],
+      pv = Z.hprev[k];
+    if (pv != null && H_RANK[lv] >= 2 && H_RANK[lv] > H_RANK[pv] && Z.hev.length < 200) Z.hev.push({t, sys: k, lvl: lv, msg: H[k][1]});
+    Z.hprev[k] = lv;
+  }
+}
 // The summary's safety fields (src/worker/main.js runSummary, the Experiments metrics)
 function safeSummary() {
   const Z = S.safe,
@@ -11600,14 +11713,421 @@ function safeSummary() {
     revS: f(Z.revS, 1),
     guardS: f(Z.guardS, 1),
     opS: f(Z.opS, 1),
-    events: Z.events
+    events: Z.events,
+    health: Z.health,
+    healthEv: Z.hev
   };
+}
+
+/* ---- core/health.js ---- */
+/* ============================================================
+   Health rules (7.6, 2.6): every check of every subsystem, the rules the page's health lights show (ui/health.js
+   draws them). In the core, so that a run without a page records them too: the safety measures note when each light
+   first turned amber or red (core/safety.js). No DOM here.
+   ============================================================ */
+const H_SYS = [
+  ['loc', 'Localize'],
+  ['per', 'Perceive'],
+  ['plan', 'Plan'],
+  ['ctl', 'Control']
+];
+const H_RANK = {idle: 0, ok: 1, warn: 2, bad: 3};
+// Every check of every subsystem, from the live state or a recorded frame f: H.all[k] = [{name, on, lvl, msg}],
+// H[k] = [level, reason] of the worst check that holds (ties: the first listed)
+function healthNow(f) {
+  const V = f || S,
+    r = V.robot,
+    F = V.fsm,
+    st = F.state,
+    drive = st === 'DRIVE',
+    sig = f ? f.sig || {} : null,
+    all = {};
+  const C = (k, name, on, lvl, msg) => {
+    (all[k] || (all[k] = [])).push({name, on: !!on, lvl, msg});
+  };
+  // localization
+  {
+    const sp = V.Pc ? Math.sqrt(Math.max(0, V.Pc[0] + V.Pc[4])) : null,
+      nees = sig ? sig.nees : S.nees.length ? S.nees.slice(-25).reduce((a, b) => a + b, 0) / Math.min(25, S.nees.length) : null,
+      neff = neffAvg(V.t),
+      N = S.pf ? S.pf.N : P.npart,
+      usesB = ['ekf', 'pf', 'slam'].includes(P.loc),
+      silent = usesB && !f ? S.t - (S.zLastT || 0) : 0; // the last tick with beacon readings (core/safety.js)
+    healthSensorChecks(C, 'loc');
+    if (P.loc === 'truth') C('loc', 'Estimator', true, 'idle', 'ground truth: the pose is known');
+    else {
+      C('loc', 'Lost', st === 'LOST' || (sp != null && sp > 1), 'bad', `lost: position σ ${sp != null ? sp.toFixed(1) : '?'} m`);
+      C(
+        'loc',
+        'Consistency',
+        nees != null && nees > 9,
+        'warn',
+        `overconfident: NEES ${nees != null ? nees.toFixed(1) : '—'} (3 is consistent)`
+      );
+      if (P.loc === 'pf')
+        C(
+          'loc',
+          'Particles',
+          neff != null && neff < 0.15 * N,
+          'warn',
+          `particles degenerate: N_eff ${neff != null ? neff.toFixed(0) : '—'} of ${N} (2 s mean)`
+        );
+      if (usesB && sensorOn(sensorByKey('beacons')))
+        C(
+          'loc',
+          'Beacon readings',
+          silent > 3 && drive,
+          beaconUse() ? 'ok' : 'warn',
+          beaconUse()
+            ? `no beacon readings for ${silent.toFixed(0)} s; lidar against the map holds it (σ ${sp != null ? sp.toFixed(2) : '—'} m)`
+            : `no beacon readings for ${silent.toFixed(1)} s`
+        );
+      C(
+        'loc',
+        'Estimator',
+        true,
+        'ok',
+        P.loc === 'dr'
+          ? `dead reckoning${sp != null ? `: σ ${sp.toFixed(2)} m and growing` : ''}`
+          : `σ ${sp != null ? sp.toFixed(2) : '—'} m${nees != null ? ` · NEES ${nees.toFixed(1)}` : ''}${neff != null && P.loc === 'pf' ? ` · N_eff ${neff.toFixed(0)}` : ''}`
+      );
+    }
+  }
+  // the sensors switched off, listed last so that it never stands in for the estimator's own line
+  C(
+    'loc',
+    'Sensors',
+    sensorsOff().length > 0,
+    'idle',
+    `off: ${sensorsOff()
+      .map(s => s.label)
+      .join(', ')}`
+  );
+  // perception
+  {
+    const hits = f ? (f.scan ? f.scan.length / 2 : 0) : S.scanPts.length,
+      tr = V.agents ? V.agents.tracks : [],
+      cf = tr.filter(t => t.conf).length,
+      people = V.peds.filter(p => !p.car).length;
+    let gap = Infinity;
+    for (const p of V.peds) gap = Math.min(gap, hyp(r.x - p.x, r.y - p.y) - (p.r || 0.3) - RR);
+    C('per', 'Person contact', r.pedContact, 'bad', 'contact with a person');
+    healthSensorChecks(C, 'per');
+    if (P.lidar) C('per', 'Lidar returns', V.t > 0.5 && hits === 0, 'warn', 'no lidar returns');
+    if (agOn())
+      C(
+        'per',
+        'Phantom tracks',
+        cf > people + 1,
+        'warn',
+        `${cf} confirmed tracks for ${people} ${people === 1 ? 'person' : 'people'}: phantom tracks`
+      );
+    if (people) C('per', 'Person nearby', gap < 0.3 && drive, 'warn', `a person ${Math.max(0, gap).toFixed(2)} m away`);
+    if (!P.lidar)
+      C(
+        'per',
+        'Sensing',
+        true,
+        'idle',
+        `lidar off${agOn() ? ` · ${cf} track${cf === 1 ? '' : 's'}` : ''}${P.per === 'mapping' ? ' · the map no longer grows' : ''}`
+      );
+    else if (people && !agOn()) C('per', 'Tracking', true, 'idle', `${hits} lidar hits · people not tracked (agent tracking off)`);
+    else
+      C(
+        'per',
+        'Sensing',
+        true,
+        'ok',
+        `${hits} lidar hits${agOn() ? ` · ${cf} track${cf === 1 ? '' : 's'}` : ''}${P.per === 'mapping' ? ' · mapping' : ''}`
+      );
+  }
+  // mission and plan
+  {
+    const ps = S.planStats,
+      skipped = f ? f.done.filter(d => d[1]).length : WPS.filter(w => w.skipped).length,
+      n = f ? f.done.length : WPS.length;
+    C('plan', 'Path', st === 'NO_PATH', 'bad', `no path to the next goal${F.fails ? ` (attempt ${F.fails} of 3)` : ''}`);
+    healthSensorChecks(C, 'plan');
+    C('plan', 'Goals', st === 'IDLE' && !n, 'idle', 'no goals: tap the map to add some');
+    C('plan', 'Goals skipped', skipped > 0, 'warn', `${skipped} goal${skipped === 1 ? '' : 's'} skipped`);
+    C('plan', 'Plan time', ps && ps.ms > 250 && !f, 'warn', ps ? `last plan took ${ps.ms.toFixed(0)} ms (${ps.name})` : '');
+    C(
+      'plan',
+      'Mission',
+      true,
+      st === 'DONE' ? 'ok' : st === 'IDLE' ? 'idle' : 'ok',
+      st === 'DONE'
+        ? 'all goals reached'
+        : st === 'IDLE'
+          ? 'ready: press Run'
+          : ps
+            ? `${ps.name} · ${ps.len.toFixed(1)} m · ${ps.ms.toFixed(0)} ms`
+            : st.toLowerCase()
+    );
+  }
+  // control
+  {
+    const D = S.plot,
+      tE = V.t,
+      win = D.filter(d => d.t > tE - 2 && d.t <= tE + 1e-6),
+      lim = isCar() ? 0.97 * P.steerMaxDeg : 0.97 * P.wmax,
+      sat = win.length ? win.filter(d => d.ta != null && Math.abs(d.ta) >= lim).length / win.length : 0,
+      last = win.length ? win[win.length - 1] : null,
+      cte = last && last.cte != null ? Math.abs(last.cte) : null,
+      mms = sig ? sig.mpcMs : S.mpcStats && P.ctl === 'mpc' ? S.mpcStats.ms : null;
+    const dq = !isDyn() ? null : f ? sig.dyn : dynSig(r),
+      ayF = dq && dq.mug > 0 ? Math.abs(dq.ay) / dq.mug : 0;
+    C('ctl', 'Obstacle contact', r.contact, 'bad', 'contact with an obstacle');
+    healthSensorChecks(C, 'ctl');
+    if (isDyn())
+      C(
+        'ctl',
+        'Grip',
+        drive && ayF > 0.8,
+        'warn',
+        dq
+          ? `near the grip limit: a_y ${Math.abs(dq.ay).toFixed(2)} m/s², ${(100 * ayF).toFixed(0)} % of μg (${dq.mug.toFixed(2)} m/s²)`
+          : ''
+      );
+    C(
+      'ctl',
+      'Actuator limit',
+      drive && sat > 0.5,
+      'warn',
+      `${isCar() ? 'steering' : 'turn rate'} at its limit ${(sat * 100).toFixed(0)} % of the last 2 s`
+    );
+    if (P.ctl === 'mpc') {
+      C(
+        'ctl',
+        'MPC budget',
+        mms != null && P.mpcBudget > 0 && mms >= 0.85 * P.mpcBudget,
+        'warn',
+        `MPC at its ${P.mpcBudget} ms budget (${mms != null ? mms.toFixed(1) : '—'} ms)`
+      );
+      C(
+        'ctl',
+        'MPC constraints',
+        !f && S.mpcStats && S.mpcStats.viol > 0.05,
+        'warn',
+        S.mpcStats ? `MPC constraints violated by ${S.mpcStats.viol.toFixed(2)}` : ''
+      );
+    }
+    C('ctl', 'On the path', drive && cte != null && cte > 0.5, 'warn', `${cte != null ? cte.toFixed(2) : '—'} m off the path`);
+    C(
+      'ctl',
+      'Driving',
+      true,
+      drive ? 'ok' : 'idle',
+      !drive
+        ? st === 'DONE'
+          ? 'stopped: mission complete'
+          : 'not driving'
+        : `cross-track ${cte != null ? cte.toFixed(2) : '—'} m${mms != null ? ` · MPC ${mms.toFixed(1)} ms` : ''}`
+    );
+  }
+  const H = {all};
+  for (const k of Object.keys(all)) {
+    const on = all[k].filter(c => c.on).sort((a, b) => H_RANK[b.lvl] - H_RANK[a.lvl]);
+    const w = on[0] || all[k][all[k].length - 1];
+    H[k] = [w.lvl, w.msg];
+  }
+  return H;
+}
+
+// N_eff averaged over the last 2 s of recorded frames (a single reading dips at every resampling)
+function neffAvg(t) {
+  const F = REC.frames;
+  if (!F.length || P.loc !== 'pf') return null;
+  let n = 0,
+    a = 0;
+  for (let i = F.length - 1; i >= 0 && F[i].t > t - 2; i--) {
+    if (F[i].t > t + 1e-6) continue;
+    const v = F[i].sig && F[i].sig.neff;
+    if (v != null) {
+      a += v;
+      n++;
+    }
+  }
+  return n ? a / n : S.pf ? S.pf.neff : null;
+}
+
+function healthSensorChecks(C, k) {
+  const off = sensorsOff().map(s => s.key),
+    est = segName(P.loc),
+    noLid = off.includes('lidar'),
+    noB = off.includes('beacons'),
+    blind = sensorsBlind();
+  if (k === 'loc') {
+    if (P.loc === 'truth') return;
+    C('loc', 'Blind', blind, 'warn', `blind: ${sensorsExteroNames()} all off, so ${est} only integrates motion and drifts`);
+    C(
+      'loc',
+      'Odometry',
+      off.includes('odom'),
+      'warn',
+      `wheel odometry off: ${est} predicts with the commanded velocity${P.gyro ? ' and the gyro' : ''}`
+    );
+    const usesB = ['ekf', 'pf', 'slam', 'custom'].includes(P.loc);
+    if (noB && usesB && !blind) {
+      const u = beaconUse();
+      C('loc', 'Beacons', true, u ? 'ok' : 'warn', u ? `beacons off; ${u}` : `beacons off: ${est} coasts on odometry`);
+    }
+    const lidLoc = P.loc === 'pgslam' || (P.loc === 'ekf' && P.scanMatch) || (P.loc === 'pf' && P.pfLidar && P.per === 'oracle');
+    if (noLid && lidLoc && !blind)
+      C(
+        'loc',
+        'Lidar',
+        true,
+        P.loc === 'pgslam' ? 'warn' : 'idle',
+        P.loc === 'pgslam'
+          ? 'lidar off: pose-graph SLAM adds no matches or loop closures; it dead-reckons'
+          : P.loc === 'ekf'
+            ? 'lidar off: no scan matching'
+            : 'lidar off: the particles are weighted by the beacons alone'
+      );
+    if (P.gnss && !['ekf', 'pf', 'custom'].includes(P.loc))
+      C('loc', 'GNSS', true, 'idle', `GNSS on, but ${est} does not fuse it (the EKF, the particle filter and your code do)`);
+  }
+  if (k === 'per') {
+    C('per', 'Blind', blind, 'bad', `blind: ${sensorsExteroNames()} all off; only the motion sensors are left`);
+    if (noLid)
+      C(
+        'per',
+        'Lidar',
+        true,
+        'warn',
+        `lidar off: no ${[P.per === 'mapping' ? 'mapping' : '', agOn() && P.agents !== 'truth' ? 'people detection' : '', 'obstacles from the scan'].filter(Boolean).join(', no ')}`
+      );
+  }
+  if (k === 'plan' && noLid) {
+    if (P.per === 'mapping')
+      C(
+        'plan',
+        'Lidar',
+        true,
+        'warn',
+        `lidar off: planning on the map seen so far, which no longer grows${P.unknownAs === 'lethal' ? ' (unseen space is lethal: goals beyond it have no path)' : ' (unseen space is taken as free)'}`
+      );
+    if (P.plan === 'policy') C('plan', 'Lidar', true, 'bad', 'lidar off: the learned policy has no input');
+  }
+  if (k === 'ctl' && noLid) {
+    if (P.guard && GUARD_CTL.includes(P.ctl)) C('ctl', 'Lidar', true, 'warn', 'lidar off: no lidar safety stop');
+    else if (P.ctl === 'dwa' || (P.ctl === 'mpc' && P.mpcObs))
+      C('ctl', 'Lidar', true, 'warn', `lidar off: ${P.ctl === 'dwa' ? 'DWA' : 'MPC'} sees no obstacles nearby`);
+  }
+}
+
+/* ---- core/search.js ---- */
+/* ============================================================
+   Scenario search (the safety lessons, docs/safety-lab.md §3.4): sample worlds from an operating domain, run them,
+   and look harder near the worst. Shared by the page (Tools → Safety, ui/safety.js) and tools/search.mjs, so the same
+   search seed gives the same scenarios in both.
+   - An ODD sheet: a generator family and the ranges of its parameters, with the weather and the kind of people allowed.
+   - A scenario: {level: a generator spec, set: run settings, seed: the run's seed}; the worker runs it as it is.
+   - The margin of a run (lower is worse): minus the fastest contact's relative speed if there was a contact, else
+     the smaller of the closest approach to a person and the wall clearance (core/safety.js).
+   - A search: half the budget sampled at random from the sheet, the other half in refinement rounds, each perturbing
+     the worst runs so far within the sheet by a shrinking step. Each batch is drawn only from the finished runs of
+     the batches before it, ordered by their index, so the order the workers finish in does not matter.
+   ============================================================ */
+// The ranges a sheet may set: the generator's (core/worldgen.js) that change the floor and its people
+const ODD_KEYS = ['aisle', 'cross', 'gaps', 'people', 'stepout'];
+const ODD_SHEETS = {
+  'ODD-1': {
+    name: 'ODD-1, the busy floor',
+    family: 'warehouse',
+    like: 'L5',
+    w: 24,
+    h: 16,
+    ranges: {aisle: [2, 3.2], people: [0, 4], stepout: [0, 0]},
+    weather: ['clear'],
+    people: ['scripted']
+  }
+};
+const oddCopy = sh => JSON.parse(JSON.stringify(sh));
+// A sheet as the page or a file gives it, checked: ranges inside the generator's own, at least one value of each set
+function oddSheetError(sh) {
+  if (!sh || typeof sh !== 'object' || !GEN_FAMILIES[sh.family]) return 'a family the generator knows';
+  const lim = {...GEN_COMMON, ...GEN_FAMILIES[sh.family].params};
+  for (const [k, r] of Object.entries(sh.ranges || {})) {
+    if (!ODD_KEYS.includes(k) || !lim[k]) return `ranges of ${ODD_KEYS.filter(q => lim[q]).join(', ')}`;
+    if (!Array.isArray(r) || r.length !== 2 || !(r[0] <= r[1]) || r[0] < lim[k][1] || r[1] > lim[k][2])
+      return `${k} from ${lim[k][1]} to ${lim[k][2]}`;
+  }
+  if (!sh.weather || !sh.weather.length || sh.weather.some(w => !PARAM_OPTS.weather.includes(w))) return 'a weather';
+  if (!sh.people || !sh.people.length || sh.people.some(w => !PARAM_OPTS.people.includes(w))) return 'a kind of people';
+  return null;
+}
+const oddPick = (list, u) => list[Math.min(list.length - 1, Math.floor(u() * list.length))];
+function searchSample(sh, u) {
+  const lv = {gen: sh.family, seed: 1 + Math.floor(u() * 9999), like: sh.like, w: sh.w, h: sh.h};
+  for (const [k, [lo, hi]] of Object.entries(sh.ranges)) lv[k] = lo + u() * (hi - lo);
+  return {level: genSpec(lv), set: {weather: oddPick(sh.weather, u), people: oddPick(sh.people, u)}, seed: 1 + Math.floor(u() * 99)};
+}
+// A neighbour of a scenario: the same world seed, each range moved by up to f of its width, a new run seed half the time
+function searchPerturb(sc, sh, u, f) {
+  const lv = {...sc.level};
+  for (const [k, [lo, hi]] of Object.entries(sh.ranges)) if (hi > lo) lv[k] = clamp(lv[k] + (2 * u() - 1) * f * (hi - lo), lo, hi);
+  return {level: genSpec(lv), set: {...sc.set}, seed: u() < 0.5 ? sc.seed : 1 + Math.floor(u() * 99)};
+}
+function searchMargin(s) {
+  if (!s) return null;
+  const ev = s.events || [];
+  if (ev.length) return -Math.max(...ev.map(e => e.v));
+  return Math.min(s.minPed == null ? 9 : s.minPed, s.minObs == null ? 9 : s.minObs);
+}
+// The batches of a search with this budget: [{kind: 'random' | 'refine', n, f}]
+function searchPlan(budget, rounds) {
+  const B = Math.max(2, Math.round(budget)),
+    R = Math.max(0, Math.round(rounds)),
+    n0 = R ? Math.ceil(B / 2) : B,
+    out = [{kind: 'random', n: n0, f: 0}];
+  for (let i = 0; i < R; i++) {
+    const n = Math.round(((B - n0) * (i + 1)) / R) - Math.round(((B - n0) * i) / R);
+    if (n > 0) out.push({kind: 'refine', n, f: 0.25 / (i + 1)});
+  }
+  return out;
+}
+// The next batch's scenarios: random from the sheet, or neighbours of the worst runs so far (results: [{sc, margin}])
+function searchBatch(step, results, sh, u) {
+  if (step.kind === 'random') return Array.from({length: step.n}, () => searchSample(sh, u));
+  const ranked = results.filter(r => r.margin != null).sort((a, b) => a.margin - b.margin || a.i - b.i),
+    worst = ranked.slice(0, Math.max(3, Math.ceil(results.length / 10)));
+  if (!worst.length) return Array.from({length: step.n}, () => searchSample(sh, u));
+  // a neighbour that is already a run, or already in this batch, is drawn again (up to five times)
+  const key = sc => JSON.stringify([sc.level, sc.set, sc.seed]),
+    seen = new Set(results.map(r => key(r.sc))),
+    out = [];
+  for (let k = 0; k < step.n; k++) {
+    let sc;
+    for (let tries = 0; tries < 5; tries++) {
+      sc = searchPerturb(worst[k % worst.length].sc, sh, u, step.f);
+      if (!seen.has(key(sc))) break;
+    }
+    seen.add(key(sc));
+    out.push(sc);
+  }
+  return out;
+}
+// Is the level on screen inside a sheet? One row per attribute: inside (true), outside (false), or not derivable (null)
+function oddCheck(sh) {
+  const g = LV.genSpec,
+    walkers = LV.peds.filter(p => !p.car),
+    rows = [['family', g ? g.gen : null, sh.family, g ? g.gen === sh.family : null]];
+  for (const [k, [lo, hi]] of Object.entries(sh.ranges)) {
+    const v = k === 'people' ? walkers.filter(p => !p.tr).length : k === 'stepout' ? walkers.filter(p => p.tr).length : g ? g[k] : null;
+    rows.push([k, v, lo === hi ? `${lo}` : `${lo}–${hi}`, v == null ? null : v >= lo - 1e-9 && v <= hi + 1e-9]);
+  }
+  rows.push(['weather', P.weather, sh.weather.join(', '), sh.weather.includes(P.weather)]);
+  rows.push(['people react', P.people, sh.people.join(', '), sh.people.includes(P.people)]);
+  return rows;
 }
 
 /* ---- core/step.js ---- */
 // One tick, in three parts so that user code in workers can be awaited between them:
 // sense → (custom localizer) → mission and tracking → (custom predictor) → speed planning
 function preSense() {
+  schedTick(); // the fault schedule's events due before this tick (core/config.js)
   S.tick++;
   S.t += DT;
   updatePeds(DT);
@@ -11872,6 +12392,12 @@ self.__core = {
   genLevel,
   genSpec,
   GEN_FAMILIES,
+  ODD_SHEETS,
+  oddSheetError,
+  searchPlan,
+  searchBatch,
+  searchMargin,
+  makeRng,
   RES,
   get LV() {
     return LV;

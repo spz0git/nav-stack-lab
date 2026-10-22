@@ -11,7 +11,8 @@
       start: [x, y, θ],
       goals: [[x, y] or [x, y, θ], …],
       people: [{from: [x, y], to: [x, y], speed, phase (0–1: where on the route it starts), mode: 'shuttle' (turns back
-               at once) | 'pause' (waits `wait` s at each end)}, …],
+               at once) | 'pause' (waits `wait` s at each end), trigger (optional): {near: [x, y], r} (the person stands
+               still where the route starts until the robot comes within r m of near, then walks)}, …],
       cars: [{loop: [[x, y], …], speed, phase}, …] (optional: the parking lot's moving car),
       settings: {key: value} (the level's own setup: keys of DEFAULTS in core/params.js),
       layers: {cost: true} (optional: map layers the level shows),
@@ -64,7 +65,8 @@ function levelToJSON(L, edits) {
       speed: p.v,
       phase: p.s0 || 0,
       mode: p.dw ? 'pause' : 'shuttle',
-      ...(p.dw ? {wait: p.dw} : {})
+      ...(p.dw ? {wait: p.dw} : {}),
+      ...(p.tr ? {trigger: {near: [...p.tr.p], r: p.tr.r}} : {})
     })),
     settings
   };
@@ -134,6 +136,13 @@ function levelFromJSON(j, id) {
     };
     if (p.mode === 'pause') out.dw = clamp(num(p.wait == null ? 2 : p.wait, what + ' wait'), 0.1, 30);
     else if (p.mode != null && p.mode !== 'shuttle') bad(what + ': mode is "shuttle" or "pause"');
+    if (p.trigger != null) {
+      if (typeof p.trigger !== 'object') bad(what + ': trigger is {near: [x, y], r}');
+      out.tr = {
+        p: inside(arr(p.trigger.near, what + ' trigger near', 2), what + ' trigger'),
+        r: clamp(num(p.trigger.r == null ? 3 : p.trigger.r, what + ' trigger r'), 0.5, 10)
+      };
+    }
     return out;
   });
   const cars = list(j.cars, 'cars', LEVEL_LIMITS.cars).map((c, k) => ({
@@ -146,6 +155,7 @@ function levelFromJSON(j, id) {
   for (const [k, v] of Object.entries(j.settings || {})) {
     if (!(k in DEFAULTS) || LEVEL_NOSET.includes(k)) continue; // a key this page does not know is left out, not an error
     if (typeof v !== typeof DEFAULTS[k]) bad(`setting ${k}: a ${typeof DEFAULTS[k]}`);
+    if (k === 'sched' && schedError(v)) bad(`setting sched: ${schedError(v)}`);
     cfg[k] = v;
   }
   const L = {

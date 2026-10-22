@@ -61,7 +61,9 @@
   `python3 extest.py` (every slot example against its built-in; FAILS must be []), `python3 trtest.py` (the Train tab: collect,
   train, save, use; ERRORS must be []), `python3 lvtest.py` (custom and generated levels: menu, links, import and export,
   missions on every generator family; ERRORS must be []), `python3 sntest.py` (the Sensors switchboard: each sensor off on
-  L3 and L5; FAILS must be []). `python3 tests/run_all.py` runs all nine.
+  L3 and L5; FAILS must be []), `python3 saftest.py` (the safety lab's tools: the fault schedule, people who wait for the
+  robot, Tools → Safety's check, search, sets and Open, and the page's search against `tools/search.mjs`; FAILS must be []).
+  `python3 tests/run_all.py` runs all ten.
 - Levels are data: the JSON format is in the header of `src/core/levels.js` (built-ins convert to it and back unchanged,
   `tests/node/levels.test.mjs`); the world's size (`W`, `H`, `GW`, `GH`, `NC`) is the level's, set by `setWorld` in
   `loadLevel`, so nothing may assume 24 × 16 m or cache a grid-sized array across levels. Generators are in

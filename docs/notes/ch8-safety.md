@@ -1,9 +1,9 @@
 id: ch8
 num: 8
 sys: saf
-summary: The ideas behind the Safety lessons: the four standards in the lab's own words, the operating domain as a set of conditions, hazard analysis with the lab's severity scale and measured exposure, the safety measures the simulator keeps, and triggering conditions against faults.
+summary: The ideas behind the Safety lessons: the four standards in the lab's own words, the operating domain as a set of conditions, hazard analysis with the lab's severity scale and measured exposure, the safety measures the simulator keeps, triggering conditions, faults and their time budget, and searching the domain for failures.
 
-# Safety: domains, hazards and triggering conditions
+# Safety: domains, hazards, faults and search
 
 The other chapters ask how each block of the stack works and how it fails. This one asks what a safety engineer asks of the whole: where the stack may be used, which of its failures can hurt someone and how badly, and what makes a stack with nothing broken fail anyway. The vocabulary comes from four standards; the method, on this page, is measurement. Everything here paraphrases the standards and quotes none of them. The clause numbers are the best available from public outlines of the editions named below and have not been checked against the texts.
 
@@ -126,3 +126,50 @@ The Metrics list shows the least $\tau$ of the run and the seconds with $\tau < 
 | a person inside 0.2 m, sonar safety stop | the sonar's dead zone | 2 bumps at 21.5 and 43.9 s | the same two on every seed; none with the lidar stop |
 
 [try: The busy floor, nothing changed | {"sim":true,"level":4,"tab":"ctl"}] [try: Fog | {"sim":true,"level":4,"set":{"weather":"fog"},"tab":"per"}]
+
+## 6. Faults, detection and the time budget
+
+**Three moments.** A fault at $t_f$; its detection at $t_d$; the harm it would lead to, if nothing reacted, at $t_h$. ISO 26262 calls $t_h - t_f$ the fault tolerant time interval (part 1, clause 3) and asks for safety mechanisms whose detection and reaction fit inside it (part 4, clause 6):
+$$
+(t_d - t_f) + T_{react} < t_h - t_f .
+$$
+The interval belongs to the situation as much as to the robot: the same fault is urgent in a crowded aisle and harmless on an empty floor, so a design takes the worst case it can find over the domain. A fault that is never detected has $t_d = \infty$: no safety mechanism covers it, nothing reacts, and only the design can make it safe.
+
+**The fault schedule.** The lab breaks things on a timetable: the setting `sched` lists events such as switching a sensor off, turning beacons off or biasing a motor at a given second, and the event log says when each happens. It is a setting like any other, so a Try, an Experiments run, a search or a level file can carry it, and a reset replays it. The kidnapped-robot experiments of the localization lessons use it too.
+
+**Detection.** The health lights are the stack's detection, and the simulator records when each first turned amber or red, in the page and headless alike. Measured on L5 at seed 7, faults at 30 s, up to Mission complete (seeds 2–5 in brackets):
+
+| Fault at 30 s | Detected | First harm | Reaction | Outcome |
+| --- | --- | --- | --- | --- |
+| lidar off | 30.5 s, Perceive amber (every seed) | strike at 51.3 s, 1.36 m/s | none | 3 strikes, 5/5 in 106 s (the same on 2, 3, 5; on 4 the filter loses the robot at 42.5 s and it holds) |
+| lidar off, slow to 0.3 m/s at 31 s | 30.5 s | none | in time | no contact; 1/5 goals in 300 s, lost at 61.5 s (no strike on any seed) |
+| lidar off, slow to 0.3 m/s at 52 s | 30.5 s | strike at 51.3 s, 1.36 m/s | too late | the same first strike (every seed) |
+| every beacon off | 40.5 s, Localize red (37.5–46.5 s) | strike at 120.5 s, 1.07 m/s | the lost guard holds and relocalizes, 64 times | 5/5 in 158 s instead of 121 |
+| one motor weaker (+0.3 rad/s turn) | not detected (no light until a person is within 0.3 m) | strike at 51.9 s, 1.28 m/s | none | 5 contacts, 4 strikes, wall clearance 0.10 m |
+
+**Failure modes and effects.** A failure-mode analysis (FMEA, ISO 26262 part 9, clause 8) lists, for each part, how it can fail, the effect, how the failure is detected and what reacts. The Sensors switchboard's registry already holds the first two columns for the sensors (what each gives the robot, and what turning it off costs); the measurements above fill the last two, and the empty cells are the design work: the lidar has detection without a reaction, the motor neither.
+
+
+## 7. Searching the domain
+
+**Scenarios and their margin.** A scenario is a point of the domain: a generated world (its seed, the aisle width, the number of people and of people who wait for the robot), the weather, whether the people react, and the run's seed. Its run gets a margin, lower being worse,
+$$
+m = \begin{cases} -\max_c v_{rel,c} & \text{if the run had a contact} \\ \min(g_{person},\ g_{rack}) & \text{otherwise,} \end{cases}
+$$
+continuous across the boundary between a near miss and a contact, so that a search can tell a run that almost failed from one that never came close. ISO 21448 asks for exactly this pair of activities: evaluate the known scenarios (clause 10) and search for the unknown (clause 11).
+
+**Random sampling, then refinement.** A search with budget $B$ spends $B/2$ runs on scenarios drawn uniformly from the sheet's ranges. The rest go in rounds: each round takes the worst tenth of the runs so far (at least three) and perturbs each of their ranges by $\delta\,(\text{hi} - \text{lo})$ with $\delta$ uniform in $(-f, f)$, keeping the world seed and, half the time, the run seed, with $f = 0.25$ in the first round and $0.125$ in the second. It is the cross-entropy idea in its simplest form: sample, keep the worst, sample again near them. Each batch is drawn from the finished runs before it in index order, so the page's workers and `tools/search.mjs` produce the same runs for the same search seed.
+
+**Measured**, ODD-1 (generated warehouses, 24 × 16 m, aisles 2–3.2 m, up to four scripted people, clear air, the busy floor's settings), 40 runs, two refinement rounds, search seeds 1, 2 and 3:
+
+| Search | Random 20: with a contact (strikes) | Refined 20: with a contact (strikes) | Worst margin |
+| --- | --- | --- | --- |
+| ODD-1 | 8 (2), 9 (6), 8 (1) | 10 (7), 14 (6), 12 (6) | −1.34, −1.55, −1.50 |
+| ODD-1 with up to three people who wait for the robot | 14 (8), 15 (9), 11 (7) | 14 (11), 14 (7), 18 (12) | −1.85, −1.82, −1.75 |
+| ODD-1 with the safety stop on | 6 (2), 6 (2), 5 (1) | 13 (3), 12 (5), 5 (2) | −1.21, −1.39, −1.33 |
+
+Refinement finds more runs with a contact than random sampling on every seed; its single worst run is worse on only one of the three, which is why a search is judged by how many failures it finds for its budget. With the safety stop the random half is the same 20 scenarios: per scenario it helps on 6, 10 and 6 of them and makes 2, 0 and 1 worse.
+
+**Sorting what it finds.** Every failure is opened and attributed: a known triggering condition in a new place (search seed 1's worst run is §5's person turning back, head-on in a 2 m aisle) becomes one more scenario in that condition's regression set; a new kind of failure becomes a new row. Kept as a set, the scenarios are rerun after every change, and a change is accepted when the whole set improves, not only the case that motivated it.
+
+[try: Search the busy floor's domain | {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":"ODD-1","budget":40,"rounds":2,"seed":1,"run":true}}]

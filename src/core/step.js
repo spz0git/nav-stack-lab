@@ -1,6 +1,7 @@
 // One tick, in three parts so that user code in workers can be awaited between them:
 // sense → (custom localizer) → mission and tracking → (custom predictor) → speed planning
 function preSense() {
+  schedTick(); // the fault schedule's events due before this tick (core/config.js)
   S.tick++;
   S.t += DT;
   updatePeds(DT);

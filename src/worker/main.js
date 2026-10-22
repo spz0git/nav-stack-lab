@@ -101,6 +101,12 @@ self.__core = {
   genLevel,
   genSpec,
   GEN_FAMILIES,
+  ODD_SHEETS,
+  oddSheetError,
+  searchPlan,
+  searchBatch,
+  searchMargin,
+  makeRng,
   RES,
   get LV() {
     return LV;

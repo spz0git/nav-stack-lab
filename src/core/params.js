@@ -141,7 +141,8 @@ const DEFAULTS = {
   radRes: 8, // its angular resolution [°]: two echoes closer than this (and in range and Doppler) become one
   radClutter: 0.5, // false detections per scan, on average
   radGhost: 5, // the chance per scan that a person's echo also comes back by a bounce off a wall [%]
-  trkIn: 'lidar' // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
+  trkIn: 'lidar', // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
+  sched: [] // the fault schedule: events at set times, [{t, set: {key: value}} or {t, act: 'kidnap' | 'scatter'}] (core/config.js)
 };
 const P = {...DEFAULTS};
 // The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).

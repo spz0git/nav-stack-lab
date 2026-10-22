@@ -62,12 +62,12 @@ export function loadCore(file = CORE_FILE) {
   }
   return {
     file,
-    async run({level, overrides = {}, secs = 120, seed = 7, codes}) {
+    async run({level, overrides = {}, secs = 120, seed = 7, codes, stopWhenDone = false}) {
       if (pending) throw new Error('one run at a time');
       const done = new Promise((resolve, reject) => {
         pending = {resolve, reject};
       });
-      await globalThis.self.onmessage({data: {cmd: 'run', id: 1, level, seed, overrides, secs, codes, stopWhenDone: false}});
+      await globalThis.self.onmessage({data: {cmd: 'run', id: 1, level, seed, overrides, secs, codes, stopWhenDone}});
       const m = await done;
       return {...m.summary, ms: m.ms};
     }

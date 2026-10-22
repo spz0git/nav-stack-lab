@@ -2,8 +2,8 @@
    World generator: a seeded level in the level format (levels.js), of one of three families. The same spec gives the
    same level on every machine (mulberry32, never Math.random). Core only, no DOM; it works on grids of its own and
    leaves the world's (W, H, GW, GH) alone, so it can run while another level is on screen.
-     spec: {gen: family, seed, w, h, goals, people, beacons (0: about one per 32 m²), like: the built-in level whose
-           settings the level takes ('L1' … 'L5'; by default L5 with people, L2 without), and the family's own
+     spec: {gen: family, seed, w, h, goals, people, stepout (people who wait for the robot), beacons (0: about one per
+           32 m²), like: the built-in level whose settings the level takes ('L1' … 'L5'; by default L5 with people, L2 without), and the family's own
            parameters (GEN_FAMILIES)}
    Every family places, on the free floor the robot can reach from its start (a grid search on the costmap's lethal
    cells, LETHAL from the obstacles, which is where the grid planners can go): the start in the lower left corner, the
@@ -16,6 +16,7 @@ const GEN_COMMON = {
   h: [16, WORLD_MIN[1], WORLD_MAX[1], 0.4, 'depth (m)'],
   goals: [5, 1, 12, 1, 'goals'],
   people: [0, 0, 12, 1, 'people'],
+  stepout: [0, 0, 6, 1, 'people who wait for the robot'],
   beacons: [0, 0, 60, 1, 'beacons (0: one per 32 m²)']
 };
 const GEN_FAMILIES = {
@@ -60,7 +61,7 @@ function genSpec(sp) {
     const v = sp[k] == null || !isFinite(+sp[k]) ? d : clamp(+sp[k], lo, hi);
     out[k] = +(lo + Math.round((v - lo) / st) * st).toFixed(2);
   }
-  out.like = GEN_LIKE.includes(sp.like) ? sp.like : out.people > 0 ? 'L5' : 'L2';
+  out.like = GEN_LIKE.includes(sp.like) ? sp.like : out.people + out.stepout > 0 ? 'L5' : 'L2';
   return out;
 }
 // The gap between two shapes ({t: 'r' | 'c'}), 0 when they touch or overlap
@@ -397,7 +398,9 @@ function genLevel(spec) {
   }
   // the people: straight runs of floor 0.6 m clear, 4–16 m long, along x or y, not over the start
   const people = [];
-  for (let t = 0; t < 400 && people.length < sp.people; t++) {
+  // then the people who wait for the robot (stepout): they stand at one end of their route until the robot comes
+  // within 3 m of its middle, then walk briskly, so they meet it as it passes
+  for (let t = 0; t < 400 && people.length < sp.people + sp.stepout; t++) {
     const k = cells[Math.floor(u() * cells.length)],
       along = sp.gen === 'warehouse' ? u() < 0.7 : u() < 0.5,
       ox = cx(k),
@@ -426,6 +429,10 @@ function genLevel(spec) {
     if (segD([sx, sy], a, b) < 1.5) continue;
     const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     if (people.some(q => segD(mid, q.from, q.to) < 1.5)) continue;
+    if (people.length >= sp.people) {
+      people.push({from: a, to: b, speed: snap1(0.9 + u() * 0.3), phase: 0, mode: 'shuttle', trigger: {near: mid, r: 3}});
+      continue;
+    }
     const pause = u() < 0.3;
     people.push({
       from: a,

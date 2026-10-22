@@ -39,7 +39,9 @@ test('the format rejects what it cannot run', () => {
     ['area', {...ok, size: [48, 40]}],
     ['start', {...ok, start: [30, 2, 0]}],
     ['shape', {...ok, shapes: [{box: [1, 1, 1, 1]}]}],
-    ['setting type', {...ok, settings: {loc: 3}}]
+    ['setting type', {...ok, settings: {loc: 3}}],
+    ['fault schedule', {...ok, settings: {sched: [{t: 'soon', set: {lidar: false}}]}}],
+    ['trigger', {...ok, people: [{from: [2, 2], to: [8, 2], trigger: {near: [40, 2], r: 3}}]}]
   ])
     assert.throws(() => C.levelFromJSON(j), Error, why);
   const L = C.levelFromJSON({...ok, name: '<img src=x onerror=alert(1)>', settings: {nonsense: 1, seed: 3, loc: 'ekf'}});
@@ -61,4 +63,43 @@ test('a generated level is the same for the same spec, and sets the world size',
   }
   C.loadLevel(0);
   assert.deepEqual([C.W, C.H, C.GW, C.GH], [24, 16, 240, 160], 'a built-in level sets it back');
+});
+
+test('people who wait for the robot: the format keeps the trigger, they stand until it comes near, then walk', async () => {
+  for (const gen of Object.keys(C.GEN_FAMILIES))
+    assert.deepEqual(C.genLevel({gen, seed: 5}), C.genLevel({gen, seed: 5, stepout: 0}), gen + ': stepout 0 changes nothing');
+  const j = C.genLevel({gen: 'warehouse', seed: 3, people: 0, stepout: 3}),
+    R = C.levelFromJSON(JSON.parse(JSON.stringify(C.levelToJSON(C.levelFromJSON(j)))));
+  assert.equal(j.people.length, 3);
+  assert.ok(
+    j.people.every(p => p.trigger && p.trigger.r === 3),
+    'each has a trigger'
+  );
+  assert.deepEqual(
+    R.peds.map(p => p.tr),
+    C.levelFromJSON(j).peds.map(p => p.tr),
+    'the trigger survives the round trip'
+  );
+  C.P.seed = 7;
+  C.loadLevel(j);
+  C.startMission();
+  const at = () => C.S.peds.map(p => [p.x, p.y]),
+    p0 = at();
+  let moved = 0;
+  for (let k = 0; k < 2400; k++) {
+    await C.advance(1);
+    const p = C.S.peds,
+      r = C.S.robot;
+    p.forEach((q, i) => {
+      const near = Math.hypot(r.x - q.tr.p[0], r.y - q.tr.p[1]) < q.tr.r;
+      if (!q.go) assert.deepEqual([q.x, q.y], p0[i], 'stands until the robot comes near');
+      if (q.go && !near && Math.hypot(q.x - p0[i][0], q.y - p0[i][1]) > 0.5) moved |= 1 << i;
+    });
+  }
+  assert.ok(moved, 'someone stepped out and walked');
+  assert.ok(
+    C.S.log.some(l => /steps out/.test(l.msg)),
+    'the log says so'
+  );
+  C.loadLevel(0);
 });

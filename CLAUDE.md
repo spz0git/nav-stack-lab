@@ -71,3 +71,7 @@
   generator spec, and the collectors take `--gen`.
 - Design notes, known limits and next steps live in `docs/roadmap.md`. The GitHub repo is the only reference: there are
   no copies elsewhere (Claude projects, docs) to keep in sync.
+- Project summary: `docs/PROJECT-SUMMARY.md` feeds the owner's master planning vault, which reads it from `origin/main`.
+  When a PR changes where the project stands (a release, a design decided, a new risk or blocker, a different next
+  step), run `/summary` on the branch before the merge so the summary lands with the PR. On its own it is
+  documentation: no gate, no version, no republish.

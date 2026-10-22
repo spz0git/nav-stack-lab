@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v60 · 2026-10-22
 
 - A new Learn group, Safety: the ideas of the safety standards for automated vehicles and robots (ISO 26262,
   ISO 21448 or SOTIF, ISO/PAS 8800 and UL 4600), done on the simulator rather than read. The lab paraphrases the

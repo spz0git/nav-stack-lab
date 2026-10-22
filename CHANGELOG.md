@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v61 · 2026-10-22
 
 - Safety, two more lessons:
   - *Something breaks: detect it, react, in time*: the lidar fails 30 s into the busy floor's mission, the beacons go

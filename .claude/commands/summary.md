@@ -23,7 +23,7 @@ project: <registry key: the repository name>
 title: <display name>
 kind: <code | practice | content>
 source: <GitHub URL>
-commit: <short hash of origin/main when written>
+commit: <short hash of HEAD, the commit this summary describes>
 updated: <YYYY-MM-DD>
 status: <active | paused | blocked | done>
 stage: <one line: where it stands, with the version or milestone>

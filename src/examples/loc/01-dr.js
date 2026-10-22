@@ -8,6 +8,7 @@
 // obs.beacons [{id, r, b}] or null: range and bearing (body frame) to beacons seen this tick; id is -1 when unlabeled
 // obs.map     [{id, x, y}] beacon positions
 // obs.scan    Float32Array(120) of lidar ranges or null; beam k points at -π + k·2π/120 in the body frame, 8 m max
+// obs.gnss    {x, y, sigma, t} a GNSS position fix when one arrived this tick (Sensors → GNSS), else null; sigma is what the receiver reports
 // obs.field   {w, h, res, dist} on the first call when there is a prior map: its distance field, metres to the nearest wall per cell (row-major), else null
 // mem persists between calls. Budget: 200 ms per call.
 

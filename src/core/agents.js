@@ -254,6 +254,7 @@ function agTrack() {
   }
   const dt = A.lastT == null ? 0.1 : Math.max(1e-3, S.t - A.lastT);
   A.lastT = S.t;
+  if (P.radar && P.trkIn !== 'lidar') return agTrackFused(dt); // with the radar: core/radar.js
   const q = P.agSigA * P.agSigA,
     R = AG_SZ * AG_SZ;
   for (const t of A.tracks) {
@@ -640,19 +641,21 @@ function agentsTick() {
     if (A.tracks.length || A.st || A.det.length) S.agents = agInit();
     return;
   }
-  const lid = S.scanTick === S.tick;
+  const lid = S.scanTick === S.tick,
+    noLid = !P.lidar && S.tick % 2 === 1; // lidar off (Sensors): ground-truth tracks still predict at the scan rate
   if (lid) {
     if (P.agents === 'learned') agDetectLearned();
     else agDetect();
   }
+  if (!P.lidar && P.agents !== 'truth') A.tracks = []; // people detection reads the lidar: with it off, no tracks
   if (agOn() && (lid || P.agents === 'truth')) agTrack();
-  if (agOn() && lid) predTick();
+  if (agOn() && (lid || noLid)) predTick();
   if (!agOn()) A.tracks = [];
 }
 function agentsPlan() {
   const A = S.agents;
   if (!A || (!agOn() && P.spd !== 'stop')) return;
-  const lid = S.scanTick === S.tick;
+  const lid = S.scanTick === S.tick || (!P.lidar && S.tick % 2 === 1);
   if (lid) {
     const conf = A.tracks.filter(t => t.conf);
     A.staticPts = conf.length ? S.scanPts.filter(p => !conf.some(t => hyp(p[0] - t.x, p[1] - t.y) < t.r + 0.25)) : S.scanPts;

@@ -1,7 +1,9 @@
 // Training data for the learned people predictor (training/predictor/train.py): at every lidar scan of headless runs on
 // the levels that have people, each confirmed track near a person, with where that person really went over the next
 // 3 s. Written as raw float32 (features, labels) with a JSON side file into training/data/, which is not committed.
-//   node tools/collect-pred.mjs [seconds per run = 150] [seeds = 21..44]
+//   node tools/collect-pred.mjs [seconds per run = 150] [seeds = 21..44] [--gen families or spec JSON]
+// With --gen the runs are on generated worlds (four people each unless the spec says), one per seed
+// (tests/node/core.mjs, collectSources).
 // Features per sample, 24 (core/predict.js, predFeatures): the track's last second (five past positions and its
 // velocity) in the person's frame, the robot's position and velocity in that frame, and free space along eight rays in
 // the robot's map. Labels, 12: the true position at 0.5, 1, … 3 s in the same frame minus the constant-velocity point.
@@ -10,8 +12,9 @@
 // start at 21 so that the lessons' seeds (7 and 1–20) are runs the built-in model has not seen.
 import fs from 'node:fs';
 import path from 'node:path';
-import {loadCore, ROOT} from '../tests/node/core.mjs';
+import {loadCore, ROOT, collectSources} from '../tests/node/core.mjs';
 loadCore();
+const SRC = collectSources(process.argv, L => (L.peds || []).length > 0, {people: 4, like: 'L5'});
 const C = globalThis.__core,
   SECS = +(process.argv[2] || 150),
   SEEDS = (process.argv[3] || Array.from({length: 24}, (_, i) => 21 + i).join(',')).split(',').map(Number),
@@ -20,14 +23,13 @@ const C = globalThis.__core,
 const X = [],
   Y = [],
   runs = [];
-for (let L = 0; L < C.LEVELS.length; L++) {
-  if (!C.LEVELS[L].peds || !C.LEVELS[L].peds.length) continue;
+for (const src of SRC) {
   for (const seed of SEEDS) {
-    const d = await C.collectRun({block: 'predictor', level: L, seed, secs: SECS, goals: 'level', people: 'alt'});
+    const d = await C.collectRun({block: 'predictor', level: src.level, gen: src.gen, seed, secs: SECS, goals: 'level', people: 'alt'});
     X.push(d.x);
     Y.push(d.y);
-    runs.push({level: C.LEVELS[L].id, seed, people: d.people, spd: d.spd, samples: d.n});
-    console.log(`${C.LEVELS[L].id} seed ${seed} ${d.people} ${d.spd}: ${d.n} samples`);
+    runs.push({level: src.label, seed, people: d.people, spd: d.spd, samples: d.n});
+    console.log(`${src.label} seed ${seed} ${d.people} ${d.spd}: ${d.n} samples`);
   }
 }
 // the held-out runs go last: the last two seeds of each level (one scripted, one reactive)

@@ -203,6 +203,11 @@ const NOMEN = [
       ],
       ['<i class="swatch sq" style="background:var(--amber)"></i>', 'Lidar hits, placed using the estimated pose', ''],
       [
+        '<i class="swatch dia" style="background:var(--radar)"></i>',
+        "Radar detections (Perceive → Radar), placed using the estimated pose, with an arrow for 0.5 s of radial velocity (toward the robot: closing), inside the radar's field of view; false detections and ghosts look the same",
+        ''
+      ],
+      [
         '<i class="swatch dia" style="background:var(--beacon)"></i>',
         'Beacons (known positions) and the current range–bearing readings drawn from the estimate (not for dead reckoning, which ignores them); red readings are false detections. Hollow: in an outage; grey with a stroke: switched off',
         ''

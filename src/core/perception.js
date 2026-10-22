@@ -161,3 +161,46 @@ function segClear(ax, ay, bx, by, margin, allowExit) {
   }
   return true;
 }
+// @code sonar-arc | integrateSonar: one sonar reading into the log-odds grid (the arc inverse sensor model)
+// A reading at range r says: something on the arc at r inside the cone echoed, and nothing inside the cone before it
+// did. The echo's bearing within the cone is unknown, so the occupied evidence is shared over the n cells of the arc
+// that could have echoed, those the map does not already know to be free (l above L_KNOWN): each is the obstacle with
+// probability 1/n, which in log-odds is ln((n + 1)/(n − 1)) (chapter 3 §11), capped at the lidar's hit. As other cones
+// clear the cells in front of a wall, n shrinks and the arc's evidence gathers on the wall. The cells before the arc
+// get L_SFREE, weaker than a lidar beam's: a surface too oblique to echo can sit inside a cone that read farther.
+// A reading at maximum range (no echo) is no evidence: an empty cone and a specular miss read the same.
+const L_SFREE = -0.2,
+  L_KNOWN = -0.5;
+function integrateSonar(A) {
+  if (A.max) return;
+  const lo = S.lo,
+    r = A.r,
+    half = A.w / 2,
+    band = RES * 0.71, // half the arc's thickness: a cell whose centre is within it is on the arc
+    i0 = Math.max(0, cellI(A.x - r - RES)),
+    i1 = Math.min(GW - 1, cellI(A.x + r + RES)),
+    j0 = Math.max(0, cellI(A.y - r - RES)),
+    j1 = Math.min(GH - 1, cellI(A.y + r + RES)),
+    arc = [],
+    free = [];
+  for (let j = j0; j <= j1; j++)
+    for (let i = i0; i <= i1; i++) {
+      const dx = (i + 0.5) * RES - A.x,
+        dy = (j + 0.5) * RES - A.y,
+        rho = hyp(dx, dy);
+      if (rho > r + band || Math.abs(wrap(Math.atan2(dy, dx) - A.th)) > half) continue;
+      (rho >= r - band ? arc : free).push(j * GW + i);
+    }
+  const cand = arc.filter(idx => lo[idx] > L_KNOWN || lo[idx] === L_GAP),
+    n = cand.length,
+    lArc = n > 1 ? Math.min(L_OCC, Math.log((n + 1) / (n - 1))) : L_OCC;
+  for (const idx of free) {
+    if (lo[idx] === L_GAP) lo[idx] = 0;
+    lo[idx] = clamp(lo[idx] + L_SFREE, -L_CLAMP, L_CLAMP);
+  }
+  for (const idx of cand) {
+    if (lo[idx] === L_GAP) lo[idx] = 0;
+    lo[idx] = clamp(lo[idx] + lArc, -L_CLAMP, L_CLAMP);
+  }
+}
+// @end

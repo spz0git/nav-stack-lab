@@ -10,6 +10,8 @@ let chapterOpen = null,
   chapterSec = null,
   liveTimer = null; // chapterFrom: the lesson a link came from
 const liveF = (v, d = 2) => (v == null || !isFinite(v) ? '—' : (+v).toFixed(d));
+// about how many cells an arc of the sonar's beam width covers at range r: its length over a cell, times the band's 1.4 cells
+const sonArcN = r => Math.max(2, Math.round((1.41 * r * P.sonBeam * Math.PI) / 180 / RES));
 // the pure-pursuit formulas of chapter 6, from the current parameters (valid for pure pursuit on the diff-drive robot)
 function ppFormulas() {
   const v0 = anV0(),
@@ -74,6 +76,18 @@ const LIVE = {
   odoDrift: () => liveF((60 * odoErr(anV0()).bw * 180) / Math.PI, 0),
   // perception (chapter 3): the tracker's steady-state α–β gains from the tracking index λ = σa Δt² / σz
   lidarSig: () => liveF(P.lidarSig, 2),
+  // the ultrasonic ring (chapter 3 §11)
+  sonN: () => String(clamp(Math.round(P.sonN), 4, 16)),
+  sonBeam: () => String(P.sonBeam),
+  sonMax: () => liveF(P.sonMax, 1),
+  sonMin: () => liveF(P.sonMin, 2),
+  sonSig: () => liveF(P.sonSig, 3),
+  sonSpec: () => String(P.sonSpec),
+  sonXt: () => String(P.sonXt),
+  sonCycle: () => liveF(sonCycle(), 2),
+  sonGap: () => String(Math.max(0, Math.round(360 / clamp(Math.round(P.sonN), 4, 16) - P.sonBeam))),
+  sonArcN2: () => String(sonArcN(2)),
+  sonLarc2: () => liveF(Math.log((sonArcN(2) + 1) / (sonArcN(2) - 1)), 2),
   infl: () => liveF(P.infl, 1),
   agSigA: () => liveF(P.agSigA, 1),
   agT: () => liveF(P.agT, 1),
@@ -87,6 +101,14 @@ const LIVE = {
     return liveF(0.1 / -Math.log(Math.sqrt(1 - a)), 1);
   },
   rAtT: () => liveF(0.35 + P.agGrow * P.agT, 2),
+  // the radar (chapter 3 §12): its settings, and what 3° of bearing noise and the angular resolution are at 10 m
+  radFov: () => liveF(P.radFov, 0),
+  radRange: () => liveF(P.radRange, 0),
+  radRes: () => liveF(P.radRes, 0),
+  radClutter: () => liveF(P.radClutter, 1),
+  radGhost: () => liveF(P.radGhost, 0),
+  radLat10: () => liveF(10 * RAD.sb, 2),
+  radCross10: () => liveF((10 * P.radRes * Math.PI) / 180, 2),
   // vehicle models (chapter 1)
   wheelbase: () => liveF(P.wheelbase, 2),
   steerMaxDeg: () => String(P.steerMaxDeg),
@@ -342,3 +364,22 @@ function chapterFromHash() {
   return openChapter(m[1], m[2]);
 }
 window.addEventListener('hashchange', chapterFromHash);
+// GNSS (chapter 2 §12): the receiver's settings and what they imply for a filter that takes the fixes as white
+Object.assign(LIVE, {
+  gnssSig: () => liveF(P.gnssSig, 2),
+  gnssBias: () => liveF(P.gnssBias, 1),
+  gnssTau: () => liveF(P.gnssTau, 0),
+  gnssHz: () => liveF(P.gnssHz, 0),
+  gnssRep: () => liveF(gnssRep(), 2),
+  gnssPhi: () => liveF(Math.exp(-1 / (P.gnssHz * Math.max(1, P.gnssTau))), 4),
+  // a minute of fixes: what the plain filter claims for their average, and the truth with the correlated bias
+  gnssClaim: () => liveF(gnssRep() / Math.sqrt(60 * P.gnssHz), 3),
+  gnssTrue: () => {
+    const N = Math.round(60 * P.gnssHz),
+      phi = Math.exp(-1 / (P.gnssHz * Math.max(1, P.gnssTau)));
+    let s = N;
+    for (let m = 1; m < N; m++) s += 2 * (N - m) * phi ** m;
+    return liveF(Math.sqrt((P.gnssSig * P.gnssSig) / N + (P.gnssBias * P.gnssBias * s) / (N * N)), 2);
+  },
+  gnssQ: () => liveF((2 * P.gnssBias * P.gnssBias) / Math.max(1, P.gnssTau), 3)
+});

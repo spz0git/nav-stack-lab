@@ -56,21 +56,62 @@ const firstSentence = s => {
 };
 function buildLevels() {
   $('#levels').innerHTML =
-    `<button type="button" class="btn lvl-btn" id="lvl-btn" aria-haspopup="dialog" aria-expanded="${!lvMenu.hidden}" aria-controls="lvlmenu" title="Choose the floor; its description and quick experiments are in this menu"><b>${LV.id}</b><span class="lvl-name">${LV.name}</span><svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    `<button type="button" class="btn lvl-btn" id="lvl-btn" aria-haspopup="dialog" aria-expanded="${!lvMenu.hidden}" aria-controls="lvlmenu" title="Choose the floor; its description and quick experiments are in this menu"><b>${LV.id}</b><span class="lvl-name">${esc(LV.name)}</span><svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
   $('#lvl-btn').onclick = () => lvMenuOpen();
   const list = lvMenu.querySelector('.lvl-list');
-  list.innerHTML = LEVELS.map(
-    (L, i) =>
-      `<button type="button" class="lvl" data-i="${i}" aria-pressed="${L === LV}"><b>${L.id}</b><span class="lvl-n">${L.name}</span><span class="lvl-d">${firstSentence(L.adds)}</span></button>`
-  ).join('');
-  list.querySelectorAll('.lvl').forEach(
+  // the built-in floors, then the custom ones: kept in this browser, the one on screen if it is not kept, and the
+  // Custom entry (import, export, link, generate: ui/levelmenu.js)
+  const own = !LEVELS.includes(LV),
+    custOn = CUST.open || own,
+    item = (attr, id, name, d, on) =>
+      `<button type="button" class="lvl" ${attr} aria-pressed="${on}"><b>${id}</b><span class="lvl-n">${esc(name)}</span><span class="lvl-d">${d}</span></button>`;
+  list.innerHTML =
+    LEVELS.map((L, i) => item(`data-i="${i}"`, L.id, L.name, firstSentence(L.adds), !custOn && L === LV)).join('') +
+    CUST.saved
+      .map(r =>
+        item(
+          `data-c="${r.id}"`,
+          r.json.gen ? 'G' : 'C',
+          r.name,
+          `${r.json.size.join(' × ')} m, kept in this browser`,
+          own && LV.savedId === r.id
+        )
+      )
+      .join('') +
+    (own && !LV.savedId ? item('data-cur="1"', LV.id, LV.name, `${levelSize(LV).join(' × ')} m, not kept`, true) : '') +
+    item('data-cust="1"', '+', 'Custom level', 'Import, export, share, generate', CUST.open && !own);
+  list.querySelectorAll('.lvl[data-i]').forEach(
     b =>
       (b.onclick = () => {
+        CUST.open = false;
         levelPicked(+b.dataset.i);
         const nb = lvMenu.querySelector(`.lvl[data-i="${b.dataset.i}"]`);
         if (nb) nb.focus();
       })
   );
+  list.querySelectorAll('.lvl[data-c]').forEach(
+    b =>
+      (b.onclick = () => {
+        CUST.open = true;
+        custPick(CUST.saved.find(r => r.id === b.dataset.c));
+        const nb = lvMenu.querySelector(`.lvl[data-c="${b.dataset.c}"]`);
+        if (nb) nb.focus();
+      })
+  );
+  list.querySelectorAll('.lvl[data-cust], .lvl[data-cur]').forEach(
+    b =>
+      (b.onclick = () => {
+        CUST.open = true;
+        buildLevels();
+        const nb = lvMenu.querySelector(b.dataset.cust ? '.lvl[data-cust]' : '.lvl[data-cur]');
+        if (nb) nb.focus();
+      })
+  );
+  if (custOn) {
+    $('#brief').innerHTML = custBriefHTML();
+    custWire($('#brief'));
+    return;
+  }
   $('#brief').innerHTML =
     `<div class="adds-d"><h3>What ${LV.id} <span class="lvname">${LV.name}</span> adds</h3><p class="adds">${LV.adds}</p></div><details class="try" open><summary><h3>Quick experiments (${LV.tries.length}) · one click sets the lab up and runs</h3></summary><p class="note">Short setups to poke at this floor. The guided lessons in Learn explain the same things step by step${
       lessonsOnLevel().length
@@ -116,7 +157,7 @@ async function tryGo(cfg) {
   else if (typeof cfg.seed === 'number') P.seed = cfg.seed;
   else if (cfg.level != null) P.seed = DEFAULTS.seed;
   if (cfg.level != null) LV = LEVELS[cfg.level];
-  if (!cfg.keep) loadLevel(LEVELS.indexOf(LV));
+  if (!cfg.keep) loadLevel(LV);
   for (const [k, v] of Object.entries(cfg.set || {})) setParam(k, v, false);
   if (cfg.goals) setGoals(cfg.goals); // a Try with its own goals (a loop to close): the mission restarts on them
   if (cfg.tab) {
@@ -374,6 +415,19 @@ const TIPS = {
   predModes: 'Which of the learned futures the speed planner, space-time A*, DWA and MPC treat as obstacles.',
   agT: 'How far ahead agents are predicted and the speed planner plans.',
   agGrow: 'How fast the predicted radius grows per second of prediction.',
+  trkIn:
+    "What updates the tracks. Lidar: the clusters' positions. Radar: the radar's detections (range, bearing, radial velocity) in an extended Kalman filter, only in its field of view. Lidar + radar: both, and a track the radar can see is confirmed only once the radar has seen it too (or after six lidar hits).",
+  weather:
+    "Clear, rain or fog. Fog and rain shorten the lidar's reach, drop beams, add range noise and returns from the air close to the robot; the radar barely notices.",
+  radar:
+    'A forward radar: detections with range, bearing and radial velocity, drawn on the map. It feeds the people tracker when Tracker inputs includes it.',
+  radFov: 'How wide the radar looks, centred on the heading.',
+  radRange: 'How far the radar sees.',
+  radRes:
+    'Two echoes closer than this in bearing (and within 0.4 m in range and 0.25 m/s in radial velocity) come back as one detection, at their amplitude-weighted average: two people side by side become one.',
+  radClutter: 'False detections per scan, on average (Poisson), anywhere in the field of view, with random radial velocities.',
+  radGhost:
+    "The chance per scan that a person's echo also comes back by a bounce off a wall: a detection at the person's mirror image behind the wall, moving with the mirrored velocity.",
   agSigA: 'White acceleration noise of the constant-velocity model. Higher follows turns faster but gives noisier velocity.',
   mis: 'In order visits goals as numbered. Greedy picks the nearest next. Optimal solves the open-path TSP.',
   replan: 'Replan on a timer in addition to the event-driven triggers.',
@@ -497,6 +551,7 @@ function fieldHTML(f) {
       c = chgMark({k: 'bOff'});
     return `<div class="field${c ? ' chg' : ''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b => `<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="linkbtn" data-beacon="all">All on</button><button class="linkbtn" data-beacon="none">All off</button></div></div>`;
   }
+  if (f.type === 'sensors') return sensorsHTML();
   if (f.type === 'bsensor')
     return `<details class="how bsens" id="bsens" ${bsOpen ? 'open' : ''}><summary>Beacon sensor: rate, range, noise, what blocks it</summary><div class="how-body" id="bsens-body">${beaconSensorHTML()}</div></details>`;
   if (f.type === 'btns')
@@ -568,6 +623,13 @@ function wirePane(t) {
         renderAllPanes();
       })
   );
+  pane.querySelectorAll('input[data-sensor]').forEach(
+    cb =>
+      (cb.onchange = () => {
+        setSensor(cb.dataset.sensor, cb.checked, false);
+        renderAllPanes();
+      })
+  );
   pane.querySelectorAll('[data-act]').forEach(b => (b.onclick = () => btnActs[+b.dataset.act]()));
   const bs = $('#bsens');
   if (bs)
@@ -617,3 +679,28 @@ let replanDebounce = null;
 
 // Nomenclature, IEEE style: symbol — definition [unit], grouped by subsystem
 const I = s => `<i>${s}</i>`;
+// The Sensors switches (Localize): one per registered modality (SENSORS in core/sensors.js), each with what it gives
+function sensorsHTML() {
+  const rows = SENSORS.map(s => {
+    const on = sensorOn(s),
+      av = !s.avail || s.avail(),
+      d = s.val ? (lvlDefault(s.flag) === 'all' ? false : true) : lvlDefault(s.flag),
+      chg = d !== undefined && on !== !!d,
+      rst = chg ? `<button class="rst" data-reset="${s.flag}" title="Back to this level's default (${d ? 'on' : 'off'})">↺</button>` : '';
+    return `<div class="sens-row${av ? '' : ' na'}"><label class="check${chg ? ' chg' : ''}"><input type="checkbox" data-sensor="${s.key}" ${on ? 'checked' : ''} ${av ? '' : 'disabled'}><span><b>${esc(s.label)}</b>${rst}</span></label><p class="note">${esc(s.gives)}${av ? '' : ' This level has none.'}</p></div>`;
+  }).join('');
+  return `<h3 class="fhead" id="sens-head">Sensors</h3><div class="sens-sw">${rows}</div>`;
+}
+Object.assign(TIPS, {
+  odom: 'Wheel encoders. Off: the filters predict with the commanded velocity instead of a measured one.',
+  lidar: 'The 360° lidar. Off: no mapping, scan matching, people detection, lidar safety stop or lidar layers.',
+  gnss: 'GNSS position fixes: white noise, a wandering bias, multipath near large shapes, outages.',
+  gnssHz: 'Fixes per second.',
+  gnssSig: 'White noise per fix, each axis: new at every fix.',
+  gnssBias: 'Spread of the slowly wandering bias (first-order Gauss–Markov), each axis.',
+  gnssTau: 'How long the bias takes to forget itself: correlated over about this many seconds.',
+  gnssMp: 'Within 1.5 m of a wall or a parked car the fix jumps 2 to 4 m and gets noisier; the reported σ does not change.',
+  gnssOut: 'Share of the time the receiver has no fix.',
+  gnssOutLen: 'Average length of one GNSS outage.',
+  gnssAug: 'The EKF estimates the GNSS bias as two more states (a random walk), so correlated error is modelled instead of averaged.'
+});

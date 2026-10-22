@@ -309,6 +309,54 @@ const GLOSS = {
     '',
     ['constant-velocity Kalman filter']
   ],
+  radar: [
+    'radar',
+    'A sensor that sends radio waves and times their echoes: range, bearing and, from the Doppler shift, radial velocity per detection. Coarse in bearing, unbothered by fog.',
+    '',
+    ['radar']
+  ],
+  doppler: [
+    'radial velocity',
+    'The part of the relative velocity along the line of sight, read from the Doppler shift of the echo: negative when closing. Motion across the line of sight leaves no trace in it.',
+    'm/s',
+    ['radial velocity', 'Doppler']
+  ],
+  angres: [
+    'angular resolution',
+    'The smallest difference in bearing at which two echoes come back as two detections; closer ones (in range and Doppler too) merge into one.',
+    '°',
+    ['angular resolution']
+  ],
+  ghost: [
+    'ghost',
+    'A radar detection of a real person at a place they are not: the echo bounced off a wall on the way, so it seems to come from the mirror image behind the wall.',
+    '',
+    ['ghosts', 'ghost']
+  ],
+  egomotion: [
+    'ego speed',
+    "The robot's own speed, here measured from the Doppler of the static echoes, which all close at v cos b.",
+    'm/s',
+    ['ego speed']
+  ],
+  ttc: [
+    'time to contact',
+    'Range divided by closing speed: how long until contact if nothing changes. One radar detection gives it, without any tracking.',
+    's',
+    ['time to contact']
+  ],
+  xconfirm: [
+    'cross-sensor confirmation',
+    "A track inside both sensors' view counts only once both have seen it: an artefact of one sensor rarely shows in the other.",
+    '',
+    ['cross-sensor confirmation']
+  ],
+  fog: [
+    'fog',
+    "Water droplets that scatter the lidar's light: shorter reach, missing beams, and returns from the air itself. A radar's millimetre waves pass through.",
+    '',
+    ['fog']
+  ],
   confirm: ['confirm', 'A track counts only after three hits, so one stray detection does not create a person.', '', ['confirm']],
   coast: [
     'coast',
@@ -369,6 +417,49 @@ const GLOSS = {
     ['closest-approach', 'closest approach']
   ],
   contacts: ['contacts', 'Times the robot touched a person.', '', ['contacts']],
+  sonar: [
+    'sonar',
+    'Ultrasonic range sensor: it sends a ping and times the first echo, which gives one range for a whole cone about 30° wide. A ring of them fires in turn round the hull.',
+    '',
+    ['sonars', 'sonar', 'ultrasonic']
+  ],
+  cone: [
+    'cone',
+    "A sonar's field of view. The echo can come from anywhere in it, so the reading gives the range of the nearest thing in the cone and nothing about its bearing within the beam.",
+    '',
+    ['cones', 'cone']
+  ],
+  specular: [
+    'specular reflection',
+    'A smooth surface met at a slant sends the echo away, as a mirror does light: the sonar hears nothing and reads its maximum range though a wall is in its cone.',
+    '',
+    ['specular']
+  ],
+  deadzone: [
+    'dead zone',
+    'The range closer than which a sonar hears no echo, because the transducer is still ringing from its own ping (0.2 m here).',
+    'm',
+    ['dead zone']
+  ],
+  crosstalk: ['crosstalk', "A sonar hearing the echo of a neighbour's ping and reporting it as its own range.", '', ['crosstalk']],
+  arcmodel: [
+    'arc inverse sensor model',
+    "The map update for one sonar reading: occupied evidence shared over the cells of the arc at the reading's range, free evidence for the cells inside the cone before it.",
+    '',
+    ['arc update', 'arc model']
+  ],
+  conelik: [
+    'cone likelihood',
+    "How probable a sonar reading is at a particle's pose: compared with the nearest obstacle the prior map puts inside that sonar's cone.",
+    '',
+    ['cone likelihood']
+  ],
+  guard: [
+    'safety stop',
+    'A collision monitor under the path tracker: it sweeps the footprint along the commanded arc against what the sensor sees now and caps the speed at what stops in time.',
+    '',
+    ['safety stop']
+  ],
   // planning
   astar: ['A*', 'Best-first graph search: always expands the node with the smallest <i>f</i> = <i>g</i> + <i>h</i>.', '', ['A*']],
   node: ['node', 'A search state; here a grid cell.', '', ['node']],
@@ -937,7 +1028,48 @@ Object.assign(GLOSS, {
     ['pole placement']
   ]
 });
+// GNSS (Localization lesson 9)
+Object.assign(GLOSS, {
+  gnss: [
+    'GNSS',
+    'Global navigation satellite system (GPS, Galileo, GLONASS, BeiDou): a receiver that computes its position from satellite signals, anywhere under open sky.',
+    '',
+    ['GNSS', 'fix', 'fixes']
+  ],
+  gaussmarkov: [
+    'Gauss–Markov process',
+    'A random signal that drifts and forgets: each step keeps a fraction e<sup>−Δ<i>t</i>/τ</sup> of its value and adds fresh noise, so it wanders with spread σ<sub>b</sub> and is correlated over about τ seconds.',
+    '',
+    ['Gauss–Markov', 'Gauss-Markov']
+  ],
+  white: [
+    'white noise',
+    'Noise drawn fresh at every reading, independent of the last one. Every Kalman update assumes its measurement noise is white.',
+    '',
+    ['white']
+  ],
+  multipath: [
+    'multipath',
+    'A satellite signal that reaches the antenna by a reflection as well as, or instead of, directly: the longer path shifts the fix by metres, next to walls and vehicles.',
+    '',
+    ['multipath', 'reflections']
+  ],
+  augstate: [
+    'augmented state',
+    'The filter state extended with quantities that are not the pose but shape the error, here the GNSS bias, so that the filter estimates them instead of treating their effect as noise.',
+    '',
+    ['bias in the state']
+  ],
+  outage: [
+    'outage',
+    'A spell with no readings from a sensor: under a bridge, in a tunnel, or a beacon that is down.',
+    '',
+    ['outage', 'outages']
+  ]
+});
 const LESSON_TERMS = {
+  'GNSS: the noise is not white':
+    'gnss gaussmarkov white bias augstate multipath outage gate d2 chi2 nees band2s overconf consistent ekf Hjac K odometry deadreck kidnap',
   'Placing the poles on purpose: pole placement and LQR': 'poleplace lqr pole zeta wn Ke kth rwf DM pm overshoot ts plantgain hold',
   'Pose-graph SLAM: the map that closes the loop':
     'posegraph keyframe loopclosure icp scanmatch gaussnewton drift odometry covariance gyro lidar logodds frontier',
@@ -955,6 +1087,8 @@ const LESSON_TERMS = {
     'pf motionmodel particle likelihood resample neff lowvar sumP wi Npart amcl wfs wavg inject globalloc mirror unlabeled lidar',
   'EKF-SLAM: the map is part of the state': 'slam landmark xslam mlm Pslam nlm ppos rr bb Pmm Jxz Rm correlated drift deadreck loopclosure',
   'Log-odds mapping': 'lidar beam grid logodds clamp l lmeas lfh estframe deadreck',
+  'Sonar: one number for a whole cone':
+    'sonar cone specular deadzone crosstalk arcmodel conelik guard logodds lmeas pf likelihood contacts closest lidar',
   'Costmap: lethal cells and the inflation band': 'costmap disttrans lethal inflation dobs penalty winf edgecost frontier',
   'Tracking people: from lidar hits to tracks':
     'cluster lidar cvkf track mahal confirm coast xag pxy vxy Fcv Qproc siga d2 pt pag vag t rt rag ggrow groundtruth',
@@ -963,6 +1097,8 @@ const LESSON_TERMS = {
     'conv1d precision recall distshift track cvkf cluster lidar logodds agent icp speedplanner odometry deadreck pf',
   'A learned predictor: three futures for each person':
     'mlp mixture resp wta multimodal prederr cvkf track speedplanner socialforce contacts closest groundtruth distshift',
+  'Radar: speed from the echo':
+    'radar doppler angres ghost egomotion ttc xconfirm fog cvkf track gate chi2 mahal ekf Hjac confirm coast speedplanner moose lidar',
   'Velocity obstacles: steering around people in velocity space':
     'vo rvo track cvkf agent speedplanner socialforce contacts closest lidar costmap tracker',
   'People who react': 'socialforce Fsf v0p edir vp tausf sumO Asf rij dpp Bsf ndir contacts closest',

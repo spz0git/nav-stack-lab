@@ -27,6 +27,7 @@ function readTokens() {
     'amber',
     'beacon',
     'rose',
+    'radar',
     'ok',
     'warn',
     'bad',
@@ -170,8 +171,29 @@ function syncViewUI() {
   const t = $('#mv-fit');
   if (t) t.disabled = VIEW.z === 1;
 }
+// The grid images (occupancy, costmap, search) are one pixel a cell: a level of another size makes them again, and the
+// view, fitted to the old world, fits the new one
+let viewWorld = '';
+function fitWorld() {
+  if (occCv.width !== GW || occCv.height !== GH)
+    for (const c of [occCv, costCv, srchCv]) {
+      c.width = GW;
+      c.height = GH;
+    }
+  const key = W + 'x' + H;
+  if (key === viewWorld) return;
+  viewWorld = key;
+  VIEW.z = 1;
+  VIEW.cx = W / 2;
+  VIEW.cy = H / 2;
+  VIEW.follow = false;
+  dirty.occ = dirty.cost = dirty.search = true;
+  lastSearch = null;
+  syncViewUI();
+}
 function draw() {
   readTokens();
+  fitWorld();
   if (VIEW.follow && VIEW.z > 1 && S) {
     VIEW.cx = S.robot.x;
     VIEW.cy = S.robot.y;
@@ -198,7 +220,10 @@ function draw() {
   drawGhostRun(dpr, k, px);
   drawTrails(dpr, k, px);
   drawBeam(dpr, k, px);
+  drawGnss(dpr, k, px);
   drawLidar(dpr, k, px);
+  drawSonar(dpr, k, px);
+  drawRadar(dpr, k, px);
   drawPath(dpr, k, px);
   drawRollouts(dpr, k, px);
   drawAgents(dpr, k, px);
@@ -484,6 +509,46 @@ function drawBeam(dpr, k, px) {
     }
   }
 }
+// GNSS fixes (live only): the last minute of them, fused ones filled, gated ones crossed, the rest hollow, fading with
+// age; the newest with the 2σ ring the receiver reports
+function drawGnss(dpr, k, px) {
+  if (!LAYERS.gnss || !P.gnss || !S.gnss || replayFrame()) return;
+  const F = S.gnss.fixes,
+    n = F.length;
+  ctx.lineWidth = px(1.2);
+  F.forEach((f, i) => {
+    const a = 0.25 + (0.75 * (i + 1)) / n,
+      rr = px(2.6);
+    if (f.st === 'gate') {
+      ctx.strokeStyle = rgba(TOK.bad, a);
+      ctx.beginPath();
+      ctx.moveTo(f.x - rr, f.y - rr);
+      ctx.lineTo(f.x + rr, f.y + rr);
+      ctx.moveTo(f.x - rr, f.y + rr);
+      ctx.lineTo(f.x + rr, f.y - rr);
+      ctx.stroke();
+    } else if (f.st === 'ok' || f.st === 'reset') {
+      ctx.fillStyle = rgba(TOK.rose, a);
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, rr, 0, TAU);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = rgba(TOK.rose, a);
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, rr, 0, TAU);
+      ctx.stroke();
+    }
+  });
+  const L = F[n - 1];
+  if (L && S.t - L.t < 2) {
+    ctx.strokeStyle = rgba(TOK.rose, 0.5);
+    ctx.setLineDash([px(3), px(3)]);
+    ctx.beginPath();
+    ctx.arc(L.x, L.y, 2 * L.sig, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
 function drawLidar(dpr, k, px) {
   // lidar (perceived points)
   if (LAYERS.lidar) {
@@ -495,6 +560,95 @@ function drawLidar(dpr, k, px) {
       ctx.fillRect(p[0] - px(1.5), p[1] - px(1.5), px(3), px(3));
     });
   }
+}
+// The ultrasonic ring: each sonar's cone where it was measured, out to its reading (to the reach when no echo came
+// back: dashed, in the warning colour for a specular miss, in the bad colour for a dead-zone miss), and the returned
+// arc, rose when it was a neighbour's echo
+function drawSonar(dpr, k, px) {
+  if (!LAYERS.sonar || !P.sonar || !S.sonArcs) return;
+  const old = S.t - 2 * sonCycle() - 1e-6;
+  for (const A of S.sonArcs) {
+    if (!A || A.t < old) continue;
+    const R = A.max ? P.sonMax : A.r,
+      a0 = A.th - A.w / 2,
+      a1 = A.th + A.w / 2;
+    ctx.beginPath();
+    ctx.moveTo(A.x, A.y);
+    ctx.arc(A.x, A.y, R, a0, a1);
+    ctx.closePath();
+    ctx.fillStyle = rgba(TOK.ok, A.max ? 0.04 : 0.1);
+    ctx.fill();
+    ctx.lineWidth = px(0.8);
+    ctx.strokeStyle = !A.max
+      ? rgba(TOK.ok, 0.45)
+      : A.why === 'spec'
+        ? rgba(TOK.warn, 0.6)
+        : A.why === 'dead'
+          ? rgba(TOK.bad, 0.7)
+          : rgba(TOK.ok, 0.25);
+    if (A.max) ctx.setLineDash([px(3), px(3)]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (A.max) continue;
+    ctx.beginPath();
+    ctx.arc(A.x, A.y, A.r, a0, a1);
+    ctx.lineWidth = px(2.6);
+    ctx.strokeStyle = A.why === 'xt' ? TOK.rose : TOK.ok;
+    ctx.stroke();
+  }
+}
+// The radar's field of view from the estimated pose, and its detections: a diamond each, with an arrow along the line of
+// sight for the radial velocity (0.5 s of it; toward the robot when closing). Clutter and ghosts look the same: the robot
+// cannot tell them apart.
+function drawRadar(dpr, k, px) {
+  if (!LAYERS.radar || !radarOn() || !S.radar) return;
+  const e = S.est,
+    f = (P.radFov * Math.PI) / 360,
+    R = radReach(),
+    c = TOK.radar || TOK.accent;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, W, H);
+  ctx.clip();
+  ctx.fillStyle = rgba(c, 0.05);
+  ctx.strokeStyle = rgba(c, 0.35);
+  ctx.lineWidth = px(1);
+  ctx.beginPath();
+  ctx.moveTo(e.x, e.y);
+  ctx.arc(e.x, e.y, R, e.th - f, e.th + f);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  const s = px(4);
+  for (const d of S.radar.det) {
+    const ux = Math.cos(e.th + d.b),
+      uy = Math.sin(e.th + d.b),
+      L = 0.5 * d.v;
+    ctx.strokeStyle = c;
+    ctx.lineWidth = px(1.5);
+    if (Math.abs(L) > 0.02) {
+      const tx = d.x + L * ux,
+        ty = d.y + L * uy,
+        h = Math.min(px(5), Math.abs(L) * 0.6),
+        sg = Math.sign(L);
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(tx, ty);
+      ctx.moveTo(tx - sg * h * ux - h * 0.6 * uy, ty - sg * h * uy + h * 0.6 * ux);
+      ctx.lineTo(tx, ty);
+      ctx.lineTo(tx - sg * h * ux + h * 0.6 * uy, ty - sg * h * uy - h * 0.6 * ux);
+      ctx.stroke();
+    }
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(d.x + s, d.y);
+    ctx.lineTo(d.x, d.y + s);
+    ctx.lineTo(d.x - s, d.y);
+    ctx.lineTo(d.x, d.y - s);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
 }
 function drawPath(dpr, k, px) {
   // the learned policy's other candidate paths, faint by their probability: rose where they hit the inflation

@@ -22,6 +22,8 @@ function recFrame() {
     peds: S.peds.map(p => ({x: p.x, y: p.y, vx: p.vx || 0, vy: p.vy || 0, r: p.r, wait: p.wait || 0})),
     scan: sc,
     lastZ: S.lastZ,
+    sonArcs: S.sonArcs || null, // replaced, not changed, at each delivery (sonarApply)
+    radar: S.radar || null,
     bDown: S.bDown ? S.bDown.slice() : null,
     nT: S.trailT.length,
     nE: S.trailE.length,
@@ -67,6 +69,7 @@ function frameView(f) {
     cmd: f.cmd,
     peds: f.peds,
     lastZ: f.lastZ,
+    radar: f.radar,
     bDown: f.bDown,
     plan: f.plan,
     segIdx: f.segIdx,

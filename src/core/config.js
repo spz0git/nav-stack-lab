@@ -31,8 +31,10 @@ function kidnapTo(p) {
   UI.draw();
   UI.refresh();
 }
+// i: a built-in level's index, a level (the runtime object, the JSON format) or a generator spec (levelOf, levels.js)
 function loadLevel(i) {
-  LV = LEVELS[i];
+  LV = levelOf(i);
+  setWorld(...levelSize(LV));
   // every setting goes back to the level's, except the seed and the trained models picked in Perceive and Plan, so that
   // a model trained in the page can be tried on every level (Agent tracking / Planner still follow the level)
   Object.assign(P, DEFAULTS, {seed: P.seed, detModel: P.detModel, polModel: P.polModel, predModel: P.predModel}, LV.cfg);
@@ -92,8 +94,8 @@ function switchLevel(i) {
 // The map as edited: the level's obstacles (all of them, none but the outer walls with map = 'empty', less the ones
 // erased in mapDel) plus the painted cells of mapAdd, a 0.4 m grid merged into one rectangle per run along a row. The
 // level keeps its designed list in shapes0; the occupancy and distance grids are rebuilt only when the edit changed.
-const PAINT = 0.4,
-  PGW = Math.round(W / PAINT),
+const PAINT = 0.4;
+let PGW = Math.round(W / PAINT),
   PGH = Math.round(H / PAINT);
 const idList = s =>
   String(s || '')
@@ -112,7 +114,7 @@ function applyMap() {
   const key = `${P.map}|${P.mapAdd}|${P.mapDel}`;
   if (L.mapKey === key) return false;
   const del = new Set(idList(P.mapDel)),
-    out = L.shapes0.filter((s, i) => BORDER.includes(s) || (P.map !== 'empty' && !del.has(i)));
+    out = L.shapes0.filter((s, i) => s.border || (P.map !== 'empty' && !del.has(i)));
   const cells = [...new Set(idList(P.mapAdd))].filter(c => c < PGW * PGH).sort((a, b) => a - b);
   for (let k = 0; k < cells.length;) {
     const j = Math.floor(cells[k] / PGW),
@@ -165,6 +167,22 @@ const PARAM_EFFECTS = [
       S.agents = agInit();
       logE(`Agent tracking → ${{off: 'off', truth: 'ground truth', lidar: 'lidar', learned: 'learned detector'}[v]}`);
     }
+  ],
+  [
+    ['trkIn'],
+    (k, v) => {
+      S.agents = agInit();
+      logE(`Tracker inputs → ${{lidar: 'lidar', radar: 'radar', both: 'lidar and radar'}[v]}`);
+    }
+  ],
+  [
+    ['radar', 'weather'],
+    (k, v) =>
+      logE(
+        k === 'radar'
+          ? `Radar → ${v ? 'on' : 'off'}`
+          : `Weather → ${v}${v === 'clear' ? '' : ': the lidar reaches less far, drops beams and sees the air'}`
+      )
   ],
   [
     ['detModel', 'polModel', 'predModel'],

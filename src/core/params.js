@@ -98,7 +98,7 @@ const DEFAULTS = {
   clutter: 0,
   bOff: '',
   map: 'level', // the obstacles: the level's ('level') or none but the outer walls ('empty'); beacons and people stay
-  mapAdd: '', // obstacles painted on the map: cells of the 0.4 m paint grid (j·60 + i), comma-separated
+  mapAdd: '', // obstacles painted on the map: cells of the 0.4 m paint grid (j·PGW + i; PGW = 60 on a 24 m floor), comma-separated
   mapDel: '', // the level's obstacles erased on the map: their indices in the level's shape list, comma-separated
   misLoop: false, // after the last goal the mission starts again from the first, until stopped
   bOut: 0,
@@ -120,7 +120,28 @@ const DEFAULTS = {
   people: 'scripted',
   sensLat: 0,
   vehicles: true,
-  guard: false
+  guard: false,
+  // the ultrasonic ring (core/sensors.js), off by default; what reads it: mapSrc, guardSrc, pfSonar
+  sonar: false,
+  sonN: 8, // sonars round the hull (4–16)
+  sonBeam: 30, // each cone's beam width [°]
+  sonMax: 4, // reach [m]
+  sonMin: 0.2, // dead zone: echoes closer than this are lost in the ring-down [m]
+  sonSig: 0.01, // range noise σ [m]
+  sonSpec: 30, // incidence beyond which a surface sends the echo away (specular) [°]
+  sonXt: 2, // crosstalk: share of readings that are a neighbour's echo [%]
+  sonPing: 0.05, // time per ping; the ring fires in turn, one cycle is sonN pings [s]
+  mapSrc: 'lidar', // what builds the occupancy map with the sonar on: lidar, sonar or both
+  guardSrc: 'lidar', // what the safety stop reads with the sonar on: lidar, sonar or both
+  pfSonar: false, // the particle filter also weights particles by the sonars against the prior map
+  weather: 'clear', // fog and rain shorten the lidar's reach, drop beams, add range noise and returns from the air (core/radar.js)
+  radar: false, // the forward radar: detections with range, azimuth and radial velocity (core/radar.js)
+  radFov: 120, // its field of view [°]
+  radRange: 20, // its reach [m]
+  radRes: 8, // its angular resolution [°]: two echoes closer than this (and in range and Doppler) become one
+  radClutter: 0.5, // false detections per scan, on average
+  radGhost: 5, // the chance per scan that a person's echo also comes back by a bounce off a wall [%]
+  trkIn: 'lidar' // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
 };
 const P = {...DEFAULTS};
 // The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
@@ -143,7 +164,11 @@ const PARAM_OPTS = {
   model: ['diff', 'car'],
   carPhys: ['kin', 'dyn'],
   people: ['scripted', 'reactive'],
-  map: ['level', 'empty']
+  map: ['level', 'empty'],
+  mapSrc: ['lidar', 'sonar', 'both'],
+  guardSrc: ['lidar', 'sonar', 'both'],
+  trkIn: ['lidar', 'radar', 'both'],
+  weather: ['clear', 'rain', 'fog']
 };
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
@@ -178,5 +203,25 @@ const LAYERS = {
   sweep: true,
   frontier: true,
   graph: true,
-  vo: true
+  vo: true,
+  sonar: true,
+  radar: true
 };
+
+// ---- Sensors switchboard and GNSS (appended: one switch per modality, see SENSORS in core/sensors.js) ----
+const SENSOR_DEFAULTS = {
+  odom: true, // wheel odometry; off: the filters predict with the commanded velocity
+  lidar: true, // the 360° lidar; off: no mapping, scan matching, people detection, safety stop or lidar layers
+  gnss: false, // GNSS position fixes (outdoors on L6 and L7; anywhere else as if the world had a sky)
+  gnssHz: 2, // fixes per second
+  gnssSig: 0.3, // white noise σ per fix [m]
+  gnssBias: 1.0, // σ of the slowly wandering bias, a first-order Gauss–Markov process [m]
+  gnssTau: 60, // its time constant [s]
+  gnssMp: true, // multipath within 1.5 m of a wall or a parked car: a bias jump and extra noise
+  gnssOut: 0, // share of time the receiver has no fix [%]
+  gnssOutLen: 6, // mean length of one outage [s]
+  gnssAug: false // the EKF estimates the GNSS bias as two more states (random walk)
+};
+Object.assign(DEFAULTS, SENSOR_DEFAULTS);
+for (const [k, v] of Object.entries(SENSOR_DEFAULTS)) if (!(k in P)) P[k] = v;
+LAYERS.gnss = true;

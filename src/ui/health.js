@@ -35,6 +35,7 @@ function healthNow(f) {
       N = S.pf ? S.pf.N : P.npart,
       usesB = ['ekf', 'pf', 'slam'].includes(P.loc),
       silent = usesB && !f ? S.t - HEALTH.lastZ : 0;
+    healthSensorChecks(C, 'loc');
     if (P.loc === 'truth') C('loc', 'Estimator', true, 'idle', 'ground truth: the pose is known');
     else {
       C('loc', 'Lost', st === 'LOST' || (sp != null && sp > 1), 'bad', `lost: position σ ${sp != null ? sp.toFixed(1) : '?'} m`);
@@ -53,7 +54,7 @@ function healthNow(f) {
           'warn',
           `particles degenerate: N_eff ${neff != null ? neff.toFixed(0) : '—'} of ${N} (2 s mean)`
         );
-      if (usesB)
+      if (usesB && sensorOn(sensorByKey('beacons')))
         C(
           'loc',
           'Beacon readings',
@@ -74,6 +75,16 @@ function healthNow(f) {
       );
     }
   }
+  // the sensors switched off, listed last so that it never stands in for the estimator's own line
+  C(
+    'loc',
+    'Sensors',
+    sensorsOff().length > 0,
+    'idle',
+    `off: ${sensorsOff()
+      .map(s => s.label)
+      .join(', ')}`
+  );
   // perception
   {
     const hits = f ? (f.scan ? f.scan.length / 2 : 0) : S.scanPts.length,
@@ -83,7 +94,8 @@ function healthNow(f) {
     let gap = Infinity;
     for (const p of V.peds) gap = Math.min(gap, hyp(r.x - p.x, r.y - p.y) - (p.r || 0.3) - RR);
     C('per', 'Person contact', r.pedContact, 'bad', 'contact with a person');
-    C('per', 'Lidar returns', V.t > 0.5 && hits === 0, 'warn', 'no lidar returns');
+    healthSensorChecks(C, 'per');
+    if (P.lidar) C('per', 'Lidar returns', V.t > 0.5 && hits === 0, 'warn', 'no lidar returns');
     if (agOn())
       C(
         'per',
@@ -93,7 +105,15 @@ function healthNow(f) {
         `${cf} confirmed tracks for ${people} ${people === 1 ? 'person' : 'people'}: phantom tracks`
       );
     if (people) C('per', 'Person nearby', gap < 0.3 && drive, 'warn', `a person ${Math.max(0, gap).toFixed(2)} m away`);
-    if (people && !agOn()) C('per', 'Tracking', true, 'idle', `${hits} lidar hits · people not tracked (agent tracking off)`);
+    if (!P.lidar)
+      C(
+        'per',
+        'Sensing',
+        true,
+        'idle',
+        `lidar off${agOn() ? ` · ${cf} track${cf === 1 ? '' : 's'}` : ''}${P.per === 'mapping' ? ' · the map no longer grows' : ''}`
+      );
+    else if (people && !agOn()) C('per', 'Tracking', true, 'idle', `${hits} lidar hits · people not tracked (agent tracking off)`);
     else
       C(
         'per',
@@ -109,6 +129,7 @@ function healthNow(f) {
       skipped = f ? f.done.filter(d => d[1]).length : WPS.filter(w => w.skipped).length,
       n = f ? f.done.length : WPS.length;
     C('plan', 'Path', st === 'NO_PATH', 'bad', `no path to the next goal${F.fails ? ` (attempt ${F.fails} of 3)` : ''}`);
+    healthSensorChecks(C, 'plan');
     C('plan', 'Goals', st === 'IDLE' && !n, 'idle', 'no goals: tap the map to add some');
     C('plan', 'Goals skipped', skipped > 0, 'warn', `${skipped} goal${skipped === 1 ? '' : 's'} skipped`);
     C('plan', 'Plan time', ps && ps.ms > 250 && !f, 'warn', ps ? `last plan took ${ps.ms.toFixed(0)} ms (${ps.name})` : '');
@@ -139,6 +160,7 @@ function healthNow(f) {
     const dq = !isDyn() ? null : f ? sig.dyn : dynSig(r),
       ayF = dq && dq.mug > 0 ? Math.abs(dq.ay) / dq.mug : 0;
     C('ctl', 'Obstacle contact', r.contact, 'bad', 'contact with an obstacle');
+    healthSensorChecks(C, 'ctl');
     if (isDyn())
       C(
         'ctl',
@@ -252,6 +274,7 @@ function renderHealth() {
     el.querySelectorAll('[data-hs]').forEach(b => (b.onclick = () => healthOpen(HEALTH.open === b.dataset.hs ? null : b.dataset.hs, b)));
   }
   if (HEALTH.open) renderHealthPop(H);
+  renderSensorDots();
 }
 // The check list of one subsystem, as a popover under its light
 function healthOpen(k, btn) {
@@ -328,4 +351,110 @@ function renderHealthPop(H) {
         if (REC.frames.length > 1) seekTime(+li.dataset.t);
       })
   );
+}
+
+/* ---------- Sensors in the health checks: what each switched-off sensor takes away, per subsystem ---------- */
+function healthSensorChecks(C, k) {
+  const off = sensorsOff().map(s => s.key),
+    est = segName(P.loc),
+    noLid = off.includes('lidar'),
+    noB = off.includes('beacons'),
+    blind = sensorsBlind();
+  if (k === 'loc') {
+    if (P.loc === 'truth') return;
+    C('loc', 'Blind', blind, 'warn', `blind: ${sensorsExteroNames()} all off, so ${est} only integrates motion and drifts`);
+    C(
+      'loc',
+      'Odometry',
+      off.includes('odom'),
+      'warn',
+      `wheel odometry off: ${est} predicts with the commanded velocity${P.gyro ? ' and the gyro' : ''}`
+    );
+    const usesB = ['ekf', 'pf', 'slam', 'custom'].includes(P.loc);
+    if (noB && usesB && !blind) {
+      const u = beaconUse();
+      C('loc', 'Beacons', true, u ? 'ok' : 'warn', u ? `beacons off; ${u}` : `beacons off: ${est} coasts on odometry`);
+    }
+    const lidLoc = P.loc === 'pgslam' || (P.loc === 'ekf' && P.scanMatch) || (P.loc === 'pf' && P.pfLidar && P.per === 'oracle');
+    if (noLid && lidLoc && !blind)
+      C(
+        'loc',
+        'Lidar',
+        true,
+        P.loc === 'pgslam' ? 'warn' : 'idle',
+        P.loc === 'pgslam'
+          ? 'lidar off: pose-graph SLAM adds no matches or loop closures; it dead-reckons'
+          : P.loc === 'ekf'
+            ? 'lidar off: no scan matching'
+            : 'lidar off: the particles are weighted by the beacons alone'
+      );
+    if (P.gnss && !['ekf', 'pf', 'custom'].includes(P.loc))
+      C('loc', 'GNSS', true, 'idle', `GNSS on, but ${est} does not fuse it (the EKF, the particle filter and your code do)`);
+  }
+  if (k === 'per') {
+    C('per', 'Blind', blind, 'bad', `blind: ${sensorsExteroNames()} all off; only the motion sensors are left`);
+    if (noLid)
+      C(
+        'per',
+        'Lidar',
+        true,
+        'warn',
+        `lidar off: no ${[P.per === 'mapping' ? 'mapping' : '', agOn() && P.agents !== 'truth' ? 'people detection' : '', 'obstacles from the scan'].filter(Boolean).join(', no ')}`
+      );
+  }
+  if (k === 'plan' && noLid) {
+    if (P.per === 'mapping')
+      C(
+        'plan',
+        'Lidar',
+        true,
+        'warn',
+        `lidar off: planning on the map seen so far, which no longer grows${P.unknownAs === 'lethal' ? ' (unseen space is lethal: goals beyond it have no path)' : ' (unseen space is taken as free)'}`
+      );
+    if (P.plan === 'policy') C('plan', 'Lidar', true, 'bad', 'lidar off: the learned policy has no input');
+  }
+  if (k === 'ctl' && noLid) {
+    if (P.guard && GUARD_CTL.includes(P.ctl)) C('ctl', 'Lidar', true, 'warn', 'lidar off: no lidar safety stop');
+    else if (P.ctl === 'dwa' || (P.ctl === 'mpc' && P.mpcObs))
+      C('ctl', 'Lidar', true, 'warn', `lidar off: ${P.ctl === 'dwa' ? 'DWA' : 'MPC'} sees no obstacles nearby`);
+  }
+}
+// The sensor dots: one per modality beside the subsystem lights, so what the robot senses with is visible at a glance.
+// A click opens the Localize tab at its Sensors switches.
+function renderSensorDots() {
+  const h = $('#health');
+  if (!h) return;
+  let el = $('#sensdots');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'sensdots';
+    el.className = 'sensdots';
+    h.parentNode.insertBefore(el, h.nextSibling);
+    el.onclick = () => {
+      if (uiMode === 'learn') setUIMode(AN.mode);
+      if (WS.inspOff) wsInspector(true);
+      activeTab = 'loc';
+      consoleOpen = true;
+      buildTabs();
+      renderAllPanes();
+      const s = $('#sens-head');
+      if (s) s.scrollIntoView({block: 'start'});
+    };
+  }
+  const blind = sensorsBlind(),
+    html =
+      SENSORS.map(s => {
+        const on = sensorOn(s);
+        return `<span class="sd ${on ? 'on' : 'off'}" data-k="${s.key}" title="${esc(s.label)}: ${on ? 'on' : 'off'}. ${esc(s.gives)}"><i aria-hidden="true"></i>${esc(s.short)}</span>`;
+      }).join('') +
+      (blind ? '<span class="sd blind" title="Every sensor of the world is off: the estimate can only drift">blind</span>' : '');
+  if (el.dataset.h !== html) {
+    el.dataset.h = html;
+    el.innerHTML = html;
+    el.setAttribute('role', 'button');
+    el.setAttribute(
+      'aria-label',
+      `Sensors: ${SENSORS.map(s => `${s.label} ${sensorOn(s) ? 'on' : 'off'}`).join(', ')}${blind ? '; blind' : ''}`
+    );
+  }
 }

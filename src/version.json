@@ -1,1 +1,1 @@
-{"version": 56, "date": "2026-10-20", "note": "Learned policy: four candidate paths, the clear one held between refreshes, on top of the safety layer (PR #112)"}
+{"version": 58, "date": "2026-10-20", "note": "Three new sensors, each taught by its failures: a radar with Doppler, an ultrasonic ring and GNSS with a wandering bias; a Sensors switchboard turns any modality off and the stack says what it lost (PRs #115, #116, #117)"}

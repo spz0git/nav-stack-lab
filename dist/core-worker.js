@@ -4,12 +4,18 @@
 /* ============================================================
    Constants & helpers
    ============================================================ */
-const W = 24,
+// The world's size is the level's (setWorld, called by loadLevel): W × H metres on a grid of RES cells, GW × GH of
+// them, NC in all. The built-in levels are 24 × 16 m; a custom or generated one may be up to WORLD_MAX (its area at
+// most WORLD_AREA, so that the grids a phone rebuilds stay small enough).
+let W = 24,
   H = 16,
-  RES = 0.1,
   GW = 240,
   GH = 160,
-  NC = GW * GH,
+  NC = GW * GH;
+const WORLD_MIN = [8, 6],
+  WORLD_MAX = [48, 32],
+  WORLD_AREA = 48 * 32;
+const RES = 0.1,
   DT = 0.05,
   RR = 0.3,
   LETHAL = 0.4,
@@ -75,6 +81,19 @@ function makeRng(seed) {
       return r * Math.cos(TAU * b);
     }
   };
+}
+// Sets the world's size (metres, a multiple of 0.4 m, the paint grid's cell); the grids that depend on it follow
+function setWorld(w, h) {
+  if (w === W && h === H) return false;
+  W = w;
+  H = h;
+  GW = Math.round(W / RES);
+  GH = Math.round(H / RES);
+  NC = GW * GH;
+  PGW = Math.round(W / PAINT);
+  PGH = Math.round(H / PAINT);
+  hySize();
+  return true;
 }
 const cellI = x => Math.floor(x / RES),
   cellIdx = (x, y) => {
@@ -213,7 +232,10 @@ class Heap {
    ============================================================ */
 const Rc = (x, y, w, h) => ({t: 'r', x, y, w, h}),
   Ci = (x, y, r) => ({t: 'c', x, y, r});
-const BORDER = [Rc(0, 0, 24, 0.2), Rc(0, 15.8, 24, 0.2), Rc(0, 0, 0.2, 16), Rc(23.8, 0, 0.2, 16)];
+// The outer walls of a w × h floor, 0.2 m thick; marked, so that an empty floor (Mission → Map) keeps them
+const border = (w, h) =>
+  [Rc(0, 0, w, 0.2), Rc(0, h - 0.2, w, 0.2), Rc(0, 0, 0.2, h), Rc(w - 0.2, 0, 0.2, h)].map(s => ({...s, border: true}));
+const BORDER = border(24, 16);
 function warehouse() {
   const s = [...BORDER];
   for (const y of [3.2, 6.4, 9.6, 12.8]) {
@@ -271,6 +293,7 @@ const LEVELS = [
   {
     id: 'L1',
     name: 'Open floor',
+    size: [24, 16],
     adds: 'Perfect pose and a known map, a few pillars, straight-line paths. Everything is ideal except the controller, so this is where you tune tracking.',
     tries: [
       {
@@ -330,6 +353,7 @@ const LEVELS = [
   {
     id: 'L2',
     name: 'Warehouse aisles',
+    size: [24, 16],
     adds: 'Shelving rows block straight lines. Pose and map are still perfect, so the global planner is the only thing that changes outcomes.',
     tries: [
       {
@@ -387,6 +411,7 @@ const LEVELS = [
   {
     id: 'L3',
     name: 'Noisy odometry',
+    size: [24, 16],
     adds: 'Wheel odometry is noisy and slightly miscalibrated. The filter is not told about the calibration bias. Wall beacons give range and bearing.',
     tries: [
       {
@@ -459,6 +484,7 @@ const LEVELS = [
   {
     id: 'L4',
     name: 'Unknown building',
+    size: [24, 16],
     adds: 'No prior map. Lidar builds an occupancy grid in the estimated frame, and the planner treats unknown space as free and replans as walls appear.',
     tries: [
       {t: '<b>Mission:</b> follow the replans in the event log as rooms are discovered.', b: [['Run', {tab: 'mis'}]]},
@@ -539,6 +565,7 @@ const LEVELS = [
   {
     id: 'L5',
     name: 'Busy floor',
+    size: [24, 16],
     adds: 'Prior map, but people walk the aisles. A lidar tracker estimates where they are and how fast they move, and a speed planner predicts where they will be. Acceleration limits and actuator lag are on, and beacons are unlabeled with false detections.',
     tries: [
       {
@@ -631,6 +658,7 @@ const LEVELS = [
   {
     id: 'L6',
     name: 'Parking lot',
+    size: [24, 16],
     adds: 'The robot becomes a car: kinematic bicycle model, 32° steering limit, a turning radius near 1 m, and a body that cannot turn in place. Goals now carry a heading: reverse into a bay, nose into another, then parallel park. People cross the lanes on their way to and from cars, pausing before they turn back.',
     tries: [
       {
@@ -773,6 +801,7 @@ const LEVELS = [
   {
     id: 'L7',
     name: 'Moose test',
+    size: [24, 16],
     adds: "Speed. The car with tyre slip, on the slippery floor, enters a two-lane road at 3.5 m/s, above its characteristic speed of 2.6 m/s. A box blocks the right lane, a second one the left lane 7 m on: swerve left, then back (a slalom like the moose test). The map is known and the plan is fixed; what decides the run is whether the controller's model knows the tyres. The MPC starts with the kinematic model.",
     tries: [
       {
@@ -850,6 +879,664 @@ const LEVELS = [
     layers: {cost: false}
   }
 ];
+
+/* ---- core/levels.js ---- */
+/* ============================================================
+   Levels as data. A level is a plain JSON object: the page imports and exports it, keeps it in the browser, carries
+   it in a link, and the world generator (worldgen.js) writes it. The built-in levels (worlds.js) convert to it and
+   back without a change in behaviour, and loadLevel runs every level, built-in or not, through the same code.
+     {format: 'nav-stack-lab-level', version: 1,
+      name, about (a sentence or two, optional),
+      size: [w, h] in metres (rounded to the 0.4 m paint grid; from WORLD_MIN to WORLD_MAX, area at most WORLD_AREA),
+      walls: true (the 0.2 m outer walls are added and `shapes` lists the rest; false: shapes is the whole map),
+      shapes: [{rect: [x, y, w, h]} | {circle: [x, y, r]}, …],
+      beacons: [[x, y], …],
+      start: [x, y, θ],
+      goals: [[x, y] or [x, y, θ], …],
+      people: [{from: [x, y], to: [x, y], speed, phase (0–1: where on the route it starts), mode: 'shuttle' (turns back
+               at once) | 'pause' (waits `wait` s at each end)}, …],
+      cars: [{loop: [[x, y], …], speed, phase}, …] (optional: the parking lot's moving car),
+      settings: {key: value} (the level's own setup: keys of DEFAULTS in core/params.js),
+      layers: {cost: true} (optional: map layers the level shows),
+      gen: the generator spec it was made from (optional; informational)}
+   The runtime level (what LV holds) keeps the old field names: shapes as {t, x, y, …}, peds, wps, cfg.
+   ============================================================ */
+const LEVEL_FORMAT = 'nav-stack-lab-level';
+const LEVEL_LIMITS = {shapes: 4000, beacons: 120, goals: 40, people: 32, cars: 4, loop: 32, name: 60, about: 600};
+const levelSize = L => L.size || [24, 16];
+// the settings a level may set: every parameter but the ones that belong to a run or to the browser
+const LEVEL_NOSET = ['seed', 'map', 'mapAdd', 'mapDel', 'bOff', 'detModel', 'polModel', 'predModel'];
+const r2 = v => Math.round(v * 100) / 100;
+const plainText = (s, n) =>
+  String(s == null ? '' : s)
+    .replace(/[<>&"'`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, n);
+// The runtime level → the format. edits: the map as it is on screen (painted cells and erased obstacles applied, the
+// goals placed, the beacons switched off left out) instead of the level as designed.
+function levelToJSON(L, edits) {
+  const [w, h] = levelSize(L),
+    src = edits ? L.shapes : L.shapes0 || L.shapes,
+    off = new Set(edits ? idList(P.bOff) : []),
+    walls = src.filter(s => s.border).length === 4;
+  // the numbers as they are (a level converted and back is the same level), but the painted cells and the goals
+  // placed by hand, whose float noise (1.2000000000000002) would only lengthen the file, to the centimetre
+  const shape = s => {
+    const f = s.painted ? r2 : v => v;
+    return s.t === 'c' ? {circle: [s.x, s.y, s.r].map(f)} : {rect: [s.x, s.y, s.w, s.h].map(f)};
+  };
+  const placed = edits && WPS.length && !WPS.some(g => g.explore),
+    goals = placed ? WPS.map(g => (g.th == null ? [r2(g.x), r2(g.y)] : [r2(g.x), r2(g.y), +g.th.toFixed(4)])) : L.wps.map(g => [...g]);
+  const settings = {};
+  for (const [k, v] of Object.entries(L.cfg || {})) if (!LEVEL_NOSET.includes(k)) settings[k] = v;
+  const out = {
+    format: LEVEL_FORMAT,
+    version: 1,
+    name: L.name,
+    about: plainText(L.adds, LEVEL_LIMITS.about),
+    size: [w, h],
+    walls,
+    shapes: src.filter(s => !(walls && s.border)).map(shape),
+    beacons: L.beacons.filter((b, i) => !off.has(i)).map(b => [b[0], b[1]]),
+    start: [...L.start],
+    goals,
+    people: L.peds.map(p => ({
+      from: [...p.a],
+      to: [...p.b],
+      speed: p.v,
+      phase: p.s0 || 0,
+      mode: p.dw ? 'pause' : 'shuttle',
+      ...(p.dw ? {wait: p.dw} : {})
+    })),
+    settings
+  };
+  if (L.cars && L.cars.length) out.cars = L.cars.map(c => ({loop: c.loop.map(q => [...q]), speed: c.v, phase: c.s0 || 0}));
+  if (L.layers && L.layers.cost) out.layers = {cost: true};
+  if (L.gen && !edits) out.gen = L.gen;
+  return out;
+}
+// The format → a runtime level, checked: throws an Error that says what is wrong. id: what the header shows.
+function levelFromJSON(j, id) {
+  const bad = m => {
+    throw new Error(m);
+  };
+  if (!j || typeof j !== 'object') bad('a level is a JSON object');
+  if (j.format !== LEVEL_FORMAT) bad(`not a level (format should be "${LEVEL_FORMAT}")`);
+  if (j.version !== 1) bad('level format version ' + j.version + ' is not known to this page');
+  const num = (v, what) => (typeof v === 'number' && isFinite(v) ? v : bad(what + ' is not a number')),
+    arr = (v, what, n) => (Array.isArray(v) && (n == null || v.length >= n) ? v : bad(what + ' is not a list' + (n ? ` of ${n}` : ''))),
+    list = (v, what, max) => {
+      if (v == null) return [];
+      arr(v, what);
+      if (v.length > max) bad(`${what}: at most ${max}`);
+      return v;
+    };
+  const sz = arr(j.size, 'size', 2),
+    w = Math.round(num(sz[0], 'size[0]') * 2.5) / 2.5,
+    h = Math.round(num(sz[1], 'size[1]') * 2.5) / 2.5;
+  if (w < WORLD_MIN[0] || h < WORLD_MIN[1] || w > WORLD_MAX[0] || h > WORLD_MAX[1])
+    bad(`size ${w} × ${h} m: from ${WORLD_MIN.join(' × ')} to ${WORLD_MAX.join(' × ')} m`);
+  if (w * h > WORLD_AREA + 1e-9) bad(`size ${w} × ${h} m: the area is at most ${WORLD_AREA} m²`);
+  const inside = (p, what) => {
+    const x = num(p[0], what + ' x'),
+      y = num(p[1], what + ' y');
+    if (x < 0 || y < 0 || x > w || y > h) bad(`${what} (${x}, ${y}) is outside the ${w} × ${h} m floor`);
+    return [x, y];
+  };
+  const shapes = j.walls === false ? [] : border(w, h);
+  for (const s of list(j.shapes, 'shapes', LEVEL_LIMITS.shapes)) {
+    if (s && s.rect) {
+      const [x, y, sw, sh] = arr(s.rect, 'rect', 4).map((v, k) => num(v, 'rect[' + k + ']'));
+      if (!(sw > 0 && sh > 0)) bad('a rect needs a positive width and height');
+      shapes.push(Rc(x, y, sw, sh));
+    } else if (s && s.circle) {
+      const [x, y, r] = arr(s.circle, 'circle', 3).map((v, k) => num(v, 'circle[' + k + ']'));
+      if (!(r > 0)) bad('a circle needs a positive radius');
+      shapes.push(Ci(x, y, r));
+    } else bad('a shape is {rect: [x, y, w, h]} or {circle: [x, y, r]}');
+  }
+  const st = arr(j.start, 'start', 2);
+  const start = [...inside(st, 'start'), st.length > 2 ? num(st[2], 'start θ') : 0];
+  const goals = list(j.goals, 'goals', LEVEL_LIMITS.goals).map((g, k) => {
+    arr(g, 'goal ' + (k + 1), 2);
+    const p = inside(g, 'goal ' + (k + 1));
+    return g.length > 2 && g[2] != null ? [...p, num(g[2], 'goal θ')] : p;
+  });
+  const peds = list(j.people, 'people', LEVEL_LIMITS.people).map((p, k) => {
+    const what = 'person ' + (k + 1);
+    if (!p || typeof p !== 'object') bad(what + ' is not an object');
+    const a = inside(arr(p.from, what + ' from', 2), what + ' from'),
+      b = inside(arr(p.to, what + ' to', 2), what + ' to');
+    if (hyp(b[0] - a[0], b[1] - a[1]) < 0.5) bad(what + ': the route is shorter than 0.5 m');
+    const out = {
+      a,
+      b,
+      v: clamp(num(p.speed == null ? 0.7 : p.speed, what + ' speed'), 0.1, 2),
+      s0: clamp(num(p.phase || 0, what + ' phase'), 0, 1)
+    };
+    if (p.mode === 'pause') out.dw = clamp(num(p.wait == null ? 2 : p.wait, what + ' wait'), 0.1, 30);
+    else if (p.mode != null && p.mode !== 'shuttle') bad(what + ': mode is "shuttle" or "pause"');
+    return out;
+  });
+  const cars = list(j.cars, 'cars', LEVEL_LIMITS.cars).map((c, k) => ({
+    loop: list(c && c.loop, 'car ' + (k + 1) + ' loop', LEVEL_LIMITS.loop).map(q => inside(arr(q, 'loop point', 2), 'car ' + (k + 1))),
+    v: clamp(num(c.speed == null ? 0.6 : c.speed, 'car speed'), 0.1, 2),
+    s0: clamp(num(c.phase || 0, 'car phase'), 0, 1)
+  }));
+  if (cars.some(c => c.loop.length < 2)) bad('a car loop needs two points or more');
+  const cfg = {};
+  for (const [k, v] of Object.entries(j.settings || {})) {
+    if (!(k in DEFAULTS) || LEVEL_NOSET.includes(k)) continue; // a key this page does not know is left out, not an error
+    if (typeof v !== typeof DEFAULTS[k]) bad(`setting ${k}: a ${typeof DEFAULTS[k]}`);
+    cfg[k] = v;
+  }
+  const L = {
+    id: id || 'C',
+    name: plainText(j.name, LEVEL_LIMITS.name) || 'Custom level',
+    adds: plainText(j.about, LEVEL_LIMITS.about) || 'A level loaded from a file or a link.',
+    tries: [],
+    custom: true,
+    size: [w, h],
+    shapes,
+    beacons: list(j.beacons, 'beacons', LEVEL_LIMITS.beacons).map((b, k) => inside(arr(b, 'beacon', 2), 'beacon ' + (k + 1))),
+    peds,
+    start,
+    wps: goals,
+    cfg,
+    layers: {cost: !!(j.layers && j.layers.cost)}
+  };
+  if (cars.length) L.cars = cars;
+  if (j.gen && typeof j.gen === 'object') L.gen = {...j.gen};
+  return L;
+}
+// What loadLevel accepts, as a runtime level: an index into LEVELS, a runtime level, a level in the format, or a
+// generator spec ({gen: 'rooms', seed: 3, …}, worldgen.js). The last two are made once per distinct object and kept,
+// so that a worker running many seeds on one level, or a tryGo on the current one, does not build it again.
+const LEVEL_CACHE = new Map();
+function levelOf(x) {
+  if (typeof x === 'number') {
+    if (!LEVELS[x]) throw new Error('no level ' + x);
+    return LEVELS[x];
+  }
+  if (!x || typeof x !== 'object') throw new Error('not a level');
+  if (x.shapes && x.wps && x.cfg) return x; // a runtime level
+  const key = JSON.stringify(x);
+  let L = LEVEL_CACHE.get(key);
+  if (!L) {
+    if (x.gen && x.format !== LEVEL_FORMAT) {
+      L = levelFromJSON(genLevel(x), 'G');
+      L.genSpec = {...x};
+    } else L = levelFromJSON(x, x.gen ? 'G' : 'C');
+    if (LEVEL_CACHE.size >= 8) LEVEL_CACHE.delete(LEVEL_CACHE.keys().next().value);
+    LEVEL_CACHE.set(key, L);
+  }
+  return L;
+}
+// How a level travels to a worker or into a link: a built-in by its index, a generated one by its spec (unedited: a
+// spec is a few bytes), any other by its JSON
+const levelRef = L => (LEVELS.includes(L) ? LEVELS.indexOf(L) : L.genSpec || levelToJSON(L));
+
+/* ---- core/worldgen.js ---- */
+/* ============================================================
+   World generator: a seeded level in the level format (levels.js), of one of three families. The same spec gives the
+   same level on every machine (mulberry32, never Math.random). Core only, no DOM; it works on grids of its own and
+   leaves the world's (W, H, GW, GH) alone, so it can run while another level is on screen.
+     spec: {gen: family, seed, w, h, goals, people, beacons (0: about one per 32 m²), like: the built-in level whose
+           settings the level takes ('L1' … 'L5'; by default L5 with people, L2 without), and the family's own
+           parameters (GEN_FAMILIES)}
+   Every family places, on the free floor the robot can reach from its start (a grid search on the costmap's lethal
+   cells, LETHAL from the obstacles, which is where the grid planners can go): the start in the lower left corner, the
+   goals spread over that floor, the beacons on walls next to it, and the people's routes along straight runs of free
+   floor 0.6 m clear on both sides.
+   ============================================================ */
+// [default, min, max, step, label]
+const GEN_COMMON = {
+  w: [24, WORLD_MIN[0], WORLD_MAX[0], 0.4, 'width (m)'],
+  h: [16, WORLD_MIN[1], WORLD_MAX[1], 0.4, 'depth (m)'],
+  goals: [5, 1, 12, 1, 'goals'],
+  people: [0, 0, 12, 1, 'people'],
+  beacons: [0, 0, 60, 1, 'beacons (0: one per 32 m²)']
+};
+const GEN_FAMILIES = {
+  rooms: {
+    name: 'Rooms and corridors',
+    about: 'rooms split off one another by walls with doors, some of them along corridors, with furniture against the walls',
+    params: {
+      room: [4, 3, 10, 0.5, 'smallest room side (m)'],
+      door: [1.2, 1, 2, 0.1, 'door width (m)'],
+      corridor: [0.4, 0, 1, 0.1, 'how often a split leaves a corridor'],
+      clutter: [1, 0, 3, 1, 'furniture per room']
+    }
+  },
+  warehouse: {
+    name: 'Warehouse',
+    about: 'rows of racks with aisles between them, cross aisles and a few gaps through the racks',
+    params: {
+      aisle: [2, 1.2, 3.2, 0.1, 'aisle width (m)'],
+      depth: [0.8, 0.4, 1.6, 0.1, 'rack depth (m)'],
+      cross: [1, 0, 4, 1, 'cross aisles'],
+      gaps: [0.2, 0, 1, 0.05, 'chance of a gap in a rack']
+    }
+  },
+  hall: {
+    name: 'Open hall',
+    about: 'an open floor with pillars and boxes scattered over it',
+    params: {
+      density: [6, 0, 25, 1, 'obstacles per 100 m²'],
+      gap: [1.2, 0.9, 3, 0.1, 'least gap between obstacles (m)'],
+      round: [0.5, 0, 1, 0.1, 'share of round pillars']
+    }
+  }
+};
+const GEN_LIKE = ['L1', 'L2', 'L3', 'L4', 'L5'];
+const snap1 = v => Math.round(v * 10) / 10;
+// A spec with every field present and within its range (snapped to its step); throws on an unknown family
+function genSpec(sp) {
+  const F = GEN_FAMILIES[sp && sp.gen];
+  if (!F) throw new Error(`unknown generator "${sp && sp.gen}" (${Object.keys(GEN_FAMILIES).join(', ')})`);
+  const out = {gen: sp.gen, seed: clamp(Math.round(+sp.seed || 1), 1, 99999)};
+  for (const [k, [d, lo, hi, st]] of Object.entries({...GEN_COMMON, ...F.params})) {
+    const v = sp[k] == null || !isFinite(+sp[k]) ? d : clamp(+sp[k], lo, hi);
+    out[k] = +(lo + Math.round((v - lo) / st) * st).toFixed(2);
+  }
+  out.like = GEN_LIKE.includes(sp.like) ? sp.like : out.people > 0 ? 'L5' : 'L2';
+  return out;
+}
+// The gap between two shapes ({t: 'r' | 'c'}), 0 when they touch or overlap
+function shapeGap(a, b) {
+  if (a.t === 'c' && b.t === 'c') return Math.max(0, hyp(a.x - b.x, a.y - b.y) - a.r - b.r);
+  if (a.t === 'c' || b.t === 'c') {
+    const c = a.t === 'c' ? a : b,
+      r = a.t === 'c' ? b : a;
+    return Math.max(0, hyp(c.x - clamp(c.x, r.x, r.x + r.w), c.y - clamp(c.y, r.y, r.y + r.h)) - c.r);
+  }
+  const dx = Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w)),
+    dy = Math.max(0, a.y - (b.y + b.h), b.y - (a.y + a.h));
+  return hyp(dx, dy);
+}
+
+/* ---------- the families: interior obstacles of a w × h floor (the outer walls are added by the format) ---------- */
+// Rooms: binary space partition of the floor. Each split is a 0.2 m wall with one door, so every room is reachable;
+// a split may leave a corridor (two walls, a door in each, and a door from every room along it). A new wall never
+// meets a wall where that wall has a door.
+function genRooms(w, h, p, u) {
+  const dw = p.door,
+    minS = p.room,
+    cw = Math.max(1.6, dw + 0.4),
+    walls = [],
+    shapes = [],
+    rnd = (a, b) => a + u() * (b - a);
+  const door = (wall, lo, hi) => {
+    const a = lo + 0.5,
+      b = hi - 0.5 - dw;
+    if (!wall || b < a) return null;
+    const d0 = snap1(rnd(a, b)),
+      g = [d0, d0 + dw];
+    wall.gaps.push(g);
+    return g;
+  };
+  const near = (ints, s) => ints.some(g => s > g[0] - 0.5 && s < g[1] + 0.5),
+    within = (ints, lo, hi) => ints.filter(g => g[1] > lo && g[0] < hi);
+  const leaf = R => {
+    if (R.corr) return;
+    // a door into every corridor the room lies along
+    const span = {L: [R.y0, R.y1], R: [R.y0, R.y1], B: [R.x0, R.x1], T: [R.x0, R.x1]};
+    for (const k of ['L', 'R', 'B', 'T'])
+      if (R.cside[k] && !within(R.doors[k], ...span[k]).length) {
+        const g = door(R.walls[k], ...span[k]);
+        if (g) R.doors[k] = R.doors[k].concat([g]);
+      }
+    // furniture against the walls, clear of the doors and of one another, leaving 1.6 m of the room free
+    const doorPts = [];
+    for (const k of ['L', 'R', 'B', 'T'])
+      for (const g of within(R.doors[k], ...span[k])) {
+        const m = (g[0] + g[1]) / 2;
+        doorPts.push(k === 'L' ? [R.x0, m] : k === 'R' ? [R.x1, m] : k === 'B' ? [m, R.y0] : [m, R.y1]);
+      }
+    const mine = [];
+    for (let n = 0, t = 0; n < p.clutter && t < 30; t++) {
+      const side = ['L', 'R', 'B', 'T'][Math.floor(u() * 4)],
+        horiz = side === 'B' || side === 'T',
+        along = snap1(rnd(0.6, 1.6)),
+        deep = snap1(rnd(0.4, 1.0)),
+        roomAlong = horiz ? R.x1 - R.x0 : R.y1 - R.y0,
+        roomDeep = horiz ? R.y1 - R.y0 : R.x1 - R.x0;
+      if (roomDeep - 0.2 - deep < 1.6 || roomAlong - 0.8 < along) continue;
+      const a = snap1(rnd((horiz ? R.x0 : R.y0) + 0.4, (horiz ? R.x1 : R.y1) - 0.4 - along)),
+        s =
+          side === 'B'
+            ? Rc(a, R.y0 + 0.1, along, deep)
+            : side === 'T'
+              ? Rc(a, R.y1 - 0.1 - deep, along, deep)
+              : side === 'L'
+                ? Rc(R.x0 + 0.1, a, deep, along)
+                : Rc(R.x1 - 0.1 - deep, a, deep, along);
+      if (doorPts.some(q => shapeGap(s, Ci(q[0], q[1], 0.01)) < dw + 0.4)) continue;
+      if (mine.some(o => shapeGap(s, o) < 1.0)) continue;
+      mine.push(s);
+      n++;
+    }
+    shapes.push(...mine);
+  };
+  const split = (R, depth) => {
+    const rw = R.x1 - R.x0,
+      rh = R.y1 - R.y0,
+      canV = rw >= 2 * minS,
+      canH = rh >= 2 * minS;
+    // a room of up to twice the smallest side's area is sometimes kept whole
+    if ((!canV && !canH) || depth > 14 || (rw * rh < 3 * minS * minS && u() < 0.3)) return leaf(R);
+    const vert = canV && (!canH || rw > rh * 1.2 || (rh <= rw * 1.2 && u() < 0.5)),
+      len = vert ? rw : rh,
+      lo = vert ? R.x0 : R.y0,
+      corr = !R.corr && u() < p.corridor && len >= 2 * minS + cw,
+      room = len - 2 * minS - (corr ? cw : 0),
+      ends = vert ? [...R.doors.B, ...R.doors.T] : [...R.doors.L, ...R.doors.R];
+    for (let t = 0; t < 12; t++) {
+      const s = snap1(lo + minS + u() * room),
+        s2 = corr ? snap1(s + cw) : s;
+      if (near(ends, s) || (corr && near(ends, s2))) continue;
+      const mk = c => {
+        const wl = {v: vert, c, a: vert ? R.y0 : R.x0, b: vert ? R.y1 : R.x1, gaps: []};
+        walls.push(wl);
+        return wl;
+      };
+      const w1 = mk(s),
+        g1 = door(w1, w1.a, w1.b),
+        w2 = corr ? mk(s2) : w1,
+        g2 = corr ? door(w2, w2.a, w2.b) : g1,
+        sub = (a, b, lw, lg, hw, hg, corrL, corrH, isCorr) => {
+          // the part between a and b along the split; lw/hw: the walls at its low and high end, lg/hg their doors
+          const box = vert ? {x0: a, x1: b, y0: R.y0, y1: R.y1} : {x0: R.x0, x1: R.x1, y0: a, y1: b},
+            lk = vert ? 'L' : 'B',
+            hk = vert ? 'R' : 'T',
+            ok = vert ? ['B', 'T'] : ['L', 'R'];
+          const N = {...box, corr: isCorr, doors: {}, walls: {}, cside: {}};
+          for (const k of ok) {
+            N.doors[k] = within(R.doors[k], a, b);
+            N.walls[k] = R.walls[k];
+            N.cside[k] = R.cside[k];
+          }
+          N.doors[lk] = lw === R.walls[lk] ? R.doors[lk] : lg ? [lg] : [];
+          N.walls[lk] = lw;
+          N.cside[lk] = lw === R.walls[lk] ? R.cside[lk] : corrL;
+          N.doors[hk] = hw === R.walls[hk] ? R.doors[hk] : hg ? [hg] : [];
+          N.walls[hk] = hw;
+          N.cside[hk] = hw === R.walls[hk] ? R.cside[hk] : corrH;
+          return N;
+        };
+      const lk = vert ? 'L' : 'B',
+        hk = vert ? 'R' : 'T',
+        hi = vert ? R.x1 : R.y1;
+      split(sub(lo, s, R.walls[lk], null, w1, g1, false, corr, false), depth + 1);
+      if (corr) leaf(sub(s, s2, w1, g1, w2, g2, false, false, true));
+      split(sub(s2, hi, w2, g2, R.walls[hk], null, corr, false, false), depth + 1);
+      return;
+    }
+    leaf(R);
+  };
+  const none = {L: [], R: [], B: [], T: []};
+  split({x0: 0.1, y0: 0.1, x1: w - 0.1, y1: h - 0.1, doors: none, walls: {L: null, R: null, B: null, T: null}, cside: {}}, 0);
+  // the walls, less their doors, as 0.2 m rectangles reaching the centre lines of the walls they meet
+  for (const wl of walls) {
+    const gaps = wl.gaps.slice().sort((a, b) => a[0] - b[0]);
+    let a = wl.a;
+    for (const g of gaps.concat([[wl.b, wl.b]])) {
+      if (g[0] - a > 0.05)
+        shapes.push(wl.v ? Rc(snap1(wl.c - 0.1), snap1(a), 0.2, snap1(g[0] - a)) : Rc(snap1(a), snap1(wl.c - 0.1), snap1(g[0] - a), 0.2));
+      a = Math.max(a, g[1]);
+    }
+  }
+  return {shapes, startAt: [1.2, 1.2]};
+}
+// Warehouse: rows of racks across the floor, a perimeter aisle round them, cross aisles at random places, and, with
+// some chance per rack, a gap through it as wide as an aisle
+function genWarehouse(w, h, p, u) {
+  const a = p.aisle,
+    d = p.depth,
+    m = Math.max(a, 1.6) + 0.2,
+    shapes = [];
+  let n = Math.floor((h - 2 * m + a) / (d + a));
+  if (n < 1) n = 1;
+  const used = n * d + (n - 1) * a,
+    y0 = Math.max(0.2 + 1.2, m + (h - 2 * m - used) / 2),
+    x0 = m,
+    x1 = w - m;
+  // the cross aisles: k cuts of width a at random places, every rack piece at least 1.6 m long
+  let cuts = [];
+  for (let k = p.cross; k > 0 && !cuts.length; k--) {
+    for (let t = 0; t < 40 && cuts.length < k; t++) {
+      const c = x0 + 1.6 + u() * (x1 - x0 - 3.2 - a);
+      if (cuts.every(q => Math.abs(q - c) >= a + 1.6)) cuts.push(c);
+    }
+    if (cuts.length < k) cuts = [];
+  }
+  cuts.sort((q, r) => q - r);
+  const pieces = [];
+  let s = x0;
+  for (const c of cuts) {
+    pieces.push([s, c]);
+    s = c + a;
+  }
+  pieces.push([s, x1]);
+  for (let r = 0; r < n; r++) {
+    const y = snap1(y0 + r * (d + a));
+    if (y + d > h - 1.4) break;
+    for (const [pa, pb] of pieces) {
+      if (pb - pa < 1.2) continue;
+      if (u() < p.gaps && pb - pa >= 2 * 1.2 + a) {
+        const g = pa + 1.2 + u() * (pb - pa - 2.4 - a);
+        shapes.push(Rc(snap1(pa), y, snap1(g - pa), d), Rc(snap1(g + a), y, snap1(pb - g - a), d));
+      } else shapes.push(Rc(snap1(pa), y, snap1(pb - pa), d));
+    }
+  }
+  return {shapes, startAt: [1.0, 1.0]};
+}
+// Open hall: pillars (circles) and boxes at random places, each at least `gap` from the others and from the walls
+function genHall(w, h, p, u) {
+  const shapes = [],
+    count = Math.round((p.density * w * h) / 100),
+    wallsIn = [Rc(0, 0, w, 0.2), Rc(0, h - 0.2, w, 0.2), Rc(0, 0, 0.2, h), Rc(w - 0.2, 0, 0.2, h)],
+    keep = Ci(1.5, 1.5, 1.2);
+  for (let t = 0; t < count * 40 && shapes.length < count; t++) {
+    let s;
+    if (u() < p.round) {
+      const r = snap1(0.25 + u() * 0.55);
+      s = Ci(snap1(r + u() * (w - 2 * r)), snap1(r + u() * (h - 2 * r)), r);
+    } else {
+      const bw = snap1(0.4 + u() * 2),
+        bh = snap1(0.4 + u() * 2);
+      s = Rc(snap1(u() * (w - bw)), snap1(u() * (h - bh)), bw, bh);
+    }
+    if (wallsIn.some(q => shapeGap(s, q) < p.gap) || shapeGap(s, keep) < 0.3) continue;
+    if (shapes.some(q => shapeGap(s, q) < p.gap)) continue;
+    shapes.push(s);
+  }
+  return {shapes, startAt: [1.5, 1.5]};
+}
+const GEN_BUILD = {rooms: genRooms, warehouse: genWarehouse, hall: genHall};
+
+/* ---------- placing the start, the goals, the beacons and the people ---------- */
+// The level of a spec, in the level format
+function genLevel(spec) {
+  const sp = genSpec(spec),
+    F = GEN_FAMILIES[sp.gen],
+    {w, h} = sp,
+    u = mulberry32((Math.imul(sp.seed, 2654435761) ^ [...sp.gen].reduce((a, c) => a * 31 + c.charCodeAt(0), 7)) >>> 0),
+    built = GEN_BUILD[sp.gen](w, h, sp, u),
+    shapes = built.shapes,
+    gw = Math.round(w / RES),
+    gh = Math.round(h / RES),
+    occ = rasterize(border(w, h).concat(shapes), gw, gh),
+    dist = distanceTransform(occ, gw, gh),
+    at = (x, y) => {
+      const i = Math.floor(x / RES),
+        j = Math.floor(y / RES);
+      return i < 0 || j < 0 || i >= gw || j >= gh ? -1 : j * gw + i;
+    },
+    cx = k => ((k % gw) + 0.5) * RES,
+    cy = k => (((k / gw) | 0) + 0.5) * RES;
+  // the free cells connected to k through cells at least thr from an obstacle, 8-connected without cutting corners
+  const flood = (k, thr) => {
+    const m = new Uint8Array(gw * gh),
+      q = [k];
+    if (k < 0 || dist[k] < thr) return m;
+    m[k] = 1;
+    while (q.length) {
+      const c = q.pop(),
+        i = c % gw,
+        j = (c / gw) | 0;
+      for (let dj = -1; dj <= 1; dj++)
+        for (let di = -1; di <= 1; di++) {
+          const ii = i + di,
+            jj = j + dj;
+          if ((!di && !dj) || ii < 0 || jj < 0 || ii >= gw || jj >= gh) continue;
+          const v = jj * gw + ii;
+          if (m[v] || dist[v] < thr) continue;
+          if (di && dj && (dist[j * gw + ii] < thr || dist[jj * gw + i] < thr)) continue;
+          m[v] = 1;
+          q.push(v);
+        }
+    }
+    return m;
+  };
+  // the start: the free cell 0.7 m clear nearest the family's corner, facing the longest free run of the eight directions
+  let s0 = -1,
+    best = Infinity;
+  for (let k = 0; k < gw * gh; k++) {
+    if (dist[k] < 0.7) continue;
+    const d = hyp(cx(k) - built.startAt[0], cy(k) - built.startAt[1]);
+    if (d < best) {
+      best = d;
+      s0 = k;
+    }
+  }
+  if (s0 < 0) throw new Error('the generated floor has no free space for the start');
+  const sx = snap1(cx(s0)),
+    sy = snap1(cy(s0));
+  let th = 0,
+    run = -1;
+  for (let a = 0; a < 8; a++) {
+    const t = (a * Math.PI) / 4;
+    let r = 0;
+    while (r < 8) {
+      const k = at(sx + (r + 0.1) * Math.cos(t), sy + (r + 0.1) * Math.sin(t));
+      if (k < 0 || dist[k] < LETHAL) break;
+      r += 0.1;
+    }
+    if (r > run + 1e-9) {
+      run = r;
+      th = t;
+    }
+  }
+  const reach = flood(at(sx, sy), LETHAL + 0.05),
+    cells = [];
+  for (let k = 0; k < gw * gh; k++) if (reach[k] && dist[k] >= 0.6) cells.push(k);
+  if (cells.length < 50) throw new Error('the generated floor leaves the robot almost no room');
+  // the goals: spread out over the reachable floor, each at least dmin from the start and the goals before it
+  const goals = [],
+    away = (x, y, pts, dm) => pts.every(q => hyp(q[0] - x, q[1] - y) >= dm);
+  let dmin = clamp(Math.sqrt((w * h) / (sp.goals + 1)) * 0.8, 2, 8);
+  while (goals.length < sp.goals && dmin > 0.5) {
+    let got = false;
+    for (let t = 0; t < 300 && !got; t++) {
+      const k = cells[Math.floor(u() * cells.length)],
+        x = snap1(cx(k)),
+        y = snap1(cy(k)),
+        kk = at(x, y);
+      if (!reach[kk] || dist[kk] < 0.6 || !away(x, y, [[sx, sy], ...goals], dmin)) continue;
+      goals.push([x, y]);
+      got = true;
+    }
+    if (!got) dmin *= 0.8;
+  }
+  // the beacons: farthest-point sampling over the cells 0.2–0.32 m from a wall that open onto the robot's floor
+  const loose = flood(at(sx, sy), 0.15),
+    cand = [];
+  for (let k = 0; k < gw * gh; k++) if (loose[k] && dist[k] >= 0.2 && dist[k] <= 0.32) cand.push(k);
+  const nb = Math.min(cand.length, sp.beacons || Math.max(4, Math.round((w * h) / 32))),
+    beacons = [];
+  if (nb) {
+    const md = new Float64Array(cand.length).fill(Infinity);
+    let pick = Math.floor(u() * cand.length);
+    for (let b = 0; b < nb; b++) {
+      const bx = cx(cand[pick]),
+        by = cy(cand[pick]);
+      beacons.push([Math.round(bx * 100) / 100, Math.round(by * 100) / 100]);
+      let far = -1;
+      for (let c = 0; c < cand.length; c++) {
+        const d = hyp(cx(cand[c]) - bx, cy(cand[c]) - by);
+        if (d < md[c]) md[c] = d;
+        if (md[c] > far) {
+          far = md[c];
+          pick = c;
+        }
+      }
+      if (far < 1) break;
+    }
+  }
+  // the people: straight runs of floor 0.6 m clear, 4–16 m long, along x or y, not over the start
+  const people = [];
+  for (let t = 0; t < 400 && people.length < sp.people; t++) {
+    const k = cells[Math.floor(u() * cells.length)],
+      along = sp.gen === 'warehouse' ? u() < 0.7 : u() < 0.5,
+      ox = cx(k),
+      oy = cy(k);
+    if (dist[k] < 0.7) continue;
+    const ext = dir => {
+      let r = 0;
+      while (r < 8) {
+        const kk = along ? at(ox + dir * (r + 0.1), oy) : at(ox, oy + dir * (r + 0.1));
+        if (kk < 0 || dist[kk] < 0.6) break;
+        r += 0.1;
+      }
+      return r;
+    };
+    const r0 = ext(-1),
+      r1 = ext(1);
+    if (r0 + r1 < 4) continue;
+    const a = along ? [snap1(ox - r0 + 0.2), snap1(oy)] : [snap1(ox), snap1(oy - r0 + 0.2)],
+      b = along ? [snap1(ox + r1 - 0.2), snap1(oy)] : [snap1(ox), snap1(oy + r1 - 0.2)];
+    // clear of the start, and not on top of another route
+    const segD = (q, A, B) => {
+      const L2 = (B[0] - A[0]) ** 2 + (B[1] - A[1]) ** 2,
+        f = clamp(((q[0] - A[0]) * (B[0] - A[0]) + (q[1] - A[1]) * (B[1] - A[1])) / L2, 0, 1);
+      return hyp(q[0] - A[0] - f * (B[0] - A[0]), q[1] - A[1] - f * (B[1] - A[1]));
+    };
+    if (segD([sx, sy], a, b) < 1.5) continue;
+    const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    if (people.some(q => segD(mid, q.from, q.to) < 1.5)) continue;
+    const pause = u() < 0.3;
+    people.push({
+      from: a,
+      to: b,
+      speed: snap1(0.5 + u() * 0.4),
+      phase: Math.round(u() * 20) / 20,
+      mode: pause ? 'pause' : 'shuttle',
+      ...(pause ? {wait: snap1(1 + u() * 2)} : {})
+    });
+  }
+  const like = LEVELS.find(L => L.id === sp.like),
+    settings = {};
+  for (const [k, v] of Object.entries(like.cfg)) if (!LEVEL_NOSET.includes(k)) settings[k] = v;
+  const fmt = s => (s.t === 'c' ? {circle: [s.x, s.y, s.r]} : {rect: [s.x, s.y, s.w, s.h]});
+  return {
+    format: LEVEL_FORMAT,
+    version: 1,
+    name: `${F.name} ${w} × ${h} · seed ${sp.seed}`,
+    about: `Generated: ${F.about}. ${goals.length} goals, ${people.length ? people.length + (people.length > 1 ? ' people' : ' person') : 'nobody'} walking, the settings of ${like.id} ${like.name}.`,
+    size: [w, h],
+    walls: true,
+    shapes: shapes.map(fmt),
+    beacons,
+    start: [sx, sy, th],
+    goals,
+    people,
+    settings,
+    ...(like.layers && like.layers.cost ? {layers: {cost: true}} : {}),
+    gen: sp
+  };
+}
 
 /* ---- core/params.js ---- */
 /* ============================================================
@@ -952,7 +1639,7 @@ const DEFAULTS = {
   clutter: 0,
   bOff: '',
   map: 'level', // the obstacles: the level's ('level') or none but the outer walls ('empty'); beacons and people stay
-  mapAdd: '', // obstacles painted on the map: cells of the 0.4 m paint grid (j·60 + i), comma-separated
+  mapAdd: '', // obstacles painted on the map: cells of the 0.4 m paint grid (j·PGW + i; PGW = 60 on a 24 m floor), comma-separated
   mapDel: '', // the level's obstacles erased on the map: their indices in the level's shape list, comma-separated
   misLoop: false, // after the last goal the mission starts again from the first, until stopped
   bOut: 0,
@@ -974,7 +1661,28 @@ const DEFAULTS = {
   people: 'scripted',
   sensLat: 0,
   vehicles: true,
-  guard: false
+  guard: false,
+  // the ultrasonic ring (core/sensors.js), off by default; what reads it: mapSrc, guardSrc, pfSonar
+  sonar: false,
+  sonN: 8, // sonars round the hull (4–16)
+  sonBeam: 30, // each cone's beam width [°]
+  sonMax: 4, // reach [m]
+  sonMin: 0.2, // dead zone: echoes closer than this are lost in the ring-down [m]
+  sonSig: 0.01, // range noise σ [m]
+  sonSpec: 30, // incidence beyond which a surface sends the echo away (specular) [°]
+  sonXt: 2, // crosstalk: share of readings that are a neighbour's echo [%]
+  sonPing: 0.05, // time per ping; the ring fires in turn, one cycle is sonN pings [s]
+  mapSrc: 'lidar', // what builds the occupancy map with the sonar on: lidar, sonar or both
+  guardSrc: 'lidar', // what the safety stop reads with the sonar on: lidar, sonar or both
+  pfSonar: false, // the particle filter also weights particles by the sonars against the prior map
+  weather: 'clear', // fog and rain shorten the lidar's reach, drop beams, add range noise and returns from the air (core/radar.js)
+  radar: false, // the forward radar: detections with range, azimuth and radial velocity (core/radar.js)
+  radFov: 120, // its field of view [°]
+  radRange: 20, // its reach [m]
+  radRes: 8, // its angular resolution [°]: two echoes closer than this (and in range and Doppler) become one
+  radClutter: 0.5, // false detections per scan, on average
+  radGhost: 5, // the chance per scan that a person's echo also comes back by a bounce off a wall [%]
+  trkIn: 'lidar' // what the people tracker updates from: the lidar's clusters, the radar's detections, or both
 };
 const P = {...DEFAULTS};
 // The values a choice parameter can take; setParam ignores anything else (a mistyped setup link, a wrong Try cfg).
@@ -997,7 +1705,11 @@ const PARAM_OPTS = {
   model: ['diff', 'car'],
   carPhys: ['kin', 'dyn'],
   people: ['scripted', 'reactive'],
-  map: ['level', 'empty']
+  map: ['level', 'empty'],
+  mapSrc: ['lidar', 'sonar', 'both'],
+  guardSrc: ['lidar', 'sonar', 'both'],
+  trkIn: ['lidar', 'radar', 'both'],
+  weather: ['clear', 'rain', 'fog']
 };
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
@@ -1032,8 +1744,28 @@ const LAYERS = {
   sweep: true,
   frontier: true,
   graph: true,
-  vo: true
+  vo: true,
+  sonar: true,
+  radar: true
 };
+
+// ---- Sensors switchboard and GNSS (appended: one switch per modality, see SENSORS in core/sensors.js) ----
+const SENSOR_DEFAULTS = {
+  odom: true, // wheel odometry; off: the filters predict with the commanded velocity
+  lidar: true, // the 360° lidar; off: no mapping, scan matching, people detection, safety stop or lidar layers
+  gnss: false, // GNSS position fixes (outdoors on L6 and L7; anywhere else as if the world had a sky)
+  gnssHz: 2, // fixes per second
+  gnssSig: 0.3, // white noise σ per fix [m]
+  gnssBias: 1.0, // σ of the slowly wandering bias, a first-order Gauss–Markov process [m]
+  gnssTau: 60, // its time constant [s]
+  gnssMp: true, // multipath within 1.5 m of a wall or a parked car: a bias jump and extra noise
+  gnssOut: 0, // share of time the receiver has no fix [%]
+  gnssOutLen: 6, // mean length of one outage [s]
+  gnssAug: false // the EKF estimates the GNSS bias as two more states (random walk)
+};
+Object.assign(DEFAULTS, SENSOR_DEFAULTS);
+for (const [k, v] of Object.entries(SENSOR_DEFAULTS)) if (!(k in P)) P[k] = v;
+LAYERS.gnss = true;
 
 /* ---- core/record.js ---- */
 /* ============================================================
@@ -1060,6 +1792,8 @@ function recFrame() {
     peds: S.peds.map(p => ({x: p.x, y: p.y, vx: p.vx || 0, vy: p.vy || 0, r: p.r, wait: p.wait || 0})),
     scan: sc,
     lastZ: S.lastZ,
+    sonArcs: S.sonArcs || null, // replaced, not changed, at each delivery (sonarApply)
+    radar: S.radar || null,
     bDown: S.bDown ? S.bDown.slice() : null,
     nT: S.trailT.length,
     nE: S.trailE.length,
@@ -1105,6 +1839,7 @@ function frameView(f) {
     cmd: f.cmd,
     peds: f.peds,
     lastZ: f.lastZ,
+    radar: f.radar,
     bDown: f.bDown,
     plan: f.plan,
     segIdx: f.segIdx,
@@ -1175,15 +1910,27 @@ const dirty = {occ: true, cost: true, search: true};
 
 function prepLevel(L) {
   if (L.truthOcc) return;
-  const occ = new Uint8Array(NC);
-  for (let j = 0; j < GH; j++)
-    for (let i = 0; i < GW; i++) {
-      const x = (i + 0.5) * RES,
-        y = (j + 0.5) * RES;
-      if (insideAny(x, y, L.shapes)) occ[j * GW + i] = 1;
-    }
+  const occ = rasterize(L.shapes, GW, GH);
   L.truthOcc = occ;
   L.truthDist = distanceTransform(occ);
+}
+// The cells of a gw × gh grid whose centres lie in a shape (insideAny's test, cell by cell over each shape's bounding box)
+function rasterize(shapes, gw, gh) {
+  const occ = new Uint8Array(gw * gh);
+  for (const s of shapes) {
+    const one = [s],
+      bx0 = s.t === 'r' ? s.x : s.x - s.r,
+      by0 = s.t === 'r' ? s.y : s.y - s.r,
+      bx1 = s.t === 'r' ? s.x + s.w : s.x + s.r,
+      by1 = s.t === 'r' ? s.y + s.h : s.y + s.r,
+      i0 = Math.max(0, Math.floor(bx0 / RES) - 1),
+      j0 = Math.max(0, Math.floor(by0 / RES) - 1),
+      i1 = Math.min(gw - 1, Math.ceil(bx1 / RES) + 1),
+      j1 = Math.min(gh - 1, Math.ceil(by1 / RES) + 1);
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) if (!occ[j * gw + i] && insideAny((i + 0.5) * RES, (j + 0.5) * RES, one)) occ[j * gw + i] = 1;
+  }
+  return occ;
 }
 function insideAny(x, y, shapes) {
   for (const s of shapes) {
@@ -1249,37 +1996,39 @@ function rayCast(ox, oy, dx, dy, maxR, shapes) {
   }
   return best;
 }
-function distanceTransform(occ) {
-  const d = new Float32Array(NC);
+// (on the world's grid, or on a gw × gh one: the world generator's, which is not the world's while it runs)
+function distanceTransform(occ, gw = GW, gh = GH) {
+  const nc = gw * gh;
+  const d = new Float32Array(nc);
   const INF = 1e9;
-  for (let i = 0; i < NC; i++) d[i] = occ[i] ? 0 : INF;
-  for (let j = 0; j < GH; j++)
-    for (let i = 0; i < GW; i++) {
-      const k = j * GW + i;
+  for (let i = 0; i < nc; i++) d[i] = occ[i] ? 0 : INF;
+  for (let j = 0; j < gh; j++)
+    for (let i = 0; i < gw; i++) {
+      const k = j * gw + i;
       let m = d[k];
       if (m === 0) continue;
       if (i > 0) m = Math.min(m, d[k - 1] + 1);
       if (j > 0) {
-        m = Math.min(m, d[k - GW] + 1);
-        if (i > 0) m = Math.min(m, d[k - GW - 1] + SQ2);
-        if (i < GW - 1) m = Math.min(m, d[k - GW + 1] + SQ2);
+        m = Math.min(m, d[k - gw] + 1);
+        if (i > 0) m = Math.min(m, d[k - gw - 1] + SQ2);
+        if (i < gw - 1) m = Math.min(m, d[k - gw + 1] + SQ2);
       }
       d[k] = m;
     }
-  for (let j = GH - 1; j >= 0; j--)
-    for (let i = GW - 1; i >= 0; i--) {
-      const k = j * GW + i;
+  for (let j = gh - 1; j >= 0; j--)
+    for (let i = gw - 1; i >= 0; i--) {
+      const k = j * gw + i;
       let m = d[k];
       if (m === 0) continue;
-      if (i < GW - 1) m = Math.min(m, d[k + 1] + 1);
-      if (j < GH - 1) {
-        m = Math.min(m, d[k + GW] + 1);
-        if (i < GW - 1) m = Math.min(m, d[k + GW + 1] + SQ2);
-        if (i > 0) m = Math.min(m, d[k + GW - 1] + SQ2);
+      if (i < gw - 1) m = Math.min(m, d[k + 1] + 1);
+      if (j < gh - 1) {
+        m = Math.min(m, d[k + gw] + 1);
+        if (i < gw - 1) m = Math.min(m, d[k + gw + 1] + SQ2);
+        if (i > 0) m = Math.min(m, d[k + gw - 1] + SQ2);
       }
       d[k] = m;
     }
-  for (let i = 0; i < NC; i++) d[i] *= RES;
+  for (let i = 0; i < nc; i++) d[i] *= RES;
   return d;
 }
 
@@ -1444,8 +2193,10 @@ function kidnapTo(p) {
   UI.draw();
   UI.refresh();
 }
+// i: a built-in level's index, a level (the runtime object, the JSON format) or a generator spec (levelOf, levels.js)
 function loadLevel(i) {
-  LV = LEVELS[i];
+  LV = levelOf(i);
+  setWorld(...levelSize(LV));
   // every setting goes back to the level's, except the seed and the trained models picked in Perceive and Plan, so that
   // a model trained in the page can be tried on every level (Agent tracking / Planner still follow the level)
   Object.assign(P, DEFAULTS, {seed: P.seed, detModel: P.detModel, polModel: P.polModel, predModel: P.predModel}, LV.cfg);
@@ -1505,8 +2256,8 @@ function switchLevel(i) {
 // The map as edited: the level's obstacles (all of them, none but the outer walls with map = 'empty', less the ones
 // erased in mapDel) plus the painted cells of mapAdd, a 0.4 m grid merged into one rectangle per run along a row. The
 // level keeps its designed list in shapes0; the occupancy and distance grids are rebuilt only when the edit changed.
-const PAINT = 0.4,
-  PGW = Math.round(W / PAINT),
+const PAINT = 0.4;
+let PGW = Math.round(W / PAINT),
   PGH = Math.round(H / PAINT);
 const idList = s =>
   String(s || '')
@@ -1525,7 +2276,7 @@ function applyMap() {
   const key = `${P.map}|${P.mapAdd}|${P.mapDel}`;
   if (L.mapKey === key) return false;
   const del = new Set(idList(P.mapDel)),
-    out = L.shapes0.filter((s, i) => BORDER.includes(s) || (P.map !== 'empty' && !del.has(i)));
+    out = L.shapes0.filter((s, i) => s.border || (P.map !== 'empty' && !del.has(i)));
   const cells = [...new Set(idList(P.mapAdd))].filter(c => c < PGW * PGH).sort((a, b) => a - b);
   for (let k = 0; k < cells.length;) {
     const j = Math.floor(cells[k] / PGW),
@@ -1578,6 +2329,22 @@ const PARAM_EFFECTS = [
       S.agents = agInit();
       logE(`Agent tracking → ${{off: 'off', truth: 'ground truth', lidar: 'lidar', learned: 'learned detector'}[v]}`);
     }
+  ],
+  [
+    ['trkIn'],
+    (k, v) => {
+      S.agents = agInit();
+      logE(`Tracker inputs → ${{lidar: 'lidar', radar: 'radar', both: 'lidar and radar'}[v]}`);
+    }
+  ],
+  [
+    ['radar', 'weather'],
+    (k, v) =>
+      logE(
+        k === 'radar'
+          ? `Radar → ${v ? 'on' : 'off'}`
+          : `Weather → ${v}${v === 'clear' ? '' : ': the lidar reaches less far, drops beams and sees the air'}`
+      )
   ],
   [
     ['detModel', 'polModel', 'predModel'],
@@ -2060,8 +2827,10 @@ function odometry() {
   // none of the wheels' turn-rate bias; standing still, the zero-velocity update averages the reading into a bias
   // estimate that is subtracted from then on (what a real IMU driver does at every stop)
   const w = isDyn() && !P.gyro && r.wk != null ? r.wk : r.w;
-  const vb = r.v * (1 + 0.02 * P.odoB),
-    vo = vb + sigV(r.v, w, k) * g.n(); // the speed's draw first, then the turn rate's: the random sequence of every run before the gyro
+  // wheel odometry switched off (Sensors): no encoders, so the commanded velocity stands in for the measured one
+  const enc = P.odom !== false,
+    vb = r.v * (1 + 0.02 * P.odoB),
+    vo = enc ? vb + sigV(r.v, w, k) * g.n() : S.cmd.v || 0; // the speed's draw first, then the turn rate's: the random sequence of every run before the gyro
   let wo;
   if (P.gyro) {
     wo = w + gyroBias() + gyroSig() * g.n();
@@ -2069,13 +2838,14 @@ function odometry() {
       if (Math.abs(r.v) < 0.01 && Math.abs(S.cmd.w || 0) < 1e-6 && Math.abs(r.w) < 1e-4) S.gyroBiasEst += 0.1 * (wo - S.gyroBiasEst); // settles within a 2 s hold (40 readings), noise averaged about 4× down
       wo -= S.gyroBiasEst;
     }
-  } else wo = w + 0.01 * P.odoB * r.v + sigW(r.v, w, k) * g.n();
+  } else wo = enc ? w + 0.01 * P.odoB * r.v + sigW(r.v, w, k) * g.n() : S.cmd.w || 0;
   S.odo = {v: vo, w: wo};
 }
 // @end
 // the filter's assumed turn-rate noise: the gyro's σ (scaled by the assumed-noise slider) when the gyro is on
 const filtSigW = (v, w) => (P.gyro ? P.filtK * gyroSig() : sigW(v, w, assumedK()));
-const assumedK = () => P.filtK * Math.max(P.odoK, 0.25);
+// without the encoders the filter predicts with the command: it assumes the ×1 noise of the encoder model for it
+const assumedK = () => P.filtK * (P.odom === false ? 1 : Math.max(P.odoK, 0.25));
 // odometry error when driving straight at v, for the UI and notes: random σ per reading and the fixed bias (as in odometry())
 const odoErr = v => ({sv: sigV(v, 0, P.odoK), sw: sigW(v, 0, P.odoK), bv: 0.02 * P.odoB * v, bw: 0.01 * P.odoB * v});
 const sigR = () => 0.08 * Math.max(P.lmK, 0.25),
@@ -2096,6 +2866,7 @@ function lidarSense() {
     if (d < LMAX) d = Math.max(0.05, d + P.lidarSig * g.n());
     ranges[k] = d;
   }
+  if (P.weather !== 'clear') weatherLidar(ranges);
   return ranges;
 }
 // Beacon availability: switched off by the user (P.bOff, comma-separated IDs) or down in a random outage.
@@ -2114,11 +2885,18 @@ function beaconsOff() {
 function beaconUse() {
   if (P.loc === 'truth') return 'ground truth localization ignores the beacons (the estimate is the true pose)';
   if (P.loc === 'dr') return 'dead reckoning never uses the beacons (odometry only)';
-  if (P.loc === 'pf' && P.pfLidar && P.per === 'oracle')
+  if (P.loc === 'pf' && P.pfLidar && P.per === 'oracle' && P.lidar)
     return 'the particle filter also matches lidar against the prior map, so it can localize without beacons';
-  if (P.loc === 'pgslam') return 'pose-graph SLAM uses the lidar only: the beacons are ignored';
-  if (P.loc === 'ekf' && P.scanMatch && P.per === 'oracle')
+  if (P.loc === 'pf' && P.pfSonar && P.sonar && P.per === 'oracle')
+    return 'the particle filter also matches the sonar ring against the prior map, so it can localize without beacons';
+  if (P.loc === 'pgslam')
+    return P.lidar
+      ? 'pose-graph SLAM uses the lidar only: the beacons are ignored'
+      : 'pose-graph SLAM uses the lidar only, and the lidar is off: it dead-reckons';
+  if (P.loc === 'ekf' && P.scanMatch && P.per === 'oracle' && P.lidar)
     return 'the EKF also matches the lidar scan against the prior map, so it can localize without beacons';
+  if ((P.loc === 'ekf' || P.loc === 'pf') && P.gnss)
+    return `${segName(P.loc)} also fuses the GNSS fixes, so it keeps a position (metre-level) without beacons`;
   if (P.loc === 'custom') return 'your localizer gets the beacon readings that remain';
   return null;
 }
@@ -2180,6 +2958,446 @@ function senseBeacons() {
   return out;
 }
 
+/* ---------- ultrasonic ring (P.sonar; off by default) ----------
+   P.sonN transducers spaced evenly round the hull, each a cone P.sonBeam wide that reports one number: the range of
+   the nearest echo anywhere in the cone, from a fan of rays SON_FAN° apart. Each ray stops at the first thing it hits;
+   its echo comes back only if the surface faces the sensor (incidence under P.sonSpec, a specular reflector otherwise
+   sends it away), only if it is beyond the ring-down dead zone P.sonMin, and only inside the reach P.sonMax. No echo
+   at all reads as the maximum range. With probability P.sonXt a sonar hears a neighbour's echo instead of its own.
+   The sonars fire in turn, one ping every P.sonPing seconds, so the ring's cycle is N · ping (0.4 s for 8 at 50 ms,
+   against the lidar's 0.1 s): each reading is as old as the time since that sonar last fired. The lab models no
+   materials: glass and dark surfaces, which a lidar can miss and a sonar sees, are walls like any other here.
+   Sensors registry: when SENSORS exists, its entry is {key: 'sonar', label: 'Ultrasonic ring', flag: 'sonar', feeds:
+   'mapping (P.mapSrc), the safety stop (P.guardSrc), the particle filter (P.pfSonar), the Code tab's localizer and predictor'}. */
+const SON_FAN = 2; // degrees between the rays of a cone's fan
+// a sonar's mount on the hull and its axis, in the body frame: the circle of radius RR (unicycle), the body's rectangle (car)
+function sonMountB(i, N) {
+  const phi = (i * TAU) / N;
+  if (!isCar()) return {x: RR * Math.cos(phi), y: RR * Math.sin(phi), a: phi};
+  const hl = carLen() / 2,
+    hw = CAR.width / 2,
+    c = Math.cos(phi),
+    s = Math.sin(phi),
+    t = Math.min(Math.abs(c) > 1e-9 ? hl / Math.abs(c) : Infinity, Math.abs(s) > 1e-9 ? hw / Math.abs(s) : Infinity),
+    off = carLen() / 2 - CAR.rear;
+  return {x: off + t * c, y: t * s, a: phi};
+}
+// rayCast with the cosine of the incidence angle at the hit (1: the surface faces the ray, 0: grazing)
+function sonRay(ox, oy, dx, dy, maxR, shapes) {
+  let best = maxR,
+    cs = 0;
+  for (const s of shapes) {
+    if (s.t === 'r') {
+      let tmin = -Infinity,
+        tmax = Infinity,
+        ax = 0;
+      if (Math.abs(dx) < 1e-12) {
+        if (ox < s.x || ox > s.x + s.w) continue;
+      } else {
+        const t1 = (s.x - ox) / dx,
+          t2 = (s.x + s.w - ox) / dx;
+        tmin = Math.min(t1, t2);
+        tmax = Math.max(t1, t2);
+      }
+      if (Math.abs(dy) < 1e-12) {
+        if (oy < s.y || oy > s.y + s.h) continue;
+      } else {
+        const t1 = (s.y - oy) / dy,
+          t2 = (s.y + s.h - oy) / dy;
+        if (Math.min(t1, t2) > tmin) {
+          tmin = Math.min(t1, t2);
+          ax = 1;
+        }
+        tmax = Math.min(tmax, Math.max(t1, t2));
+      }
+      if (tmin <= tmax && tmin >= 0 && tmin < best) {
+        best = tmin;
+        cs = Math.abs(ax ? dy : dx);
+      }
+    } else {
+      const fx = ox - s.x,
+        fy = oy - s.y,
+        b = fx * dx + fy * dy,
+        c = fx * fx + fy * fy - s.r * s.r,
+        disc = b * b - c;
+      if (disc < 0) continue;
+      const t = -b - Math.sqrt(disc);
+      if (t >= 0 && t < best) {
+        best = t;
+        cs = Math.abs(((fx + t * dx) * dx + (fy + t * dy) * dy) / s.r);
+      }
+    }
+  }
+  return {d: best, c: cs};
+}
+// One cone's echo from the true pose: {d, why}, d = Infinity when nothing answers; why: ok, spec (every hit too oblique),
+// dead (the only hits inside the dead zone), none (nothing within reach)
+function sonEcho(i, N, sh) {
+  const r = S.robot,
+    m = sonMountB(i, N),
+    c = Math.cos(r.th),
+    s = Math.sin(r.th),
+    ox = r.x + m.x * c - m.y * s,
+    oy = r.y + m.x * s + m.y * c,
+    w = (P.sonBeam * Math.PI) / 180,
+    nr = Math.max(3, Math.round(P.sonBeam / SON_FAN) + 1),
+    cmin = Math.cos((P.sonSpec * Math.PI) / 180);
+  let d = Infinity,
+    spec = false,
+    dead = false;
+  for (let k = 0; k < nr; k++) {
+    const a = r.th + m.a - w / 2 + (k * w) / (nr - 1),
+      h = sonRay(ox, oy, Math.cos(a), Math.sin(a), P.sonMax, sh);
+    if (h.d >= P.sonMax) continue;
+    if (h.d < P.sonMin) dead = true;
+    else if (h.c < cmin - 1e-9) spec = true;
+    else if (h.d < d) d = h.d;
+  }
+  return {d, why: d < Infinity ? 'ok' : spec ? 'spec' : dead ? 'dead' : 'none'};
+}
+// @code sonar-sense | sonarSense: a ring of cones fired in turn, each reporting its nearest echo
+function sonarSense() {
+  const N = clamp(Math.round(P.sonN), 4, 16);
+  if (!S.son || S.son.N !== N) S.son = {N, next: 0, acc: 0, g: makeRng(P.seed * 6151 + 5)}; // its own noise stream
+  const R = S.son,
+    g = R.g,
+    sh = allShapes(),
+    out = [],
+    ping = Math.max(10, Math.round(1000 * P.sonPing));
+  R.acc += Math.round(1000 * DT);
+  while (R.acc >= ping) {
+    R.acc -= ping;
+    const i = R.next;
+    R.next = (i + 1) % N;
+    let e = sonEcho(i, N, sh);
+    if (P.sonXt > 0 && g.u() < P.sonXt / 100) {
+      const j = (i + (g.u() < 0.5 ? N - 1 : 1)) % N; // a neighbour's ping, heard by this sonar
+      e = {...sonEcho(j, N, sh), why: 'xt'};
+    }
+    const m = sonMountB(i, N),
+      d = e.d < Infinity ? clamp(e.d + P.sonSig * g.n(), P.sonMin, P.sonMax) : P.sonMax;
+    out.push({i, r: d, max: e.d === Infinity, why: e.why, mx: m.x, my: m.y, a: m.a, w: (P.sonBeam * Math.PI) / 180, t: S.t});
+  }
+  return out;
+}
+// @end
+// The ring's cycle: how old the oldest reading is [s]
+const sonCycle = () => clamp(Math.round(P.sonN), 4, 16) * Math.max(0.01, P.sonPing);
+// Readings delivered (after the sensor latency, like the lidar): placed with the estimate now, as the lidar's hits are,
+// kept per sonar in S.sonArcs (what the map draws and the safety stop reads), and passed to whatever uses them
+function sonarApply(list) {
+  const e = S.est,
+    c = Math.cos(e.th),
+    s = Math.sin(e.th),
+    N = clamp(Math.round(P.sonN), 4, 16);
+  if (!S.sonArcs || S.sonArcs.length !== N) S.sonArcs = new Array(N).fill(null);
+  S.sonArcs = S.sonArcs.slice(); // a new array per delivery: a replay frame keeps the one it saw
+  for (const z of list) {
+    const A = {...z, x: e.x + z.mx * c - z.my * s, y: e.y + z.mx * s + z.my * c, th: e.th + z.a};
+    S.sonArcs[z.i] = A;
+    if (P.per === 'mapping' && P.mapSrc !== 'lidar') integrateSonar(A);
+  }
+  if (P.loc === 'pf' && P.pfSonar && P.per === 'oracle') pfSonarUpdate(list);
+  S.sonTick = S.tick;
+}
+// The returned arcs as points for the safety stop: an echo says something is at that range somewhere in the cone, so
+// every point of the arc counts (one per 3°); readings older than two ring cycles are dropped
+function sonarPts() {
+  const out = [],
+    old = S.t - 2 * sonCycle() - 1e-6;
+  for (const A of S.sonArcs || []) {
+    if (!A || A.max || A.t < old) continue;
+    const n = Math.max(2, Math.round((A.w * 180) / Math.PI / 3));
+    for (let k = 0; k <= n; k++) {
+      const a = A.th - A.w / 2 + (k * A.w) / n;
+      out.push([A.x + A.r * Math.cos(a), A.y + A.r * Math.sin(a)]);
+    }
+  }
+  return out;
+}
+// What the Code tab's localizer and predictor receive: the readings delivered this tick, in the body frame
+const sonarObs = list =>
+  list ? list.map(z => ({i: z.i, r: +z.r.toFixed(4), max: z.max, bearing: z.a, width: z.w, mount: [z.mx, z.my]})) : null;
+
+/* ============================================================
+   The Sensors switchboard: one entry per sensing modality. A learner turns any of them off and the stack degrades
+   instead of breaking: each consumer checks the switch, stops, and says why (the health reasons, the settings notes).
+   An entry: key, label, short (the status dot), flag (the boolean in P that turns it on; on/val when the switch is a
+   view on another setting, as for the beacons), kind ('proprio': motion sensors, 'extero': sensors of the world),
+   loc and per (what consumes it), gives (one line: what it gives the robot, and what turning it off costs).
+   A new modality is one more entry here, and its flag in params.js; the settings switch and the status dot follow.
+   ============================================================ */
+const SENSORS = [
+  {
+    key: 'odom',
+    label: 'Wheel odometry',
+    short: 'Odo',
+    flag: 'odom',
+    kind: 'proprio',
+    loc: ['dead reckoning', 'EKF', 'particle filter', 'EKF-SLAM', 'pose-graph SLAM', 'your localizer'],
+    per: [],
+    gives:
+      'Speed and turn rate from the wheel encoders, every 50 ms. Off: no encoder input; the filters predict with the commanded velocity, which knows nothing of slip, lag or a wall in the way.'
+  },
+  {
+    key: 'gyro',
+    label: 'Yaw-rate gyro',
+    short: 'Gyro',
+    flag: 'gyro',
+    kind: 'proprio',
+    loc: ['dead reckoning', 'EKF', 'particle filter', 'EKF-SLAM', 'pose-graph SLAM', 'your localizer'],
+    per: [],
+    gives: 'The turn rate from a gyro instead of the wheels: far less noise, but a bias of its own (Localize → Yaw-rate gyro).'
+  },
+  {
+    key: 'lidar',
+    label: 'Lidar',
+    short: 'Lidar',
+    flag: 'lidar',
+    kind: 'extero',
+    loc: ['particle filter (lidar weighting)', 'EKF (scan matching)', 'pose-graph SLAM'],
+    per: ['lidar mapping', 'people detection', 'the lidar safety stop', 'DWA and MPC obstacles', 'the learned policy'],
+    gives:
+      '120 ranges around the robot, 10 times a second: the map, the people, the obstacles nearby, and a pose fix against the map. Off: no mapping, scan matching, people detection or safety stop.'
+  },
+  {
+    key: 'beacons',
+    label: 'Beacons',
+    short: 'Bcn',
+    flag: 'bOff',
+    on: () => P.bOff !== 'all' && !!S && S.beacons.length > 0 && beaconsOff().size < S.beacons.length,
+    val: on => (on ? '' : 'all'),
+    avail: () => !!S && S.beacons.length > 0,
+    kind: 'extero',
+    loc: ['EKF', 'particle filter', 'EKF-SLAM', 'your localizer'],
+    per: [],
+    gives:
+      'Range and bearing to each beacon in reach, 5 times a second: position and heading fixes. Off: the EKF coasts on odometry. Single beacons: Localize → Beacons.'
+  },
+  {
+    key: 'gnss',
+    label: 'GNSS',
+    short: 'GNSS',
+    flag: 'gnss',
+    kind: 'extero',
+    loc: ['EKF', 'particle filter', 'your localizer'],
+    per: [],
+    gives:
+      'Position fixes 1 to 5 times a second, about a metre off with an error that wanders slowly, worse next to walls and parked cars. An outdoor sensor (L6, L7); indoors it works here only because a 2D world has no roof.'
+  },
+  {
+    key: 'sonar',
+    label: 'Sonar ring',
+    short: 'Sonar',
+    flag: 'sonar',
+    kind: 'extero',
+    loc: ['particle filter (sonar weighting)', 'your localizer'],
+    per: ['sonar mapping', 'the sonar safety stop'],
+    gives:
+      'The ultrasonic ring: one range per sonar for a whole cone, a few metres at most, the sonars firing in turn: a blurred map, a bumper that stops late at grazing angles, and a rough pose fix against the map. What reads it: Perceive → Ultrasonic ring.'
+  },
+  {
+    key: 'radar',
+    label: 'Radar',
+    short: 'Radar',
+    flag: 'radar',
+    kind: 'extero',
+    loc: [],
+    per: ['the people tracker (Perceive → The tracker updates from)', 'your predictor'],
+    gives:
+      'A few detections per scan ahead of the robot, each with range, a coarse bearing and the radial speed from the Doppler shift, with clutter and ghosts; it keeps working in fog and rain. What reads it: Perceive → Radar.'
+  }
+];
+const sensorOn = s => (s.on ? s.on() : !!P[s.flag]);
+const sensorByKey = k => SENSORS.find(s => s.key === k);
+// switch one modality (setup links and Try cfgs set the flag itself; this is the settings switch)
+function setSensor(key, on, live) {
+  const s = sensorByKey(key);
+  if (s) setParam(s.flag, s.val ? s.val(on) : !!on, live);
+}
+const sensorsOff = () => SENSORS.filter(s => !sensorOn(s));
+// blind: every sensor of the world is off; only the motion sensors are left, and the estimate can only drift
+function sensorsBlind() {
+  const ex = SENSORS.filter(s => s.kind === 'extero');
+  return ex.length > 0 && ex.every(s => !sensorOn(s));
+}
+const sensorsExteroNames = () =>
+  SENSORS.filter(s => s.kind === 'extero')
+    .map(s => s.label.toLowerCase().replace('gnss', 'GNSS'))
+    .join(', ');
+// the switches' effects: what stops when a sensor goes off, said in the event log
+PARAM_EFFECTS.push(
+  [
+    ['lidar'],
+    (k, v) => {
+      if (!v) {
+        S.scan = null;
+        S.scanPts = [];
+        S.sm = null;
+        if (S.sensQ) S.sensQ = S.sensQ.filter(it => it.kind !== 'lidar');
+        if (S.agents && (P.agents === 'lidar' || P.agents === 'learned')) S.agents = agInit();
+      }
+      logE(
+        v
+          ? 'Lidar → on'
+          : `Lidar → off: no mapping, scan matching, people detection or lidar safety stop${P.plan === 'policy' ? '; the learned policy has no input' : ''}`,
+        v ? '' : 'warn'
+      );
+      if (P.plan === 'policy') requestReplan('lidar switched');
+      sensorsBlindLog();
+    }
+  ],
+  [
+    ['odom'],
+    (k, v) =>
+      logE(
+        v
+          ? 'Wheel odometry → on'
+          : `Wheel odometry → off: the filters predict with the commanded velocity${P.gyro ? ' (the turn rate still from the gyro)' : ''}`,
+        v ? '' : 'warn'
+      )
+  ],
+  [
+    ['gnss'],
+    (k, v) => {
+      S.gnss = null;
+      S.gb = null;
+      if (!v && S.sensQ) S.sensQ = S.sensQ.filter(it => it.kind !== 'gnss');
+      logE(
+        v
+          ? `GNSS → on: ${P.gnssHz} fixes per second${['ekf', 'pf', 'custom'].includes(P.loc) ? '' : `; drawn on the map, but ${segName(P.loc)} does not fuse them (EKF, particle filter or your code do)`}`
+          : 'GNSS → off'
+      );
+      sensorsBlindLog();
+    }
+  ],
+  [
+    ['gnssAug'],
+    (k, v) => {
+      S.gb = null;
+      logE(v ? 'GNSS bias in the EKF state → on: two more states, a random walk each' : 'GNSS bias in the EKF state → off');
+    }
+  ],
+  [['bOff'], () => sensorsBlindLog()]
+);
+const segName = loc =>
+  ({
+    truth: 'ground truth',
+    dr: 'dead reckoning',
+    ekf: 'the EKF',
+    pf: 'the particle filter',
+    slam: 'EKF-SLAM',
+    pgslam: 'pose-graph SLAM',
+    custom: 'your localizer'
+  })[loc] || loc;
+function sensorsBlindLog() {
+  if (S && sensorsBlind())
+    logE(`Blind: ${sensorsExteroNames()} all off. Only the motion sensors are left; the estimate can only drift`, 'warn');
+}
+
+/* ---------- GNSS ----------
+   A receiver's position fix, as a localizer sees it: the true position plus
+     white noise, σ P.gnssSig per axis, new at every fix;
+     a bias that wanders slowly, a first-order Gauss–Markov process per axis, b ← φ b + σ_b √(1 − φ²) w,
+       φ = e^(−Δt/τ) (stationary: always N(0, σ_b²); correlated over about τ seconds), stepped every tick;
+     multipath within GNSS_MP_D of a large shape (a wall, a parked car; not a pole or a person): a jump of 2 to 4 m,
+       roughly away from the shape, held for 2 to 6 s, plus extra noise. A 2D world has no sky, so the sky view a
+       real receiver loses next to a wall is stood in for by distance alone;
+     outages, a two-state Markov chain like the beacons' (P.gnssOut % of the time, P.gnssOutLen s on average).
+   The receiver reports σ = √(σ_w² + σ_b²) per axis: honest about the spread of a single fix in the open, silent about
+   the correlation, and blind to multipath (the same σ next to a wall, where the error is several times larger).
+   Left out: satellite geometry (DOP), the sky view itself, carrier phase and RTK, the clock, the ionosphere. */
+const GNSS_MP_D = 1.5,
+  GNSS_GATE = 9.21; // χ²(2) at 99 %
+const gnssRep = () => Math.hypot(P.gnssSig, P.gnssBias);
+function gnssInit() {
+  const g = makeRng(P.seed * 15485863 + 29); // its own random stream: switching GNSS on changes no other sensor's noise
+  S.gnss = {
+    g,
+    bx: P.gnssBias * g.n(),
+    by: P.gnssBias * g.n(),
+    mp: null,
+    mpUntil: 0,
+    down: false,
+    next: S.t,
+    fixes: [],
+    n: 0,
+    used: 0,
+    gated: 0,
+    last: null,
+    dist: 0
+  };
+}
+// distance from (x, y) to the nearest large shape and the direction away from it (shapes of at least 0.5 m²)
+function gnssNearLarge(x, y) {
+  let best = Infinity,
+    ax = 0,
+    ay = 0;
+  for (const s of S.shapes) {
+    if (s.t !== 'r' || s.w * s.h < 0.5) continue;
+    const qx = clamp(x, s.x, s.x + s.w),
+      qy = clamp(y, s.y, s.y + s.h),
+      d = hyp(x - qx, y - qy);
+    if (d < best) {
+      best = d;
+      ax = x - qx;
+      ay = y - qy;
+    }
+  }
+  return {d: best, a: Math.atan2(ay, ax)};
+}
+// @code gnss-sense | gnssTick: the receiver, a fix with a wandering bias, multipath near large shapes, outages
+function gnssTick() {
+  if (!S.gnss) gnssInit();
+  const G = S.gnss,
+    g = G.g;
+  const phi = Math.exp(-DT / Math.max(1, P.gnssTau)),
+    q = P.gnssBias * Math.sqrt(1 - phi * phi);
+  G.dist += Math.abs(S.odo.v || 0) * DT; // the distance driven by the odometry's account (the reset's track check)
+  G.bx = phi * G.bx + q * g.n(); // the bias: first-order Gauss–Markov, stepped every tick
+  G.by = phi * G.by + q * g.n();
+  const f = clamp((P.gnssOut || 0) / 100, 0, 0.95);
+  if (f <= 0) G.down = false;
+  else {
+    const pUp = Math.min(1, DT / Math.max(DT, P.gnssOutLen || 1)),
+      pDown = Math.min(1, (pUp * f) / (1 - f));
+    G.down = G.down ? g.u() >= pUp : g.u() < pDown;
+  }
+  if (S.t + 1e-9 < G.next) return;
+  G.next = Math.max(G.next + 1 / clamp(P.gnssHz, 0.2, 20), S.t);
+  if (G.down) return; // no fix in an outage
+  const r = S.robot;
+  let ex = G.bx + P.gnssSig * g.n(),
+    ey = G.by + P.gnssSig * g.n();
+  const N = P.gnssMp ? gnssNearLarge(r.x, r.y) : null,
+    near = !!N && N.d < GNSS_MP_D;
+  if (near) {
+    // a reflected signal: a jump, roughly away from the shape, that holds while the geometry does
+    if (!G.mp || S.t >= G.mpUntil) {
+      const a = N.a + (g.u() * 2 - 1) * (Math.PI / 4),
+        m = 2 + 2 * g.u();
+      G.mp = {x: m * Math.cos(a), y: m * Math.sin(a)};
+      G.mpUntil = S.t + 2 + 4 * g.u();
+    }
+    ex += G.mp.x + 0.5 * g.n();
+    ey += G.mp.y + 0.5 * g.n();
+  } else G.mp = null;
+  G.n++;
+  sensEnqueue('gnss', {x: r.x + ex, y: r.y + ey, sig: gnssRep(), t: S.t, mp: near, st: 'new', d2: null});
+}
+// @end
+// a fix arrives (after the sensor latency): the estimator fuses it, or not; the map draws it either way
+function gnssApply(fix) {
+  const G = S.gnss;
+  if (!G) return;
+  G.last = fix;
+  if (P.loc === 'ekf') ekfGnssUpdate(fix);
+  else if (P.loc === 'pf') pfGnssUpdate(fix);
+  else fix.st = P.loc === 'custom' ? 'slot' : 'unused';
+  G.fixes.push(fix);
+  if (G.fixes.length > 120) G.fixes.shift();
+}
+
 /* ---- core/localization.js ---- */
 /* ============================================================
    Localization: truth / dead reckoning / EKF / particle filter
@@ -2188,6 +3406,7 @@ function initLoc(fromStart) {
   const base = fromStart ? {x: S.robot.x, y: S.robot.y, th: S.robot.th} : {...S.est};
   S.est = {...base};
   S.nees = [];
+  S.gb = null; // the GNSS bias states (gnssAug), created at the first prediction
   if (P.loc === 'dr' || P.loc === 'ekf') S.Pc = [0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.0025];
   else S.Pc = null;
   if (P.loc === 'slam') slamInit();
@@ -2208,7 +3427,8 @@ function initLoc(fromStart) {
       neff: N,
       inj: 0,
       mB: 1,
-      mL: 1
+      mL: 1,
+      mG: 1
     };
     for (let i = 0; i < N; i++) {
       S.pf.x[i] = base.x + 0.1 * g.n();
@@ -2275,6 +3495,9 @@ function locPredict() {
     for (let i = 0; i < 9; i++) Pn[i] += VMV[i];
     S.Pc = Pn;
     S.est = n;
+    if (P.loc === 'ekf' && P.gnss && P.gnssAug)
+      gbPredict(G); // the GNSS bias states, when the EKF carries them
+    else S.gb = null;
     return;
   }
   if (P.loc === 'pf') {
@@ -2292,6 +3515,8 @@ function locPredict() {
     const mv = Math.abs(v) * DT + 0.5 * Math.abs(w) * DT;
     f.mB += mv;
     f.mL += mv;
+    f.mS = (f.mS || 0) + mv; // since the last sonar weighting (pfSonarUpdate)
+    f.mG += mv;
     pfEstimate();
   }
 }
@@ -2345,6 +3570,7 @@ function ekfUpdate(z) {
       PH[4] * Si[0] + PH[5] * Si[2],
       PH[4] * Si[1] + PH[5] * Si[3]
     ];
+    if (S.gb) gbPoseUpdate([H.slice(0, 3), H.slice(3)], [Si.slice(0, 2), Si.slice(2)], nu, [K.slice(0, 2), K.slice(2, 4), K.slice(4)]); // GNSS bias states, if carried
     S.est = {x: e.x + K[0] * nu[0] + K[1] * nu[1], y: e.y + K[2] * nu[0] + K[3] * nu[1], th: wrap(e.th + K[4] * nu[0] + K[5] * nu[1])};
     // Joseph form: P = (I-KH)P(I-KH)^T + K R K^T
     const IKH = [
@@ -2433,6 +3659,62 @@ function pfLidarUpdate(ranges) {
   }
   pfResample(0, null);
 }
+// @code pf-sonar | pfSonarUpdate: weighting the particles by the sonars against the prior map (the cone likelihood)
+// For each reading, the range the particle expects is the nearest obstacle of the prior map inside that sonar's cone,
+// beyond the dead zone and within reach, from SON_LRAYS rays marched on the map's distance field. A returned reading is
+// scored by a Gaussian on its difference from the expectation, with a floor for what the map cannot explain (people,
+// crosstalk); a reading at maximum range by how often a cone reads nothing: nearly always when the map has nothing in
+// reach, SON_PDROP of the time when it has (a specular miss). Chapter 3 §11 derives it. Standing still, nothing is
+// weighted: the same readings again are not new evidence.
+const SON_LRAYS = 7,
+  SON_PDROP = 0.3;
+function sonExpect(D, ox, oy, th, z) {
+  let best = P.sonMax;
+  for (let k = 0; k < SON_LRAYS; k++) {
+    const a = th + z.a - z.w / 2 + (k * z.w) / (SON_LRAYS - 1),
+      c = Math.cos(a),
+      s = Math.sin(a);
+    for (let t = P.sonMin; t < best;) {
+      const idx = cellIdx(ox + t * c, oy + t * s);
+      if (idx < 0) {
+        best = t; // the edge of the world is a wall
+        break;
+      }
+      const d = D[idx];
+      if (d < RES / 2) {
+        best = t;
+        break;
+      }
+      t += Math.max(d - RES / 2, RES / 2);
+    }
+  }
+  return best;
+}
+function pfSonarUpdate(list) {
+  const f = S.pf,
+    N = f.N,
+    D = LV.truthDist,
+    SIG = 0.15,
+    TEMPER = 0.5;
+  if (!list.length || (f.mS || 0) < 0.02) return;
+  f.mS = 0;
+  for (let i = 0; i < N; i++) {
+    const x = f.x[i],
+      y = f.y[i],
+      th = f.th[i],
+      c = Math.cos(th),
+      s = Math.sin(th);
+    let ll = 0;
+    for (const z of list) {
+      const ex = sonExpect(D, x + z.mx * c - z.my * s, y + z.mx * s + z.my * c, th, z);
+      const p = z.max ? (ex >= P.sonMax - 1e-6 ? 0.9 : SON_PDROP) : 0.85 * Math.exp(-0.5 * ((z.r - ex) / SIG) ** 2) + 0.05;
+      ll += Math.log(p);
+    }
+    f.lw[i] += TEMPER * ll;
+  }
+  pfResample(0, null);
+}
+// @end
 // @code pf-resample | pfResample: N_eff, low-variance resampling and the injected samples
 function pfResample(pinj, z) {
   const f = S.pf,
@@ -2695,6 +3977,17 @@ function ekfScanUpdate(ranges) {
     return;
   }
   const K = m3mul(S.Pc, Si); // P (P + R)⁻¹
+  if (S.gb)
+    gbPoseUpdate(
+      [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1]
+      ],
+      [Si.slice(0, 3), Si.slice(3, 6), Si.slice(6)],
+      nu,
+      [K.slice(0, 3), K.slice(3, 6), K.slice(6)]
+    );
   S.est = {
     x: e.x + K[0] * nu[0] + K[1] * nu[1] + K[2] * nu[2],
     y: e.y + K[3] * nu[0] + K[4] * nu[1] + K[5] * nu[2],
@@ -2708,6 +4001,225 @@ function ekfScanUpdate(ranges) {
   S.smLast = {...S.est};
 }
 // @end
+
+/* ---------- GNSS in the EKF and the particle filter ----------
+   A fix z = (x, y) measures the position: h(x) = (x, y), H = [I₂ 0], R = σ_rep² I₂ with the receiver's reported σ.
+   Gated at χ²(2) 99 % like a beacon reading. The plain filter takes the fixes as independent; they are not (the bias
+   wanders over a minute), so it grows ever more confident about a position that is a metre off. With P.gnssAug the
+   EKF carries the bias b = (b_x, b_y) as two more states, a random walk with q = 2σ_b²/τ (the Gauss–Markov process's
+   variance growth over short times), and the fix becomes z = p + b: H = [I₂ 0 I₂], with R the white part alone,
+   σ_rep² − σ_b² (the reported variance less the bias's, which the state now carries).
+   The bias states are kept beside the 3×3 pose covariance S.Pc (which the rest of the page reads): S.gb = {b, C, B},
+   C = cov(pose, b) (3×2), B = cov(b) (2×2). Every pose-only update (beacons, scan matching) moves them too, through
+   the cross-covariance (gbPoseUpdate): a beacon fix calibrates the GNSS bias. */
+const mz = (r, c) => Array.from({length: r}, () => new Array(c).fill(0));
+function mmul(A, B) {
+  const n = A.length,
+    m = B[0].length,
+    k = B.length,
+    C = mz(n, m);
+  for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) for (let a = 0; a < k; a++) C[i][j] += A[i][a] * B[a][j];
+  return C;
+}
+const mtr = A => A[0].map((_, j) => A.map(r => r[j]));
+const inv2 = S2 => {
+  const det = S2[0][0] * S2[1][1] - S2[0][1] * S2[1][0];
+  return Math.abs(det) < 1e-12
+    ? null
+    : [
+        [S2[1][1] / det, -S2[0][1] / det],
+        [-S2[1][0] / det, S2[0][0] / det]
+      ];
+};
+function gbInit() {
+  const v = P.gnssBias * P.gnssBias;
+  S.gb = {
+    b: [0, 0],
+    C: mz(3, 2),
+    B: [
+      [v, 0],
+      [0, v]
+    ]
+  };
+}
+// prediction: the pose moves with G, the bias walks: C ← G C, B ← B + q Δt I
+function gbPredict(G) {
+  if (!S.gb) gbInit();
+  const Gm = [G.slice(0, 3), G.slice(3, 6), G.slice(6)],
+    q = ((2 * P.gnssBias * P.gnssBias) / Math.max(1, P.gnssTau)) * DT;
+  S.gb.C = mmul(Gm, S.gb.C);
+  S.gb.B[0][0] += q;
+  S.gb.B[1][1] += q;
+}
+// a measurement of the pose alone (H m×3, S⁻¹ m×m, innovation ν, the pose gain K 3×m): the bias gain is
+// K_b = (H C)ᵀ S⁻¹, and C ← C − K H C, B ← B − K_b H C
+function gbPoseUpdate(H, Si, nu, K) {
+  const G = S.gb,
+    HC = mmul(H, G.C),
+    Kb = mmul(mtr(HC), Si),
+    dC = mmul(K, HC),
+    dB = mmul(Kb, HC);
+  for (let j = 0; j < 2; j++) for (let c = 0; c < nu.length; c++) G.b[j] += Kb[j][c] * nu[c];
+  G.C = G.C.map((r, i) => r.map((v, j) => v - dC[i][j]));
+  G.B = G.B.map((r, i) => r.map((v, j) => v - 0.5 * (dB[i][j] + dB[j][i])));
+}
+// @code ekf-gnss | ekfGnssUpdate: a GNSS fix as a position measurement, with the bias in the state or not
+function ekfGnssUpdate(fix) {
+  const e = S.est,
+    aug = !!S.gb,
+    // R: the reported variance; with the bias in the state, only its white part (the bias's σ_b² is in B already)
+    R = aug ? Math.max(fix.sig * fix.sig - P.gnssBias * P.gnssBias, 0.0025) : fix.sig * fix.sig,
+    // the full state: the pose, and with the bias states (x, y, θ, b_x, b_y)
+    Pp = [S.Pc.slice(0, 3), S.Pc.slice(3, 6), S.Pc.slice(6)],
+    Pa = aug ? [...Pp.map((r, i) => [...r, ...S.gb.C[i]]), ...S.gb.B.map((r, j) => [...S.gb.C.map(c => c[j]), ...r])] : Pp,
+    n = Pa.length,
+    H = aug
+      ? [
+          [1, 0, 0, 1, 0],
+          [0, 1, 0, 0, 1]
+        ]
+      : [
+          [1, 0, 0],
+          [0, 1, 0]
+        ],
+    hx = aug ? [e.x + S.gb.b[0], e.y + S.gb.b[1]] : [e.x, e.y], // the predicted fix: position, plus the bias if estimated
+    nu = [fix.x - hx[0], fix.y - hx[1]],
+    PHt = mmul(Pa, mtr(H)),
+    S2 = mmul(H, PHt);
+  S2[0][0] += R;
+  S2[1][1] += R;
+  const Si = inv2(S2);
+  if (!Si) return;
+  const d2 = nu[0] * (Si[0][0] * nu[0] + Si[0][1] * nu[1]) + nu[1] * (Si[1][0] * nu[0] + Si[1][1] * nu[1]);
+  fix.d2 = d2;
+  if (d2 > GNSS_GATE) {
+    fix.st = 'gate'; // too far from where the filter expects it: multipath, or a filter that is lost
+    S.gnss.gated++;
+    S.rejected++;
+    gnssLockout(fix);
+    return;
+  }
+  S.gnss.rejSince = null;
+  const K = mmul(PHt, Si), // n×2
+    dx = K.map(r => r[0] * nu[0] + r[1] * nu[1]);
+  S.est = {x: e.x + dx[0], y: e.y + dx[1], th: wrap(e.th + dx[2])};
+  // Joseph form: P ← (I − K H) P (I − K H)ᵀ + K R Kᵀ
+  const KH = mmul(K, H),
+    IKH = KH.map((r, i) => r.map((v, j) => (i === j ? 1 : 0) - v)),
+    Pn = mmul(mmul(IKH, Pa), mtr(IKH)),
+    KRK = mmul(K, mtr(K));
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) Pn[i][j] += R * KRK[i][j];
+  S.Pc = [0, 1, 2].flatMap(i => Pn[i].slice(0, 3));
+  if (aug) {
+    S.gb.b = [S.gb.b[0] + dx[3], S.gb.b[1] + dx[4]];
+    S.gb.C = [0, 1, 2].map(i => Pn[i].slice(3));
+    S.gb.B = [Pn[3].slice(3), Pn[4].slice(3)];
+  }
+  fix.st = 'ok';
+  S.gnss.used++;
+}
+// @end
+// the particle filter: each particle weighted by the fix's likelihood at its position (the same floor as the
+// beacons'), gated against the cloud's mean and spread, and only once the robot has moved since the last fused fix
+function pfGnssUpdate(fix) {
+  const f = S.pf,
+    R = fix.sig * fix.sig,
+    e = S.est,
+    nu = [fix.x - e.x, fix.y - e.y],
+    Si = inv2([
+      [S.Pc[0] + R, S.Pc[1]],
+      [S.Pc[3], S.Pc[4] + R]
+    ]);
+  if (!Si) return;
+  const d2 = nu[0] * (Si[0][0] * nu[0] + Si[0][1] * nu[1]) + nu[1] * (Si[1][0] * nu[0] + Si[1][1] * nu[1]);
+  fix.d2 = d2;
+  if (d2 > GNSS_GATE) {
+    fix.st = 'gate';
+    S.gnss.gated++;
+    S.rejected++;
+    gnssLockout(fix);
+    return;
+  }
+  S.gnss.rejSince = null;
+  if (f.mG < 0.05) {
+    fix.st = 'still';
+    return;
+  }
+  f.mG = 0;
+  for (let i = 0; i < f.N; i++) {
+    const dx = fix.x - f.x[i],
+      dy = fix.y - f.y[i];
+    f.lw[i] += Math.log(Math.exp((-0.5 * (dx * dx + dy * dy)) / R) + 1e-3);
+  }
+  pfResample(0, null);
+  fix.st = 'ok';
+  S.gnss.used++;
+}
+// The gate's trap: once the estimate is far enough off, every fix lands outside the gate, so nothing ever pulls it back.
+// After GNSS_LOCKOUT seconds of nothing but rejected fixes the filter restarts from the fixes (what a GNSS/INS does after
+// a run of rejections): the position moves by the mean innovation of the last few fixes and takes their variance, the
+// heading comes from the fixes' track (the course over ground) when they moved far enough, the cross-terms are
+// dropped and the bias states start over; the particles are scattered about the new position.
+const GNSS_LOCKOUT = 10;
+function gnssLockout(fix) {
+  const G = S.gnss,
+    e = S.est;
+  if (G.rejSince == null) {
+    G.rejSince = fix.t;
+    G.rej = [];
+  }
+  G.rej.push({x: fix.x, y: fix.y, nx: fix.x - e.x, ny: fix.y - e.y, t: fix.t, d: G.dist});
+  if (G.rej.length > 40) G.rej.shift();
+  if (fix.t - G.rejSince < GNSS_LOCKOUT) return;
+  const last = G.rej.slice(-6),
+    nx = last.reduce((a, q) => a + q.nx, 0) / last.length,
+    ny = last.reduce((a, q) => a + q.ny, 0) / last.length,
+    cog = gnssTrack(G.rej.filter(q => q.t > fix.t - 6)),
+    moving = cog != null,
+    rev = (S.odo.v || 0) < 0;
+  G.rejSince = null;
+  G.resets = (G.resets || 0) + 1;
+  const R = (fix.sig * fix.sig) / last.length,
+    th = moving ? wrap(cog + (rev ? Math.PI : 0)) : e.th;
+  if (P.loc === 'ekf') {
+    S.est = {x: e.x + nx, y: e.y + ny, th};
+    S.Pc = [R, 0, 0, 0, R, 0, 0, 0, moving ? ((20 * Math.PI) / 180) ** 2 : Math.max(S.Pc[8], ((30 * Math.PI) / 180) ** 2)];
+    if (S.gb) gbInit();
+  } else if (P.loc === 'pf') {
+    const f = S.pf,
+      g = S.rngA;
+    for (let i = 0; i < f.N; i++) {
+      f.x[i] += nx + Math.sqrt(R) * g.n();
+      f.y[i] += ny + Math.sqrt(R) * g.n();
+      if (moving) f.th[i] = wrap(th + 0.3 * g.n());
+      f.lw[i] = 0;
+    }
+    pfEstimate();
+  }
+  fix.st = 'reset';
+  logE(
+    `GNSS: every fix rejected for ${GNSS_LOCKOUT} s, so ${segName(P.loc)} restarts from the fixes: moved ${hyp(nx, ny).toFixed(1)} m${moving ? `, heading from their track (${Math.round((Math.abs(wrap(th - e.th)) * 180) / Math.PI)}° turned)` : ''}`,
+    'warn'
+  );
+}
+// the course over ground from a run of fixes: the direction from the mean of the first half to the mean of the second,
+// trusted only when the fixes lie along a line (no multipath jumps) and the halves are as far apart as the odometry
+// says the robot drove; null otherwise
+function gnssTrack(F) {
+  if (F.length < 8) return null;
+  const h = F.length >> 1,
+    m = A => [A.reduce((a, q) => a + q.x, 0) / A.length, A.reduce((a, q) => a + q.y, 0) / A.length],
+    a = m(F.slice(0, h)),
+    b = m(F.slice(h)),
+    L = hyp(b[0] - a[0], b[1] - a[1]),
+    drove = (F[F.length - 1].d - F[0].d) / 2;
+  if (L < 1.5 || Math.abs(L - drove) > 0.5 * drove) return null;
+  const ux = (b[0] - a[0]) / L,
+    uy = (b[1] - a[1]) / L,
+    c = m(F),
+    rms = Math.sqrt(F.reduce((s, q) => s + ((q.x - c[0]) * uy - (q.y - c[1]) * ux) ** 2, 0) / F.length);
+  return rms < 0.8 ? Math.atan2(uy, ux) : null;
+}
 
 /* ---- core/slam.js ---- */
 /* ============================================================
@@ -3553,6 +5065,49 @@ function segClear(ax, ay, bx, by, margin, allowExit) {
   }
   return true;
 }
+// @code sonar-arc | integrateSonar: one sonar reading into the log-odds grid (the arc inverse sensor model)
+// A reading at range r says: something on the arc at r inside the cone echoed, and nothing inside the cone before it
+// did. The echo's bearing within the cone is unknown, so the occupied evidence is shared over the n cells of the arc
+// that could have echoed, those the map does not already know to be free (l above L_KNOWN): each is the obstacle with
+// probability 1/n, which in log-odds is ln((n + 1)/(n − 1)) (chapter 3 §11), capped at the lidar's hit. As other cones
+// clear the cells in front of a wall, n shrinks and the arc's evidence gathers on the wall. The cells before the arc
+// get L_SFREE, weaker than a lidar beam's: a surface too oblique to echo can sit inside a cone that read farther.
+// A reading at maximum range (no echo) is no evidence: an empty cone and a specular miss read the same.
+const L_SFREE = -0.2,
+  L_KNOWN = -0.5;
+function integrateSonar(A) {
+  if (A.max) return;
+  const lo = S.lo,
+    r = A.r,
+    half = A.w / 2,
+    band = RES * 0.71, // half the arc's thickness: a cell whose centre is within it is on the arc
+    i0 = Math.max(0, cellI(A.x - r - RES)),
+    i1 = Math.min(GW - 1, cellI(A.x + r + RES)),
+    j0 = Math.max(0, cellI(A.y - r - RES)),
+    j1 = Math.min(GH - 1, cellI(A.y + r + RES)),
+    arc = [],
+    free = [];
+  for (let j = j0; j <= j1; j++)
+    for (let i = i0; i <= i1; i++) {
+      const dx = (i + 0.5) * RES - A.x,
+        dy = (j + 0.5) * RES - A.y,
+        rho = hyp(dx, dy);
+      if (rho > r + band || Math.abs(wrap(Math.atan2(dy, dx) - A.th)) > half) continue;
+      (rho >= r - band ? arc : free).push(j * GW + i);
+    }
+  const cand = arc.filter(idx => lo[idx] > L_KNOWN || lo[idx] === L_GAP),
+    n = cand.length,
+    lArc = n > 1 ? Math.min(L_OCC, Math.log((n + 1) / (n - 1))) : L_OCC;
+  for (const idx of free) {
+    if (lo[idx] === L_GAP) lo[idx] = 0;
+    lo[idx] = clamp(lo[idx] + L_SFREE, -L_CLAMP, L_CLAMP);
+  }
+  for (const idx of cand) {
+    if (lo[idx] === L_GAP) lo[idx] = 0;
+    lo[idx] = clamp(lo[idx] + lArc, -L_CLAMP, L_CLAMP);
+  }
+}
+// @end
 
 /* ---- core/planning.js ---- */
 /* ============================================================
@@ -4296,6 +5851,7 @@ function policyFeatures(scan, e, wp, odo) {
 function policyPlan(e, wp) {
   const M = nnModel('policy');
   if (!M) return {ok: false, reason: 'no policy model in this build (training/policy)'};
+  if (!P.lidar) return {ok: false, reason: 'the learned policy reads the lidar scan, and the lidar is off (Sensors)'};
   // the hybrid: a global planner's route, and the policy is pointed at the point 3 m along it instead of the goal
   let target = wp;
   if (P.policyGoal === 'subgoal') {
@@ -4449,10 +6005,15 @@ function rsPlan(e, wp) {
 
 /* ---------- Hybrid A* (Dolgov et al. 2008) ---------- */
 const HY = {XY: 0.2, NT: 72};
-HY.NX = Math.ceil(W / HY.XY);
-HY.NY = Math.ceil(H / HY.XY);
-HY.N = HY.NX * HY.NY * HY.NT;
 let HYB = null;
+// the search's lattice follows the world's size (setWorld); its buffers are made again at the next search
+function hySize() {
+  HY.NX = Math.ceil(W / HY.XY);
+  HY.NY = Math.ceil(H / HY.XY);
+  HY.N = HY.NX * HY.NY * HY.NT;
+  HYB = null;
+}
+hySize();
 function hyBuf() {
   if (!HYB)
     HYB = {
@@ -6445,6 +8006,14 @@ function builtinCmd() {
 // that the arc approaches. DWA and MPC check the scan themselves; a controller in the Code tab gets the guard like the trackers.
 const GUARD_CTL = ['pp', 'pid', 'stanley', 'rwf', 'custom'], // your code is a path tracker too (switch the guard off to drive without it)
   GUARD_MARG = 0.05;
+// What the safety stop reads (P.guardSrc, with the ultrasonic ring on): the lidar's hits, the sonars' arcs, or both
+const guardLidar = () => !P.sonar || P.guardSrc !== 'sonar',
+  guardSonar = () => !!P.sonar && P.guardSrc !== 'lidar',
+  guardSrcName = () => (guardLidar() ? (guardSonar() ? 'lidar and sonar' : 'lidar') : 'sonar');
+function guardPts() {
+  const L = guardLidar() ? S.scanPts : [];
+  return guardSonar() ? L.concat(sonarPts()) : L;
+}
 function lidarGuard(c) {
   S.guard = null;
   if (!P.guard || !GUARD_CTL.includes(P.ctl) || S.fsm.state !== 'DRIVE' || !S.track) return c;
@@ -6454,7 +8023,7 @@ function lidarGuard(c) {
   const e = S.est,
     A = P.accel ? P.amax : 0.8,
     D = Math.min(3, (sp * sp) / (2 * A) + 0.4),
-    pts = S.scanPts.filter(p => hyp(p[0] - e.x, p[1] - e.y) < D + 1);
+    pts = guardPts().filter(p => hyp(p[0] - e.x, p[1] - e.y) < D + 1);
   if (!pts.length) return c;
   const k = isCar() ? Math.tan(c.steer != null ? c.steer : 0) / P.wheelbase : (c.w || 0) / v; // curvature per metre driven (signed with v)
   const clear = (x, y, th) => {
@@ -6489,7 +8058,10 @@ function lidarGuard(c) {
   S.guard = {free, v: vm};
   if (!S.guardLogT || S.t - S.guardLogT > 3) {
     S.guardLogT = S.t;
-    logE(`Safety stop: lidar points ${free.toFixed(2)} m ahead on the commanded arc · speed capped at ${vm.toFixed(2)} m/s`, 'warn');
+    logE(
+      `Safety stop: ${guardSrcName()} points ${free.toFixed(2)} m ahead on the commanded arc · speed capped at ${vm.toFixed(2)} m/s`,
+      'warn'
+    );
   }
   const o = {...c, v: v * f};
   if (!isCar() && o.w != null) o.w = c.w * f;
@@ -6567,7 +8139,7 @@ async function customCmd() {
 
 /* ---- core/examples-data.js ---- */
 /* ---------- the slot examples, inlined by the build from src/examples/<slot>/*.js (tools/code.mjs) ---------- */
-const SLOT_LIBRARY = {"ctl":[{"id":"pp","name":"Pure pursuit","code":"// Your controller. Called every 50 ms while the robot drives a leg.\n// Return { v, w } in m/s and rad/s, or { v, steer } (rad) for the car-like model.\n// Add mark: [x, y] to draw a point on the map.\n//\n// obs.pose   {x, y, th}      estimated pose (not ground truth)\n// obs.odom   {v, w}          measured velocity from wheel odometry\n// obs.path   [[x, y], ...]   current global path, resampled every 0.1 m\n// obs.goal   {x, y}          current goal\n// obs.scan   [[x, y], ...]   lidar hits in the world frame (from the estimate)\n// obs.agents [{id, x, y, vx, vy, r}]  tracked moving agents (Perceive → Moving agents)\n// obs.limits {vmax, wmax, accel, amax, alpha}\n// obs.dir                    +1 on a forward leg, -1 on a reverse leg (car paths have cusps)\n// obs.vehicle {model, wheelbase, steerMax, steer}   model is 'diff' or 'car'\n// obs.pathId                 changes whenever the planner replans or a new leg starts\n// obs.t, obs.dt              sim time and step [s]\n// mem                        object that persists between calls\n\nfunction control(obs, mem) {\n  const { pose, path, goal, limits } = obs;\n  if (mem.pathId !== obs.pathId) { mem.pathId = obs.pathId; mem.i = 0; }\n\n  // 1. closest path index, searching forward from last time\n  let best = Infinity;\n  const i0 = mem.i;\n  for (let i = i0; i < Math.min(path.length, i0 + 60); i++) {\n    const d = Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y);\n    if (d < best) { best = d; mem.i = i; }\n  }\n\n  // 2. carrot: first path point at least L ahead\n  const L = 0.8;\n  let c = path[path.length - 1];\n  for (let i = mem.i; i < path.length; i++) {\n    if (Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y) >= L) { c = path[i]; break; }\n  }\n\n  // 3. heading error measured against the direction of travel\n  const dir = obs.dir;\n  const th = dir > 0 ? pose.th : pose.th + Math.PI;\n  const a = Math.atan2(c[1] - pose.y, c[0] - pose.x) - th;\n  const err = Math.atan2(Math.sin(a), Math.cos(a));\n\n  // 4. slow down when misaligned or near the end of this leg\n  const end = path[path.length - 1];\n  const dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y);\n  if (obs.vehicle.model === 'car') {\n    // the car: slower on a reverse leg (manoeuvring), a ramp into the end of the leg, slow when pointing far off\n    const speed = Math.min(dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd) * (Math.abs(err) > Math.PI / 2 ? 0.25 : Math.max(0.3, Math.cos(err)));\n    const Lc = Math.max(0.1, Math.hypot(c[0] - pose.x, c[1] - pose.y));\n    const steer = Math.atan(obs.vehicle.wheelbase * 2 * Math.sin(err) / Lc);\n    return { v: dir * speed, steer: dir * steer, mark: c };\n  }\n  const v = Math.min(0.7, 0.8 * dEnd) * Math.max(0, Math.cos(err));\n  return { v, w: 2.0 * err, mark: c };\n}\n"},{"id":"stanley","name":"Stanley","code":"// Your controller: Stanley (Hoffmann et al. 2007), the page's ctlStanley written plainly (Learn → Control). The error\n// is measured at the front axle: the heading error to the path plus the arctangent of the cross-track error, scaled\n// by k and divided by the speed, so the correction softens as the car goes faster. Written for the car; on the\n// unicycle the \"front axle\" is 0.3 m ahead of the pose and the steering angle becomes a turn rate.\n//\n// obs.pose, obs.odom, obs.path [[x, y], …] (0.1 m apart), obs.dir (+1 forward, -1 reverse), obs.vehicle, obs.limits\n\nfunction control(obs, mem) {\n  const { pose, path, odom, limits } = obs, car = obs.vehicle.model === 'car', L = car ? obs.vehicle.wheelbase : 0.3, K = 2.0;\n  const dir = obs.dir, th = dir > 0 ? pose.th : pose.th + Math.PI, wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\n  const fx = pose.x + L * Math.cos(th), fy = pose.y + L * Math.sin(th);              // the front axle\n  // 1. the nearest path segment to the front axle, and the path heading there\n  let best = Infinity, bx = fx, by = fy, bth = th;\n  for (let i = 0; i < path.length - 1; i++) {\n    const a = path[i], b = path[i + 1], vx = b[0] - a[0], vy = b[1] - a[1], l2 = vx * vx + vy * vy; if (l2 < 1e-12) continue;\n    const t = Math.max(0, Math.min(1, ((fx - a[0]) * vx + (fy - a[1]) * vy) / l2)), qx = a[0] + vx * t, qy = a[1] + vy * t;\n    const d = (fx - qx) ** 2 + (fy - qy) ** 2;\n    if (d < best) { best = d; bx = qx; by = qy; bth = Math.atan2(vy, vx); }\n  }\n  // 2. the Stanley law: heading error plus the cross-track term, softened by speed\n  const eLeft = Math.cos(bth) * (fy - by) - Math.sin(bth) * (fx - bx);               // cross-track error, left positive\n  const delta = wrap(bth - th) - Math.atan2(K * eLeft, 0.5 + Math.abs(odom.v));\n  const steerMax = car ? obs.vehicle.steerMax : 1.0, d = Math.max(-steerMax, Math.min(steerMax, delta));\n  // 3. speed: cruise, slower in a tight turn, braking into the end of the leg\n  const end = path[path.length - 1], dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y), kap = Math.abs(Math.tan(d)) / L;\n  let v = Math.min(0.8, limits.vmax); if (kap > 1e-6) v = Math.min(v, Math.sqrt(0.6 / kap));\n  v = Math.min(v, Math.sqrt(2 * 0.8 * Math.max(0, dEnd - 0.08)) + 0.02);\n  if (car) return { v: dir * Math.min(v, dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd), steer: dir * d, mark: [bx, by] };   // reverse legs slowly, a ramp into the leg end\n  return { v, w: Math.max(-limits.wmax, Math.min(limits.wmax, v * Math.tan(d) / L)), mark: [bx, by] };\n}\n"},{"id":"pid","name":"PID on the heading error","code":"// Your controller: a PID on the heading error toward a look-ahead point, the page's ctlPID written plainly (Learn →\n// Control, lesson 8 on integral action). Kp 2.0, Ki 0 and Kd 0.15 are the Control tab's defaults; set Ki to 0.3 and\n// watch the integral wind up and unwind. The speed drops with the heading error and into the end of the leg.\n//\n// obs.pose, obs.odom, obs.path [[x, y], …] (0.1 m apart), obs.pathId (changes with every new leg), obs.dt, obs.limits\n\nfunction control(obs, mem) {\n  const { pose, path, odom, limits } = obs, dt = obs.dt, car = obs.vehicle.model === 'car';\n  const Kp = 2.0, Ki = 0.0, Kd = 0.15, dir = obs.dir, th = dir > 0 ? pose.th : pose.th + Math.PI;\n  if (mem.pathId !== obs.pathId) { mem.pathId = obs.pathId; mem.I = 0; mem.prev = null; }   // a new leg: reset the memory\n  // 1. the look-ahead point: the first path point at least Ld ahead of the nearest one\n  const Ld = Math.max(0.1, 0.5 + 0.5 * Math.abs(odom.v));\n  let ni = 0, nd = Infinity;\n  for (let i = 0; i < path.length; i++) { const d = Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y); if (d < nd) { nd = d; ni = i; } }\n  let c = path[path.length - 1];\n  for (let i = ni; i < path.length; i++) if (Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y) >= Ld) { c = path[i]; break; }\n  // 2. the three terms on the heading error\n  const wrap = a => Math.atan2(Math.sin(a), Math.cos(a)), err = wrap(Math.atan2(c[1] - pose.y, c[0] - pose.x) - th);\n  mem.I = Math.max(-1, Math.min(1, mem.I + err * dt));                         // integral, clamped (anti-windup)\n  const D = mem.prev == null ? 0 : wrap(err - mem.prev) / dt; mem.prev = err;  // derivative of the error\n  const u = Kp * err + Ki * mem.I + Kd * D;\n  // 3. speed: cruise, less when pointing the wrong way, braking into the end of the leg\n  const end = path[path.length - 1], dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y);\n  let v = Math.min(0.8, limits.vmax) * Math.max(0, Math.cos(err)) ** 2;\n  v = Math.min(v, Math.sqrt(2 * 0.8 * Math.max(0, dEnd - 0.08)) + 0.02);\n  if (car) { const sm = obs.vehicle.steerMax; return { v: dir * Math.min(v, dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd), steer: dir * Math.max(-sm, Math.min(sm, u)), mark: c }; }   // reverse legs slowly, a ramp into the leg end\n  return { v, w: Math.max(-limits.wmax, Math.min(limits.wmax, u)), mark: c };\n}\n"},{"id":"rwf","name":"Rear-wheel feedback","code":"// Your controller: rear-wheel feedback (Samson; Paden et al. 2016 §V-A), the page's ctlRWF written plainly and the\n// controller the Analyze view's loop model is built on. Curvature feedforward from the path plus heading and lateral\n// feedback: κ_c = κ cos θ_e / (1 − κ e) − k_θ θ_e − k_e sinc(θ_e) e. k_e 6.0 and k_θ 3.0 are the Control tab's defaults;\n// the design row under the pole plot (Learn → Control, lesson 18) gives you other pairs to try here. The path's\n// heading and curvature come from finite differences over the 0.1 m points.\n//\n// obs.pose, obs.odom, obs.path [[x, y], …], obs.dir, obs.vehicle {model, wheelbase, steerMax}, obs.limits\n\nfunction control(obs, mem) {\n  const { pose, path, limits } = obs, car = obs.vehicle.model === 'car', ke = 6.0, kth = 3.0;\n  const dir = obs.dir, th = dir > 0 ? pose.th : pose.th + Math.PI, wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\n  // 1. the nearest path point; the path heading and curvature there (curvature read 0.2 m ahead, covering the lag)\n  let ni = 0, nd = Infinity;\n  for (let i = 0; i < path.length; i++) { const d = Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y); if (d < nd) { nd = d; ni = i; } }\n  const at = i => path[Math.max(0, Math.min(path.length - 1, i))];\n  const hd = i => { const a = at(i - 1), b = at(i + 1); return Math.atan2(b[1] - a[1], b[0] - a[0]); };\n  const curv = i => wrap(hd(i + 1) - hd(i - 1)) / Math.max(1e-3, Math.hypot(at(i + 1)[0] - at(i - 1)[0], at(i + 1)[1] - at(i - 1)[1]));\n  const q = at(ni), thp = hd(ni), kmax = car ? Math.tan(obs.vehicle.steerMax) / obs.vehicle.wheelbase : 3;\n  const k = Math.max(-kmax, Math.min(kmax, path.length > 4 ? curv(ni + 2) : 0));\n  // 2. the two errors and the law\n  const el = Math.cos(thp) * (pose.y - q[1]) - Math.sin(thp) * (pose.x - q[0]), the = wrap(th - thp);   // lateral (left > 0), heading\n  const sinc = Math.abs(the) < 1e-4 ? 1 : Math.sin(the) / the;\n  const kc = (k * Math.cos(the)) / Math.max(0.3, 1 - k * el) - kth * the - ke * sinc * el;\n  // 3. speed: cruise, slower where the path is curved, braking into the end of the leg\n  const end = path[path.length - 1], dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y);\n  let v = Math.min(0.8, limits.vmax); if (Math.abs(k) > 1e-6) v = Math.min(v, Math.sqrt(0.6 / Math.abs(k)));\n  v = Math.min(v, Math.sqrt(2 * 0.8 * Math.max(0, dEnd - 0.08)) + 0.02);\n  if (car) {   // reverse legs slowly, a ramp into the leg end, slow when pointing far off the path\n    const sm = obs.vehicle.steerMax, vc = Math.min(v, dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd) * (Math.abs(the) > Math.PI / 2 ? 0.25 : 1);\n    return { v: dir * vc, steer: dir * Math.max(-sm, Math.min(sm, Math.atan(obs.vehicle.wheelbase * kc))), mark: q };\n  }\n  if (Math.abs(the) > Math.PI / 2) return { v: 0, w: -Math.sign(the) * limits.wmax * 0.7 };   // facing away: turn in place first\n  return { v, w: Math.max(-limits.wmax, Math.min(limits.wmax, v * kc)), mark: q };\n}\n"}],"loc":[{"id":"dr","name":"Dead reckoning","code":"// Your localizer. Called every 50 ms tick, before the planner and controller use the estimate.\n// Return { x, y, th } and optionally cov: a 3×3 covariance as 9 numbers, row-major (drawn as an ellipse).\n//\n// obs.init    {x, y, th} on the first call only (the start pose), else null\n// obs.dt      0.05 s\n// obs.odom    {v, w}   measured speed and yaw rate (noisy, slightly biased)\n// obs.beacons [{id, r, b}] or null: range and bearing (body frame) to beacons seen this tick; id is -1 when unlabeled\n// obs.map     [{id, x, y}] beacon positions\n// obs.scan    Float32Array(120) of lidar ranges or null; beam k points at -π + k·2π/120 in the body frame, 8 m max\n// obs.field   {w, h, res, dist} on the first call when there is a prior map: its distance field, metres to the nearest wall per cell (row-major), else null\n// mem persists between calls. Budget: 200 ms per call.\n\nfunction localize(obs, mem) {\n  if (obs.init) { mem.x = obs.init.x; mem.y = obs.init.y; mem.th = obs.init.th; }\n  // dead reckoning with the exact arc\n  const v = obs.odom.v, w = obs.odom.w, dt = obs.dt;\n  if (Math.abs(w) < 1e-6) { mem.x += v * dt * Math.cos(mem.th); mem.y += v * dt * Math.sin(mem.th); }\n  else { const r = v / w, t2 = mem.th + w * dt; mem.x += r * (Math.sin(t2) - Math.sin(mem.th)); mem.y -= r * (Math.cos(t2) - Math.cos(mem.th)); mem.th = t2; }\n  // pull toward each labeled beacon reading: a fixed-gain correction, not a Kalman filter\n  if (obs.beacons) for (const z of obs.beacons) {\n    const b = obs.map.find(m => m.id === z.id); if (!b) continue;\n    const dx = b.x - mem.x, dy = b.y - mem.y, rHat = Math.hypot(dx, dy), bHat = Math.atan2(dy, dx) - mem.th;\n    const er = z.r - rHat, eb = Math.atan2(Math.sin(z.b - bHat), Math.cos(z.b - bHat));\n    const ux = dx / rHat, uy = dy / rHat;\n    mem.x -= 0.2 * er * ux; mem.y -= 0.2 * er * uy; mem.th -= 0.2 * eb;   // a larger measured bearing means the heading estimate is too large\n  }\n  mem.th = Math.atan2(Math.sin(mem.th), Math.cos(mem.th));\n  return { x: mem.x, y: mem.y, th: mem.th };\n}\n"},{"id":"ekf","name":"EKF with beacons","code":"// Your localizer: an extended Kalman filter on (x, y, θ), the page's locPredict and ekfUpdate written plainly (Learn →\n// Localization, lessons 1 and 2). Odometry predicts along the exact arc and grows the covariance; each beacon reading\n// (range r and bearing b to a beacon of known position) corrects it. The noise it assumes is the lab's default; the\n// Localize sliders do not reach in here: speed σ = 0.1|v| + 0.02, turn σ = 0.2|ω| + 0.1|v| + 0.02, range σ = 0.08 m,\n// bearing σ = 0.03 rad. Return { x, y, th, cov }: cov is the 3×3 covariance, row-major, drawn as the ellipse.\n//\n// obs.init {x, y, th} on the first call, obs.dt, obs.odom {v, w}, obs.beacons [{id, r, b}] or null, obs.map [{id, x, y}]\n\nconst wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\nfunction localize(obs, mem) {\n  if (obs.init) { mem.x = obs.init.x; mem.y = obs.init.y; mem.th = obs.init.th; mem.P = [0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01]; }\n  const { v, w } = obs.odom, dt = obs.dt;\n  // 1. predict: the exact arc, the Jacobian G of the motion, the input noise mapped into the state (V M Vᵀ)\n  const th = mem.th, c = Math.cos(th), s = Math.sin(th);\n  if (Math.abs(w) < 1e-6) { mem.x += v * dt * c; mem.y += v * dt * s; }\n  else { const R = v / w; mem.x += R * (Math.sin(th + w * dt) - s); mem.y += R * (c - Math.cos(th + w * dt)); mem.th = wrap(th + w * dt); }\n  const G = [1, 0, -v * dt * s, 0, 1, v * dt * c, 0, 0, 1];\n  const sv = 0.1 * Math.abs(v) + 0.02, sw = 0.2 * Math.abs(w) + 0.1 * Math.abs(v) + 0.02;\n  const a = dt * dt * sv * sv, b = dt * dt * sw * sw;\n  const Q = [a * c * c, a * c * s, 0, a * c * s, a * s * s, 0, 0, 0, b];\n  let P = add(mul(mul(G, mem.P), T(G)), Q);\n  // 2. update, one beacon at a time: innovation ν = z − h(x), S = H P Hᵀ + R, gain K = P Hᵀ S⁻¹\n  const sr = 0.08, sb = 0.03;\n  for (const m of obs.beacons || []) {\n    const lm = obs.map.find(l => l.id === m.id); if (!lm) continue;      // unlabeled readings (id -1) are skipped here\n    const dx = lm.x - mem.x, dy = lm.y - mem.y, q = dx * dx + dy * dy, r = Math.sqrt(q); if (r < 1e-6) continue;\n    const H = [-dx / r, -dy / r, 0, dy / q, -dx / q, -1];                 // 2×3: how r and b change with x, y, θ\n    const PHt = mulHt(P, H);                                              // P Hᵀ, 3×2\n    const S = [H[0] * PHt[0] + H[1] * PHt[2] + H[2] * PHt[4] + sr * sr, H[0] * PHt[1] + H[1] * PHt[3] + H[2] * PHt[5],\n               H[3] * PHt[0] + H[4] * PHt[2] + H[5] * PHt[4], H[3] * PHt[1] + H[4] * PHt[3] + H[5] * PHt[5] + sb * sb];\n    const det = S[0] * S[3] - S[1] * S[2]; if (Math.abs(det) < 1e-12) continue;\n    const Si = [S[3] / det, -S[1] / det, -S[2] / det, S[0] / det];\n    const nu = [m.r - r, wrap(m.b - (Math.atan2(dy, dx) - mem.th))];\n    const K = [PHt[0] * Si[0] + PHt[1] * Si[2], PHt[0] * Si[1] + PHt[1] * Si[3], PHt[2] * Si[0] + PHt[3] * Si[2],\n               PHt[2] * Si[1] + PHt[3] * Si[3], PHt[4] * Si[0] + PHt[5] * Si[2], PHt[4] * Si[1] + PHt[5] * Si[3]];\n    mem.x += K[0] * nu[0] + K[1] * nu[1]; mem.y += K[2] * nu[0] + K[3] * nu[1]; mem.th = wrap(mem.th + K[4] * nu[0] + K[5] * nu[1]);\n    // P ← (I − K H) P: the textbook line (the page uses the Joseph form, which keeps P symmetric under rounding)\n    const KH = [K[0] * H[0] + K[1] * H[3], K[0] * H[1] + K[1] * H[4], K[0] * H[2] + K[1] * H[5],\n                K[2] * H[0] + K[3] * H[3], K[2] * H[1] + K[3] * H[4], K[2] * H[2] + K[3] * H[5],\n                K[4] * H[0] + K[5] * H[3], K[4] * H[1] + K[5] * H[4], K[4] * H[2] + K[5] * H[5]];\n    P = mul([1 - KH[0], -KH[1], -KH[2], -KH[3], 1 - KH[4], -KH[5], -KH[6], -KH[7], 1 - KH[8]], P);\n  }\n  mem.P = P;\n  return { x: mem.x, y: mem.y, th: mem.th, cov: P };\n}\n// 3×3 helpers, row-major\nfunction mul(A, B) { const C = new Array(9).fill(0); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) C[i * 3 + j] += A[i * 3 + k] * B[k * 3 + j]; return C; }\nfunction T(A) { return [A[0], A[3], A[6], A[1], A[4], A[7], A[2], A[5], A[8]]; }\nfunction add(A, B) { return A.map((x, i) => x + B[i]); }\nfunction mulHt(P, H) { return [P[0] * H[0] + P[1] * H[1] + P[2] * H[2], P[0] * H[3] + P[1] * H[4] + P[2] * H[5], P[3] * H[0] + P[4] * H[1] + P[5] * H[2], P[3] * H[3] + P[4] * H[4] + P[5] * H[5], P[6] * H[0] + P[7] * H[1] + P[8] * H[2], P[6] * H[3] + P[7] * H[4] + P[8] * H[5]]; }\n"},{"id":"pf","name":"Particle filter with beacons","code":"// Your localizer: a particle filter (Monte Carlo localization), the page's pfUpdate and pfResample written plainly\n// (Learn → Localization, lesson 4). N particles move along the odometry with noise; after 5 cm of motion each is\n// weighted by how well the beacon readings fit its pose; when the effective number of particles drops below N/2 they\n// are resampled (low-variance). The estimate is the weighted mean. No injection, so a kidnapped robot stays lost: the\n// lesson shows what injection adds. Return { x, y, th, cov }.\n\nconst N = 300, wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\nlet seed = 7;\nconst rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };   // repeatable\nconst gauss = () => Math.sqrt(-2 * Math.log(Math.max(rnd(), 1e-12))) * Math.cos(2 * Math.PI * rnd());\nfunction localize(obs, mem) {\n  if (obs.init) {\n    mem.x = new Float64Array(N).fill(obs.init.x); mem.y = new Float64Array(N).fill(obs.init.y);\n    mem.th = new Float64Array(N).fill(obs.init.th); mem.lw = new Float64Array(N); mem.moved = 0;\n  }\n  // 1. move every particle along the odometry, each with its own noise draw\n  const { v, w } = obs.odom, dt = obs.dt;\n  const sv = Math.max(0.1 * Math.abs(v) + 0.02, 0.02), sw = Math.max(0.2 * Math.abs(w) + 0.1 * Math.abs(v) + 0.02, 0.02);\n  for (let i = 0; i < N; i++) {\n    const vi = v + sv * gauss(), wi = w + sw * gauss(), th = mem.th[i];\n    if (Math.abs(wi) < 1e-6) { mem.x[i] += vi * dt * Math.cos(th); mem.y[i] += vi * dt * Math.sin(th); }\n    else { const R = vi / wi; mem.x[i] += R * (Math.sin(th + wi * dt) - Math.sin(th)); mem.y[i] += R * (Math.cos(th) - Math.cos(th + wi * dt)); mem.th[i] = wrap(th + wi * dt); }\n  }\n  mem.moved += Math.abs(v) * dt + 0.5 * Math.abs(w) * dt;\n  // 2. weight by the beacon readings, once the robot has moved: readings in between are not independent evidence\n  const z = obs.beacons || [];\n  if (z.length && mem.moved >= 0.05) {\n    mem.moved = 0;\n    for (let i = 0; i < N; i++) {\n      let ll = 0;\n      for (const m of z) {\n        const lm = obs.map.find(l => l.id === m.id); if (!lm) continue;\n        const dx = lm.x - mem.x[i], dy = lm.y - mem.y[i];\n        const er = (m.r - Math.hypot(dx, dy)) / 0.08, eb = wrap(m.b - (Math.atan2(dy, dx) - mem.th[i])) / 0.03;\n        ll += Math.log(Math.exp(-0.5 * (er * er + eb * eb)) + 1e-3);   // the floor keeps one bad reading from killing a particle\n      }\n      mem.lw[i] += ll;\n    }\n    // 3. normalise, N_eff, and resample when the weights have collapsed onto a few particles\n    let mx = -Infinity; for (let i = 0; i < N; i++) mx = Math.max(mx, mem.lw[i]);\n    const wt = new Float64Array(N); let sum = 0, s2 = 0;\n    for (let i = 0; i < N; i++) { wt[i] = Math.exp(mem.lw[i] - mx); sum += wt[i]; }\n    for (let i = 0; i < N; i++) { wt[i] /= sum; s2 += wt[i] * wt[i]; }\n    if (1 / s2 < N / 2) {\n      const nx = new Float64Array(N), ny = new Float64Array(N), nt = new Float64Array(N);\n      let u = rnd() / N, c = wt[0], j = 0;                        // low-variance resampling: one random offset, N even steps\n      for (let m = 0; m < N; m++) {\n        const U = u + m / N;\n        while (U > c && j < N - 1) { j++; c += wt[j]; }\n        nx[m] = mem.x[j]; ny[m] = mem.y[j]; nt[m] = mem.th[j];\n      }\n      mem.x = nx; mem.y = ny; mem.th = nt; mem.lw = new Float64Array(N);\n    }\n  }\n  // 4. the estimate: the weighted mean (the heading as a mean direction) and the spread as the covariance\n  let mx = -Infinity; for (let i = 0; i < N; i++) mx = Math.max(mx, mem.lw[i]);\n  let sw2 = 0, sx = 0, sy = 0, sc = 0, ss = 0; const wt = new Float64Array(N);\n  for (let i = 0; i < N; i++) { wt[i] = Math.exp(mem.lw[i] - mx); sw2 += wt[i]; }\n  for (let i = 0; i < N; i++) { wt[i] /= sw2; sx += wt[i] * mem.x[i]; sy += wt[i] * mem.y[i]; sc += wt[i] * Math.cos(mem.th[i]); ss += wt[i] * Math.sin(mem.th[i]); }\n  const th = Math.atan2(ss, sc), C = [0, 0, 0, 0, 0, 0, 0, 0, 0];\n  for (let i = 0; i < N; i++) { const d = [mem.x[i] - sx, mem.y[i] - sy, wrap(mem.th[i] - th)]; for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) C[a * 3 + b] += wt[i] * d[a] * d[b]; }\n  return { x: sx, y: sy, th, cov: C };\n}\n"},{"id":"sm","name":"Scan matching against the map","code":"// Your localizer: dead reckoning corrected by scan matching, the page's scanMatch written plainly (Learn → Localization,\n// lesson 7). The odometry moves the pose along the arc; every fourth scan is aligned to the prior map by Gauss–Newton\n// on the map's distance field (obs.field, given on the first call), and when the fit is good the matched pose replaces\n// the estimate. No beacons needed. The page fuses the match into an EKF instead, gated and weighted; this is the bare\n// version. Return { x, y, th, cov }: cov from the fit, floored at 5 cm.\n//\n// obs.init {x, y, th} on the first call, obs.field {w, h, res, dist} with it when there is a prior map (null otherwise),\n// obs.odom {v, w}, obs.dt, obs.scan Float32Array(120) or null: beam k points at -π + k·2π/120 in the body frame, 8 m max\n\nconst wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\nfunction localize(obs, mem) {\n  if (obs.init) { mem.x = obs.init.x; mem.y = obs.init.y; mem.th = obs.init.th; mem.F = obs.field; mem.n = 0; mem.cov = [0.0025, 0, 0, 0, 0.0025, 0, 0, 0, 0.0003]; }\n  // 1. dead reckoning along the arc\n  const { v, w } = obs.odom, dt = obs.dt, th = mem.th;\n  if (Math.abs(w) < 1e-6) { mem.x += v * dt * Math.cos(th); mem.y += v * dt * Math.sin(th); }\n  else { const R = v / w; mem.x += R * (Math.sin(th + w * dt) - Math.sin(th)); mem.y += R * (Math.cos(th) - Math.cos(th + w * dt)); mem.th = wrap(th + w * dt); }\n  // 2. every fourth scan: align it to the map and, when the fit is good, take the matched pose\n  if (obs.scan && mem.F && mem.n++ % 4 === 0) {\n    const m = scanMatch(obs.scan, mem.F, mem.x, mem.y, mem.th);\n    if (m && m.rms < 0.12 && m.n >= 0.6 * m.hits) { mem.x = m.x; mem.y = m.y; mem.th = m.th; mem.cov = m.cov; }\n  }\n  return { x: mem.x, y: mem.y, th: mem.th, cov: mem.cov };\n}\n// Gauss–Newton on ξ = (x, y, θ): each hit p, placed at T_ξ p in the world, costs d(T_ξ p)², d the distance to the nearest\n// wall read from the field by bilinear interpolation; the Jacobian is ∇d times the derivative of the transform.\nfunction scanMatch(ranges, F, x, y, th) {\n  const { w, h, res, dist: D } = F, pts = [];\n  for (let k = 0; k < ranges.length; k += 2) { const r = ranges[k]; if (r >= 7.99) continue; const a = -Math.PI + (k * 2 * Math.PI) / ranges.length; pts.push([r * Math.cos(a), r * Math.sin(a)]); }\n  if (pts.length < 12) return null;\n  const field = (px, py) => {                        // d and ∇d at a world point\n    const fx = px / res - 0.5, fy = py / res - 0.5, i = Math.floor(fx), j = Math.floor(fy);\n    if (i < 0 || j < 0 || i >= w - 1 || j >= h - 1) return null;\n    const tx = fx - i, ty = fy - j, k = j * w + i, d00 = D[k], d10 = D[k + 1], d01 = D[k + w], d11 = D[k + w + 1];\n    return { d: (1 - ty) * ((1 - tx) * d00 + tx * d10) + ty * ((1 - tx) * d01 + tx * d11),\n      gx: ((1 - ty) * (d10 - d00) + ty * (d11 - d01)) / res, gy: ((1 - tx) * (d01 - d00) + tx * (d11 - d10)) / res };\n  };\n  let H = null, n = 0, ss = 0;\n  for (let it = 0; it < 10; it++) {\n    const c = Math.cos(th), s = Math.sin(th), b = [0, 0, 0]; H = [0, 0, 0, 0, 0, 0, 0, 0, 0]; n = 0; ss = 0;\n    for (const [px, py] of pts) {\n      const f = field(x + c * px - s * py, y + s * px + c * py); if (!f || f.d > 0.5) continue;   // hits far from any wall: people, outliers\n      const J = [f.gx, f.gy, f.gx * (-s * px - c * py) + f.gy * (c * px - s * py)];\n      for (let a = 0; a < 3; a++) { b[a] += J[a] * f.d; for (let q = 0; q < 3; q++) H[a * 3 + q] += J[a] * J[q]; }\n      n++; ss += f.d * f.d;\n    }\n    if (n < 12) return null;\n    for (let a = 0; a < 3; a++) H[a * 4] += 1e-6;\n    const Hi = inv3(H); if (!Hi) return null;\n    const dx = -(Hi[0] * b[0] + Hi[1] * b[1] + Hi[2] * b[2]), dy = -(Hi[3] * b[0] + Hi[4] * b[1] + Hi[5] * b[2]), dth = -(Hi[6] * b[0] + Hi[7] * b[1] + Hi[8] * b[2]);\n    x += dx; y += dy; th = wrap(th + dth);                                   // the Gauss–Newton step, H δ = −b\n    if (Math.abs(dx) < 1e-3 && Math.abs(dy) < 1e-3 && Math.abs(dth) < 1e-3) break;\n  }\n  const s2 = Math.max(ss / Math.max(1, n - 3), 1e-4), Hi = inv3(H); if (!Hi) return null;\n  const cov = Hi.map(v => v * s2 * 4); cov[0] += 0.0025; cov[4] += 0.0025; cov[8] += 0.0003;   // inflated, floored at 5 cm and 1°\n  return { x, y, th, cov, rms: Math.sqrt(ss / n), n, hits: pts.length };\n}\nfunction inv3(A) {\n  const [a, b, c, d, e, f, g, h, i] = A, C0 = e * i - f * h, C1 = -(d * i - f * g), C2 = d * h - e * g, det = a * C0 + b * C1 + c * C2;\n  if (Math.abs(det) < 1e-18) return null;\n  return [C0 / det, -(b * i - c * h) / det, (b * f - c * e) / det, C1 / det, (a * i - c * g) / det, -(a * f - c * d) / det, C2 / det, -(a * h - b * g) / det, (a * e - b * d) / det];\n}\n"}],"plan":[{"id":"astar","name":"A* on the costmap","code":"// Your global planner. Called whenever the mission needs a path (initial plan, replans).\n// Return { path: [[x, y], ...] } from the start to the goal, or { error: 'reason' } when there is none.\n// A car may return { segs: [{ pts: [[x, y, th], ...], dir: +1 | -1 }, ...] } with reverse legs.\n//\n// obs.start  {x, y, th}      estimated pose\n// obs.goal   {x, y, th|null} the goal, heading only for posed goals\n// obs.grid   {w, h, res}     the costmap grid: w × h cells of res metres\n// obs.lethal Uint8Array      1 where the robot centre may not go (w*h, row-major, cell (i, j) = j*w + i)\n// obs.dist   Float32Array    distance to the nearest obstacle per cell [m]\n// obs.vehicle {model, wheelbase, steerMax, minTurnR, revOK}\n// Budget: 3 s per call. mem persists between calls.\n\nfunction plan(obs, mem) {\n  const { w, h, res } = obs.grid, L = obs.lethal;\n  const cell = (x, y) => [Math.floor(x / res), Math.floor(y / res)];\n  const [si, sj] = cell(obs.start.x, obs.start.y), [gi, gj] = cell(obs.goal.x, obs.goal.y);\n  // 8-connected A* with the octile heuristic\n  const g = new Float32Array(w * h).fill(Infinity), par = new Int32Array(w * h).fill(-1), closed = new Uint8Array(w * h);\n  const heur = (i, j) => { const dx = Math.abs(i - gi), dy = Math.abs(j - gj); return Math.max(dx, dy) + 0.414 * Math.min(dx, dy); };\n  const open = [[heur(si, sj), sj * w + si]]; g[sj * w + si] = 0;\n  const NB = [[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];\n  let found = false, expansions = 0;\n  while (open.length) {\n    let b = 0; for (let k = 1; k < open.length; k++) if (open[k][0] < open[b][0]) b = k;   // a heap would be faster\n    const [, u] = open.splice(b, 1)[0]; if (closed[u]) continue; closed[u] = 1; expansions++;\n    if (u === gj * w + gi) { found = true; break; }\n    const ui = u % w, uj = (u / w) | 0;\n    for (const [di, dj, c] of NB) { const vi = ui + di, vj = uj + dj; if (vi < 0 || vj < 0 || vi >= w || vj >= h) continue;\n      const v = vj * w + vi; if (L[v] || closed[v]) continue;\n      if (di && dj && (L[uj * w + vi] || L[vj * w + ui])) continue;           // no corner cutting\n      const ng = g[u] + c * (1 + 3 * Math.max(0, 0.6 - obs.dist[v]));         // stay away from walls when it is cheap to\n      if (ng < g[v]) { g[v] = ng; par[v] = u; open.push([ng + heur(vi, vj), v]); } }\n  }\n  if (!found) return { error: 'no path on the grid' };\n  const path = []; for (let u = gj * w + gi; u >= 0; u = par[u]) path.push([(u % w + 0.5) * res, (((u / w) | 0) + 0.5) * res]);\n  path.reverse(); path[0] = [obs.start.x, obs.start.y]; path[path.length - 1] = [obs.goal.x, obs.goal.y];\n  return { path, expansions };\n}\n"},{"id":"dijkstra","name":"Dijkstra (A* without the heuristic)","code":"// Your global planner: Dijkstra, which is A* with the heuristic set to zero. Same code as the A* example but for one line;\n// compare the expansions it reports in the event log with A*'s on the same plan.\n// Return { path: [[x, y], ...] } from the start to the goal, or { error: 'reason' } when there is none.\n// A car may return { segs: [{ pts: [[x, y, th], ...], dir: +1 | -1 }, ...] } with reverse legs.\n//\n// obs.start  {x, y, th}      estimated pose\n// obs.goal   {x, y, th|null} the goal, heading only for posed goals\n// obs.grid   {w, h, res}     the costmap grid: w × h cells of res metres\n// obs.lethal Uint8Array      1 where the robot centre may not go (w*h, row-major, cell (i, j) = j*w + i)\n// obs.dist   Float32Array    distance to the nearest obstacle per cell [m]\n// obs.vehicle {model, wheelbase, steerMax, minTurnR, revOK}\n// Budget: 3 s per call. mem persists between calls.\n\nfunction plan(obs, mem) {\n  const { w, h, res } = obs.grid, L = obs.lethal;\n  const cell = (x, y) => [Math.floor(x / res), Math.floor(y / res)];\n  const [si, sj] = cell(obs.start.x, obs.start.y), [gi, gj] = cell(obs.goal.x, obs.goal.y);\n  // 8-connected A* with the octile heuristic\n  const g = new Float32Array(w * h).fill(Infinity), par = new Int32Array(w * h).fill(-1), closed = new Uint8Array(w * h);\n  const heur = () => 0;   // Dijkstra: no heuristic, so the search grows as a disc from the start instead of leaning toward the goal\n  const open = [[heur(si, sj), sj * w + si]]; g[sj * w + si] = 0;\n  const NB = [[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];\n  let found = false, expansions = 0;\n  while (open.length) {\n    let b = 0; for (let k = 1; k < open.length; k++) if (open[k][0] < open[b][0]) b = k;   // a heap would be faster\n    const [, u] = open.splice(b, 1)[0]; if (closed[u]) continue; closed[u] = 1; expansions++;\n    if (u === gj * w + gi) { found = true; break; }\n    const ui = u % w, uj = (u / w) | 0;\n    for (const [di, dj, c] of NB) { const vi = ui + di, vj = uj + dj; if (vi < 0 || vj < 0 || vi >= w || vj >= h) continue;\n      const v = vj * w + vi; if (L[v] || closed[v]) continue;\n      if (di && dj && (L[uj * w + vi] || L[vj * w + ui])) continue;           // no corner cutting\n      const ng = g[u] + c * (1 + 3 * Math.max(0, 0.6 - obs.dist[v]));         // stay away from walls when it is cheap to\n      if (ng < g[v]) { g[v] = ng; par[v] = u; open.push([ng + heur(vi, vj), v]); } }\n  }\n  if (!found) return { error: 'no path on the grid' };\n  const path = []; for (let u = gj * w + gi; u >= 0; u = par[u]) path.push([(u % w + 0.5) * res, (((u / w) | 0) + 0.5) * res]);\n  path.reverse(); path[0] = [obs.start.x, obs.start.y]; path[path.length - 1] = [obs.goal.x, obs.goal.y];\n  return { path, expansions };\n}\n"},{"id":"rrtstar","name":"RRT*","code":"// Your global planner: RRT* (Karaman & Frazzoli 2011), the page's rrtstar written plainly. Each iteration samples a\n// point (the goal one time in ten), steers from the nearest tree node toward it by one step, picks the cheapest\n// collision-free parent among the near nodes, and rewires the near nodes through the new one when that is cheaper.\n// The random numbers come from a fixed seed, so a rerun grows the same tree; the path is shortcut-smoothed at the end.\n// Return { path } or { error }.\n//\n// obs.start {x, y, th}, obs.goal {x, y}, obs.grid {w, h, res}, obs.lethal Uint8Array (1 where the centre may not go)\n\nfunction plan(obs, mem) {\n  const { w, h, res } = obs.grid, L = obs.lethal, W = w * res, H = h * res, STEP = 0.6, IT = 1500;\n  const free = (x, y) => { const i = Math.floor(x / res), j = Math.floor(y / res); return i >= 0 && j >= 0 && i < w && j < h && !L[j * w + i]; };\n  const clear = (ax, ay, bx, by) => {            // the segment sampled every half cell\n    const n = Math.ceil(Math.hypot(bx - ax, by - ay) / (res / 2)) + 1;\n    for (let k = 0; k <= n; k++) { const t = k / n; if (!free(ax + (bx - ax) * t, ay + (by - ay) * t)) return false; }\n    return true;\n  };\n  let seed = 7; const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };\n  const sx = obs.start.x, sy = obs.start.y, gx = obs.goal.x, gy = obs.goal.y;\n  if (!free(gx, gy)) return { error: 'goal is inside an inflated obstacle' };\n  const X = [sx], Y = [sy], Pa = [-1], Co = [0];   // the tree: positions, parent index, cost from the start\n  for (let it = 0; it < IT; it++) {\n    let qx, qy;\n    if (rnd() < 0.1) { qx = gx; qy = gy; } else { qx = rnd() * W; qy = rnd() * H; }   // 1. sample\n    let ni = 0, nd = Infinity;                                                        // 2. nearest node\n    for (let i = 0; i < X.length; i++) { const d2 = (X[i] - qx) ** 2 + (Y[i] - qy) ** 2; if (d2 < nd) { nd = d2; ni = i; } }\n    const d = Math.sqrt(nd); if (d < 1e-6) continue;\n    const sc = Math.min(STEP, d) / d, nx = X[ni] + (qx - X[ni]) * sc, ny = Y[ni] + (qy - Y[ni]) * sc;   // 3. steer one step\n    if (!free(nx, ny)) continue;\n    const n = X.length, rad = Math.min(8 * Math.sqrt(Math.log(n + 1) / (n + 1)), 1.5), near = [];        // 4. the near nodes\n    for (let i = 0; i < n; i++) if ((X[i] - nx) ** 2 + (Y[i] - ny) ** 2 <= rad * rad) near.push(i);\n    let bp = -1, bc = Infinity;                                                                            // 5. the cheapest parent\n    for (const i of near.length ? near : [ni]) { const c = Co[i] + Math.hypot(nx - X[i], ny - Y[i]); if (c < bc && clear(X[i], Y[i], nx, ny)) { bc = c; bp = i; } }\n    if (bp < 0) continue;\n    X.push(nx); Y.push(ny); Pa.push(bp); Co.push(bc);\n    for (const i of near) {                                                                                // 6. rewire through the new node\n      const c = bc + Math.hypot(nx - X[i], ny - Y[i]);\n      if (c < Co[i] && clear(nx, ny, X[i], Y[i])) { Pa[i] = n; Co[i] = c; }\n    }\n  }\n  let best = -1, bc = Infinity;                   // the node that reaches the goal most cheaply (within 1 m, in the clear)\n  for (let i = 0; i < X.length; i++) {\n    const dg = Math.hypot(X[i] - gx, Y[i] - gy);\n    if (dg > 1 || !clear(X[i], Y[i], gx, gy)) continue;\n    if (Co[i] + dg < bc) { bc = Co[i] + dg; best = i; }\n  }\n  if (best < 0) return { error: 'no connection to the goal after ' + IT + ' samples' };\n  let path = [[gx, gy]];\n  for (let k = best; k >= 0; k = Pa[k]) path.push([X[k], Y[k]]);\n  path.reverse();\n  // shortcut smoothing, as the built-in does: skip every point the next one can be reached from in a straight line\n  const out = [path[0]];\n  for (let i = 0; i < path.length - 1; ) {\n    let j = path.length - 1;\n    while (j > i + 1 && !clear(path[i][0], path[i][1], path[j][0], path[j][1])) j--;\n    out.push(path[j]); i = j;\n  }\n  return { path: out, nodes: X.length };\n}\n"}],"pred":[{"id":"cv","name":"Constant velocity","code":"// Your agent predictor. Called at 10 Hz with the current tracks.\n// Return { trajectories: { [id]: [[x, y, r], ...] } }: one sample per step of obs.dt from t = 0 to obs.horizon, per track.\n// The speed planner, DWA and MPC read these samples instead of the built-in constant-velocity model.\n//\n// obs.tracks  [{id, x, y, vx, vy, r, age}]  position, velocity estimate, radius, seconds since confirmed\n// obs.horizon seconds to predict (the Prediction horizon slider)\n// obs.dt      sample step (0.1 s)\n// obs.lethal, obs.grid  the static map, as for the planner (people do not walk through walls)\n// mem persists between calls. Budget: 200 ms per call.\n\nfunction predict(obs, mem) {\n  const out = {}, n = Math.round(obs.horizon / obs.dt);\n  for (const t of obs.tracks) {\n    const samples = [];\n    let vx = t.vx, vy = t.vy;\n    for (let k = 0; k <= n; k++) {\n      const tt = k * obs.dt;\n      // constant velocity, with the velocity decaying toward a walking pace after 2 s: people rarely keep running\n      const sp = Math.hypot(vx, vy), cap = tt > 2 ? 1.2 : Infinity;\n      if (sp > cap) { vx *= cap / sp; vy *= cap / sp; }\n      samples.push([t.x + vx * tt, t.y + vy * tt, t.r + 0.1 * tt]);\n    }\n    out[t.id] = samples;\n  }\n  return { trajectories: out };\n}\n"},{"id":"static","name":"Standing still","code":"// Your agent predictor: everyone stays where they are. The speed planner, DWA and MPC then plan around each person's\n// current position only, which is what a stack that tracks positions but not velocities would do; compare the yields\n// and contacts on L5 with the constant-velocity example. The radius grows a little with time, as a hedge.\n//\n// obs.tracks [{id, x, y, vx, vy, r, age}], obs.horizon (s), obs.dt (s)\n\nfunction predict(obs, mem) {\n  const out = {}, n = Math.round(obs.horizon / obs.dt);\n  for (const t of obs.tracks) {\n    const samples = [];\n    for (let k = 0; k <= n; k++) samples.push([t.x, t.y, t.r + 0.05 * k * obs.dt]);\n    out[t.id] = samples;\n  }\n  return { trajectories: out };\n}\n"}]};
+const SLOT_LIBRARY = {"ctl":[{"id":"pp","name":"Pure pursuit","code":"// Your controller. Called every 50 ms while the robot drives a leg.\n// Return { v, w } in m/s and rad/s, or { v, steer } (rad) for the car-like model.\n// Add mark: [x, y] to draw a point on the map.\n//\n// obs.pose   {x, y, th}      estimated pose (not ground truth)\n// obs.odom   {v, w}          measured velocity from wheel odometry\n// obs.path   [[x, y], ...]   current global path, resampled every 0.1 m\n// obs.goal   {x, y}          current goal\n// obs.scan   [[x, y], ...]   lidar hits in the world frame (from the estimate)\n// obs.agents [{id, x, y, vx, vy, r}]  tracked moving agents (Perceive → Moving agents)\n// obs.limits {vmax, wmax, accel, amax, alpha}\n// obs.dir                    +1 on a forward leg, -1 on a reverse leg (car paths have cusps)\n// obs.vehicle {model, wheelbase, steerMax, steer}   model is 'diff' or 'car'\n// obs.pathId                 changes whenever the planner replans or a new leg starts\n// obs.t, obs.dt              sim time and step [s]\n// mem                        object that persists between calls\n\nfunction control(obs, mem) {\n  const { pose, path, goal, limits } = obs;\n  if (mem.pathId !== obs.pathId) { mem.pathId = obs.pathId; mem.i = 0; }\n\n  // 1. closest path index, searching forward from last time\n  let best = Infinity;\n  const i0 = mem.i;\n  for (let i = i0; i < Math.min(path.length, i0 + 60); i++) {\n    const d = Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y);\n    if (d < best) { best = d; mem.i = i; }\n  }\n\n  // 2. carrot: first path point at least L ahead\n  const L = 0.8;\n  let c = path[path.length - 1];\n  for (let i = mem.i; i < path.length; i++) {\n    if (Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y) >= L) { c = path[i]; break; }\n  }\n\n  // 3. heading error measured against the direction of travel\n  const dir = obs.dir;\n  const th = dir > 0 ? pose.th : pose.th + Math.PI;\n  const a = Math.atan2(c[1] - pose.y, c[0] - pose.x) - th;\n  const err = Math.atan2(Math.sin(a), Math.cos(a));\n\n  // 4. slow down when misaligned or near the end of this leg\n  const end = path[path.length - 1];\n  const dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y);\n  if (obs.vehicle.model === 'car') {\n    // the car: slower on a reverse leg (manoeuvring), a ramp into the end of the leg, slow when pointing far off\n    const speed = Math.min(dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd) * (Math.abs(err) > Math.PI / 2 ? 0.25 : Math.max(0.3, Math.cos(err)));\n    const Lc = Math.max(0.1, Math.hypot(c[0] - pose.x, c[1] - pose.y));\n    const steer = Math.atan(obs.vehicle.wheelbase * 2 * Math.sin(err) / Lc);\n    return { v: dir * speed, steer: dir * steer, mark: c };\n  }\n  const v = Math.min(0.7, 0.8 * dEnd) * Math.max(0, Math.cos(err));\n  return { v, w: 2.0 * err, mark: c };\n}\n"},{"id":"stanley","name":"Stanley","code":"// Your controller: Stanley (Hoffmann et al. 2007), the page's ctlStanley written plainly (Learn → Control). The error\n// is measured at the front axle: the heading error to the path plus the arctangent of the cross-track error, scaled\n// by k and divided by the speed, so the correction softens as the car goes faster. Written for the car; on the\n// unicycle the \"front axle\" is 0.3 m ahead of the pose and the steering angle becomes a turn rate.\n//\n// obs.pose, obs.odom, obs.path [[x, y], …] (0.1 m apart), obs.dir (+1 forward, -1 reverse), obs.vehicle, obs.limits\n\nfunction control(obs, mem) {\n  const { pose, path, odom, limits } = obs, car = obs.vehicle.model === 'car', L = car ? obs.vehicle.wheelbase : 0.3, K = 2.0;\n  const dir = obs.dir, th = dir > 0 ? pose.th : pose.th + Math.PI, wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\n  const fx = pose.x + L * Math.cos(th), fy = pose.y + L * Math.sin(th);              // the front axle\n  // 1. the nearest path segment to the front axle, and the path heading there\n  let best = Infinity, bx = fx, by = fy, bth = th;\n  for (let i = 0; i < path.length - 1; i++) {\n    const a = path[i], b = path[i + 1], vx = b[0] - a[0], vy = b[1] - a[1], l2 = vx * vx + vy * vy; if (l2 < 1e-12) continue;\n    const t = Math.max(0, Math.min(1, ((fx - a[0]) * vx + (fy - a[1]) * vy) / l2)), qx = a[0] + vx * t, qy = a[1] + vy * t;\n    const d = (fx - qx) ** 2 + (fy - qy) ** 2;\n    if (d < best) { best = d; bx = qx; by = qy; bth = Math.atan2(vy, vx); }\n  }\n  // 2. the Stanley law: heading error plus the cross-track term, softened by speed\n  const eLeft = Math.cos(bth) * (fy - by) - Math.sin(bth) * (fx - bx);               // cross-track error, left positive\n  const delta = wrap(bth - th) - Math.atan2(K * eLeft, 0.5 + Math.abs(odom.v));\n  const steerMax = car ? obs.vehicle.steerMax : 1.0, d = Math.max(-steerMax, Math.min(steerMax, delta));\n  // 3. speed: cruise, slower in a tight turn, braking into the end of the leg\n  const end = path[path.length - 1], dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y), kap = Math.abs(Math.tan(d)) / L;\n  let v = Math.min(0.8, limits.vmax); if (kap > 1e-6) v = Math.min(v, Math.sqrt(0.6 / kap));\n  v = Math.min(v, Math.sqrt(2 * 0.8 * Math.max(0, dEnd - 0.08)) + 0.02);\n  if (car) return { v: dir * Math.min(v, dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd), steer: dir * d, mark: [bx, by] };   // reverse legs slowly, a ramp into the leg end\n  return { v, w: Math.max(-limits.wmax, Math.min(limits.wmax, v * Math.tan(d) / L)), mark: [bx, by] };\n}\n"},{"id":"pid","name":"PID on the heading error","code":"// Your controller: a PID on the heading error toward a look-ahead point, the page's ctlPID written plainly (Learn →\n// Control, lesson 8 on integral action). Kp 2.0, Ki 0 and Kd 0.15 are the Control tab's defaults; set Ki to 0.3 and\n// watch the integral wind up and unwind. The speed drops with the heading error and into the end of the leg.\n//\n// obs.pose, obs.odom, obs.path [[x, y], …] (0.1 m apart), obs.pathId (changes with every new leg), obs.dt, obs.limits\n\nfunction control(obs, mem) {\n  const { pose, path, odom, limits } = obs, dt = obs.dt, car = obs.vehicle.model === 'car';\n  const Kp = 2.0, Ki = 0.0, Kd = 0.15, dir = obs.dir, th = dir > 0 ? pose.th : pose.th + Math.PI;\n  if (mem.pathId !== obs.pathId) { mem.pathId = obs.pathId; mem.I = 0; mem.prev = null; }   // a new leg: reset the memory\n  // 1. the look-ahead point: the first path point at least Ld ahead of the nearest one\n  const Ld = Math.max(0.1, 0.5 + 0.5 * Math.abs(odom.v));\n  let ni = 0, nd = Infinity;\n  for (let i = 0; i < path.length; i++) { const d = Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y); if (d < nd) { nd = d; ni = i; } }\n  let c = path[path.length - 1];\n  for (let i = ni; i < path.length; i++) if (Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y) >= Ld) { c = path[i]; break; }\n  // 2. the three terms on the heading error\n  const wrap = a => Math.atan2(Math.sin(a), Math.cos(a)), err = wrap(Math.atan2(c[1] - pose.y, c[0] - pose.x) - th);\n  mem.I = Math.max(-1, Math.min(1, mem.I + err * dt));                         // integral, clamped (anti-windup)\n  const D = mem.prev == null ? 0 : wrap(err - mem.prev) / dt; mem.prev = err;  // derivative of the error\n  const u = Kp * err + Ki * mem.I + Kd * D;\n  // 3. speed: cruise, less when pointing the wrong way, braking into the end of the leg\n  const end = path[path.length - 1], dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y);\n  let v = Math.min(0.8, limits.vmax) * Math.max(0, Math.cos(err)) ** 2;\n  v = Math.min(v, Math.sqrt(2 * 0.8 * Math.max(0, dEnd - 0.08)) + 0.02);\n  if (car) { const sm = obs.vehicle.steerMax; return { v: dir * Math.min(v, dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd), steer: dir * Math.max(-sm, Math.min(sm, u)), mark: c }; }   // reverse legs slowly, a ramp into the leg end\n  return { v, w: Math.max(-limits.wmax, Math.min(limits.wmax, u)), mark: c };\n}\n"},{"id":"rwf","name":"Rear-wheel feedback","code":"// Your controller: rear-wheel feedback (Samson; Paden et al. 2016 §V-A), the page's ctlRWF written plainly and the\n// controller the Analyze view's loop model is built on. Curvature feedforward from the path plus heading and lateral\n// feedback: κ_c = κ cos θ_e / (1 − κ e) − k_θ θ_e − k_e sinc(θ_e) e. k_e 6.0 and k_θ 3.0 are the Control tab's defaults;\n// the design row under the pole plot (Learn → Control, lesson 18) gives you other pairs to try here. The path's\n// heading and curvature come from finite differences over the 0.1 m points.\n//\n// obs.pose, obs.odom, obs.path [[x, y], …], obs.dir, obs.vehicle {model, wheelbase, steerMax}, obs.limits\n\nfunction control(obs, mem) {\n  const { pose, path, limits } = obs, car = obs.vehicle.model === 'car', ke = 6.0, kth = 3.0;\n  const dir = obs.dir, th = dir > 0 ? pose.th : pose.th + Math.PI, wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\n  // 1. the nearest path point; the path heading and curvature there (curvature read 0.2 m ahead, covering the lag)\n  let ni = 0, nd = Infinity;\n  for (let i = 0; i < path.length; i++) { const d = Math.hypot(path[i][0] - pose.x, path[i][1] - pose.y); if (d < nd) { nd = d; ni = i; } }\n  const at = i => path[Math.max(0, Math.min(path.length - 1, i))];\n  const hd = i => { const a = at(i - 1), b = at(i + 1); return Math.atan2(b[1] - a[1], b[0] - a[0]); };\n  const curv = i => wrap(hd(i + 1) - hd(i - 1)) / Math.max(1e-3, Math.hypot(at(i + 1)[0] - at(i - 1)[0], at(i + 1)[1] - at(i - 1)[1]));\n  const q = at(ni), thp = hd(ni), kmax = car ? Math.tan(obs.vehicle.steerMax) / obs.vehicle.wheelbase : 3;\n  const k = Math.max(-kmax, Math.min(kmax, path.length > 4 ? curv(ni + 2) : 0));\n  // 2. the two errors and the law\n  const el = Math.cos(thp) * (pose.y - q[1]) - Math.sin(thp) * (pose.x - q[0]), the = wrap(th - thp);   // lateral (left > 0), heading\n  const sinc = Math.abs(the) < 1e-4 ? 1 : Math.sin(the) / the;\n  const kc = (k * Math.cos(the)) / Math.max(0.3, 1 - k * el) - kth * the - ke * sinc * el;\n  // 3. speed: cruise, slower where the path is curved, braking into the end of the leg\n  const end = path[path.length - 1], dEnd = Math.hypot(end[0] - pose.x, end[1] - pose.y);\n  let v = Math.min(0.8, limits.vmax); if (Math.abs(k) > 1e-6) v = Math.min(v, Math.sqrt(0.6 / Math.abs(k)));\n  v = Math.min(v, Math.sqrt(2 * 0.8 * Math.max(0, dEnd - 0.08)) + 0.02);\n  if (car) {   // reverse legs slowly, a ramp into the leg end, slow when pointing far off the path\n    const sm = obs.vehicle.steerMax, vc = Math.min(v, dir > 0 ? 0.8 : 0.35, 0.1 + 0.6 * dEnd) * (Math.abs(the) > Math.PI / 2 ? 0.25 : 1);\n    return { v: dir * vc, steer: dir * Math.max(-sm, Math.min(sm, Math.atan(obs.vehicle.wheelbase * kc))), mark: q };\n  }\n  if (Math.abs(the) > Math.PI / 2) return { v: 0, w: -Math.sign(the) * limits.wmax * 0.7 };   // facing away: turn in place first\n  return { v, w: Math.max(-limits.wmax, Math.min(limits.wmax, v * kc)), mark: q };\n}\n"}],"loc":[{"id":"dr","name":"Dead reckoning","code":"// Your localizer. Called every 50 ms tick, before the planner and controller use the estimate.\n// Return { x, y, th } and optionally cov: a 3×3 covariance as 9 numbers, row-major (drawn as an ellipse).\n//\n// obs.init    {x, y, th} on the first call only (the start pose), else null\n// obs.dt      0.05 s\n// obs.odom    {v, w}   measured speed and yaw rate (noisy, slightly biased)\n// obs.beacons [{id, r, b}] or null: range and bearing (body frame) to beacons seen this tick; id is -1 when unlabeled\n// obs.map     [{id, x, y}] beacon positions\n// obs.scan    Float32Array(120) of lidar ranges or null; beam k points at -π + k·2π/120 in the body frame, 8 m max\n// obs.gnss    {x, y, sigma, t} a GNSS position fix when one arrived this tick (Sensors → GNSS), else null; sigma is what the receiver reports\n// obs.field   {w, h, res, dist} on the first call when there is a prior map: its distance field, metres to the nearest wall per cell (row-major), else null\n// mem persists between calls. Budget: 200 ms per call.\n\nfunction localize(obs, mem) {\n  if (obs.init) { mem.x = obs.init.x; mem.y = obs.init.y; mem.th = obs.init.th; }\n  // dead reckoning with the exact arc\n  const v = obs.odom.v, w = obs.odom.w, dt = obs.dt;\n  if (Math.abs(w) < 1e-6) { mem.x += v * dt * Math.cos(mem.th); mem.y += v * dt * Math.sin(mem.th); }\n  else { const r = v / w, t2 = mem.th + w * dt; mem.x += r * (Math.sin(t2) - Math.sin(mem.th)); mem.y -= r * (Math.cos(t2) - Math.cos(mem.th)); mem.th = t2; }\n  // pull toward each labeled beacon reading: a fixed-gain correction, not a Kalman filter\n  if (obs.beacons) for (const z of obs.beacons) {\n    const b = obs.map.find(m => m.id === z.id); if (!b) continue;\n    const dx = b.x - mem.x, dy = b.y - mem.y, rHat = Math.hypot(dx, dy), bHat = Math.atan2(dy, dx) - mem.th;\n    const er = z.r - rHat, eb = Math.atan2(Math.sin(z.b - bHat), Math.cos(z.b - bHat));\n    const ux = dx / rHat, uy = dy / rHat;\n    mem.x -= 0.2 * er * ux; mem.y -= 0.2 * er * uy; mem.th -= 0.2 * eb;   // a larger measured bearing means the heading estimate is too large\n  }\n  mem.th = Math.atan2(Math.sin(mem.th), Math.cos(mem.th));\n  return { x: mem.x, y: mem.y, th: mem.th };\n}\n"},{"id":"ekf","name":"EKF with beacons","code":"// Your localizer: an extended Kalman filter on (x, y, θ), the page's locPredict and ekfUpdate written plainly (Learn →\n// Localization, lessons 1 and 2). Odometry predicts along the exact arc and grows the covariance; each beacon reading\n// (range r and bearing b to a beacon of known position) corrects it. The noise it assumes is the lab's default; the\n// Localize sliders do not reach in here: speed σ = 0.1|v| + 0.02, turn σ = 0.2|ω| + 0.1|v| + 0.02, range σ = 0.08 m,\n// bearing σ = 0.03 rad. Return { x, y, th, cov }: cov is the 3×3 covariance, row-major, drawn as the ellipse.\n//\n// obs.init {x, y, th} on the first call, obs.dt, obs.odom {v, w}, obs.beacons [{id, r, b}] or null, obs.map [{id, x, y}]\n\nconst wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\nfunction localize(obs, mem) {\n  if (obs.init) { mem.x = obs.init.x; mem.y = obs.init.y; mem.th = obs.init.th; mem.P = [0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01]; }\n  const { v, w } = obs.odom, dt = obs.dt;\n  // 1. predict: the exact arc, the Jacobian G of the motion, the input noise mapped into the state (V M Vᵀ)\n  const th = mem.th, c = Math.cos(th), s = Math.sin(th);\n  if (Math.abs(w) < 1e-6) { mem.x += v * dt * c; mem.y += v * dt * s; }\n  else { const R = v / w; mem.x += R * (Math.sin(th + w * dt) - s); mem.y += R * (c - Math.cos(th + w * dt)); mem.th = wrap(th + w * dt); }\n  const G = [1, 0, -v * dt * s, 0, 1, v * dt * c, 0, 0, 1];\n  const sv = 0.1 * Math.abs(v) + 0.02, sw = 0.2 * Math.abs(w) + 0.1 * Math.abs(v) + 0.02;\n  const a = dt * dt * sv * sv, b = dt * dt * sw * sw;\n  const Q = [a * c * c, a * c * s, 0, a * c * s, a * s * s, 0, 0, 0, b];\n  let P = add(mul(mul(G, mem.P), T(G)), Q);\n  // 2. update, one beacon at a time: innovation ν = z − h(x), S = H P Hᵀ + R, gain K = P Hᵀ S⁻¹\n  const sr = 0.08, sb = 0.03;\n  for (const m of obs.beacons || []) {\n    const lm = obs.map.find(l => l.id === m.id); if (!lm) continue;      // unlabeled readings (id -1) are skipped here\n    const dx = lm.x - mem.x, dy = lm.y - mem.y, q = dx * dx + dy * dy, r = Math.sqrt(q); if (r < 1e-6) continue;\n    const H = [-dx / r, -dy / r, 0, dy / q, -dx / q, -1];                 // 2×3: how r and b change with x, y, θ\n    const PHt = mulHt(P, H);                                              // P Hᵀ, 3×2\n    const S = [H[0] * PHt[0] + H[1] * PHt[2] + H[2] * PHt[4] + sr * sr, H[0] * PHt[1] + H[1] * PHt[3] + H[2] * PHt[5],\n               H[3] * PHt[0] + H[4] * PHt[2] + H[5] * PHt[4], H[3] * PHt[1] + H[4] * PHt[3] + H[5] * PHt[5] + sb * sb];\n    const det = S[0] * S[3] - S[1] * S[2]; if (Math.abs(det) < 1e-12) continue;\n    const Si = [S[3] / det, -S[1] / det, -S[2] / det, S[0] / det];\n    const nu = [m.r - r, wrap(m.b - (Math.atan2(dy, dx) - mem.th))];\n    const K = [PHt[0] * Si[0] + PHt[1] * Si[2], PHt[0] * Si[1] + PHt[1] * Si[3], PHt[2] * Si[0] + PHt[3] * Si[2],\n               PHt[2] * Si[1] + PHt[3] * Si[3], PHt[4] * Si[0] + PHt[5] * Si[2], PHt[4] * Si[1] + PHt[5] * Si[3]];\n    mem.x += K[0] * nu[0] + K[1] * nu[1]; mem.y += K[2] * nu[0] + K[3] * nu[1]; mem.th = wrap(mem.th + K[4] * nu[0] + K[5] * nu[1]);\n    // P ← (I − K H) P: the textbook line (the page uses the Joseph form, which keeps P symmetric under rounding)\n    const KH = [K[0] * H[0] + K[1] * H[3], K[0] * H[1] + K[1] * H[4], K[0] * H[2] + K[1] * H[5],\n                K[2] * H[0] + K[3] * H[3], K[2] * H[1] + K[3] * H[4], K[2] * H[2] + K[3] * H[5],\n                K[4] * H[0] + K[5] * H[3], K[4] * H[1] + K[5] * H[4], K[4] * H[2] + K[5] * H[5]];\n    P = mul([1 - KH[0], -KH[1], -KH[2], -KH[3], 1 - KH[4], -KH[5], -KH[6], -KH[7], 1 - KH[8]], P);\n  }\n  mem.P = P;\n  return { x: mem.x, y: mem.y, th: mem.th, cov: P };\n}\n// 3×3 helpers, row-major\nfunction mul(A, B) { const C = new Array(9).fill(0); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) C[i * 3 + j] += A[i * 3 + k] * B[k * 3 + j]; return C; }\nfunction T(A) { return [A[0], A[3], A[6], A[1], A[4], A[7], A[2], A[5], A[8]]; }\nfunction add(A, B) { return A.map((x, i) => x + B[i]); }\nfunction mulHt(P, H) { return [P[0] * H[0] + P[1] * H[1] + P[2] * H[2], P[0] * H[3] + P[1] * H[4] + P[2] * H[5], P[3] * H[0] + P[4] * H[1] + P[5] * H[2], P[3] * H[3] + P[4] * H[4] + P[5] * H[5], P[6] * H[0] + P[7] * H[1] + P[8] * H[2], P[6] * H[3] + P[7] * H[4] + P[8] * H[5]]; }\n"},{"id":"pf","name":"Particle filter with beacons","code":"// Your localizer: a particle filter (Monte Carlo localization), the page's pfUpdate and pfResample written plainly\n// (Learn → Localization, lesson 4). N particles move along the odometry with noise; after 5 cm of motion each is\n// weighted by how well the beacon readings fit its pose; when the effective number of particles drops below N/2 they\n// are resampled (low-variance). The estimate is the weighted mean. No injection, so a kidnapped robot stays lost: the\n// lesson shows what injection adds. Return { x, y, th, cov }.\n\nconst N = 300, wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\nlet seed = 7;\nconst rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };   // repeatable\nconst gauss = () => Math.sqrt(-2 * Math.log(Math.max(rnd(), 1e-12))) * Math.cos(2 * Math.PI * rnd());\nfunction localize(obs, mem) {\n  if (obs.init) {\n    mem.x = new Float64Array(N).fill(obs.init.x); mem.y = new Float64Array(N).fill(obs.init.y);\n    mem.th = new Float64Array(N).fill(obs.init.th); mem.lw = new Float64Array(N); mem.moved = 0;\n  }\n  // 1. move every particle along the odometry, each with its own noise draw\n  const { v, w } = obs.odom, dt = obs.dt;\n  const sv = Math.max(0.1 * Math.abs(v) + 0.02, 0.02), sw = Math.max(0.2 * Math.abs(w) + 0.1 * Math.abs(v) + 0.02, 0.02);\n  for (let i = 0; i < N; i++) {\n    const vi = v + sv * gauss(), wi = w + sw * gauss(), th = mem.th[i];\n    if (Math.abs(wi) < 1e-6) { mem.x[i] += vi * dt * Math.cos(th); mem.y[i] += vi * dt * Math.sin(th); }\n    else { const R = vi / wi; mem.x[i] += R * (Math.sin(th + wi * dt) - Math.sin(th)); mem.y[i] += R * (Math.cos(th) - Math.cos(th + wi * dt)); mem.th[i] = wrap(th + wi * dt); }\n  }\n  mem.moved += Math.abs(v) * dt + 0.5 * Math.abs(w) * dt;\n  // 2. weight by the beacon readings, once the robot has moved: readings in between are not independent evidence\n  const z = obs.beacons || [];\n  if (z.length && mem.moved >= 0.05) {\n    mem.moved = 0;\n    for (let i = 0; i < N; i++) {\n      let ll = 0;\n      for (const m of z) {\n        const lm = obs.map.find(l => l.id === m.id); if (!lm) continue;\n        const dx = lm.x - mem.x[i], dy = lm.y - mem.y[i];\n        const er = (m.r - Math.hypot(dx, dy)) / 0.08, eb = wrap(m.b - (Math.atan2(dy, dx) - mem.th[i])) / 0.03;\n        ll += Math.log(Math.exp(-0.5 * (er * er + eb * eb)) + 1e-3);   // the floor keeps one bad reading from killing a particle\n      }\n      mem.lw[i] += ll;\n    }\n    // 3. normalise, N_eff, and resample when the weights have collapsed onto a few particles\n    let mx = -Infinity; for (let i = 0; i < N; i++) mx = Math.max(mx, mem.lw[i]);\n    const wt = new Float64Array(N); let sum = 0, s2 = 0;\n    for (let i = 0; i < N; i++) { wt[i] = Math.exp(mem.lw[i] - mx); sum += wt[i]; }\n    for (let i = 0; i < N; i++) { wt[i] /= sum; s2 += wt[i] * wt[i]; }\n    if (1 / s2 < N / 2) {\n      const nx = new Float64Array(N), ny = new Float64Array(N), nt = new Float64Array(N);\n      let u = rnd() / N, c = wt[0], j = 0;                        // low-variance resampling: one random offset, N even steps\n      for (let m = 0; m < N; m++) {\n        const U = u + m / N;\n        while (U > c && j < N - 1) { j++; c += wt[j]; }\n        nx[m] = mem.x[j]; ny[m] = mem.y[j]; nt[m] = mem.th[j];\n      }\n      mem.x = nx; mem.y = ny; mem.th = nt; mem.lw = new Float64Array(N);\n    }\n  }\n  // 4. the estimate: the weighted mean (the heading as a mean direction) and the spread as the covariance\n  let mx = -Infinity; for (let i = 0; i < N; i++) mx = Math.max(mx, mem.lw[i]);\n  let sw2 = 0, sx = 0, sy = 0, sc = 0, ss = 0; const wt = new Float64Array(N);\n  for (let i = 0; i < N; i++) { wt[i] = Math.exp(mem.lw[i] - mx); sw2 += wt[i]; }\n  for (let i = 0; i < N; i++) { wt[i] /= sw2; sx += wt[i] * mem.x[i]; sy += wt[i] * mem.y[i]; sc += wt[i] * Math.cos(mem.th[i]); ss += wt[i] * Math.sin(mem.th[i]); }\n  const th = Math.atan2(ss, sc), C = [0, 0, 0, 0, 0, 0, 0, 0, 0];\n  for (let i = 0; i < N; i++) { const d = [mem.x[i] - sx, mem.y[i] - sy, wrap(mem.th[i] - th)]; for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) C[a * 3 + b] += wt[i] * d[a] * d[b]; }\n  return { x: sx, y: sy, th, cov: C };\n}\n"},{"id":"sm","name":"Scan matching against the map","code":"// Your localizer: dead reckoning corrected by scan matching, the page's scanMatch written plainly (Learn → Localization,\n// lesson 7). The odometry moves the pose along the arc; every fourth scan is aligned to the prior map by Gauss–Newton\n// on the map's distance field (obs.field, given on the first call), and when the fit is good the matched pose replaces\n// the estimate. No beacons needed. The page fuses the match into an EKF instead, gated and weighted; this is the bare\n// version. Return { x, y, th, cov }: cov from the fit, floored at 5 cm.\n//\n// obs.init {x, y, th} on the first call, obs.field {w, h, res, dist} with it when there is a prior map (null otherwise),\n// obs.odom {v, w}, obs.dt, obs.scan Float32Array(120) or null: beam k points at -π + k·2π/120 in the body frame, 8 m max\n\nconst wrap = a => Math.atan2(Math.sin(a), Math.cos(a));\nfunction localize(obs, mem) {\n  if (obs.init) { mem.x = obs.init.x; mem.y = obs.init.y; mem.th = obs.init.th; mem.F = obs.field; mem.n = 0; mem.cov = [0.0025, 0, 0, 0, 0.0025, 0, 0, 0, 0.0003]; }\n  // 1. dead reckoning along the arc\n  const { v, w } = obs.odom, dt = obs.dt, th = mem.th;\n  if (Math.abs(w) < 1e-6) { mem.x += v * dt * Math.cos(th); mem.y += v * dt * Math.sin(th); }\n  else { const R = v / w; mem.x += R * (Math.sin(th + w * dt) - Math.sin(th)); mem.y += R * (Math.cos(th) - Math.cos(th + w * dt)); mem.th = wrap(th + w * dt); }\n  // 2. every fourth scan: align it to the map and, when the fit is good, take the matched pose\n  if (obs.scan && mem.F && mem.n++ % 4 === 0) {\n    const m = scanMatch(obs.scan, mem.F, mem.x, mem.y, mem.th);\n    if (m && m.rms < 0.12 && m.n >= 0.6 * m.hits) { mem.x = m.x; mem.y = m.y; mem.th = m.th; mem.cov = m.cov; }\n  }\n  return { x: mem.x, y: mem.y, th: mem.th, cov: mem.cov };\n}\n// Gauss–Newton on ξ = (x, y, θ): each hit p, placed at T_ξ p in the world, costs d(T_ξ p)², d the distance to the nearest\n// wall read from the field by bilinear interpolation; the Jacobian is ∇d times the derivative of the transform.\nfunction scanMatch(ranges, F, x, y, th) {\n  const { w, h, res, dist: D } = F, pts = [];\n  for (let k = 0; k < ranges.length; k += 2) { const r = ranges[k]; if (r >= 7.99) continue; const a = -Math.PI + (k * 2 * Math.PI) / ranges.length; pts.push([r * Math.cos(a), r * Math.sin(a)]); }\n  if (pts.length < 12) return null;\n  const field = (px, py) => {                        // d and ∇d at a world point\n    const fx = px / res - 0.5, fy = py / res - 0.5, i = Math.floor(fx), j = Math.floor(fy);\n    if (i < 0 || j < 0 || i >= w - 1 || j >= h - 1) return null;\n    const tx = fx - i, ty = fy - j, k = j * w + i, d00 = D[k], d10 = D[k + 1], d01 = D[k + w], d11 = D[k + w + 1];\n    return { d: (1 - ty) * ((1 - tx) * d00 + tx * d10) + ty * ((1 - tx) * d01 + tx * d11),\n      gx: ((1 - ty) * (d10 - d00) + ty * (d11 - d01)) / res, gy: ((1 - tx) * (d01 - d00) + tx * (d11 - d10)) / res };\n  };\n  let H = null, n = 0, ss = 0;\n  for (let it = 0; it < 10; it++) {\n    const c = Math.cos(th), s = Math.sin(th), b = [0, 0, 0]; H = [0, 0, 0, 0, 0, 0, 0, 0, 0]; n = 0; ss = 0;\n    for (const [px, py] of pts) {\n      const f = field(x + c * px - s * py, y + s * px + c * py); if (!f || f.d > 0.5) continue;   // hits far from any wall: people, outliers\n      const J = [f.gx, f.gy, f.gx * (-s * px - c * py) + f.gy * (c * px - s * py)];\n      for (let a = 0; a < 3; a++) { b[a] += J[a] * f.d; for (let q = 0; q < 3; q++) H[a * 3 + q] += J[a] * J[q]; }\n      n++; ss += f.d * f.d;\n    }\n    if (n < 12) return null;\n    for (let a = 0; a < 3; a++) H[a * 4] += 1e-6;\n    const Hi = inv3(H); if (!Hi) return null;\n    const dx = -(Hi[0] * b[0] + Hi[1] * b[1] + Hi[2] * b[2]), dy = -(Hi[3] * b[0] + Hi[4] * b[1] + Hi[5] * b[2]), dth = -(Hi[6] * b[0] + Hi[7] * b[1] + Hi[8] * b[2]);\n    x += dx; y += dy; th = wrap(th + dth);                                   // the Gauss–Newton step, H δ = −b\n    if (Math.abs(dx) < 1e-3 && Math.abs(dy) < 1e-3 && Math.abs(dth) < 1e-3) break;\n  }\n  const s2 = Math.max(ss / Math.max(1, n - 3), 1e-4), Hi = inv3(H); if (!Hi) return null;\n  const cov = Hi.map(v => v * s2 * 4); cov[0] += 0.0025; cov[4] += 0.0025; cov[8] += 0.0003;   // inflated, floored at 5 cm and 1°\n  return { x, y, th, cov, rms: Math.sqrt(ss / n), n, hits: pts.length };\n}\nfunction inv3(A) {\n  const [a, b, c, d, e, f, g, h, i] = A, C0 = e * i - f * h, C1 = -(d * i - f * g), C2 = d * h - e * g, det = a * C0 + b * C1 + c * C2;\n  if (Math.abs(det) < 1e-18) return null;\n  return [C0 / det, -(b * i - c * h) / det, (b * f - c * e) / det, C1 / det, (a * i - c * g) / det, -(a * f - c * d) / det, C2 / det, -(a * h - b * g) / det, (a * e - b * d) / det];\n}\n"}],"plan":[{"id":"astar","name":"A* on the costmap","code":"// Your global planner. Called whenever the mission needs a path (initial plan, replans).\n// Return { path: [[x, y], ...] } from the start to the goal, or { error: 'reason' } when there is none.\n// A car may return { segs: [{ pts: [[x, y, th], ...], dir: +1 | -1 }, ...] } with reverse legs.\n//\n// obs.start  {x, y, th}      estimated pose\n// obs.goal   {x, y, th|null} the goal, heading only for posed goals\n// obs.grid   {w, h, res}     the costmap grid: w × h cells of res metres\n// obs.lethal Uint8Array      1 where the robot centre may not go (w*h, row-major, cell (i, j) = j*w + i)\n// obs.dist   Float32Array    distance to the nearest obstacle per cell [m]\n// obs.vehicle {model, wheelbase, steerMax, minTurnR, revOK}\n// Budget: 3 s per call. mem persists between calls.\n\nfunction plan(obs, mem) {\n  const { w, h, res } = obs.grid, L = obs.lethal;\n  const cell = (x, y) => [Math.floor(x / res), Math.floor(y / res)];\n  const [si, sj] = cell(obs.start.x, obs.start.y), [gi, gj] = cell(obs.goal.x, obs.goal.y);\n  // 8-connected A* with the octile heuristic\n  const g = new Float32Array(w * h).fill(Infinity), par = new Int32Array(w * h).fill(-1), closed = new Uint8Array(w * h);\n  const heur = (i, j) => { const dx = Math.abs(i - gi), dy = Math.abs(j - gj); return Math.max(dx, dy) + 0.414 * Math.min(dx, dy); };\n  const open = [[heur(si, sj), sj * w + si]]; g[sj * w + si] = 0;\n  const NB = [[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];\n  let found = false, expansions = 0;\n  while (open.length) {\n    let b = 0; for (let k = 1; k < open.length; k++) if (open[k][0] < open[b][0]) b = k;   // a heap would be faster\n    const [, u] = open.splice(b, 1)[0]; if (closed[u]) continue; closed[u] = 1; expansions++;\n    if (u === gj * w + gi) { found = true; break; }\n    const ui = u % w, uj = (u / w) | 0;\n    for (const [di, dj, c] of NB) { const vi = ui + di, vj = uj + dj; if (vi < 0 || vj < 0 || vi >= w || vj >= h) continue;\n      const v = vj * w + vi; if (L[v] || closed[v]) continue;\n      if (di && dj && (L[uj * w + vi] || L[vj * w + ui])) continue;           // no corner cutting\n      const ng = g[u] + c * (1 + 3 * Math.max(0, 0.6 - obs.dist[v]));         // stay away from walls when it is cheap to\n      if (ng < g[v]) { g[v] = ng; par[v] = u; open.push([ng + heur(vi, vj), v]); } }\n  }\n  if (!found) return { error: 'no path on the grid' };\n  const path = []; for (let u = gj * w + gi; u >= 0; u = par[u]) path.push([(u % w + 0.5) * res, (((u / w) | 0) + 0.5) * res]);\n  path.reverse(); path[0] = [obs.start.x, obs.start.y]; path[path.length - 1] = [obs.goal.x, obs.goal.y];\n  return { path, expansions };\n}\n"},{"id":"dijkstra","name":"Dijkstra (A* without the heuristic)","code":"// Your global planner: Dijkstra, which is A* with the heuristic set to zero. Same code as the A* example but for one line;\n// compare the expansions it reports in the event log with A*'s on the same plan.\n// Return { path: [[x, y], ...] } from the start to the goal, or { error: 'reason' } when there is none.\n// A car may return { segs: [{ pts: [[x, y, th], ...], dir: +1 | -1 }, ...] } with reverse legs.\n//\n// obs.start  {x, y, th}      estimated pose\n// obs.goal   {x, y, th|null} the goal, heading only for posed goals\n// obs.grid   {w, h, res}     the costmap grid: w × h cells of res metres\n// obs.lethal Uint8Array      1 where the robot centre may not go (w*h, row-major, cell (i, j) = j*w + i)\n// obs.dist   Float32Array    distance to the nearest obstacle per cell [m]\n// obs.vehicle {model, wheelbase, steerMax, minTurnR, revOK}\n// Budget: 3 s per call. mem persists between calls.\n\nfunction plan(obs, mem) {\n  const { w, h, res } = obs.grid, L = obs.lethal;\n  const cell = (x, y) => [Math.floor(x / res), Math.floor(y / res)];\n  const [si, sj] = cell(obs.start.x, obs.start.y), [gi, gj] = cell(obs.goal.x, obs.goal.y);\n  // 8-connected A* with the octile heuristic\n  const g = new Float32Array(w * h).fill(Infinity), par = new Int32Array(w * h).fill(-1), closed = new Uint8Array(w * h);\n  const heur = () => 0;   // Dijkstra: no heuristic, so the search grows as a disc from the start instead of leaning toward the goal\n  const open = [[heur(si, sj), sj * w + si]]; g[sj * w + si] = 0;\n  const NB = [[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];\n  let found = false, expansions = 0;\n  while (open.length) {\n    let b = 0; for (let k = 1; k < open.length; k++) if (open[k][0] < open[b][0]) b = k;   // a heap would be faster\n    const [, u] = open.splice(b, 1)[0]; if (closed[u]) continue; closed[u] = 1; expansions++;\n    if (u === gj * w + gi) { found = true; break; }\n    const ui = u % w, uj = (u / w) | 0;\n    for (const [di, dj, c] of NB) { const vi = ui + di, vj = uj + dj; if (vi < 0 || vj < 0 || vi >= w || vj >= h) continue;\n      const v = vj * w + vi; if (L[v] || closed[v]) continue;\n      if (di && dj && (L[uj * w + vi] || L[vj * w + ui])) continue;           // no corner cutting\n      const ng = g[u] + c * (1 + 3 * Math.max(0, 0.6 - obs.dist[v]));         // stay away from walls when it is cheap to\n      if (ng < g[v]) { g[v] = ng; par[v] = u; open.push([ng + heur(vi, vj), v]); } }\n  }\n  if (!found) return { error: 'no path on the grid' };\n  const path = []; for (let u = gj * w + gi; u >= 0; u = par[u]) path.push([(u % w + 0.5) * res, (((u / w) | 0) + 0.5) * res]);\n  path.reverse(); path[0] = [obs.start.x, obs.start.y]; path[path.length - 1] = [obs.goal.x, obs.goal.y];\n  return { path, expansions };\n}\n"},{"id":"rrtstar","name":"RRT*","code":"// Your global planner: RRT* (Karaman & Frazzoli 2011), the page's rrtstar written plainly. Each iteration samples a\n// point (the goal one time in ten), steers from the nearest tree node toward it by one step, picks the cheapest\n// collision-free parent among the near nodes, and rewires the near nodes through the new one when that is cheaper.\n// The random numbers come from a fixed seed, so a rerun grows the same tree; the path is shortcut-smoothed at the end.\n// Return { path } or { error }.\n//\n// obs.start {x, y, th}, obs.goal {x, y}, obs.grid {w, h, res}, obs.lethal Uint8Array (1 where the centre may not go)\n\nfunction plan(obs, mem) {\n  const { w, h, res } = obs.grid, L = obs.lethal, W = w * res, H = h * res, STEP = 0.6, IT = 1500;\n  const free = (x, y) => { const i = Math.floor(x / res), j = Math.floor(y / res); return i >= 0 && j >= 0 && i < w && j < h && !L[j * w + i]; };\n  const clear = (ax, ay, bx, by) => {            // the segment sampled every half cell\n    const n = Math.ceil(Math.hypot(bx - ax, by - ay) / (res / 2)) + 1;\n    for (let k = 0; k <= n; k++) { const t = k / n; if (!free(ax + (bx - ax) * t, ay + (by - ay) * t)) return false; }\n    return true;\n  };\n  let seed = 7; const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };\n  const sx = obs.start.x, sy = obs.start.y, gx = obs.goal.x, gy = obs.goal.y;\n  if (!free(gx, gy)) return { error: 'goal is inside an inflated obstacle' };\n  const X = [sx], Y = [sy], Pa = [-1], Co = [0];   // the tree: positions, parent index, cost from the start\n  for (let it = 0; it < IT; it++) {\n    let qx, qy;\n    if (rnd() < 0.1) { qx = gx; qy = gy; } else { qx = rnd() * W; qy = rnd() * H; }   // 1. sample\n    let ni = 0, nd = Infinity;                                                        // 2. nearest node\n    for (let i = 0; i < X.length; i++) { const d2 = (X[i] - qx) ** 2 + (Y[i] - qy) ** 2; if (d2 < nd) { nd = d2; ni = i; } }\n    const d = Math.sqrt(nd); if (d < 1e-6) continue;\n    const sc = Math.min(STEP, d) / d, nx = X[ni] + (qx - X[ni]) * sc, ny = Y[ni] + (qy - Y[ni]) * sc;   // 3. steer one step\n    if (!free(nx, ny)) continue;\n    const n = X.length, rad = Math.min(8 * Math.sqrt(Math.log(n + 1) / (n + 1)), 1.5), near = [];        // 4. the near nodes\n    for (let i = 0; i < n; i++) if ((X[i] - nx) ** 2 + (Y[i] - ny) ** 2 <= rad * rad) near.push(i);\n    let bp = -1, bc = Infinity;                                                                            // 5. the cheapest parent\n    for (const i of near.length ? near : [ni]) { const c = Co[i] + Math.hypot(nx - X[i], ny - Y[i]); if (c < bc && clear(X[i], Y[i], nx, ny)) { bc = c; bp = i; } }\n    if (bp < 0) continue;\n    X.push(nx); Y.push(ny); Pa.push(bp); Co.push(bc);\n    for (const i of near) {                                                                                // 6. rewire through the new node\n      const c = bc + Math.hypot(nx - X[i], ny - Y[i]);\n      if (c < Co[i] && clear(nx, ny, X[i], Y[i])) { Pa[i] = n; Co[i] = c; }\n    }\n  }\n  let best = -1, bc = Infinity;                   // the node that reaches the goal most cheaply (within 1 m, in the clear)\n  for (let i = 0; i < X.length; i++) {\n    const dg = Math.hypot(X[i] - gx, Y[i] - gy);\n    if (dg > 1 || !clear(X[i], Y[i], gx, gy)) continue;\n    if (Co[i] + dg < bc) { bc = Co[i] + dg; best = i; }\n  }\n  if (best < 0) return { error: 'no connection to the goal after ' + IT + ' samples' };\n  let path = [[gx, gy]];\n  for (let k = best; k >= 0; k = Pa[k]) path.push([X[k], Y[k]]);\n  path.reverse();\n  // shortcut smoothing, as the built-in does: skip every point the next one can be reached from in a straight line\n  const out = [path[0]];\n  for (let i = 0; i < path.length - 1; ) {\n    let j = path.length - 1;\n    while (j > i + 1 && !clear(path[i][0], path[i][1], path[j][0], path[j][1])) j--;\n    out.push(path[j]); i = j;\n  }\n  return { path: out, nodes: X.length };\n}\n"}],"pred":[{"id":"cv","name":"Constant velocity","code":"// Your agent predictor. Called at 10 Hz with the current tracks.\n// Return { trajectories: { [id]: [[x, y, r], ...] } }: one sample per step of obs.dt from t = 0 to obs.horizon, per track.\n// The speed planner, DWA and MPC read these samples instead of the built-in constant-velocity model.\n//\n// obs.tracks  [{id, x, y, vx, vy, r, age}]  position, velocity estimate, radius, seconds since confirmed\n// obs.horizon seconds to predict (the Prediction horizon slider)\n// obs.dt      sample step (0.1 s)\n// obs.lethal, obs.grid  the static map, as for the planner (people do not walk through walls)\n// mem persists between calls. Budget: 200 ms per call.\n\nfunction predict(obs, mem) {\n  const out = {}, n = Math.round(obs.horizon / obs.dt);\n  for (const t of obs.tracks) {\n    const samples = [];\n    let vx = t.vx, vy = t.vy;\n    for (let k = 0; k <= n; k++) {\n      const tt = k * obs.dt;\n      // constant velocity, with the velocity decaying toward a walking pace after 2 s: people rarely keep running\n      const sp = Math.hypot(vx, vy), cap = tt > 2 ? 1.2 : Infinity;\n      if (sp > cap) { vx *= cap / sp; vy *= cap / sp; }\n      samples.push([t.x + vx * tt, t.y + vy * tt, t.r + 0.1 * tt]);\n    }\n    out[t.id] = samples;\n  }\n  return { trajectories: out };\n}\n"},{"id":"static","name":"Standing still","code":"// Your agent predictor: everyone stays where they are. The speed planner, DWA and MPC then plan around each person's\n// current position only, which is what a stack that tracks positions but not velocities would do; compare the yields\n// and contacts on L5 with the constant-velocity example. The radius grows a little with time, as a hedge.\n//\n// obs.tracks [{id, x, y, vx, vy, r, age}], obs.horizon (s), obs.dt (s)\n\nfunction predict(obs, mem) {\n  const out = {}, n = Math.round(obs.horizon / obs.dt);\n  for (const t of obs.tracks) {\n    const samples = [];\n    for (let k = 0; k <= n; k++) samples.push([t.x, t.y, t.r + 0.05 * k * obs.dt]);\n    out[t.id] = samples;\n  }\n  return { trajectories: out };\n}\n"}]};
 
 /* ---- core/slots.js ---- */
 /* ============================================================
@@ -6780,6 +8352,8 @@ async function customLocalize() {
     beacons: z,
     map: S.beacons.map(b => ({id: b.id, x: b.x, y: b.y})),
     scan: S.deliv && S.deliv.scan ? Array.from(S.deliv.scan) : null,
+    sonar: P.sonar && S.deliv ? sonarObs(S.deliv.sonar) : null, // the ultrasonic readings delivered this tick
+    gnss: S.deliv && S.deliv.gnss ? {x: S.deliv.gnss.x, y: S.deliv.gnss.y, sigma: S.deliv.gnss.sig, t: S.deliv.gnss.t} : null, // a fix, when one arrived
     field: first && P.per === 'oracle' ? {w: GW, h: GH, res: RES, dist: Array.from(LV.truthDist)} : null, // the prior map, once
     t: S.t
   };
@@ -6809,10 +8383,18 @@ async function customPredict() {
   const dt = 0.1,
     obs = {
       tracks: tracks.map(t => ({id: t.id, x: t.x, y: t.y, vx: t.vx, vy: t.vy, r: t.r, age: +(S.t - (t.t0 || S.t)).toFixed(2)})),
+      radar: radarOn() && S.radar ? S.radar.det.map(d => ({r: d.r, b: d.b, v: d.v, x: d.x, y: d.y})) : [], // the robot's own view: no labels
       horizon: P.agT,
       dt,
       grid: {w: GW, h: GH, res: RES},
-      lethal: LV.truthOcc
+      lethal: LV.truthOcc,
+      // the ultrasonic ring's latest arc per sonar, placed with the estimate (world frame), and how old it is
+      sonar:
+        P.sonar && S.sonArcs
+          ? S.sonArcs
+              .filter(Boolean)
+              .map(A => ({i: A.i, r: A.r, max: A.max, x: A.x, y: A.y, th: A.th, width: A.w, age: +(S.t - A.t).toFixed(2)}))
+          : null
     };
   const r = await w.call(obs);
   if (!r.ok) {
@@ -7784,6 +9366,7 @@ function agTrack() {
   }
   const dt = A.lastT == null ? 0.1 : Math.max(1e-3, S.t - A.lastT);
   A.lastT = S.t;
+  if (P.radar && P.trkIn !== 'lidar') return agTrackFused(dt); // with the radar: core/radar.js
   const q = P.agSigA * P.agSigA,
     R = AG_SZ * AG_SZ;
   for (const t of A.tracks) {
@@ -8170,19 +9753,21 @@ function agentsTick() {
     if (A.tracks.length || A.st || A.det.length) S.agents = agInit();
     return;
   }
-  const lid = S.scanTick === S.tick;
+  const lid = S.scanTick === S.tick,
+    noLid = !P.lidar && S.tick % 2 === 1; // lidar off (Sensors): ground-truth tracks still predict at the scan rate
   if (lid) {
     if (P.agents === 'learned') agDetectLearned();
     else agDetect();
   }
+  if (!P.lidar && P.agents !== 'truth') A.tracks = []; // people detection reads the lidar: with it off, no tracks
   if (agOn() && (lid || P.agents === 'truth')) agTrack();
-  if (agOn() && lid) predTick();
+  if (agOn() && (lid || noLid)) predTick();
   if (!agOn()) A.tracks = [];
 }
 function agentsPlan() {
   const A = S.agents;
   if (!A || (!agOn() && P.spd !== 'stop')) return;
-  const lid = S.scanTick === S.tick;
+  const lid = S.scanTick === S.tick || (!P.lidar && S.tick % 2 === 1);
   if (lid) {
     const conf = A.tracks.filter(t => t.conf);
     A.staticPts = conf.length ? S.scanPts.filter(p => !conf.some(t => hyp(p[0] - t.x, p[1] - t.y) < t.r + 0.25)) : S.scanPts;
@@ -8377,6 +9962,574 @@ function bodyGap(r, p) {
     lx = dx * c + dy * s,
     ly = -dx * s + dy * c;
   return hyp(lx - clamp(lx, -hl, hl), ly - clamp(ly, -hw, hw)) - p.r;
+}
+
+/* ---- core/radar.js ---- */
+/* ============================================================
+   Radar and weather: a forward-facing 2D radar that measures range, azimuth and radial velocity (Doppler) per
+   detection; the weather that degrades the lidar and barely touches the radar; and the radar's update in the people
+   tracker, an extended Kalman filter step on the constant-velocity state of core/agents.js.
+   ============================================================ */
+// σ of range, azimuth and radial velocity; the range and Doppler resolution (two echoes closer than all three of range,
+// Doppler and the angular resolution P.radRes become one detection); the distance from a person's centre to the
+// surface that echoes; the most detections one static shape gives per scan
+const RAD = {sr: 0.1, sb: (3 * Math.PI) / 180, sv: 0.1, dr: 0.4, dv: 0.25, body: 0.24, wallMax: 3};
+// The radar's association gate: χ² with 2 degrees of freedom at 99 %, on range and bearing only. Gating on the radial
+// velocity too would throw away exactly the echo that matters most: when a person turns around, the Doppler innovation
+// is many σ (the filter's velocity is confident and wrong), and a velocity gate would reject the measurement that says so.
+const RAD_GATE = 9.21;
+const radarOn = () => !!P.radar; // off: nothing of the radar runs or draws, and the tracker is the lidar's
+const radReach = () => P.radRange * (P.weather === 'rain' ? 0.9 : 1);
+function radRng() {
+  if (!S.rngR) S.rngR = makeRng(P.seed * 15485863 + 5); // its own stream: turning the radar on leaves every other draw as it was
+  return S.rngR;
+}
+// ---- weather: what fog and rain do to the lidar ----
+// reach: beyond about this range the return is too weak; drop: a beam returns nothing; sig: extra range noise (m);
+// back: a beam returns from the fog or a raindrop itself, 0.3–2 m out. The radar's wavelength (millimetres) passes
+// through droplets a lidar's (a micrometre) scatters off: in rain it loses a tenth of its reach and sees a little more clutter.
+const WEATHER = {
+  clear: null,
+  rain: {reach: 6, drop: 0.06, sig: 0.03, back: 0.002, clutter: 0.3},
+  fog: {reach: 4, drop: 0.15, sig: 0.05, back: 0.005, clutter: 0}
+};
+function weatherLidar(ranges) {
+  const Wx = WEATHER[P.weather];
+  if (!Wx) return;
+  if (!S.rngX) S.rngX = makeRng(P.seed * 49979687 + 9);
+  const g = S.rngX;
+  for (let k = 0; k < ranges.length; k++) {
+    let d = ranges[k];
+    if (d < LMAX && (d > Wx.reach * (0.8 + 0.4 * g.u()) || g.u() < Wx.drop)) d = LMAX;
+    else if (d < LMAX) d = Math.max(0.05, d + Wx.sig * g.n());
+    if (g.u() < Wx.back) d = Math.min(d, 0.3 + 1.7 * g.u());
+    ranges[k] = d;
+  }
+}
+// ---- the radar sensor ----
+// A ray cast against the static shapes that also says which shape it hit and the surface normal there
+function radCast(ox, oy, dx, dy, maxR) {
+  let best = {t: maxR, s: -1, nx: 0, ny: 0};
+  S.shapes.forEach((s, i) => {
+    const t = rayCast(ox, oy, dx, dy, best.t, [s]);
+    if (t >= best.t) return;
+    const x = ox + t * dx,
+      y = oy + t * dy;
+    let nx, ny;
+    if (s.t === 'r') {
+      const e = [Math.abs(x - s.x), Math.abs(x - s.x - s.w), Math.abs(y - s.y), Math.abs(y - s.y - s.h)],
+        m = e.indexOf(Math.min(...e));
+      [nx, ny] = [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1]
+      ][m];
+    } else {
+      nx = (x - s.x) / s.r;
+      ny = (y - s.y) / s.r;
+    }
+    best = {t, s: i, nx, ny};
+  });
+  return best;
+}
+// Is the straight line from a to b free of static shapes and of the people other than `skip`?
+function radClear(ax, ay, bx, by, skip) {
+  const d = hyp(bx - ax, by - ay);
+  if (d < 1e-6) return true;
+  const ux = (bx - ax) / d,
+    uy = (by - ay) / d;
+  if (rayCast(ax, ay, ux, uy, d, S.shapes) < d - 0.05) return false;
+  for (const p of S.peds) {
+    if (p === skip) continue;
+    for (const c of p.car ? carCircles(p) : [p])
+      if (rayCast(ax, ay, ux, uy, d, [{t: 'c', x: c.x, y: c.y, r: c.r}]) < d - 0.05) return false;
+  }
+  return true;
+}
+// The ghost of person p: the radar's wave goes out to a wall, bounces to the person and back the same way, so the echo
+// seems to come from the person's mirror image behind the wall (the image method), moving with the mirrored velocity.
+// The wall faces tried are the sides of the rectangles that face both the robot and the person; the shortest path wins.
+function radGhost(r, p, fov, reach) {
+  let best = null;
+  for (const s of S.shapes) {
+    if (s.t !== 'r') continue;
+    for (const [ax, c, lo, hi] of [
+      [0, s.x, s.y, s.y + s.h],
+      [0, s.x + s.w, s.y, s.y + s.h],
+      [1, s.y, s.x, s.x + s.w],
+      [1, s.y + s.h, s.x, s.x + s.w]
+    ]) {
+      const rc = ax ? r.y : r.x,
+        pc = ax ? p.y : p.x;
+      const out = c === (ax ? s.y : s.x) ? -1 : 1; // the side the face looks to
+      if ((rc - c) * out <= 0.05 || (pc - c) * out <= 0.05) continue;
+      const gx = ax ? p.x : 2 * c - p.x,
+        gy = ax ? 2 * c - p.y : p.y,
+        f = (c - rc) / ((ax ? gy : gx) - rc), // where the line to the image crosses the face
+        wx = r.x + f * (gx - r.x),
+        wy = r.y + f * (gy - r.y),
+        wl = ax ? wx : wy;
+      if (!(f > 0 && f < 1) || wl < lo + 0.05 || wl > hi - 0.05) continue;
+      const d = hyp(gx - r.x, gy - r.y);
+      if (d > reach || (best && d >= best.d)) continue;
+      if (Math.abs(wrap(Math.atan2(gy - r.y, gx - r.x) - r.th)) > fov) continue;
+      const ox = wx + out * (ax ? 0 : 0.02),
+        oy = wy + out * (ax ? 0.02 : 0);
+      if (!radClear(r.x, r.y, ox, oy, null) || !radClear(ox, oy, p.x, p.y, p)) continue;
+      best = {d, x: gx, y: gy, vx: ax ? p.vx || 0 : -(p.vx || 0), vy: ax ? -(p.vy || 0) : p.vy || 0};
+    }
+  }
+  return best;
+}
+// @code radar-sense | radarSense: the radar's echoes, merged by resolution, with noise, clutter and ghosts
+// One scan: the people and vehicles in the field of view (one echo each, from the near side of the body), the static
+// shapes (sampled across the field of view; a surface echoes strongly only when it faces the radar, so a wall gives a
+// few echoes near its perpendicular and a pillar one or two), ghosts by a bounce off a wall, and clutter. Echoes closer
+// than the resolution in range, in Doppler and in angle all at once become one detection, where their amplitudes
+// average. Each detection is {r, b, v} relative to the robot: range (m), azimuth (rad, 0 straight ahead) and radial
+// velocity (m/s, negative closing). `kind` is the simulator's label, for the measurements only: the robot never reads it.
+function radarSense() {
+  const r = S.robot,
+    g = radRng(),
+    fov = (P.radFov * Math.PI) / 360,
+    reach = radReach(),
+    vex = r.v * Math.cos(r.th),
+    vey = r.v * Math.sin(r.th),
+    echo = [];
+  const add = (x, y, vx, vy, amp, kind) => {
+    const dx = x - r.x,
+      dy = y - r.y,
+      d = hyp(dx, dy);
+    if (d < 0.2 || d > reach) return;
+    const b = wrap(Math.atan2(dy, dx) - r.th);
+    if (Math.abs(b) > fov) return;
+    echo.push({r: d, b, v: ((vx - vex) * dx + (vy - vey) * dy) / d, amp, kind});
+  };
+  for (const p of S.peds) {
+    const dx = p.x - r.x,
+      dy = p.y - r.y,
+      d = hyp(dx, dy),
+      body = p.car ? 0.6 : p.r;
+    if (d - body > reach || d < 0.3) continue;
+    if (g.u() > (p.car ? 0.98 : 0.9)) continue; // a person echoes weakly: missed one scan in ten; a vehicle hardly ever
+    const sx = p.x - (dx / d) * body,
+      sy = p.y - (dy / d) * body;
+    if (!radClear(r.x, r.y, sx - (dx / d) * 0.05, sy - (dy / d) * 0.05, p)) continue;
+    add(sx, sy, p.vx || 0, p.vy || 0, p.car ? 4 : 1, 'person');
+    if (g.u() < P.radGhost / 100) {
+      const q = radGhost(r, p, fov, reach);
+      if (q) add(q.x, q.y, q.vx, q.vy, 0.5, 'ghost');
+    }
+  }
+  const step = (Math.max(1, P.radRes) * Math.PI) / 360,
+    per = new Map();
+  for (let a = -fov; a <= fov + 1e-9; a += step) {
+    const ux = Math.cos(r.th + a),
+      uy = Math.sin(r.th + a),
+      h = radCast(r.x, r.y, ux, uy, reach);
+    if (h.s < 0) continue;
+    const x = r.x + h.t * ux,
+      y = r.y + h.t * uy;
+    if (!radClear(r.x, r.y, x - ux * 0.05, y - uy * 0.05, null)) continue; // a person in front of the wall hides it
+    const c = Math.abs(h.nx * ux + h.ny * uy); // cos of the incidence angle
+    if (g.u() > 0.1 + 0.85 * c ** 4) continue;
+    if (!per.has(h.s)) per.set(h.s, []);
+    per.get(h.s).push({x, y, c});
+  }
+  for (const L of per.values()) {
+    L.sort((a, b) => b.c - a.c);
+    for (const q of L.slice(0, RAD.wallMax)) add(q.x, q.y, 0, 0, 2, 'static');
+  }
+  const Wx = WEATHER[P.weather],
+    lam = P.radClutter + (Wx ? Wx.clutter : 0);
+  let n = 0;
+  for (let L = Math.exp(-lam), u = g.u(); u > L; u *= g.u()) n++; // Poisson: the number of false detections this scan
+  for (let i = 0; i < n; i++) {
+    const b = (2 * g.u() - 1) * fov,
+      d = 1 + g.u() * (reach - 1);
+    echo.push({r: d, b, v: -r.v * Math.cos(b) + 3 * (g.u() - 0.5), amp: 0.5, kind: 'clutter'});
+  }
+  // resolution: the strongest echo first; a weaker one inside its resolution cell joins it
+  echo.sort((a, b) => b.amp - a.amp);
+  const res = (P.radRes * Math.PI) / 180,
+    out = [];
+  for (const e of echo) {
+    const m = out.find(o => Math.abs(o.r - e.r) < RAD.dr && Math.abs(o.v - e.v) < RAD.dv && Math.abs(wrap(o.b - e.b)) < res);
+    if (!m) {
+      out.push({...e, n: 1});
+      continue;
+    }
+    const w = m.amp + e.amp;
+    m.r = (m.r * m.amp + e.r * e.amp) / w;
+    m.b = m.b + (wrap(e.b - m.b) * e.amp) / w;
+    m.v = (m.v * m.amp + e.v * e.amp) / w;
+    m.amp = w;
+    m.n++;
+  }
+  return out.map(o => ({
+    r: Math.max(0.2, o.r + RAD.sr * g.n()),
+    b: wrap(o.b + RAD.sb * g.n()),
+    v: o.v + RAD.sv * g.n(),
+    kind: o.kind,
+    n: o.n
+  }));
+}
+// @end
+// A scan delivered (latency applies, as to the lidar): placed in the world from the pose estimate, as the lidar's hits
+// are, with the robot's own speed measured from it
+function radarApply(D) {
+  const e = S.est;
+  S.radar = {t: S.t, det: D.map(d => ({...d, x: e.x + d.r * Math.cos(e.th + d.b), y: e.y + d.r * Math.sin(e.th + d.b)}))};
+  S.radar.ve = radEgoSpeed(S.radar.det);
+  S.radTick = S.tick;
+}
+// The robot's own speed from the static world's echoes. Doppler is relative: to know how fast a person moves, the
+// robot must know how fast it moves itself, better than wheel odometry tells it from one tick (σ about 0.15 m/s on the
+// busy floor, more than the radar's 0.1). Everything static closes at v cos b, so the echoes whose radial velocity is
+// within 0.4 m/s of what the odometry predicts give v by least squares, −Σ v_d cos b / Σ cos² b; with fewer than three,
+// the odometry it is.
+function radEgoSpeed(det) {
+  const v0 = S.odo ? S.odo.v : 0;
+  let num = 0,
+    den = 0,
+    n = 0;
+  for (const d of det) {
+    const c = Math.cos(d.b);
+    if (c < 0.3 || Math.abs(d.v + v0 * c) > 0.4) continue;
+    num -= d.v * c;
+    den += c * c;
+    n++;
+  }
+  return n >= 3 ? num / den : v0;
+}
+// The static world's radial velocity at azimuth b, seen from the robot moving at v: −v cos b
+// A detection is a candidate for the people tracker when it moves against the static world by more than its Doppler
+// noise allows, or when the map does not explain it within what the azimuth noise smears it over. A person standing
+// still within that smear of a wall or a shelf is lost to the radar (the classic weakness of Doppler processing).
+function radCandidates() {
+  if (!S.radar) return [];
+  const e = S.est,
+    v = S.radar.ve;
+  return S.radar.det.filter(d => {
+    if (Math.abs(d.v + v * Math.cos(d.b)) > 3 * RAD.sv + 0.05) return (d.moving = true);
+    d.moving = false;
+    return !radExplained(d.x, d.y, 0.25 + 2 * d.r * RAD.sb, e);
+  });
+}
+function radExplained(x, y, tol) {
+  const k = cellIdx(x, y);
+  if (k < 0) return true;
+  if (P.per === 'oracle') return S.cm.dist[k] < tol;
+  const i0 = k % GW,
+    j0 = (k / GW) | 0,
+    n = Math.ceil(tol / RES);
+  for (let j = Math.max(0, j0 - n); j <= Math.min(GH - 1, j0 + n); j++)
+    for (let i = Math.max(0, i0 - n); i <= Math.min(GW - 1, i0 + n); i++)
+      if (S.lo[j * GW + i] > 2.0 && hyp(i - i0, j - j0) * RES <= tol) return true;
+  return false;
+}
+function radInView(t) {
+  const e = S.est,
+    d = hyp(t.x - e.x, t.y - e.y);
+  return d < radReach() && Math.abs(wrap(Math.atan2(t.y - e.y, t.x - e.x) - e.th)) < (P.radFov * Math.PI) / 360;
+}
+// The radar's metrics line: what it sees and what the tracker took from it, and the nearest detection within 20° of
+// straight ahead with its closing speed and the time to contact at that speed (range / closing speed), which needs no
+// tracking at all: what an emergency brake reads
+function radarSummary() {
+  if (!radarOn() || !S.radar) return null;
+  const R = S.radar,
+    ahead = R.det.filter(d => Math.abs(d.b) < 0.35).sort((a, b) => a.r - b.r)[0];
+  return {n: R.det.length, cand: R.cand, paired: R.paired, born: R.born, ahead, ttc: ahead && ahead.v < -0.05 ? ahead.r / -ahead.v : null};
+}
+
+/* ---------- the tracker with the radar: the constant-velocity filter with a full 4×4 covariance ---------- */
+// The lidar-only tracker (agTrack) keeps one covariance for both axes, which is exact while every measurement is a
+// position with the same noise in x and y. A radar detection is not: it pins the range and the radial velocity
+// tightly and the bearing loosely, so the covariance turns into an ellipse along the line of sight and each track
+// carries all of it: C, 4×4 row-major over [x, y, vx, vy].
+const KF_Q = (dt, q) => {
+  const a = (q * dt ** 4) / 4,
+    b = (q * dt ** 3) / 2,
+    c = q * dt * dt;
+  return [a, 0, b, 0, 0, a, 0, b, b, 0, c, 0, 0, b, 0, c];
+};
+// a track born in the lidar-only tracker (the input switched mid-run) starts from its shared covariance
+function kfInitC(t) {
+  if (!t.C) t.C = [t.pxx, 0, t.pxv, 0, 0, t.pxx, 0, t.pxv, t.pxv, 0, t.pvv, 0, 0, t.pxv, 0, t.pvv];
+}
+function kfPredict(t, dt, q) {
+  const C = t.C,
+    F = (i, j) => (i === j ? 1 : j === i + 2 ? dt : 0),
+    T = new Array(16).fill(0),
+    Qm = KF_Q(dt, q);
+  t.x += t.vx * dt;
+  t.y += t.vy * dt;
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) for (let k = 0; k < 4; k++) T[i * 4 + j] += F(i, k) * C[k * 4 + j];
+  for (let i = 0; i < 4; i++)
+    for (let j = 0; j < 4; j++) {
+      let s = Qm[i * 4 + j];
+      for (let k = 0; k < 4; k++) s += T[i * 4 + k] * F(j, k);
+      C[i * 4 + j] = s;
+    }
+}
+// Innovation covariance S = H C Hᵀ + R and its inverse (m ≤ 3 rows of H), and the squared Mahalanobis distance of y
+function kfInnov(t, H, y, R) {
+  const m = H.length,
+    C = t.C,
+    HC = H.map(h => [0, 1, 2, 3].map(j => h[0] * C[j] + h[1] * C[4 + j] + h[2] * C[8 + j] + h[3] * C[12 + j])),
+    Sm = H.map((_, i) => H.map((h, j) => HC[i][0] * h[0] + HC[i][1] * h[1] + HC[i][2] * h[2] + HC[i][3] * h[3] + (i === j ? R[i] : 0)));
+  const Si = m === 1 ? [[1 / Sm[0][0]]] : m === 2 ? inv2(Sm) : inv3(Sm);
+  if (!Si) return null;
+  let d2 = 0;
+  for (let i = 0; i < m; i++) for (let j = 0; j < m; j++) d2 += y[i] * Si[i][j] * y[j];
+  return {HC, Si, d2};
+}
+// The update: K = C Hᵀ S⁻¹, x += K y, C = (I − K H) C (I − K H)ᵀ + K R Kᵀ (Joseph's form, symmetric and positive)
+function kfUpdate(t, H, y, R, I) {
+  const m = H.length,
+    C = t.C,
+    K = [0, 1, 2, 3].map(i => {
+      const row = new Array(m).fill(0);
+      for (let a = 0; a < m; a++) for (let b = 0; b < m; b++) row[b] += I.HC[a][i] * I.Si[a][b];
+      return row;
+    });
+  const dx = K.map(row => row.reduce((s, k, a) => s + k * y[a], 0));
+  t.x += dx[0];
+  t.y += dx[1];
+  t.vx += dx[2];
+  t.vy += dx[3];
+  const A = [];
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) A.push((i === j ? 1 : 0) - K[i].reduce((s, k, a) => s + k * H[a][j], 0));
+  const AC = new Array(16).fill(0),
+    N = new Array(16).fill(0);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) for (let k = 0; k < 4; k++) AC[i * 4 + j] += A[i * 4 + k] * C[k * 4 + j];
+  for (let i = 0; i < 4; i++)
+    for (let j = 0; j < 4; j++) {
+      let s = 0;
+      for (let k = 0; k < 4; k++) s += AC[i * 4 + k] * A[j * 4 + k];
+      for (let a = 0; a < m; a++) s += K[i][a] * R[a] * K[j][a];
+      N[i * 4 + j] = s;
+    }
+  t.C = N;
+}
+// inv2 (a 2 × 2 inverse, null when singular) is shared with core/localization.js
+function inv3(M) {
+  const [a, b, c] = M[0],
+    [d, e, f] = M[1],
+    [g, h, i] = M[2],
+    A = e * i - f * h,
+    B = -(d * i - f * g),
+    Cc = d * h - e * g,
+    det = a * A + b * B + c * Cc;
+  if (Math.abs(det) < 1e-18) return null;
+  return [
+    [A / det, -(b * i - c * h) / det, (b * f - c * e) / det],
+    [B / det, (a * i - c * g) / det, -(a * f - c * d) / det],
+    [Cc / det, -(a * h - b * g) / det, (a * e - b * d) / det]
+  ];
+}
+// @code radar-update | radarH: the radar's measurement model and its Jacobian, and the update it feeds
+// What the radar should read for track t, seen from the estimated pose e moving at (vex, vey): the range to the near
+// side of the body, the bearing, and the radial velocity, the relative velocity w projected on the line of sight.
+// H is the Jacobian of those three with respect to [x, y, vx, vy] at the track's state.
+function radarH(t, e, vex, vey) {
+  const dx = t.x - e.x,
+    dy = t.y - e.y,
+    q = Math.max(1e-6, dx * dx + dy * dy),
+    rho = Math.sqrt(q),
+    wx = t.vx - vex,
+    wy = t.vy - vey,
+    vr = (dx * wx + dy * wy) / rho;
+  return {
+    z: [rho - RAD.body, wrap(Math.atan2(dy, dx) - e.th), vr],
+    H: [
+      [dx / rho, dy / rho, 0, 0],
+      [-dy / q, dx / q, 0, 0],
+      [(wx - (vr * dx) / rho) / rho, (wy - (vr * dy) / rho) / rho, dx / rho, dy / rho]
+    ]
+  };
+}
+// The radar step of the tracker: every candidate detection against every track, gated by χ² on range and bearing,
+// paired nearest first (greedy nearest neighbour, as the lidar's); a paired track takes the extended Kalman update. A
+// clutter echo that falls inside a track's gate when the person's own echo is missing is taken as the person: nearest
+// neighbour has no way to say "none of these". Unpaired candidates start tentative tracks, with the radial velocity
+// already known and the tangential one not.
+function radarTrack(ve) {
+  const A = S.agents,
+    e = S.est,
+    Rm = [RAD.sr ** 2, RAD.sb ** 2, RAD.sv ** 2],
+    cand = radCandidates(),
+    pairs = [],
+    born0 = A.nextId;
+  A.tracks.forEach((t, i) => {
+    const h = radarH(t, e, ve[0], ve[1]);
+    cand.forEach((d, j) => {
+      const y = [d.r - h.z[0], wrap(d.b - h.z[1]), d.v - h.z[2]],
+        G = kfInnov(t, h.H.slice(0, 2), y.slice(0, 2), Rm.slice(0, 2)); // the gate: range and bearing only
+      if (G && G.d2 < RAD_GATE) pairs.push([G.d2, i, j, h.H, y]);
+    });
+  });
+  pairs.sort((a, b) => a[0] - b[0]);
+  const ut = new Set(),
+    ud = new Set();
+  for (const [, i, j, H, y] of pairs) {
+    if (ut.has(i) || ud.has(j)) continue;
+    ut.add(i);
+    ud.add(j);
+    const t = A.tracks[i],
+      I = kfInnov(t, H, y, Rm);
+    if (!I) continue;
+    kfUpdate(t, H, y, Rm, I);
+    t.rh = (t.rh || 0) + 1;
+    agHit(t);
+  }
+  cand.forEach((d, j) => {
+    if (ud.has(j) || A.tracks.some(t => hyp(t.x - d.x, t.y - d.y) < 1)) return;
+    const c = e.th + d.b,
+      ux = Math.cos(c),
+      uy = Math.sin(c),
+      rr = d.r + RAD.body,
+      vr = d.v + ve[0] * ux + ve[1] * uy, // the person's own speed along the line of sight
+      st2 = (rr * RAD.sb) ** 2, // across the line of sight the azimuth's σ times the range; along it the range's σ
+      sr2 = RAD.sr ** 2;
+    const cxx = sr2 * ux * ux + st2 * uy * uy,
+      cyy = sr2 * uy * uy + st2 * ux * ux,
+      cxy = (sr2 - st2) * ux * uy,
+      vt2 = 1, // the tangential velocity is unknown: σ 1 m/s, as a lidar track starts with in both axes
+      vxx = RAD.sv ** 2 * ux * ux + vt2 * uy * uy,
+      vyy = RAD.sv ** 2 * uy * uy + vt2 * ux * ux,
+      vxy = (RAD.sv ** 2 - vt2) * ux * uy;
+    A.tracks.push({
+      id: A.nextId++,
+      x: e.x + rr * ux,
+      y: e.y + rr * uy,
+      vx: vr * ux,
+      vy: vr * uy,
+      r: 0.3,
+      C: [cxx, cxy, 0, 0, cxy, cyy, 0, 0, 0, 0, vxx, vxy, 0, 0, vxy, vyy],
+      hits: 1,
+      rh: 1,
+      conf: false,
+      lastUpd: S.t,
+      radar: true
+    });
+  });
+  // for the metrics line: how many detections passed the Doppler and map test, how many the gate let onto a track,
+  // how many started one
+  Object.assign(S.radar, {cand: cand.length, paired: ud.size, born: A.nextId - born0});
+}
+// @end
+// A track was updated this scan: count the hit and confirm it. With both sensors, a track the radar can see needs one of
+// its hits from the radar (or twice the hits from the lidar alone): a lidar return from fog, or a radar echo from
+// clutter, rarely builds a track the other sensor agrees with.
+function agHit(t) {
+  t.hits++;
+  t.lastUpd = S.t;
+  if (t.conf) return;
+  const vouch = radarOn() && P.trkIn === 'both' && radInView(t) ? (t.rh || 0) >= 1 || t.hits >= 6 : true;
+  if (t.hits >= 3 && vouch) {
+    t.conf = true;
+    t.t0 = S.t;
+  }
+}
+// The tracker when the radar is one of its inputs (P.trkIn 'radar' or 'both'): the same predict, gate, pair, birth and
+// coast as agTrack, on the full covariance; the lidar's clusters update position, the radar's detections range,
+// bearing and radial velocity.
+function agTrackFused(dt) {
+  const A = S.agents,
+    q = P.agSigA * P.agSigA,
+    R = AG_SZ * AG_SZ,
+    e = S.est,
+    v = S.radar ? S.radar.ve : S.odo ? S.odo.v : 0,
+    ve = [v * Math.cos(e.th), v * Math.sin(e.th)];
+  for (const t of A.tracks) {
+    kfInitC(t);
+    kfPredict(t, dt, q);
+  }
+  if (P.trkIn === 'both' && S.scanTick === S.tick) {
+    const Hl = [
+        [1, 0, 0, 0],
+        [0, 1, 0, 0]
+      ],
+      pairs = [];
+    A.tracks.forEach((t, i) =>
+      A.det.forEach((d, j) => {
+        const y = [d.x - t.x, d.y - t.y],
+          I = kfInnov(t, Hl, y, [R, R]);
+        if (I && I.d2 < 9.21) pairs.push([I.d2, i, j, y, I]);
+      })
+    );
+    pairs.sort((a, b) => a[0] - b[0]);
+    const ut = new Set(),
+      ud = new Set();
+    for (const [, i, j, y, I] of pairs) {
+      if (ut.has(i) || ud.has(j)) continue;
+      ut.add(i);
+      ud.add(j);
+      const t = A.tracks[i],
+        d = A.det[j];
+      kfUpdate(t, Hl, y, [R, R], I);
+      t.r = 0.8 * t.r + 0.2 * d.r;
+      // per-target scan matching, as in agTrack: the displacement of the person's hits is a velocity measurement
+      if (P.agICP && t.pts && d.pts && t.pts.length >= 3 && d.pts.length >= 3) {
+        const cx = t.px,
+          cy = t.py,
+          m = icp2d(
+            t.pts.map(q => [q[0] - cx, q[1] - cy]),
+            d.pts.map(q => [q[0] - cx, q[1] - cy]),
+            {x: t.vx * dt, y: t.vy * dt, th: 0},
+            3
+          );
+        if (m && m.inl >= 0.6 && m.rms < 0.08) {
+          const Hv = [
+              [0, 0, 1, 0],
+              [0, 0, 0, 1]
+            ],
+            yv = [m.x / dt - t.vx, m.y / dt - t.vy],
+            Iv = kfInnov(t, Hv, yv, [0.25, 0.25]);
+          if (Iv) kfUpdate(t, Hv, yv, [0.25, 0.25], Iv);
+        }
+      }
+      t.pts = d.pts;
+      t.px = d.x;
+      t.py = d.y;
+      agHit(t);
+    }
+    A.det.forEach((d, j) => {
+      if (ud.has(j)) return;
+      A.tracks.push({
+        id: A.nextId++,
+        x: d.x,
+        y: d.y,
+        vx: 0,
+        vy: 0,
+        r: d.r,
+        C: [R, 0, 0, 0, 0, R, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+        hits: 1,
+        rh: 0,
+        conf: false,
+        lastUpd: S.t,
+        pts: d.pts,
+        px: d.x,
+        py: d.y
+      });
+    });
+  }
+  if (S.radTick === S.tick) radarTrack(ve);
+  for (const t of A.tracks) {
+    const sp = hyp(t.vx, t.vy);
+    if (sp > 2.5) {
+      t.vx *= 2.5 / sp;
+      t.vy *= 2.5 / sp;
+    }
+    // the shared scalars the rest of the page reads (σ of position in the inspector, the scalar tracker if switched back)
+    t.pxx = (t.C[0] + t.C[5]) / 2;
+    t.pxv = (t.C[2] + t.C[7]) / 2;
+    t.pvv = (t.C[10] + t.C[15]) / 2;
+  }
+  A.tracks = A.tracks.filter(t => S.t - t.lastUpd < (t.conf ? 1.0 : 0.25));
 }
 
 /* ---- core/predict.js ---- */
@@ -8669,7 +10822,8 @@ function agListModes(rng) {
                (the network predicts the correction); the mission loops so the robot keeps meeting people
      policy:   the policy's 139 inputs (policyFeatures) and the expert's answer from that state: the A* route to the
                goal, resampled to eight points 0.4 m apart in the robot frame, in units of 4 m
-   A run is described by a spec: {block, level (index), seed, secs, map: {map, mapAdd, mapDel} or null, randomMap:
+   A run is described by a spec: {block, level (an index, a level in the format of levels.js or a generator spec),
+   gen (a generator spec without its seed: the run's world is generated with the run's seed, a new one every run), seed, secs, map: {map, mapAdd, mapDel} or null, randomMap:
    number of random obstacles or 0, goals: 'level' | {random: n} | [[x, y, θ or null], …], people: 'alt' | 'scripted'
    | 'reactive', cond: the detector's map condition (detCond), noise (σ of the executed command's perturbation), driver: 'expert' | 'policy' (DAgger), polModel}.
    ============================================================ */
@@ -8736,7 +10890,7 @@ const detCond = sp => (DET_CONDS.includes(sp.cond) ? sp.cond : DET_CONDS[sp.seed
 // Sets the core up for one run of a spec: the level and its seed, the map, the people, the driver, the goals
 function dsSetup(sp) {
   P.seed = sp.seed;
-  loadLevel(sp.level);
+  loadLevel(sp.gen ? {...sp.gen, seed: sp.seed} : sp.level);
   if (sp.map) for (const k of ['map', 'mapAdd', 'mapDel']) if (sp.map[k] != null) setParam(k, sp.map[k], false);
   const fixed = Array.isArray(sp.goals) ? sp.goals : sp.goals === 'level' ? (sp.map && sp.map.goals) || LV.wps : [];
   if (sp.randomMap > 0) {
@@ -8926,7 +11080,7 @@ function sensEnqueue(kind, data) {
 }
 // @code sens-deliver | sensDeliver: readings delivered late, by latency
 function sensDeliver() {
-  S.deliv = {scan: null, z: null};
+  S.deliv = {scan: null, z: null, sonar: null, gnss: null};
   if (!S.sensQ || !S.sensQ.length) return;
   const keep = [];
   for (const it of S.sensQ) {
@@ -8937,6 +11091,13 @@ function sensDeliver() {
     if (it.kind === 'lidar') {
       lidarApply(it.data);
       S.deliv.scan = it.data;
+    } else if (it.kind === 'radar') radarApply(it.data);
+    else if (it.kind === 'sonar') {
+      sonarApply(it.data);
+      S.deliv.sonar = it.data;
+    } else if (it.kind === 'gnss') {
+      gnssApply(it.data);
+      S.deliv.gnss = it.data;
     } else {
       beaconsApply(it.data);
       S.deliv.z = it.data;
@@ -8956,7 +11117,7 @@ function lidarApply(ranges) {
   }
   S.scanPts = pts;
   S.scanTick = S.tick;
-  if (P.per === 'mapping') integrateScan(ranges);
+  if (P.per === 'mapping' && (P.mapSrc !== 'sonar' || !P.sonar)) integrateScan(ranges); // Map source: the lidar unless sonar only
   if (P.loc === 'pf' && P.pfLidar && P.per === 'oracle' && S.tick % 4 === 3) pfLidarUpdate(ranges);
   if (P.loc === 'ekf' && P.scanMatch && P.per === 'oracle' && S.tick % 4 === 3) ekfScanUpdate(ranges); // 5 Hz, like the PF's
   if (P.loc === 'pgslam') pgLidar(ranges);
@@ -9300,8 +11461,11 @@ function preSense() {
   actuate();
   odometry();
   if (P.loc !== 'custom') locPredict();
-  if (S.tick % 2 === 1) sensEnqueue('lidar', lidarSense());
+  if (P.lidar && S.tick % 2 === 1) sensEnqueue('lidar', lidarSense()); // the Sensors switches: an off sensor makes no readings
+  if (S.tick % 2 === 1 && radarOn()) sensEnqueue('radar', radarSense()); // with the lidar, at 10 Hz
   if (S.tick % 4 === 1) sensEnqueue('beacons', senseBeacons());
+  if (P.sonar) sensEnqueue('sonar', sonarSense()); // the ultrasonic ring fires its own schedule (core/sensors.js)
+  if (P.gnss) gnssTick();
   sensDeliver();
   if (P.loc === 'truth') S.est = {x: S.robot.x, y: S.robot.y, th: S.robot.th};
 }
@@ -9453,7 +11617,8 @@ let logDirty = true;
 
 /* ============================================================
    Headless runner (Web Worker). The same simulation core as the page, no DOM.
-   Message in:  {cmd:'run', id, level, seed, overrides:{param:value}, secs, stopWhenDone, models}
+   Message in:  {cmd:'run', id, level, seed, overrides:{param:value}, secs, stopWhenDone, models}; level: a built-in
+   level's index, a level in the format of core/levels.js or a generator spec (core/worldgen.js)
    Messages out: {id, progress} … {id, done:true, summary, ms}
    The Train tab (ui/train.js) also uses: {cmd:'collect', id, spec, models} → {id, done, data} (core/dataset.js);
    {cmd:'tdata', id, X, Y, model, task} gives a worker its shard of the training set, then {cmd:'tgrad', id, w, idx}
@@ -9545,10 +11710,32 @@ self.__core = {
   get P() {
     return P;
   },
+  levelOf,
+  levelToJSON,
+  levelFromJSON,
+  levelRef,
+  genLevel,
+  genSpec,
+  GEN_FAMILIES,
   RES,
-  GW,
-  GH,
-  NC
+  get LV() {
+    return LV;
+  },
+  get W() {
+    return W;
+  },
+  get H() {
+    return H;
+  },
+  get GW() {
+    return GW;
+  },
+  get GH() {
+    return GH;
+  },
+  get NC() {
+    return NC;
+  }
 };
 const TR = {X: null, Y: null, model: null, task: null};
 async function trainMsg(m) {

@@ -1,78 +1,63 @@
 ---
-description: Regenerate docs/PROJECT-SUMMARY.md in the shared project-summary format (format 1)
+description: Regenerate docs/PROJECT-SUMMARY.md, the short summary Spy's master vault reads (format 2)
+argument-hint: "[write-only]"
 ---
 
-Regenerate `docs/PROJECT-SUMMARY.md` for this repository. A master planning vault reads this file at the start of every session, one-way, alongside the summaries of Spy's other projects, so every project uses exactly the same format.
+<!-- This command is managed from Spy's vault (~/Work/.claude/project-feeds/summary-command.md).
+     Edit it there and run /refresh; a copy edited here is overwritten on the next refresh. -->
+
+Write `docs/PROJECT-SUMMARY.md` for this repository. Spy's master vault reads it, together with the summaries of his other projects, to know what he is working on and to plan what comes next. It is a briefing, not documentation: short, current, and the same shape in every project.
 
 ## Sources
 
-Read, in this order: the existing `docs/PROJECT-SUMMARY.md` (keep what is still true), the repo's own planning and status docs (PRD, PLAN, STATUS, roadmap, CHANGELOG, OPERATIONS, or whatever this repo has), `git log` since the last summary update, and open PRs and issues if `gh` is available. State only what these sources support; mark anything you inferred as such.
+Read the repo's own planning and status docs (README, PRD, PLAN, STATUS, roadmap, design, CHANGELOG: whatever this repo has), `src/version.json` or the package version if there is one, `git log` since the date in the existing summary's `updated` field, and open PRs (`gh pr list`) if `gh` works. State only what these sources support. Do not copy the previous summary forward without checking it.
 
-## Format rules
+## Format
 
-- Use the template below exactly: the same frontmatter keys, and the same ten `## ` headings with the same numbers, words and order. A script checks them.
-- Never drop a section. If it has nothing, write "None".
-- Frontmatter values are single lines with no comments. `updated` is today's date. `commit` is the short hash of `HEAD` before this commit.
-- `next_action` is the single most useful next step. `blocked_on` is "nothing" if nothing blocks it.
-- Do not add a priority field or rank this project against others; that happens in the master vault.
-- Aim for about 1,500 words. Point to files in section 10 rather than repeating them.
-- Absolute dates only (2026-10-22, not "last week").
-- Describe the current state. History belongs in the repo's own changelog or decision log.
-
-## Template
+Fill in this template exactly: the same frontmatter keys and the same four `## ` headings, in this order. A script checks them.
 
 ```markdown
 ---
-format: 1
-project: <registry key, e.g. team-app>
+format: 2
+project: <registry key: the repository name>
 title: <display name>
 kind: <code | practice | content>
-source: <~/Repos/x, a GitHub URL, or "claude.ai project: X">
-commit: <short HEAD hash when written; "-" if not a repo>
+source: <GitHub URL>
+commit: <short hash of origin/main when written>
 updated: <YYYY-MM-DD>
 status: <active | paused | blocked | done>
-stage: <one line: where it stands>
-next_action: <one line: the single next thing to do>
+stage: <one line: where it stands, with the version or milestone>
+next_action: <one line: the single most useful next step>
 blocked_on: <one line, or "nothing">
 confidential: <true | false>
 ---
 
 # <Title>
 
-## 1. Identity
-What it is, for whom, where it lives (repo, links), the one-line pitch, and any hard rules a plan must keep.
+## What it is
+<2–4 sentences: what it is, for whom, where it lives (live page or deployment if any).>
 
-## 2. Current state
-Where it stands now, health (tests, CI), last activity, running cost if any.
+## Status
+<3–6 bullets: where it stands, the latest release or milestone with its date, health (tests, CI), what is waiting on Spy.>
 
-## 3. What exists
-Capabilities or assets, at most 10 bullets. Stack in one line if code.
+## Features and scope
+<Up to 10 bullets: what exists today, one line each.>
+<Then one line: "Out of scope: ..." for what the project deliberately does not do.>
 
-## 4. Plan
-| Phase | What | State |
-|---|---|---|
-
-## 5. Next steps
-Ordered. Each: **what** — who (Spy / Claude / external) · size · trigger or deadline.
-
-## 6. Decisions waiting on Spy
-| Decision | Blocks | Notes |
-|---|---|---|
-
-## 7. Risks and known issues
-
-## 8. Success metrics
-Targets and the current reading, or "None yet".
-
-## 9. Links to other projects
-Use the other projects' registry keys (team-app, coaching-app, nav-stack-lab, steps, ...).
-
-## 10. Where to look
-Files or docs that hold the detail.
+## Next big items
+<Up to 5, in order. Each: the item — who (Spy / Claude / external) · rough size.>
 ```
 
-## Before you finish
+Rules:
+- 250–450 words in total. Pick what matters for planning across projects; detail stays in the repo's own docs.
+- Frontmatter values are single lines, no comments. Absolute dates only (2026-10-22, not "yesterday").
+- Never drop a section; write "None" if one is empty.
+- No priority field and no ranking against other projects: the vault does that.
 
-1. Check the file: frontmatter starts on line 1 with `---`, all twelve keys are present, and all ten headings appear exactly as above.
-2. Commit it. If this session also changed code, include the summary in that commit; otherwise commit it alone as `docs: refresh project summary`. The vault reads the committed version on the main branch, so an uncommitted or unmerged summary is not what the master sees.
-3. Reply with the `stage` and `next_action` lines and anything you were unsure about.
+## Delivery
+
+- If the arguments include `write-only`: write the file and stop. Do not commit, push or open a PR; the caller does that.
+- Otherwise, if you are on a branch other than `main`: commit the summary on that branch so it lands with the branch's PR.
+- Otherwise, on `main`: if this repo's CLAUDE.md says work goes through PRs, put the summary on a branch `docs/summary-<date>`, push it, open a PR and merge it (documentation only: no gate, version or republish). If not, commit to `main` and push.
+
+Finish by replying with the `stage` and `next_action` lines and anything the sources left unclear.

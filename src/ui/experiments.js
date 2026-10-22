@@ -29,6 +29,10 @@ const EXP_METRICS = [
   ['coll', 'Static collisions', ''],
   ['ped', 'People contacts', ''],
   ['minPed', 'Closest approach', 'm'],
+  ['impact', 'Impact speed', 'm/s'], // the safety measures (core/safety.js): the worst moving contact with a person
+  ['minObs', 'Wall clearance', 'm'],
+  ['nearS', 'Under 0.3 m of a person', 's'],
+  ['ttc1S', 'Time to contact under 1 s', 's'],
   ['cteRMS', 'Cross-track RMS', 'm'],
   ['poseRMS', 'Pose RMS', 'm'],
   ['nees', 'NEES', ''],
@@ -126,7 +130,13 @@ function expResultsHTML() {
   };
   const fm = (m, sd, k) => {
     if (m === '—') return '—';
-    const d = ['t', 'dist'].includes(k) ? 0 : ['goalsDone', 'coll', 'ped', 'replans'].includes(k) ? 1 : ['nees'].includes(k) ? 1 : 3;
+    const d = ['t', 'dist'].includes(k)
+      ? 0
+      : ['goalsDone', 'coll', 'ped', 'replans', 'nees', 'nearS', 'ttc1S'].includes(k)
+        ? 1
+        : k === 'impact'
+          ? 2
+          : 3;
     return sd > 0 ? `${m.toFixed(d)} ± ${sd.toFixed(d)}` : m.toFixed(d);
   };
   const cols = EXP_METRICS;

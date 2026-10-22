@@ -86,6 +86,7 @@ function renderMetrics() {
     );
   }
   if (S.peds.length) items.push(['Closest to a person', isFinite(S.minPed) ? `${Math.max(0, S.minPed).toFixed(2)} m` : '—']);
+  items.push(...safetyItems());
   if (S.agents && agOn()) {
     const tr = S.agents.tracks,
       cf = tr.filter(t => t.conf).length;
@@ -119,4 +120,32 @@ function renderMetrics() {
   if (S.pf) items.push(['Particles', `N_eff ${S.pf.neff.toFixed(0)}/${S.pf.N}, inj ${(S.pf.inj * 100).toFixed(0)}%`, 'loc']);
   if (P.assoc === 'unknown' && P.loc !== 'truth' && P.loc !== 'dr') items.push(['Gated measurements', String(S.rejected), 'loc']);
   $('#metrics').innerHTML = items.map(([a, b, c]) => `<div${c ? ` data-sys="${c}"` : ''}><dt>${a}</dt><dd>${b}</dd></div>`).join('');
+}
+
+// The safety measures (core/safety.js), in the metrics list: each contact with its speed and the lab's severity class,
+// the clearance to the walls, and the leading indicators and exposure counted while the mission runs
+function safetyItems() {
+  const Z = S.safe;
+  if (!Z) return [];
+  const s1 = x => `${x.toFixed(1)} s`,
+    hits = Z.events.filter(e => e.kind !== 'person' || !e.still);
+  const out = [
+    [
+      'Contacts by speed',
+      hits.length
+        ? hits.map(e => `${e.v.toFixed(2)} m/s ${e.sev} (${e.kind === 'static' ? 'wall' : 'person'}, ${e.t.toFixed(0)} s)`).join(' · ')
+        : 'none',
+      'saf'
+    ],
+    ['Wall clearance', isFinite(Z.minObs) ? `${Math.max(0, Z.minObs).toFixed(2)} m` : '—', 'saf']
+  ];
+  if (S.peds.length)
+    out.push(
+      ['Under 0.3 m of a person', s1(Z.nearS), 'saf'],
+      ['Time to contact', `${isFinite(Z.ttcMin) ? 'least ' + Z.ttcMin.toFixed(2) + ' s · ' : ''}under 1 s for ${s1(Z.ttc1S)}`, 'saf'],
+      ['Person within 2 m', `${s1(Z.near2S)} of ${s1(Z.opS)} driving`, 'saf']
+    );
+  if (isCar()) out.push(['Reversing', s1(Z.revS), 'saf']);
+  if (P.guard) out.push(['Safety stop capping the speed', s1(Z.guardS), 'saf']);
+  return out;
 }

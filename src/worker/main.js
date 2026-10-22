@@ -31,6 +31,7 @@ function runSummary() {
     replans: S.log.filter(l => /^Replan/.test(l.msg)).length,
     predErr: predErrors(), // the people predictors' mean error at 1 s and 2 s (core/predict.js)
     mpcMs: S.mpcStats ? +S.mpcStats.ms.toFixed(2) : null,
+    ...safeSummary(), // impact speed, clearances, leading indicators and the contact events (core/safety.js)
     log: S.log
       .slice(0, 12)
       .map(l => l.t.toFixed(1) + ' ' + l.msg)

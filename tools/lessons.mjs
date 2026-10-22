@@ -20,7 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {texText} from './tex.mjs';
-const GROUPS = ['loc', 'per', 'plan', 'ctl'];
+const GROUPS = ['loc', 'per', 'plan', 'ctl', 'saf'];
 export function parseLesson(md, file) {
   const lines = md.split('\n');
   let i = 0;

@@ -15,6 +15,7 @@
   --beacon: #008a87;
   --rose: #ad2a69;
   --radar: #6a3fc1; /* the radar's detections and field of view */
+  --saf: #5f600a; /* the Safety group (lessons and the safety measures) */
   --ok: #2b7741;
   --warn: #a35e00;
   --bad: #bb3227;
@@ -58,6 +59,7 @@
     --beacon: #3fd0c6;
     --rose: #e673ac;
     --radar: #b297ff;
+    --saf: #c4c35a;
     --ok: #62c27f;
     --warn: #e69c3d;
     --bad: #f06d61;
@@ -85,6 +87,7 @@
   --beacon: #3fd0c6;
   --rose: #e673ac;
   --radar: #b297ff;
+  --saf: #c4c35a;
   --ok: #62c27f;
   --warn: #e69c3d;
   --bad: #f06d61;
@@ -1317,6 +1320,9 @@ dialog:focus-visible {
 }
 [data-sys='ctl'] {
   --sys: var(--ok);
+}
+[data-sys='saf'] {
+  --sys: var(--saf);
 }
 .tab[data-sys] small {
   color: var(--sys);

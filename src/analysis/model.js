@@ -142,6 +142,7 @@ function makeBench(v0, y0, th0) {
     mpc: null,
     mpcStats: null,
     rejected: 0,
+    safe: safeInit(), // actuate keeps the safety measures (core/safety.js), so the bench carries them too
     ess: 0
   };
   if (anEst())

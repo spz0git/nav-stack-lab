@@ -4,6 +4,27 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v60 · 2026-10-22
+
+- A new Learn group, Safety: the ideas of the safety standards for automated vehicles and robots (ISO 26262,
+  ISO 21448 or SOTIF, ISO/PAS 8800 and UL 4600), done on the simulator rather than read. The lab paraphrases the
+  standards and quotes none of them. Three lessons to start:
+  - *The operating domain*: write down where the busy floor's stack is meant to work, then test it inside and just
+    outside, one boundary at a time, on generated warehouses: aisles of 1.2 m instead of 2 m bring rack contacts on
+    every seed, eight people instead of four bring more contacts with people.
+  - *Hazards and risk*: rate the busy floor and the parking lot by severity, exposure and controllability, every
+    rating measured. Ignoring the people means three strikes above 1.3 m/s; people who step aside turn them into
+    bumps; the speed planner leaves one bump but spends more time near people.
+  - *Triggering conditions*: failures with nothing broken. A person turning back at the end of their walk, fog, the
+    particle filter's bad seed, a person inside the sonar's dead zone; one fixed by the learned predictor, which then
+    shows a failure of its own; and for each, whether the stack notices.
+- Chapter 8, Safety, derives what the lessons use and tabulates the measured runs; Notation and references is now
+  chapter 9.
+- The Metrics list beside the event log has safety rows: each contact with its speed and a severity class of the lab's
+  own (touch below 0.3 m/s, bump up to 1 m/s, strike above), the robot's closest approach to a rack or wall, the
+  seconds closer than 0.3 m to a person, the time to contact, and the time spent near people or reversing. Experiments
+  can chart the impact speed, the wall clearance and the close-call seconds, and Runs compares the first two.
+
 ## v59 · 2026-10-22
 
 - Lessons: in five lessons (velocity obstacles, the learned detector, the learned predictor, D* Lite and the

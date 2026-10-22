@@ -504,7 +504,7 @@ right number (and title if it differs). A lesson cites a row only once it is ans
 | # | Standard | Clause cited | Topic, as this document uses it | Where cited | Checked against | Your answer |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | ISO 26262-1 | 3 | Terms and definitions, including the fault tolerant time interval | 3.3; saf/03 | Memory | |
-| 2 | ISO 26262-2 | 6.4.8 | The safety case | 3.5; saf/09 | Secondary, one (the number); secondary, agreed (that Part 2 requires an argument-based safety case) | |
+| 2 | ISO 26262-2 | 6.4.8 | The safety case | 3.5; saf/09 | Contents page of the 2018 edition: 6.4.8 is "Safety case", under clause 6, project-dependent safety management | OK (confirmed from the contents page) |
 | 3 | ISO 26262-3 | 5 | Item definition | 2 | Memory | |
 | 4 | ISO 26262-3 | 6 | Hazard analysis and risk assessment | 3.2; saf/02 | Public contents (ANSI preview of Part 3) and secondary, agreed | |
 | 5 | ISO 26262-3 | 6.4.3 | Classifying hazardous events by severity, exposure and controllability | 3.2 | Secondary, agreed | |

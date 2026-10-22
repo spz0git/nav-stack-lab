@@ -13,21 +13,21 @@ cfg: {"sim":true,"level":4,"set":{"agPred":"cv"},"tab":"per","layers":{"agents":
 Setup: L5 as it comes: the lidar tracker, constant-velocity prediction, the speed planner, scripted people who walk their aisles back and forth. Perceive tab; the metrics are under the map.
 See: Mission complete at 121 s, one contact. Prediction error 1 s · 2 s in the metrics: constant velocity 0.24 · 0.45 m; learned 0.15 · 0.26 m, the network scored on what it would have said while constant velocity drove.
 Shows: Constant velocity is wrong by almost half a metre two seconds ahead, more than a person's radius. Some of that is the people (a scripted walker turns back at the end of the aisle without slowing), much is the tracker: a velocity estimated from lidar clusters wobbles, and every wobble is multiplied by the time ahead. The network smooths the wobble from the last second of positions and knows that a walker running out of free space ahead is about to turn.
-Predict: Switch Prediction to Learned. The planners now avoid the network's most probable future, which is 40 % closer to the truth at 2 s. What happens to the contacts and to the time to Mission complete?
-- About the same: a contact or none, and a few seconds either way
-- No contacts at all, and the mission is done sooner
-- Far slower: the robot brakes for turns that do not happen
-Answer: 0
+Predict: Constant velocity assumes each person walks on in a straight line at the velocity the tracker estimates. How far off is it two seconds ahead (Prediction error 1 s · 2 s, under the map)?
+- A few centimetres: the people walk straight lines
+- Several tenths of a metre, a person's width or more
+- Several metres: the people turn all the time
+Answer: 1
 
 ## Try: Learned, scripted people
 cfg: {"sim":true,"level":4,"set":{"agPred":"learned"},"tab":"per","layers":{"agents":true}}
 Setup: The same run, Prediction → Learned. Watch a walker near the end of an aisle: the bold future still goes straight, and a thinner one bends back.
 See: Mission complete at 119 s, one contact. Learned 0.18 · 0.34 m, constant velocity 0.24 · 0.46 m, on the tracks of this run. Over seeds 1 to 12 the learned error at 2 s is lower on every seed (0.23 to 0.73 m against 0.40 to 0.96 m), but the contacts are 11 against 14 in all and the mean time to Mission complete 135 s against 131 s: five seeds without a contact against two, and the rest the same or worse.
 Shows: A better prediction is not automatically safer driving. The speed planner already keeps a margin and a growing radius around every prediction, which absorbs most of constant velocity's error. The contacts that remain are a scripted walker reaching the robot from the side or the front while it has already slowed for them: the speed planner can only change the robot's speed along its path, and when a walker who never yields crosses the place where the robot stands, slowing down is no escape. The network moves the contact to another encounter; it does not remove the kind. Prediction error is the number a predictor is trained on; contacts and time are what a robot is judged on, and the link between them is weak.
-Predict: Now make the people react: they step around the robot (social forces). Will the network still beat constant velocity at 2 s?
-- Yes, by a smaller margin: reacting people depend on what the robot will do next, which the network does not know
-- Yes, by a larger margin: it saw the robot's position, constant velocity did not
-- No: it was trained mostly on scripted people
+Predict: Switch Prediction to Learned. The planners now avoid the network's most probable future, which is 40 % closer to the truth at 2 s. What happens to the contacts and to the time to Mission complete?
+- About the same: a contact or none, and a few seconds either way
+- No contacts at all, and the mission is done sooner
+- Far slower: the robot brakes for turns that do not happen
 Answer: 0
 
 ## Try: Constant velocity, reacting people
@@ -35,10 +35,10 @@ cfg: {"sim":true,"level":4,"set":{"agPred":"cv","people":"reactive"},"tab":"per"
 Setup: L5 with reacting people (Vehicle → People → Reactive), constant velocity.
 See: Mission complete at 122 s, no contact, closest to a person 0.18 m. Constant velocity 0.27 · 0.55 m, learned 0.22 · 0.42 m: a quarter better at 2 s, against 40 % with scripted people. Over seeds 1 to 12 the margin is smaller with reacting people on ten seeds.
 Shows: People who react are harder for both, and the network's edge shrinks. It knows where the robot is and how fast it moves now, so it can learn "people step away from a robot coming at them", but not where the robot will be in two seconds, which is what the person is really reacting to. A prediction that ignores the robot's plan, and a plan that takes the prediction as given, is the coupling problem of chapter 4: each side treats the other as fixed.
-Predict: Switch to Learned. What does Closest to a person in the metrics do?
-- It grows: the robot keeps more distance from people
-- It stays the same: there were no contacts anyway
-- It shrinks: the network predicts people stepping away, so the robot cuts closer
+Predict: Now make the people react: they step around the robot (social forces). Will the network still beat constant velocity at 2 s?
+- Yes, by a smaller margin: reacting people depend on what the robot will do next, which the network does not know
+- Yes, by a larger margin: it saw the robot's position, constant velocity did not
+- No: it was trained mostly on scripted people
 Answer: 0
 
 ## Try: Learned, reacting people
@@ -46,10 +46,10 @@ cfg: {"sim":true,"level":4,"set":{"agPred":"learned","people":"reactive"},"tab":
 Setup: Reacting people, the learned predictor.
 See: Mission complete at 124 s, no contact, closest to a person 0.46 m against 0.18 m. Learned 0.20 · 0.36 m, constant velocity 0.23 · 0.45 m. Over seeds 1 to 12: one contact in all with constant velocity, none with the network; the closest approach larger on ten seeds; the times about the same (seeds 1 and 6 are long with both).
 Shows: The gain shows up as distance, not as goals or seconds: the robot meets the people where they will be rather than where a straight line says, and passes them wider. With people who move out of its way, that is the most a better prediction can buy.
-Predict: Plan against every future at least 20 % probable instead of the most probable one. What does it cost?
-- Time on some seeds: the robot also waits for the turns that do not happen
-- Nothing: the extra futures are thin and far away
-- Contacts: the planner cannot find a gap
+Predict: Switch to Learned. What does Closest to a person in the metrics do?
+- It grows: the robot keeps more distance from people
+- It stays the same: there were no contacts anyway
+- It shrinks: the network predicts people stepping away, so the robot cuts closer
 Answer: 0
 
 ## Try: Plan against every likely future
@@ -57,10 +57,10 @@ cfg: {"sim":true,"level":4,"set":{"agPred":"learned","predModes":"all"},"tab":"p
 Setup: Scripted people, the learned predictor, Perceive → Plan against → Every future ≥ 20 %. Each likely future is now an obstacle of its own for the speed planner, space-time A*, DWA and MPC.
 See: Mission complete at 121 s, no contact at seed 7. Over seeds 1 to 12: 8 contacts against 11 with the most probable future only, but the mean time 147 s against 135 s: 15 to 25 s slower on seeds 9, 10 and 12, where the robot waits in front of people whose second future crosses its path.
 Shows: Multimodal predictions raise a question constant velocity never asked: which future does the planner believe? All of them is cautious and slow (the freezing robot: every gap is blocked by somebody's unlikely turn); the most probable alone is quick and occasionally wrong. Planners that weigh each future by its probability and replan as it resolves are how real stacks answer it; this lab offers the two ends.
-Predict: Switch Agent tracking to Ground truth: the tracks now carry the people's exact positions and velocities. Which predictor has the smaller error at 2 s?
-- Constant velocity, by far: a scripted walker on a straight line is exactly constant velocity, and the network was trained to correct a noisy tracker
-- The network: it predicts the turns at the ends of the aisles
-- They are equal: with exact velocities there is nothing to correct
+Predict: Plan against every future at least 20 % probable instead of the most probable one. What does it cost?
+- Time on some seeds: the robot also waits for the turns that do not happen
+- Nothing: the extra futures are thin and far away
+- Contacts: the planner cannot find a gap
 Answer: 0
 
 ## Try: Where the network is wrong: perfect tracks
@@ -68,10 +68,10 @@ cfg: {"sim":true,"level":4,"set":{"agPred":"learned","agents":"truth"},"tab":"pe
 Setup: Agent tracking → Ground truth, the learned predictor. Nothing else changes.
 See: Constant velocity 0.03 · 0.13 m, learned 0.18 · 0.32 m: more than twice the error at 2 s, on every seed from 1 to 12. Mission complete at 127 s, no contact.
 Shows: The network learned the noise of the lidar tracker as much as the people. Most of its advantage on real tracks was undoing the tracker's wobble; given clean tracks it keeps "correcting" a wobble that is not there. This is distribution shift in a form that is easy to miss: the people did not change, the sensor did. A learned block is trained for one stage upstream of it, and an improvement upstream (a better tracker, the per-target scan matching of lesson 7) can make it worse.
-Predict: The parking lot (L6): people walk to their cars, pause for a few seconds and walk back. Where on the map do the network's three futures split most?
-- At the ends of a person's walk, where they slow and pause: walk on, stop or turn back
-- In the middle of a walk, where they move fastest
-- Nowhere: the three futures are always the same line
+Predict: Switch Agent tracking to Ground truth: the tracks now carry the people's exact positions and velocities. Which predictor has the smaller error at 2 s?
+- Constant velocity, by far: a scripted walker on a straight line is exactly constant velocity, and the network was trained to correct a noisy tracker
+- The network: it predicts the turns at the ends of the aisles
+- They are equal: with exact velocities there is nothing to correct
 Answer: 0
 
 ## Try: People who pause: the futures split
@@ -79,6 +79,11 @@ cfg: {"sim":true,"level":5,"set":{"agPred":"learned"},"tab":"per","layers":{"age
 Setup: L6, the car, people who pause before they turn back; the learned predictor. Pause when a person slows near the end of their walk and look at their futures.
 See: Near the end of a walk a second future of 20 % or more shows about half the time, and the bold one is less sure (75 % on average); in mid-walk one future carries 85 %, and a second one shows one time in five (seeds 2, 3 and 7). Learned 0.21 · 0.34 m, constant velocity 0.25 · 0.46 m. Mission complete at 162 s against 148 s with constant velocity, no contact either way; over seeds 1 to 12 the car is slower with the network on seven seeds (168 s against 164 s on average), with 2 contacts against 4.
 Shows: The futures are a picture of what the network is unsure about, and it is unsure exactly where people decide. It cannot know when a pause ends; it learned how often a pause ends in each way. The slower car is the price of the predicted pauses: a person predicted to stand in the lane for two seconds keeps the car waiting where constant velocity would have let it go, sometimes rightly.
+Predict: The parking lot (L6): people walk to their cars, pause for a few seconds and walk back. Where on the map do the network's three futures split most?
+- At the ends of a person's walk, where they slow and pause: walk on, stop or turn back
+- In the middle of a walk, where they move fastest
+- Nowhere: the three futures are always the same line
+Answer: 0
 
 ## Code: predDecode, three futures from 39 numbers
 snippet: pred-decode

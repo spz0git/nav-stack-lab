@@ -14,10 +14,10 @@ cfg: {"sim":true,"level":4,"set":{"spd":"none"},"tab":"ctl"}
 Setup: L5 with the trackers ignoring the agents: the five goals, 83 m, with people walking their fixed segments through the aisles.
 See: Three contacts, at 51, 54 and 79 s, all five goals in 106 s. The speed planner on the same run: one contact, four yields.
 Shows: The reference, and the kind of people: scripted ones, who walk through the robot as if it were not there. None of the contacts is a surprise: each person had been in view of the lidar, and tracked, for four to eight seconds before the robot drove into them.
-Predict: Turn velocity obstacles on, horizon 3 s. How many contacts?
-- One or two, about the speed planner's: people walking straight at the robot in a corridor remain
-- None: a cone per person is a complete answer
-- More: the detours walk into other people
+Predict: The robot drives its path at cruise speed as if the floor were empty, and these people never step aside. How many contacts over the run?
+- A few, two to four, wherever a walk crosses the path as the robot passes
+- None: the aisles are wide enough for the two to miss
+- A dozen or more: one for every person it passes
 Answer: 0
 
 ## Try: Velocity obstacles, 3 s horizon
@@ -25,10 +25,10 @@ cfg: {"sim":true,"level":4,"set":{"spd":"vo"},"tab":"ctl","layers":{"vo":true,"a
 Setup: The same run with velocity obstacles, $\tau = 3$ s, 0.2 m of clearance. Velocity obstacles layer on.
 See: 145 interventions and 31 stops over the run, two contacts instead of three, the same 84 m and all five goals. Watch an aisle encounter: the command arrow turns red as it enters a cone, the chosen velocity swings 30 or 40° to the side, and the robot slides past the person rather than braking behind them.
 Shows: Steering around works where there is room to steer. The two contacts that remain, at 55 and 81 s, are scripted people walking along a corridor straight at the robot, at 0.6 and 0.8 m/s: every forward and sideways velocity collides, the robot brakes, and the person walks into it before it has quite stopped. Backing away at 0.3 m/s would not escape either; nothing short of leaving the corridor would, and velocity obstacles know nothing about the shelves.
-Predict: Shorten the horizon to 2 s. What happens to the number of interventions the Control tab counts?
-- Fewer: each cone ends sooner, so fewer commands fall inside one
-- More: the robot reacts later and has to correct more often
-- The same: the horizon only changes how far ahead the cone is drawn
+Predict: Turn velocity obstacles on, horizon 3 s. How many contacts?
+- One or two, about the speed planner's: people walking straight at the robot in a corridor remain
+- None: a cone per person is a complete answer
+- More: the detours walk into other people
 Answer: 0
 
 ## Try: Velocity obstacles, 2 s horizon
@@ -36,10 +36,10 @@ cfg: {"sim":true,"level":4,"set":{"spd":"vo","voT":2},"tab":"ctl","layers":{"vo"
 Setup: $\tau = 2$ s.
 See: 116 interventions, 17 stops, one contact, 84 m, five goals. The detours start later and swing less, and the 3 s run's contact at 81 s does not happen; the one at 55 s, the person walking straight at the robot along the top corridor, remains.
 Shows: The horizon is a bet on how long the person keeps their velocity. A long $\tau$ reacts to collisions that would never happen because the person turns first, and reacts early, which in an aisle can mean committing to the wrong side; a short one reacts to what is about to happen. Two to three seconds is what the crowd-simulation literature settled on for walking people. The interventions fall on every seed (107 to 132 against 125 to 138 over seeds 2 to 5); the contacts do not separate the two horizons: one or two with 2 s against two with 3 s, so the contact this run saves is one run's luck as much as the horizon's.
-Predict: Make the people react (social forces, lesson 5), keep $\tau = 3$ s. Contacts?
-- None: two parties avoiding each other is what the cone assumes, and more
-- The same one or two: the cones do not know the people react
-- More: both swerve the same way and dance
+Predict: Shorten the horizon to 2 s. What happens to the number of interventions the Control tab counts?
+- Fewer: each cone ends sooner, so fewer commands fall inside one
+- More: the robot reacts later and has to correct more often
+- The same: the horizon only changes how far ahead the cone is drawn
 Answer: 0
 
 ## Try: People who react
@@ -47,10 +47,10 @@ cfg: {"sim":true,"level":4,"set":{"spd":"vo","people":"reactive"},"tab":"ctl","l
 Setup: The reactive people of lesson 5, who steer around the robot as it steers around them, $\tau = 3$ s.
 See: No contact in the whole run, closest approach 0.30 m, 133 interventions and two stops, five goals in 84 m. Ignoring the same people: two contacts; the reactive stop: none, but with a closest approach of 6 cm; the speed planner: none, closest 0.18 m, three agent-blocking replans.
 Shows: Velocity obstacles assume the other party keeps their velocity, and when the other party is also avoiding, each one's detour is more than enough: the famous dance of two VO agents that both swerve, then both swerve back, is the mild version of this. Reciprocal velocity obstacles fix it by having each party take half the avoidance; the lab's people take theirs with social forces, which comes to the same.
-Predict: Reacting people again, now $\tau = 2$ s. What can the cones not prevent, whatever the horizon?
-- A collision with a shelf: the cones know nothing about walls
-- A contact with a person who reacts
-- Nothing: with people who react, the cones are enough
+Predict: Make the people react (social forces, lesson 5), keep $\tau = 3$ s. Contacts?
+- None: two parties avoiding each other is what the cone assumes, and more
+- The same one or two: the cones do not know the people react
+- More: both swerve the same way and dance
 Answer: 0
 
 ## Try: Into the shelf: what the cones do not know
@@ -58,6 +58,11 @@ cfg: {"sim":true,"level":4,"set":{"spd":"vo","voT":2,"people":"reactive"},"tab":
 Setup: Reacting people, $\tau = 2$ s, and the lidar safety stop off, as on this level by default.
 See: No contact with a person, and two collisions with shelves: a late, sharp detour chose a velocity pointing into the shelf beside the aisle, which no cone forbids. With the safety stop on (Control → lidar safety stop) the shelves are not hit, but the stop halts the robot in front of them and goals are given up as stuck: two of five reached with $\tau = 2$ s, four of five with $\tau = 3$ s. Which run hits a shelf changes with the seed: at seed 7 the 3 s run is clean, but over seeds 2 to 5 the 3 s horizon hits a shelf on three runs and the 2 s horizon on one; with reacting people no run touched a person.
 Shows: A velocity obstacle is only ever about one moving thing. A complete local planner puts the static map into the same velocity set, which is exactly what DWA does when it scores its rollouts against the costmap and the people together, and what ORCA-based stacks do by adding the walls as linear constraints. Bolting a safety stop onto VO stops the collision and the mission with it.
+Predict: Reacting people again, now $\tau = 2$ s. What can the cones not prevent, whatever the horizon?
+- A collision with a shelf: the cones know nothing about walls
+- A contact with a person who reacts
+- Nothing: with people who react, the cones are enough
+Answer: 0
 
 ## Code: agVO, the cone test and the choice
 snippet: vo

@@ -4,6 +4,14 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v59 · 2026-10-22
+
+- Lessons: in five lessons (velocity obstacles, the learned detector, the learned predictor, D* Lite and the
+  end-to-end policy) the "Before you press" question under an experiment asked about the experiment after it. Each
+  question now sits under the experiment it asks about, and the experiments left without one have a question of
+  their own. D* Lite's periodic replan now says what the status strip shows: on a map that does not change,
+  most of its replans have nothing to repair.
+
 ## v58 · 2026-10-20
 
 - An ultrasonic ring: Perceive → Ultrasonic ring (off by default) puts 8 sonars round the robot, each a 30° cone that

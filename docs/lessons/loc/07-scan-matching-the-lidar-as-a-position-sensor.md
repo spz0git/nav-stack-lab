@@ -26,10 +26,10 @@ Answer: 0
 
 ## Try: The beacons alone, for comparison
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf"},"tab":"loc","plot":"pos"}
-Setup: The EKF with its beacons and no scan matching, the reference of lesson 2.
+Setup: The EKF with its beacons and no scan matching, the reference of lesson 2. Then switch scan matching on as well (Localize) and compare.
 See: Pose RMS 0.04 m, NEES 2.8 to 5.2, inside the 2σ band 97 % of the time. Add scan matching to the beacons (Localize) and the RMS drops to 0.03 m, NEES averages 4.3 over the run against 3.6, and the band share falls to 91 %.
 Shows: Two sensors are better than one by a centimetre, on every seed. What the matcher's double counting does to consistency is small next to the beacons: on this run NEES is a little higher and the band share lower, on seeds 3 and 4 both move the other way. With the lidar alone, as in the first experiment, it shows plainly: NEES averages 4.7 to 6.2 over the run on seeds 1 to 5 and 7. On a real robot the beacons are a GPS fix, a UWB anchor or nothing at all; the lidar is what is always there.
-Predict: Add scan matching to the beacons. What happens to the error and to NEES?
+Predict: After this run, switch scan matching on as well, beacons and lidar together. What happens to the error and to NEES?
 - The error gets a little smaller and NEES stays about where it was, near 4
 - The error halves and NEES falls below 1: two sensors make the filter underconfident
 - NEES climbs past 7.8: two sensors double the overconfidence

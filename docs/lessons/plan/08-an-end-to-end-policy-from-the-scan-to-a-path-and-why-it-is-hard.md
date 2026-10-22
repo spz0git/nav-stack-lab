@@ -16,10 +16,10 @@ cfg: {"sim":true,"level":0,"set":{"plan":"policy"},"tab":"plan"}
 Setup: L1, the open floor the policy was trained on, with the level's four goals. Plan tab.
 See: All four goals in 44.8 m, the same as A*, no collision, and a path on the map that bends around the pillars the way A*'s did. A lower-scored candidate is taken once, and the safety layer never acts; the faint lines are the other three, mostly near copies of it.
 Shows: Where the demonstrations cover the situations, imitation works, and the map is a learned function of the scan: no grid, no search, a tenth of a millisecond per plan. Watch the eight points refresh every half second.
-Predict: The busy floor, L5, which the policy never saw, with the speed planner handling the people. Goals?
-- All five, like A*: its aisles look like the training levels, and the people are the speed planner's job
-- None: a level it has not seen is out of the question
-- Two or three: it clips a shelf corner in most aisles
+Predict: The policy on the open floor it was trained on, four goals among the pillars. Goals out of four?
+- All four, no collision, in about the distance A* drives
+- Two or three: it cuts a pillar now and then
+- None: a function of the scan, with no map and no search, cannot find its way to a goal
 Answer: 0
 
 ## Try: A floor it never saw
@@ -27,10 +27,10 @@ cfg: {"sim":true,"level":4,"set":{"plan":"policy","spd":"st"},"tab":"plan"}
 Setup: L5 with the speed planner, the policy as the global planner.
 See: All five goals in 84 m and 124 s, no collision with a shelf, and one contact with a person while moving, as A* with the same speed planner has on this run (five goals, 84 m). A lower-scored candidate is taken 24 times because the best one runs into a shelf's inflation, and twice the robot falls back to A*; the single-path policy without these clipped two shelves here and gave up a goal.
 Shows: Generalization to a new floor of the same kind. The scan features are local, and wide aisles with shelves look like what it learned from, so it drives; the corners it used to clip are where a second candidate, the other way round the shelf end, is taken instead. The people it leaves to the speed planner, which is the modular design: the learned block does one job. The count varies from run to run: on seeds 2 to 5 the same experiment reaches all five goals without touching a shelf, and on seed 1 the particle filter loses the robot and the run reaches one goal in 150 s, a localization failure that costs A* goals on that seed too.
-Predict: L2, the warehouse aisles it was trained on. Goals out of four?
-- Three or four: the aisles need a side picked at every shelf end, which the candidates can do
-- None or one: the narrow aisles are where a corner clipped is a collision
-- All four, as directly as A*
+Predict: The busy floor, L5, which the policy never saw, with the speed planner handling the people. Goals?
+- All five, like A*: its aisles look like the training levels, and the people are the speed planner's job
+- None: a level it has not seen is out of the question
+- Two or three: it clips a shelf corner in most aisles
 Answer: 0
 
 ## Try: The warehouse aisles
@@ -38,10 +38,10 @@ cfg: {"sim":true,"level":1,"set":{"plan":"policy"},"tab":"plan"}
 Setup: L2, a training level, the policy as the planner.
 See: The first shelf end goes by at 4 s and the first goal is reached at 20 s. On the way to goal 2 the robot touches a shelf at 43 s and again at 57 s, and goal 2 is given up at 76 s; goals 3 and 4 follow at 106 s and 143 s. Three goals of four in 80 m, two collisions; A* takes all four in 59 m. The Plan tab counts 58 lower-scored candidates taken, 82 waypoints moved, 6 segments rerouted, 43 paths cut and 38 fallbacks to A*: around goal 2 no candidate clears for long stretches, and the classical layer drives.
 Shows: The failure this policy had before, in one picture, and the fix. Where the demonstrations went left of a shelf end from some states and right of it from almost the same states, a single least-squares path is their average, through the shelf: the old policy collided at the first shelf end at 4 s, every time, and reached no goal. With four candidates the two sides stay two answers, the score says which the expert took more often, and the costmap check takes the other when the first is blocked. What is left is the case no candidate covers: in the inflation with every proposal pointing into the shelf, a memoryless policy keeps asking for the same thing, and the A* fallback gets it out only for the robot to be pointed back. The counts say how often that happens.
-Predict: Point the policy at a subgoal 3 m along the A* route instead of the goal. Goals?
-- All four, cleanly: with the long-range part taken away, the candidates only have to pick a side of each shelf
-- Hardly: one goal at most; the failure is the first metre of each corner, not the long-range direction
-- Worse: two planners fight
+Predict: L2, the warehouse aisles it was trained on. Goals out of four?
+- Three or four: the aisles need a side picked at every shelf end, which the candidates can do
+- None or one: the narrow aisles are where a corner clipped is a collision
+- All four, as directly as A*
 Answer: 0
 
 ## Try: A classical subgoal
@@ -49,10 +49,10 @@ cfg: {"sim":true,"level":1,"set":{"plan":"policy","policyGoal":"subgoal"},"tab":
 Setup: L2 with the hybrid: A* finds the route, the policy is pointed at the point 3 m along it and drives.
 See: All four goals in 58 m, no collision, as short as A*'s 59; a lower-scored candidate is taken eleven times and the safety layer acts once. The single-path policy reached one goal here and collided twice: its average still cut the shelf end on the way to the subgoal.
 Shows: The two remedies fix different failures, and here they need each other. The subgoal fixes the long-range one, a goal behind a shelf that points a reactive policy at the shelf; the candidates fix the local one, the averaged corner. Either alone leaves the robot pinned somewhere; together they drive the aisles like the classical stack. On seeds 1 to 5 the result is the same, four of four with no collision.
-Predict: L4, the building with rooms and doors, with the policy pointed at the goal. Goals?
-- One or none: a goal behind a wall points the policy at the wall, and more candidates do not change where the goal is
-- Three or four: doors are wider than aisles
-- All four: it was trained there
+Predict: Point the policy at a subgoal 3 m along the A* route instead of the goal. Goals?
+- All four, cleanly: with the long-range part taken away, the candidates only have to pick a side of each shelf
+- Hardly: one goal at most; the failure is the first metre of each corner, not the long-range direction
+- Worse: two planners fight
 Answer: 0
 
 ## Try: The building
@@ -60,10 +60,10 @@ cfg: {"sim":true,"level":3,"set":{"plan":"policy"},"tab":"plan"}
 Setup: L4 with lidar mapping, the policy as the planner.
 See: One goal of four, at 17 s, one collision at 39 s, the rest given up as stuck at doorways; A* takes four in 50 m. The Plan tab fills up: 125 waypoints moved, 50 paths cut, 12 fallbacks to A*, as the safety layer works against a wall the candidates all point at.
 Shows: Rooms are the hardest case for a local policy: the goal is behind a wall, the way out is a door not visible in the goal direction, and the demonstrations through doors are a small share of the data. All four candidates point at the wall, because the scan does not say which door leads to the goal. This is where the field adds memory (recurrent policies, maps as inputs), far more data, and reinforcement learning on top of imitation; the lab adds the cheapest of them, a route from a planner that has the map.
-Predict: Point the policy at the subgoal here. Goals?
-- All four: the route through the doors is the planner's, and the candidates only have to drive it
-- One or none, as before: doors are corners twice over
-- Two: the near rooms only
+Predict: L4, the building with rooms and doors, with the policy pointed at the goal. Goals?
+- One or none: a goal behind a wall points the policy at the wall, and more candidates do not change where the goal is
+- Three or four: doors are wider than aisles
+- All four: it was trained there
 Answer: 0
 
 ## Try: The building with a subgoal
@@ -71,6 +71,11 @@ cfg: {"sim":true,"level":3,"set":{"plan":"policy","policyGoal":"subgoal"},"tab":
 Setup: L4 with lidar mapping, the hybrid: A* finds the route through the doors, the policy drives towards the point 3 m along it.
 See: All four goals in 51 m and 73 s, no collision, as A* does. The single-path policy reached none here and collided four times. On seeds 1 to 5 the result is the same, four of four with no collision.
 Shows: The division of labour that learned navigation stacks settle on: a classical planner over a map for where to go, a learned local policy for how to drive there, and a classical check around the learned part. The policy alone on this floor reaches one goal; the hybrid reaches all of them.
+Predict: Point the policy at the subgoal here. Goals?
+- All four: the route through the doors is the planner's, and the candidates only have to drive it
+- One or none, as before: doors are corners twice over
+- Two: the near rooms only
+Answer: 0
 
 ## Code: policyPlan, the forward pass, the candidates and the safety layer
 snippet: policy

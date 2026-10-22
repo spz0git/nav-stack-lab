@@ -139,6 +139,8 @@ window.__nav = {
   },
   LAYERS,
   EXP,
+  SAF, // Tools → Safety (ui/safety.js)
+  safSearch,
   expCSV,
   configURL,
   get LV() {

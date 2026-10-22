@@ -1639,6 +1639,26 @@ dialog:focus-visible {
   color: var(--muted);
   font-size: var(--fs-label);
 }
+.saf-h {
+  margin: 14px 0 4px;
+  font-size: var(--fs-ui);
+}
+.saf-sheet input[type='number'] {
+  width: 4.5em;
+}
+.saf-set {
+  border-top: 1px solid var(--line);
+  padding: 6px 0;
+}
+.saf-list {
+  margin: 4px 0 0 1.2em;
+  padding: 0;
+  font-size: var(--fs-small);
+}
+.saf-list .bad,
+.exptab td.bad {
+  color: var(--bad);
+}
 .expchart {
   width: 100%;
   height: 200px;

@@ -160,6 +160,7 @@ async function tryGo(cfg) {
   if (!cfg.keep) loadLevel(LV);
   for (const [k, v] of Object.entries(cfg.set || {})) setParam(k, v, false);
   if (cfg.goals) setGoals(cfg.goals); // a Try with its own goals (a loop to close): the mission restarts on them
+  if (cfg.saf) safFromTry(cfg.saf); // the safety lessons: a sheet and a search in Tools → Safety
   if (cfg.tab) {
     activeTab = cfg.tab;
     consoleOpen = true;
@@ -331,6 +332,7 @@ function renderAllPanes() {
   else if (t === 'sym') html = symPane();
   else if (t === 'exp') html = expPane();
   else if (t === 'train') html = trainPane();
+  else if (t === 'saf') html = safPane();
   else {
     if (t === 'mis') html += `<div id="fsm-wrap" class="fsm-wrap">${fsmSVG()}</div>`;
     for (const f of SCHEMA[t]) {
@@ -650,6 +652,7 @@ function wirePane(t) {
   if (t === 'code') wireCode();
   if (t === 'exp') wireExp(pane);
   if (t === 'train') wireTrain(pane);
+  if (t === 'saf') wireSaf(pane);
   if (t === 'sym') wireSym(pane);
   if (t === 'view') {
     const g = $('#ghost-clear');

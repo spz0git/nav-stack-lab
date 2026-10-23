@@ -1361,14 +1361,12 @@ dialog:focus-visible {
   margin-left: auto;
 }
 @media (min-width: 761px) {
+  /* seven numbered tabs and More: a narrow panel wraps them onto a second line rather than hiding More */
   .console .tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
     padding-inline: 4px;
   }
   .console .tab {
-    padding: 10px 7px 9px;
+    padding: 10px 5px 9px;
     font-size: var(--fs-ui);
     white-space: nowrap;
   }

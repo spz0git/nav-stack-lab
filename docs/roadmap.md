@@ -174,8 +174,8 @@ Owner request: more sensor models, each taught by its failure modes; this one ru
 
 - **Why**: Localize had grown to hold every sensor's settings (the switchboard, odometry, gyro, beacons and GNSS) next
   to the estimators, while the lidar's noise, the sonar ring and the radar sat in Perceive and the sensor latency in
-  Vehicle. The new tab (`sen`, first in the pipeline row, unnumbered like Vehicle: hardware at both ends of the
-  numbered software stages) holds them all: the switches (`sensorsHTML`), noise profiles, odometry, gyro, lidar with
+  Vehicle. The new tab (`sen`, first in the pipeline row; since v63 the whole row is numbered 1–7, Sensors to
+  Vehicle) holds them all: the switches (`sensorsHTML`), noise profiles, odometry, gyro, lidar with
   the weather, beacons with the beacon sensor sheet, ultrasonic ring, GNSS, radar, timing. What an estimator, the map,
   the tracker or the safety stop does with a sensor stays in that tab (`assoc`, `pfLidar`, `pfSonar`, `scanMatch`,
   `gnssAug`, `filtK` in Localize; `mapSrc`, `trkIn` in Perceive; `guardSrc` in Control). Localize ends with a link to

@@ -4,6 +4,11 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v63 · 2026-10-23
+
+- Every tab in the pipeline row is numbered now, Sensors (1) through Vehicle (7), in the order the data flows.
+- On a narrow settings panel the tabs wrap onto a second line instead of hiding More off the edge.
+
 ## v62 · 2026-10-23
 
 - A Sensors tab, first in the pipeline row: every sensor's switch, noise and specs in one place, so Localize keeps

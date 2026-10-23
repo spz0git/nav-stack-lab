@@ -1,1 +1,1 @@
-{"version": 62, "date": "2026-10-23", "note": "A Sensors tab: every sensor's switch, noise and specs in one place; noise profiles; lidar reach and dropouts (PR #126)"}
+{"version": 63, "date": "2026-10-23", "note": "Every pipeline tab numbered, Sensors 1 to Vehicle 7; the tab row wraps instead of hiding More"}

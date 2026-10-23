@@ -4,10 +4,10 @@ project: nav-stack-lab
 title: Nav Stack Lab
 kind: code
 source: https://github.com/spz0git/nav-stack-lab
-commit: 326fc03
+commit: 7c5ea32
 updated: 2026-10-23
 status: active
-stage: v62 released 2026-10-23 (a Sensors tab); safety lab phases 1 and 2 built (5 of 9 safety lessons, Tools → Safety)
+stage: v63 released 2026-10-23 (a Sensors tab, numbered pipeline tabs, scoped tests); safety lab phases 1 and 2 built (5 of 9 safety lessons, Tools → Safety)
 next_action: Spy decides whether Safety stays a Learn group plus Tools tab or becomes its own mode, then Claude builds safety lab phase 3
 blocked_on: nothing
 confidential: false
@@ -19,10 +19,10 @@ confidential: false
 A robot navigation simulator and course that runs in the browser as one offline HTML file. It is for students and engineers learning how localization, perception, planning, control and safety standards fit together. The repo is private. The live page is a claude.ai artifact (https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7). A GitHub Pages demo is built but stays off until the repo goes public.
 
 ## Status
-- Released at v62 (2026-10-23, PR #126): a Sensors tab with every sensor's switch, noise and specs (until then spread over three tabs), noise profiles, and lidar reach and dropouts.
+- Released at v63 (2026-10-23): a Sensors tab with every sensor's switch, noise and specs, noise profiles, lidar reach and dropouts (v62), and numbered pipeline tabs.
 - v60 and v61 (2026-10-22) were safety lab phases 1 and 2.
-- Health: the browser gate and the Node golden tests passed for v62 before its merge; the L1–L5 baseline is unchanged.
-- Open PR #98 (2026-10-18) duplicates a fix already on `main` and needs closing.
+- Testing is scoped since 2026-10-23: a PR runs a 40 s smoke test plus the tests of the areas it touches; the full 12-minute suite runs nightly.
+- Health: all tests passed for v63 before its merge; no open PRs (#98 closed as superseded).
 - Waiting on Spy: whether Safety becomes its own mode (decision 4, due now that phase 2 is done); confirming 33 unchecked clause numbers (no longer blocking); whether to go public or stay private.
 
 ## Features and scope
@@ -41,6 +41,6 @@ Out of scope: runtime dependencies or network access, quoting the safety standar
 ## Next big items
 1. Decide whether Safety becomes its own mode — Spy · a decision.
 2. Safety lab phase 3: per-slice metrics for the learned blocks, an out-of-distribution score, an opt-in radar emergency brake, and lessons saf/06–07 — Claude · one release.
-3. Housekeeping with the next release: close PR #98 and fix the stale status line in `docs/safety-lab.md` (it still says "design only, nothing built") — Claude · minutes.
+3. Housekeeping with the next release: fix the stale status line in `docs/safety-lab.md` (it still says "design only, nothing built") — Claude · minutes.
 4. Safety lab phase 4: rates with intervals, a GSN editor, browser storage for sheets and sets, and lessons saf/08–09 — Claude · one or two releases.
 5. Go public (make the repo public and turn Pages on) — Spy · a decision.

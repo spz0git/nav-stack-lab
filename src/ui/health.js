@@ -130,7 +130,7 @@ function renderHealthPop(H) {
 
 /* ---------- Sensors in the health checks: what each switched-off sensor takes away, per subsystem ---------- */
 // The sensor dots: one per modality beside the subsystem lights, so what the robot senses with is visible at a glance.
-// A click opens the Localize tab at its Sensors switches.
+// A click opens the Sensors tab at its switches.
 function renderSensorDots() {
   const h = $('#health');
   if (!h) return;
@@ -143,7 +143,7 @@ function renderSensorDots() {
     el.onclick = () => {
       if (uiMode === 'learn') setUIMode(AN.mode);
       if (WS.inspOff) wsInspector(true);
-      activeTab = 'loc';
+      activeTab = 'sen';
       consoleOpen = true;
       buildTabs();
       renderAllPanes();

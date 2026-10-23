@@ -170,6 +170,28 @@ Owner request: more sensor models, each taught by its failure modes; this one ru
 - **Verification**: `tests/node/sonar.test.mjs` (off leaves no state; a run is repeatable; the sonar-only filter localizes); the lesson's Try buttons in `p5test.py`, the chapter's live values and links in `chtest.py`, the terms in `tles.py`.
 - **Known limits and next steps**: no materials (glass, dark or shiny surfaces), so the sonar's real advantage over a lidar never shows; a lidar that misses glass would be the honest pair for it (a material per shape in the level format). No hold of the last close echo, so the dead zone shows; real rings keep it for a cycle or two. The expectation of the cone likelihood ignores the specular rule (the grid has no normals; the distance field's gradient could give them). Firing is in index order, not interleaved (real rings fire opposite sonars together and skip neighbours to cut crosstalk), and crosstalk is a probability, not a sound field. The Map source still says Lidar mapping when the sonar builds the map. Corner reflections (an inside corner returns a strong echo) and multipath long readings are not modelled.
 
+## Sensors tab (2026-10-23; branch `claude/loving-clarke-11j3t7`)
+
+- **Why**: Localize had grown to hold every sensor's settings (the switchboard, odometry, gyro, beacons and GNSS) next
+  to the estimators, while the lidar's noise, the sonar ring and the radar sat in Perceive and the sensor latency in
+  Vehicle. The new tab (`sen`, first in the pipeline row, unnumbered like Vehicle: hardware at both ends of the
+  numbered software stages) holds them all: the switches (`sensorsHTML`), noise profiles, odometry, gyro, lidar with
+  the weather, beacons with the beacon sensor sheet, ultrasonic ring, GNSS, radar, timing. What an estimator, the map,
+  the tracker or the safety stop does with a sensor stays in that tab (`assoc`, `pfLidar`, `pfSonar`, `scanMatch`,
+  `gnssAug`, `filtK` in Localize; `mapSrc`, `trkIn` in Perceive; `guardSrc` in Control). Localize ends with a link to
+  the tab (`data-gotab`, `ui/panes2.js`); the sensor dots open it.
+- **Noise profiles** (`NOISE_PROFILES`, `ui/schema.js`): Perfect sets every noise, bias and failure setting to zero
+  (odometry, gyro, lidar σ and dropouts, beacon σ, clutter and outages, GNSS white noise, bias, multipath and outages,
+  sonar σ and crosstalk, radar clutter and ghosts); This level's puts each back to the level's value; Rough is a fixed
+  set of cheap-sensor values. Specs (reach, rates, counts, fields of view) are left alone.
+- **Lidar specs** (`core/sensors.js`): `lidarRange` (reach, at most `LMAX` = 8 m, since the learned detector and policy
+  were trained on 8 m scans and `NBEAM` stays 120 for the same reason) and `lidarDrop` (% of beams lost at random, on
+  their own random stream `S.rngLd`). A beam with nothing inside the reach reads `LMAX`, the existing "no return" every
+  consumer already skips; mapping clears free space only out to the reach (`lidarReach()` in `integrateScan`). At the
+  defaults (8 m, 0 %) nothing changes: the golden runs are byte-identical.
+- **Candidates**: the lidar's rate and angular noise; separate beacon range and bearing σ (the filters' `sigR`/`sigB`
+  would follow); the radar's σ's (`RAD` in `core/radar.js`, shared with the tracker's measurement model).
+
 ## Sensors switchboard and GNSS (2026-10-20; branch `claude/sensors-gnss`)
 Owner request: sensor models taught by their failure modes, and a way to use only some modalities with the others off. This branch has the switchboard and GNSS; radar (`P.radar`) and an ultrasonic ring (`P.sonar`) are on their own branches and become one `SENSORS` entry each when they merge.
 - **Registry** (`SENSORS` in `core/sensors.js`): per modality a key, label, the boolean `P` flag that switches it (`on`/`val` when the switch is a view on another setting: the beacons set or clear `P.bOff = 'all'`), `kind` (`proprio` motion sensors, `extero` sensors of the world), what consumes it (`loc`, `per`) and a one-line `gives`. Registered: wheel odometry (`P.odom`, new, default on), the gyro (`P.gyro`), the lidar (`P.lidar`, new, default on), the beacons, GNSS (`P.gnss`, new, default off). New flags and their defaults are appended in `core/params.js` (`SENSOR_DEFAULTS`), their effects pushed onto `PARAM_EFFECTS` from `core/sensors.js`, and the settings spliced into `SCHEMA` at the end of `ui/schema.js`, so the other sensor branches merge by appending too. The Localize tab's Sensors switches (`sensorsHTML` in `ui/panes.js`) and the dots beside the health lights (`renderSensorDots` in `ui/health.js`) are generated from the registry.

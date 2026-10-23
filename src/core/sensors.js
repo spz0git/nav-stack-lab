@@ -1,16 +1,26 @@
 /* ============================================================
    Sensors
    ============================================================ */
+// A beam that returns nothing reads LMAX, whatever the reach (every consumer takes LMAX as "no return")
+const lidarReach = () => clamp(P.lidarRange || LMAX, 1, LMAX);
 function lidarSense() {
   const r = S.robot,
     g = S.rngW,
-    sh = allShapes();
+    sh = allShapes(),
+    R = lidarReach();
   const ranges = new Float32Array(NBEAM);
   for (let k = 0; k < NBEAM; k++) {
     const a = r.th - Math.PI + (k * TAU) / NBEAM;
-    let d = rayCast(r.x, r.y, Math.cos(a), Math.sin(a), LMAX, sh);
-    if (d < LMAX) d = Math.max(0.05, d + P.lidarSig * g.n());
+    let d = rayCast(r.x, r.y, Math.cos(a), Math.sin(a), R, sh);
+    if (d < R) d = Math.max(0.05, d + P.lidarSig * g.n());
+    else d = LMAX;
     ranges[k] = d;
+  }
+  // dropouts draw from their own stream, so switching them on leaves the range noise as it was
+  if (P.lidarDrop > 0) {
+    if (!S.rngLd) S.rngLd = makeRng(P.seed * 2654435761 + 17);
+    const q = Math.min(P.lidarDrop, 100) / 100;
+    for (let k = 0; k < NBEAM; k++) if (S.rngLd.u() < q) ranges[k] = LMAX;
   }
   if (P.weather !== 'clear') weatherLidar(ranges);
   return ranges;
@@ -293,7 +303,7 @@ const SENSORS = [
     kind: 'proprio',
     loc: ['dead reckoning', 'EKF', 'particle filter', 'EKF-SLAM', 'pose-graph SLAM', 'your localizer'],
     per: [],
-    gives: 'The turn rate from a gyro instead of the wheels: far less noise, but a bias of its own (Localize → Yaw-rate gyro).'
+    gives: 'The turn rate from a gyro instead of the wheels: far less noise, but a bias of its own (Sensors → Yaw-rate gyro).'
   },
   {
     key: 'lidar',
@@ -318,7 +328,7 @@ const SENSORS = [
     loc: ['EKF', 'particle filter', 'EKF-SLAM', 'your localizer'],
     per: [],
     gives:
-      'Range and bearing to each beacon in reach, 5 times a second: position and heading fixes. Off: the EKF coasts on odometry. Single beacons: Localize → Beacons.'
+      'Range and bearing to each beacon in reach, 5 times a second: position and heading fixes. Off: the EKF coasts on odometry. Single beacons: Sensors → Beacons.'
   },
   {
     key: 'gnss',
@@ -340,7 +350,7 @@ const SENSORS = [
     loc: ['particle filter (sonar weighting)', 'your localizer'],
     per: ['sonar mapping', 'the sonar safety stop'],
     gives:
-      'The ultrasonic ring: one range per sonar for a whole cone, a few metres at most, the sonars firing in turn: a blurred map, a bumper that stops late at grazing angles, and a rough pose fix against the map. What reads it: Perceive → Ultrasonic ring.'
+      'The ultrasonic ring: one range per sonar for a whole cone, a few metres at most, the sonars firing in turn: a blurred map, a bumper that stops late at grazing angles, and a rough pose fix against the map. Its settings: Sensors → Ultrasonic ring; the map, the safety stop and the particle filter each choose whether to read it.'
   },
   {
     key: 'radar',
@@ -349,9 +359,9 @@ const SENSORS = [
     flag: 'radar',
     kind: 'extero',
     loc: [],
-    per: ['the people tracker (Perceive → The tracker updates from)', 'your predictor'],
+    per: ['the people tracker (Perceive → Tracker inputs)', 'your predictor'],
     gives:
-      'A few detections per scan ahead of the robot, each with range, a coarse bearing and the radial speed from the Doppler shift, with clutter and ghosts; it keeps working in fog and rain. What reads it: Perceive → Radar.'
+      'A few detections per scan ahead of the robot, each with range, a coarse bearing and the radial speed from the Doppler shift, with clutter and ghosts; it keeps working in fog and rain. Its settings: Sensors → Radar; the people tracker reads it when Perceive → Tracker inputs says so.'
   }
 ];
 const sensorOn = s => (s.on ? s.on() : !!P[s.flag]);

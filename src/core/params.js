@@ -104,6 +104,8 @@ const DEFAULTS = {
   bOut: 0,
   bOutLen: 1,
   lidarSig: 0.02,
+  lidarRange: 8, // the lidar's reach [m], at most LMAX: a beam with nothing nearer returns nothing
+  lidarDrop: 0, // share of beams that return nothing at random [%], on their own random stream
   seed: 7,
   agents: 'off',
   agPred: 'cv',

@@ -15,10 +15,14 @@
   - The tests run once per change, right before the merge (the owner works alone; running them on the branch and again
     on `main` only repeats them). While working, build and check the change in the page; do not run the gate.
     When the PR is ready to merge, make the release commit on the branch (version and changelog, below), rebuild, run
-    the gate (`npm run lint`, `npm run fmt:check`, `npm test`, `python3 tests/run_all.py`), then merge. If a script
-    fails, fix it and rerun what failed (the whole gate when the fix touches shared code). Do not run the gate again on
-    `main`: its tree is the one tested, unless something else landed in between; then bring the branch up to date first
-    and run the gate there. A change that leaves `dist/` as it is (documentation outside the lessons, chapters and
+    the scoped gate, `python3 tests/run_all.py --changed`, and check that CI is green on the head (CI runs the lint,
+    the format check, the build check and `npm test` on every push), then merge. The scoped gate runs only the tests
+    the change needs: `smoke.py` (about 40 s) for any change to the page, then the tests whose area the changed files
+    are in (`SCOPE` in `tests/run_all.py`; `--changed --list` shows the choice); the whole suite only when the build or
+    the test harness changes. The full suite runs nightly on `main` in CI; a nightly failure is the next thing to fix.
+    When a change touches an area no test covers, add the check to the nearest test or to `smoke.py`, and its paths to
+    `SCOPE`. If a script fails, fix it and rerun what failed. Do not run the gate again on `main`: its tree is the one
+    tested, unless something else landed in between; then bring the branch up to date first and run the gate there. A change that leaves `dist/` as it is (documentation outside the lessons, chapters and
     changelog, CI files) needs no gate, no version and no republish.
   - Whenever a change to the page lands on `main` in this session, republish `dist/nav-stack-lab.html` to the live
     artifact URL above with `capabilities: {downloads: true}`. Say in your reply that the live page was updated.
@@ -55,7 +59,9 @@
   (`tests/measure_loc.py` for localization, `tests/measure_per.py` for perception, `tests/measure_plan.py` for planning, which can press a Try button's cfg exactly; `tests/measure_dyn.py` for the car with tyre slip, which presses every Try of a control lesson by title; `tests/measure_saf.mjs` for the safety lessons, a Try's cfg on the headless core in Node over several seeds with the safety measures; `tests/tles.py` prints the analysis numbers for the control lessons); derivations go in the chapter, the lesson keeps a short "where it comes from" and the link.
   A Predict's answer must be one the learner can check by looking (the plots, the status strip, the map, the log; not an
   RMS only a script computes), and one that holds at other seeds (`"seed": n` in the cfg) when it compares runs.
-- The gate (once, before the merge; see Publishing rules): `./build.sh`, then from `tests/`: `python3 test.py` (L1–L5 regression summary must not change unless
+- The tests (`python3 tests/run_all.py --changed` picks the ones a change needs; see Publishing rules): `./build.sh`, then
+  from `tests/`: `python3 smoke.py` (every tab on every level at three widths, Analyze, Learn, a short run; the tab row
+  hides nothing; ERRORS must be []), `python3 test.py` (L1–L5 regression summary must not change unless
   intended), `python3 p5test.py` (all Try buttons, ERRORS must be []), `python3 tles.py` (lessons), `python3 chtest.py` (companion notes),
   `python3 dyntest.py` (the car with tyre slip against chapter 1's theory, Analyze against the simulator; FAILS must be []),
   `python3 extest.py` (every slot example against its built-in; FAILS must be []), `python3 trtest.py` (the Train tab: collect,
@@ -63,7 +69,7 @@
   missions on every generator family; ERRORS must be []), `python3 sntest.py` (the Sensors switchboard: each sensor off on
   L3 and L5; FAILS must be []), `python3 saftest.py` (the safety lab's tools: the fault schedule, people who wait for the
   robot, Tools → Safety's check, search, sets and Open, and the page's search against `tools/search.mjs`; FAILS must be []).
-  `python3 tests/run_all.py` runs all ten.
+  `python3 tests/run_all.py` runs all eleven (about twelve minutes).
 - Levels are data: the JSON format is in the header of `src/core/levels.js` (built-ins convert to it and back unchanged,
   `tests/node/levels.test.mjs`); the world's size (`W`, `H`, `GW`, `GH`, `NC`) is the level's, set by `setWorld` in
   `loadLevel`, so nothing may assume 24 × 16 m or cache a grid-sized array across levels. Generators are in

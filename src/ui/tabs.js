@@ -2,13 +2,13 @@
    UI: levels, tabs, params
    ============================================================ */
 const TABS = [
-  {id: 'sen', n: '', name: 'Sensors'},
-  {id: 'loc', n: '1', name: 'Localize'},
-  {id: 'per', n: '2', name: 'Perceive'},
-  {id: 'mis', n: '3', name: 'Mission'},
-  {id: 'plan', n: '4', name: 'Plan'},
-  {id: 'ctl', n: '5', name: 'Control'},
-  {id: 'veh', n: '', name: 'Vehicle'},
+  {id: 'sen', n: '1', name: 'Sensors'},
+  {id: 'loc', n: '2', name: 'Localize'},
+  {id: 'per', n: '3', name: 'Perceive'},
+  {id: 'mis', n: '4', name: 'Mission'},
+  {id: 'plan', n: '5', name: 'Plan'},
+  {id: 'ctl', n: '6', name: 'Control'},
+  {id: 'veh', n: '7', name: 'Vehicle'},
   {id: 'exp', n: '', name: 'Experiments'},
   {id: 'train', n: '', name: 'Train'},
   {id: 'saf', n: '', name: 'Safety'},

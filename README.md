@@ -51,7 +51,8 @@ You need Node 18 or newer. There are no other dependencies.
 
 ```sh
 npm test                    # Node only, about 10 s
-python3 tests/run_all.py    # drives the page in a headless browser, about 3 min
+python3 tests/run_all.py --changed   # the browser tests this change needs (smoke test about 40 s)
+python3 tests/run_all.py             # all eleven browser tests, about 12 min
 ```
 
 The browser tests need Playwright and a Chromium once:

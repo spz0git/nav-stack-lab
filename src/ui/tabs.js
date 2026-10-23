@@ -2,6 +2,7 @@
    UI: levels, tabs, params
    ============================================================ */
 const TABS = [
+  {id: 'sen', n: '', name: 'Sensors'},
   {id: 'loc', n: '1', name: 'Localize'},
   {id: 'per', n: '2', name: 'Perceive'},
   {id: 'mis', n: '3', name: 'Mission'},
@@ -18,7 +19,7 @@ const TABS = [
 // One colour per subsystem, the same as on the map: belief rose, lidar amber, path blue, MPC green (styles.css [data-sys])
 const SYS = {loc: 1, per: 1, plan: 1, ctl: 1};
 const TAB_GROUPS = [
-  {id: 'pipe', name: 'Pipeline', tabs: ['loc', 'per', 'mis', 'plan', 'ctl', 'veh']},
+  {id: 'pipe', name: 'Pipeline', tabs: ['sen', 'loc', 'per', 'mis', 'plan', 'ctl', 'veh']},
   {id: 'tools', name: 'Tools', tabs: ['exp', 'train', 'saf', 'code']},
   {id: 'ref', name: 'Reference', tabs: ['view', 'sym']}
 ];

@@ -340,7 +340,7 @@ function renderAllPanes() {
       html += fieldHTML(f);
     }
     if (NOTES[t])
-      html += `<details class="how" ${howOpen[t] ? 'open' : ''} data-how="${t}"><summary>How it works</summary><div class="how-body">${NOTES[t]}<button class="linkbtn" data-sym="${t}">Symbol definitions for this section</button>${t === 'ctl' ? '<button class="linkbtn" data-sym="mpc">MPC symbols</button>' : ''}${t === 'per' || t === 'ctl' ? '<button class="linkbtn" data-sym="ag">Moving-agent symbols</button>' : ''}${SRC_FILES[t] ? `<button class="linkbtn" data-source="${SRC_FILES[t][0]}">View the source</button>` : ''}</div></details>`;
+      html += `<details class="how" ${howOpen[t] ? 'open' : ''} data-how="${t}"><summary>How it works</summary><div class="how-body">${NOTES[t]}<button class="linkbtn" data-sym="${t === 'sen' ? 'loc' : t}">Symbol definitions for this section</button>${t === 'ctl' ? '<button class="linkbtn" data-sym="mpc">MPC symbols</button>' : ''}${t === 'per' || t === 'ctl' ? '<button class="linkbtn" data-sym="ag">Moving-agent symbols</button>' : ''}${SRC_FILES[t] ? `<button class="linkbtn" data-source="${SRC_FILES[t][0]}">View the source</button>` : ''}</div></details>`;
   }
   $('#panes').innerHTML = `<div class="pane" id="pane" role="tabpanel">${html}</div>`;
   wirePane(t);
@@ -375,9 +375,9 @@ function beaconSensorHTML() {
     })
     .join('');
   return `<p>Each beacon is a fixed landmark at a known position (teal diamond on the map). The robot's beacon sensor takes one <b>scan every 0.2 s (5 Hz)</b> and in each scan reads every beacon that is</p>
-<ul class="bs-list"><li>switched on and not in an outage,</li><li>between <b>0.2 m and ${R} m</b> away (the sensor range: Beacon sensor range, below),</li><li>in <b>line of sight</b>: a wall, shelf, parked car or person on the straight line to the beacon blocks it completely. There is no partial or weakened signal.</li></ul>
-<p>A reading is a <b>range</b> r and a <b>bearing</b> b (relative to the robot's heading) with Gaussian noise: <b>σ<sub>r</sub> = ${sr.toFixed(3)} m</b> and <b>σ<sub>b</sub> = ${sb.toFixed(3)} rad (${deg(sb).toFixed(1)}°)</b>, which is 0.08 m and 0.03 rad × the noise scale ${k.toFixed(1)} (Vehicle → Beacon range/bearing noise). The noise does <b>not</b> grow with distance, but a bearing error moves the implied position sideways by d·σ<sub>b</sub>, so a far beacon pins the position less (last column). The EKF and the particle filter assume these same σ's.</p>
-<p>Also in play: Sensor latency (Vehicle) delivers readings late; Unlabeled association (above) drops the IDs and adds false detections; Random outages (below) switch beacons off for a while.${u ? ` <b>Right now ${u}.</b>` : ''}</p>
+<ul class="bs-list"><li>switched on and not in an outage,</li><li>between <b>0.2 m and ${R} m</b> away (Beacon sensor reach, below),</li><li>in <b>line of sight</b>: a wall, shelf, parked car or person on the straight line to the beacon blocks it completely. There is no partial or weakened signal.</li></ul>
+<p>A reading is a <b>range</b> r and a <b>bearing</b> b (relative to the robot's heading) with Gaussian noise: <b>σ<sub>r</sub> = ${sr.toFixed(3)} m</b> and <b>σ<sub>b</sub> = ${sb.toFixed(3)} rad (${deg(sb).toFixed(1)}°)</b>, which is 0.08 m and 0.03 rad × the noise scale ${k.toFixed(1)} (Beacon range/bearing noise, below). The noise does <b>not</b> grow with distance, but a bearing error moves the implied position sideways by d·σ<sub>b</sub>, so a far beacon pins the position less (last column). The EKF and the particle filter assume these same σ's.</p>
+<p>Also in play: Sensor latency (Timing, below) delivers readings late; Beacon association → Unlabeled (Localize) drops the IDs and adds false detections; Random outages (below) switch beacons off for a while.${u ? ` <b>Right now ${u}.</b>` : ''}</p>
 <table class="bs-tab"><thead><tr><th>#</th><th>distance</th><th>this scan</th><th title="Readings received per second over the last 5 s (at most 5)">readings</th><th title="Sideways position error of one bearing reading, d·σ_b">d·σ<sub>b</sub></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function renderBeaconSensor() {
@@ -506,13 +506,18 @@ const TIPS = {
   biasW: 'Constant offset in turn rate, as from one weak motor.',
   odoK: 'Random odometry error, drawn fresh every 50 ms: σ_v = k (0.1|v| + 0.02) m/s on speed and σ_ω = k (0.2|ω| + 0.1|v| + 0.02) rad/s on turn rate, so ×1 at 0.8 m/s straight is σ 0.10 m/s and 0.10 rad/s per reading.',
   odoB: 'Fixed calibration error the filters are never told about: speed reads v (1 + 0.02 b) and turn rate ω + 0.01 b·v rad/s, so ×1 at 0.8 m/s is +1.6 cm/s and +0.008 rad/s (0.46°/s, about 28° of heading per minute).',
-  lmK: 'Beacon range and bearing noise scale.',
+  lmK: 'Beacon noise scale: σ_r = 0.08 m and σ_b = 0.03 rad at ×1. The EKF and the particle filter assume the same σs (at least ×0.25).',
   bOff: 'Beacons switched off send no readings. Also: the Beacon tool on the map (B).',
   bOut: 'Each beacon fails at random and comes back; this is the share of time it is down. Outages have their own random stream, so the sensor noise is unchanged.',
   bOutLen: 'Average length of one outage. A few tenths of a second is a flicker; several seconds is a dead zone.',
-  lmRange: 'Beacon sensor range.',
+  lmRange: 'How far the beacon sensor reads a beacon (from 0.2 m), in line of sight.',
   clutter: 'False beacon detections per scan in unlabeled mode.',
-  lidarSig: 'Lidar range noise.',
+  lidarSig: 'Lidar range noise: Gaussian, new for every beam of every scan.',
+  lidarRange:
+    'How far the lidar sees. A surface beyond it returns nothing, and the map learns only that the floor is free out to here. At most 8 m (the learned models were trained on 8 m scans).',
+  lidarDrop:
+    'Share of beams that return nothing at random, as from a dark or shiny surface or a dirty window, on their own random stream. Lidar mapping takes a lost beam as free floor out to the reach, so it can clear cells behind a wall: the failure glass and black paint cause.',
+  sensLat: 'Lidar, beacon, sonar and GNSS readings reach the stack this late, in whole 50 ms ticks; the odometry is on time.',
   seed: 'Seed of the world and sensor noise. Applied on Reset.'
 };
 function lvlDefault(k) {
@@ -683,7 +688,7 @@ let replanDebounce = null;
 
 // Nomenclature, IEEE style: symbol — definition [unit], grouped by subsystem
 const I = s => `<i>${s}</i>`;
-// The Sensors switches (Localize): one per registered modality (SENSORS in core/sensors.js), each with what it gives
+// The Sensors switches (Sensors tab): one per registered modality (SENSORS in core/sensors.js), each with what it gives
 function sensorsHTML() {
   const rows = SENSORS.map(s => {
     const on = sensorOn(s),
@@ -693,7 +698,7 @@ function sensorsHTML() {
       rst = chg ? `<button class="rst" data-reset="${s.flag}" title="Back to this level's default (${d ? 'on' : 'off'})">↺</button>` : '';
     return `<div class="sens-row${av ? '' : ' na'}"><label class="check${chg ? ' chg' : ''}"><input type="checkbox" data-sensor="${s.key}" ${on ? 'checked' : ''} ${av ? '' : 'disabled'}><span><b>${esc(s.label)}</b>${rst}</span></label><p class="note">${esc(s.gives)}${av ? '' : ' This level has none.'}</p></div>`;
   }).join('');
-  return `<h3 class="fhead" id="sens-head">Sensors</h3><div class="sens-sw">${rows}</div>`;
+  return `<h3 class="fhead" id="sens-head">Switches</h3><div class="sens-sw">${rows}</div>`;
 }
 Object.assign(TIPS, {
   odom: 'Wheel encoders. Off: the filters predict with the commanded velocity instead of a measured one.',

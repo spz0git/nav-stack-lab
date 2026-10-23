@@ -33,7 +33,7 @@ A level is inside when every attribute is. The sheet for the busy floor, ODD-1:
 | people | at most 4, walking 0.5–0.9 m/s, scripted | the level's people; the generator's `people` |
 | weather | clear | Perceive → weather |
 | beacons | about one per 32 m², unlabeled | the level; the generator's `beacons` |
-| GNSS | none (indoors) | Localize → Sensors |
+| GNSS | none (indoors) | Sensors |
 | robot | unicycle, cruise 0.8 m/s | Vehicle, Control |
 
 **What a domain is for.** Three things. It bounds the claims: "safe enough" is said about $\mathcal{D}$, not about the world. It says what the testing must cover: a sample of worlds from inside $\mathcal{D}$, not one level. And it is a boundary the system should notice crossing. The generator's parameters are attributes of exactly this kind, which is why the lessons sample generated warehouses: the same family and seed with one attribute moved across the boundary isolates that attribute.

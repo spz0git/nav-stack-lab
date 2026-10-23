@@ -32,6 +32,70 @@ function dynPreset(n) {
   for (const [k, v] of Object.entries(DYN_PRESETS[n])) setParam(k, v, false);
   renderAllPanes();
 }
+// The Sensors tab's noise profiles: every sensor's noise, bias and failures at once; the specs (reach, rates, counts)
+// stay. "This level's" puts each back to what the level sets.
+const NOISE_PROFILES = {
+  perfect: {
+    odoK: 0,
+    odoB: 0,
+    gyroSig: 0,
+    gyroBias: 0,
+    lidarSig: 0,
+    lidarDrop: 0,
+    lmK: 0,
+    clutter: 0,
+    bOut: 0,
+    gnssSig: 0,
+    gnssBias: 0,
+    gnssMp: false,
+    gnssOut: 0,
+    sonSig: 0,
+    sonXt: 0,
+    radClutter: 0,
+    radGhost: 0
+  },
+  rough: {
+    odoK: 2,
+    odoB: 1,
+    gyroSig: 1,
+    gyroBias: 0.5,
+    lidarSig: 0.05,
+    lidarDrop: 10,
+    lmK: 2,
+    clutter: 1,
+    bOut: 10,
+    gnssSig: 0.6,
+    gnssBias: 2,
+    gnssMp: true,
+    gnssOut: 10,
+    sonSig: 0.03,
+    sonXt: 10,
+    radClutter: 2,
+    radGhost: 15
+  }
+};
+const noiseTarget = n =>
+  n === 'level' ? Object.fromEntries(Object.keys(NOISE_PROFILES.perfect).map(k => [k, lvlDefault(k)])) : NOISE_PROFILES[n];
+function noiseProfile(n) {
+  for (const [k, v] of Object.entries(noiseTarget(n))) setParam(k, v, false);
+  renderAllPanes();
+}
+const noiseProfileOn = n => Object.entries(noiseTarget(n)).every(([k, v]) => P[k] === v);
+function noiseProfileInfo() {
+  const on = ['perfect', 'level', 'rough'].find(noiseProfileOn);
+  return on === 'perfect'
+    ? 'Perfect sensors: what is left is what each one cannot see (its reach, its field of view, line of sight). The filters still assume some noise, so their ellipses do not shrink to nothing.'
+    : on === 'rough'
+      ? 'Rough sensors. The filters are told the odometry and beacon noise as before, never the biases, the dropouts or the outages: watch NEES and the health lights.'
+      : on
+        ? ''
+        : "A mix: some sensor's noise differs from both profiles and from the level (↺ beside it puts one back).";
+}
+// The lidar's specs in one line, with what the settings below change
+function lidarInfo() {
+  const R = lidarReach();
+  return `${NBEAM} beams over 360° (one every ${(360 / NBEAM).toFixed(0)}°), 10 scans a second, ${R < LMAX ? `${R} m of reach (of ${LMAX})` : `${LMAX} m of reach`}, range noise σ ${(100 * P.lidarSig).toFixed(1)} cm${P.lidarDrop ? `, ${P.lidarDrop} % of the beams lost at random` : ''}${P.weather !== 'clear' ? `, in ${P.weather}` : ''}. A beam that returns nothing tells the map only that the floor is free as far as the lidar reaches.${P.lidar ? '' : ' <b>Switched off</b> (Sensors, above).'}`;
+}
 // The label a choice setting shows for its current value
 function segLabel(k) {
   const f = Object.values(SCHEMA)
@@ -73,6 +137,123 @@ function policyStackNote() {
   ].join('<br>');
 }
 const SCHEMA = {
+  sen: [
+    {type: 'sensors'},
+    {type: 'info', text: sensorsNote, show: () => !!sensorsNote()},
+    {
+      type: 'btns',
+      label: 'Noise profile',
+      items: () => [
+        [
+          'Perfect',
+          () => noiseProfile('perfect'),
+          noiseProfileOn('perfect'),
+          'Every sensor without noise, bias, dropouts, clutter, outages or multipath; the specs stay'
+        ],
+        ["This level's", () => noiseProfile('level'), noiseProfileOn('level'), "Every sensor's noise and failures as the level sets them"],
+        [
+          'Rough',
+          () => noiseProfile('rough'),
+          noiseProfileOn('rough'),
+          'Cheap, worn sensors: twice the odometry noise with a bias, a biased gyro, noisy beacons with outages, lidar dropouts, a wandering GNSS, sonar crosstalk, radar clutter'
+        ]
+      ]
+    },
+    {type: 'info', text: noiseProfileInfo},
+    {type: 'head', label: 'Odometry (wheel encoders)'},
+    {k: 'odoK', label: 'Odometry noise (× base σ)', min: 0, max: 3, step: 0.1, unit: '×'},
+    {k: 'odoB', label: 'Odometry calibration bias (× base bias)', min: 0, max: 3, step: 0.1, unit: '×'},
+    {type: 'info', text: odoInfo},
+    {type: 'head', label: 'Yaw-rate gyro'},
+    {
+      k: 'gyro',
+      type: 'bool',
+      label:
+        "Yaw-rate gyro: the turn rate comes from a gyro instead of the wheels (the car with tyre slip: instead of the steering encoder, so slip no longer reads as odometry error); its own noise and bias, none of the wheels'"
+    },
+    {k: 'gyroSig', label: 'Gyro noise σ per reading', min: 0, max: 3, step: 0.05, unit: '°/s', show: () => P.gyro},
+    {k: 'gyroBias', label: 'Gyro bias (the filter is not told)', min: 0, max: 2, step: 0.05, unit: '°/s', show: () => P.gyro},
+    {
+      k: 'zupt',
+      type: 'bool',
+      label:
+        'Zero-velocity update: average the gyro while standing still into a bias estimate and subtract it (the robot holds still for the first 2 s of a run to calibrate)',
+      show: () => P.gyro
+    },
+    {
+      type: 'info',
+      text: () =>
+        `Heading drift from the gyro alone at the cruise speed: noise σ ${P.gyroSig.toFixed(2)}°/s per reading walks about ${(P.gyroSig * Math.sqrt(60 / 0.05) * 0.05).toFixed(1)}° in a minute; a bias of ${P.gyroBias.toFixed(2)}°/s drifts ${(60 * P.gyroBias).toFixed(0)}° in a minute${P.zupt ? `, of which the zero-velocity update removes what it has learnt at stops (estimate now ${((S.gyroBiasEst * 180) / Math.PI).toFixed(2)}°/s)` : ''}.`,
+      show: () => P.gyro
+    },
+    {type: 'head', label: 'Lidar'},
+    {type: 'info', text: lidarInfo},
+    {k: 'lidarSig', label: 'Range noise σ', min: 0, max: 0.15, step: 0.005, unit: 'm'},
+    {k: 'lidarRange', label: 'Reach', min: 2, max: LMAX, step: 0.5, unit: 'm'},
+    {k: 'lidarDrop', label: 'Dropouts (beams that return nothing)', min: 0, max: 50, step: 1, unit: '%'},
+    {
+      k: 'weather',
+      type: 'seg',
+      label: 'Weather',
+      opts: [
+        ['clear', 'Clear'],
+        ['rain', 'Rain'],
+        ['fog', 'Fog']
+      ]
+    },
+    {
+      type: 'info',
+      text: () =>
+        P.weather === 'fog'
+          ? "Fog: the lidar's returns fade beyond about 4 m (of its 8), one beam in seven returns nothing, the ranges are noisier, and now and then a beam returns from the fog itself, under 2 m out. The radar does not notice."
+          : 'Rain: the lidar fades beyond about 6 m, drops one beam in sixteen and now and then returns from a drop. The radar loses a tenth of its reach and sees a few more false detections.',
+      show: () => P.weather !== 'clear'
+    },
+    {type: 'head', label: 'Beacons'},
+    {type: 'beacons', label: 'Beacons on (tap to switch one off)'},
+    {type: 'bsensor'},
+    {
+      type: 'info',
+      text: () =>
+        `The particle filter scores particles with lidar against the prior map as well as with the beacons, so it stays localized with every beacon off (lidar localization, as AMCL does). Untick "Also weight particles by lidar" in Localize to depend on the beacons alone.`,
+      show: () => P.loc === 'pf' && P.pfLidar && P.per === 'oracle'
+    },
+    {k: 'lmK', label: 'Beacon range/bearing noise (× σ_r 0.08 m, σ_b 0.03 rad)', min: 0, max: 3, step: 0.1, unit: '×'},
+    {k: 'lmRange', label: 'Beacon sensor reach', min: 2, max: 15, step: 0.5, unit: 'm'},
+    {k: 'clutter', label: 'False beacon detections per scan (unlabeled mode)', min: 0, max: 3, step: 0.1},
+    {
+      k: 'bOut',
+      label: 'Random beacon outages (share of time each is down)',
+      min: 0,
+      max: 90,
+      step: 5,
+      unit: '%'
+    },
+    {
+      k: 'bOutLen',
+      label: 'Mean outage length (short = flicker)',
+      min: 0.2,
+      max: 10,
+      step: 0.2,
+      unit: 's',
+      show: () => P.bOut > 0
+    },
+    {type: 'head', label: 'Radar'},
+    {k: 'radar', type: 'bool', label: 'Radar (forward: range, bearing and radial velocity per detection)'},
+    {
+      type: 'info',
+      text: () =>
+        `A ${P.radFov}° radar reaching ${P.radRange} m ahead, 10 Hz: each detection is a range (σ 0.1 m), a bearing (σ 3°) and a radial velocity (σ 0.1 m/s) from the Doppler shift, drawn as a diamond with an arrow for the radial velocity (toward the robot: closing). A person gives one echo, a wall a few where it faces the radar; false detections and ghosts (an echo that bounced off a wall) are drawn the same way, since the robot cannot tell them apart. Two echoes closer than ${P.radRes}° in bearing, 0.4 m in range and 0.25 m/s in radial velocity are one detection.${P.trkIn === 'lidar' ? ' The people tracker does not use it until Tracker inputs says so.' : ''}`,
+      show: radarOn
+    },
+    {k: 'radFov', label: 'Radar field of view', min: 30, max: 180, step: 10, unit: '°', show: radarOn},
+    {k: 'radRange', label: 'Radar reach', min: 5, max: 30, step: 1, unit: 'm', show: radarOn},
+    {k: 'radRes', label: 'Radar angular resolution', min: 1, max: 20, step: 1, unit: '°', show: radarOn},
+    {k: 'radClutter', label: 'Radar false detections per scan', min: 0, max: 20, step: 0.5, unit: '', show: radarOn},
+    {k: 'radGhost', label: 'Radar ghosts: chance per person per scan', min: 0, max: 50, step: 1, unit: '%', show: radarOn},
+    {type: 'head', label: 'Timing'},
+    {k: 'sensLat', label: 'Sensor latency (lidar, beacons, sonar and GNSS, whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'}
+  ],
   loc: [
     {
       k: 'loc',
@@ -163,6 +344,12 @@ const SCHEMA = {
       show: () => pf_() && P.per === 'oracle'
     },
     {k: 'filtK', label: "Filter's assumed motion noise", min: 0.25, max: 6, step: 0.25, unit: '× true', show: () => P.loc !== 'truth'},
+    {
+      k: 'gnssAug',
+      type: 'bool',
+      label: 'Estimate the GNSS bias in the EKF (two more states, a random walk)',
+      show: () => P.gnss && P.loc === 'ekf'
+    },
     {type: 'btn', label: 'Scatter particles', act: () => scatterParticles(), show: pf_},
     {
       type: 'info',
@@ -185,61 +372,10 @@ const SCHEMA = {
       },
       show: () => P.loc === 'truth'
     },
-    {type: 'head', label: 'Odometry (wheel encoders)'},
-    {k: 'odoK', label: 'Odometry noise (× base σ)', min: 0, max: 3, step: 0.1, unit: '×'},
-    {k: 'odoB', label: 'Odometry calibration bias (× base bias)', min: 0, max: 3, step: 0.1, unit: '×'},
-    {type: 'info', text: odoInfo},
-    {type: 'head', label: 'Yaw-rate gyro'},
-    {
-      k: 'gyro',
-      type: 'bool',
-      label:
-        "Yaw-rate gyro: the turn rate comes from a gyro instead of the wheels (the car with tyre slip: instead of the steering encoder, so slip no longer reads as odometry error); its own noise and bias, none of the wheels'"
-    },
-    {k: 'gyroSig', label: 'Gyro noise σ per reading', min: 0, max: 3, step: 0.05, unit: '°/s', show: () => P.gyro},
-    {k: 'gyroBias', label: 'Gyro bias (the filter is not told)', min: 0, max: 2, step: 0.05, unit: '°/s', show: () => P.gyro},
-    {
-      k: 'zupt',
-      type: 'bool',
-      label:
-        'Zero-velocity update: average the gyro while standing still into a bias estimate and subtract it (the robot holds still for the first 2 s of a run to calibrate)',
-      show: () => P.gyro
-    },
     {
       type: 'info',
       text: () =>
-        `Heading drift from the gyro alone at the cruise speed: noise σ ${P.gyroSig.toFixed(2)}°/s per reading walks about ${(P.gyroSig * Math.sqrt(60 / 0.05) * 0.05).toFixed(1)}° in a minute; a bias of ${P.gyroBias.toFixed(2)}°/s drifts ${(60 * P.gyroBias).toFixed(0)}° in a minute${P.zupt ? `, of which the zero-velocity update removes what it has learnt at stops (estimate now ${((S.gyroBiasEst * 180) / Math.PI).toFixed(2)}°/s)` : ''}.`,
-      show: () => P.gyro
-    },
-    {type: 'head', label: 'Beacons'},
-    {type: 'beacons', label: 'Beacons on (tap to switch one off)'},
-    {type: 'bsensor'},
-    {
-      type: 'info',
-      text: () =>
-        `The particle filter scores particles with lidar against the prior map as well as with the beacons, so it stays localized with every beacon off (lidar localization, as AMCL does). Untick "Also weight particles by lidar" above to depend on the beacons alone.`,
-      show: () => P.loc === 'pf' && P.pfLidar && P.per === 'oracle'
-    },
-    {k: 'lmK', label: 'Beacon range/bearing noise', min: 0, max: 3, step: 0.1, unit: '×'},
-    {k: 'lmRange', label: 'Beacon sensor range', min: 2, max: 15, step: 0.5, unit: 'm'},
-    {k: 'clutter', label: 'False beacon detections per scan (unlabeled mode)', min: 0, max: 3, step: 0.1},
-    {
-      k: 'bOut',
-      label: 'Random beacon outages (share of time each is down)',
-      min: 0,
-      max: 90,
-      step: 5,
-      unit: '%',
-      show: () => P.loc !== 'truth'
-    },
-    {
-      k: 'bOutLen',
-      label: 'Mean outage length (short = flicker)',
-      min: 0.2,
-      max: 10,
-      step: 0.2,
-      unit: 's',
-      show: () => P.loc !== 'truth' && P.bOut > 0
+        'What the estimator is given: the odometry, gyro, beacons, lidar, GNSS and sonar, their noise and their specs, are set in the <button type="button" class="linkbtn" data-gotab="sen">Sensors tab</button>.'
     }
   ],
   per: [
@@ -269,7 +405,6 @@ const SCHEMA = {
       show: () => P.per === 'mapping' && P.unknownAs === 'lethal'
     },
     {k: 'infl', label: 'Inflation band beyond lethal', min: 0, max: 1.5, step: 0.05, unit: 'm'},
-    {k: 'lidarSig', label: 'Lidar range noise σ', min: 0, max: 0.15, step: 0.005, unit: 'm'},
     {
       type: 'btn',
       label: 'Clear built map',
@@ -391,36 +526,6 @@ const SCHEMA = {
       unit: 'm/s²',
       show: () => P.agents === 'lidar' || (P.radar && P.trkIn !== 'lidar')
     },
-    {
-      k: 'weather',
-      type: 'seg',
-      label: 'Weather',
-      opts: [
-        ['clear', 'Clear'],
-        ['rain', 'Rain'],
-        ['fog', 'Fog']
-      ]
-    },
-    {
-      type: 'info',
-      text: () =>
-        P.weather === 'fog'
-          ? "Fog: the lidar's returns fade beyond about 4 m (of its 8), one beam in seven returns nothing, the ranges are noisier, and now and then a beam returns from the fog itself, under 2 m out. The radar does not notice."
-          : 'Rain: the lidar fades beyond about 6 m, drops one beam in sixteen and now and then returns from a drop. The radar loses a tenth of its reach and sees a few more false detections.',
-      show: () => P.weather !== 'clear'
-    },
-    {k: 'radar', type: 'bool', label: 'Radar (forward: range, bearing and radial velocity per detection)'},
-    {
-      type: 'info',
-      text: () =>
-        `A ${P.radFov}° radar reaching ${P.radRange} m ahead, 10 Hz: each detection is a range (σ 0.1 m), a bearing (σ 3°) and a radial velocity (σ 0.1 m/s) from the Doppler shift, drawn as a diamond with an arrow for the radial velocity (toward the robot: closing). A person gives one echo, a wall a few where it faces the radar; false detections and ghosts (an echo that bounced off a wall) are drawn the same way, since the robot cannot tell them apart. Two echoes closer than ${P.radRes}° in bearing, 0.4 m in range and 0.25 m/s in radial velocity are one detection.${P.trkIn === 'lidar' ? ' The people tracker does not use it until Tracker inputs says so.' : ''}`,
-      show: radarOn
-    },
-    {k: 'radFov', label: 'Radar field of view', min: 30, max: 180, step: 10, unit: '°', show: radarOn},
-    {k: 'radRange', label: 'Radar reach', min: 5, max: 30, step: 1, unit: 'm', show: radarOn},
-    {k: 'radRes', label: 'Radar angular resolution', min: 1, max: 20, step: 1, unit: '°', show: radarOn},
-    {k: 'radClutter', label: 'Radar false detections per scan', min: 0, max: 20, step: 0.5, unit: '', show: radarOn},
-    {k: 'radGhost', label: 'Radar ghosts: chance per person per scan', min: 0, max: 50, step: 1, unit: '%', show: radarOn},
     {
       k: 'trkIn',
       type: 'seg',
@@ -871,7 +976,6 @@ const SCHEMA = {
     {k: 'alpha', label: 'Angular accel', min: 0.2, max: 8, step: 0.1, unit: 'rad/s²', show: () => P.accel && !isCar()},
     {k: 'lag', label: 'Actuator lag τ', min: 0, max: 0.6, step: 0.01, unit: 's'},
     {k: 'latency', label: 'Control latency (whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
-    {k: 'sensLat', label: 'Sensor latency (lidar, beacons, sonar and GNSS, whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
     {
       k: 'people',
       type: 'seg',
@@ -897,6 +1001,11 @@ function sonarInfo() {
     gap = 360 / N - P.sonBeam;
   return `${N} cones of ${P.sonBeam}° ${gap > 0 ? `leave ${gap.toFixed(0)}° blind between neighbours (${((100 * N * P.sonBeam) / 360).toFixed(0)} % of the circle covered)` : 'overlap: the whole circle is covered'}. The ring fires in turn, one ping every ${(1000 * P.sonPing).toFixed(0)} ms, so each sonar reads every ${sonCycle().toFixed(2)} s (the lidar every 0.1 s). A reading is one number: the nearest echo somewhere in the cone, ±${(P.sonBeam / 2).toFixed(0)}° about its axis, ${P.sonMin} to ${P.sonMax} m from the hull; a surface met at more than ${P.sonSpec}° from square-on sends the echo away and the sonar reads its maximum. <b>Good for:</b> cheap, short range, and on real robots glass and dark surfaces that a lidar can miss (the lab models no materials: here every surface reflects alike). <b>Fails:</b> the bearing within the cone, oblique walls, anything in the dead zone, crosstalk, and the slow ring. Perceive lesson 9 tries each.`;
 }
+// The sonar's and GNSS's settings go into the Sensors tab ahead of the radar's
+function senBefore(...items) {
+  const i = SCHEMA.sen.findIndex(f => f.type === 'head' && f.label === 'Radar');
+  SCHEMA.sen.splice(i < 0 ? SCHEMA.sen.length : i, 0, ...items);
+}
 (() => {
   const after = (k, items) => {
     for (const tab of Object.values(SCHEMA)) {
@@ -919,7 +1028,7 @@ function sonarInfo() {
       show: () => on() && P.per === 'mapping'
     }
   ]);
-  SCHEMA.per.push(
+  senBefore(
     {type: 'head', label: 'Ultrasonic ring'},
     {k: 'sonar', type: 'bool', label: 'Ultrasonic ring: sonars round the hull, each reporting the nearest echo in its cone'},
     {k: 'sonN', label: 'Sonars', min: 4, max: 16, step: 1, show: on},
@@ -990,15 +1099,13 @@ function gnssInfo() {
   return `Last fix ${(S.t - L.t).toFixed(1)} s ago: ${err.toFixed(2)} m from the true position${L.mp ? ' (multipath: within 1.5 m of a wall or parked car)' : ''}, reported σ ${L.sig.toFixed(2)} m, ${st}.${G.down ? ' In an outage now.' : ''} ${G.n} fixes, ${G.used} fused, ${G.gated} gated${G.resets ? `, ${G.resets} reset${G.resets === 1 ? '' : 's'}` : ''}.${bias}`;
 }
 {
-  const at = SCHEMA.loc.findIndex(f => f.type === 'head' && /^Odometry/.test(f.label));
-  SCHEMA.loc.splice(at < 0 ? SCHEMA.loc.length : at, 0, {type: 'sensors'}, {type: 'info', text: sensorsNote, show: () => !!sensorsNote()});
   SCHEMA.per.splice(1, 0, {
     type: 'info',
     text: () =>
-      `The lidar is off (Localize → Sensors): ${P.per === 'mapping' ? 'the map stops growing and the planners use what was seen before; ' : ''}no people are detected${P.agents === 'truth' ? ' (ground-truth tracking still runs)' : ''}, and the costmap gets nothing from the scan.`,
+      `The lidar is off (Sensors tab): ${P.per === 'mapping' ? 'the map stops growing and the planners use what was seen before; ' : ''}no people are detected${P.agents === 'truth' ? ' (ground-truth tracking still runs)' : ''}, and the costmap gets nothing from the scan.`,
     show: () => !P.lidar
   });
-  SCHEMA.loc.push(
+  senBefore(
     {type: 'head', label: 'GNSS', show: () => P.gnss},
     {
       type: 'info',
@@ -1019,12 +1126,6 @@ function gnssInfo() {
     {k: 'gnssMp', type: 'bool', label: 'Multipath within 1.5 m of walls and parked cars (a jump and extra noise)', show: () => P.gnss},
     {k: 'gnssOut', label: 'GNSS outages (share of time without a fix)', min: 0, max: 90, step: 5, unit: '%', show: () => P.gnss},
     {k: 'gnssOutLen', label: 'Mean outage length', min: 1, max: 30, step: 1, unit: 's', show: () => P.gnss && P.gnssOut > 0},
-    {
-      k: 'gnssAug',
-      type: 'bool',
-      label: 'Estimate the GNSS bias in the EKF (two more states, a random walk)',
-      show: () => P.gnss && P.loc === 'ekf'
-    },
     {type: 'info', text: gnssInfo, show: () => P.gnss},
     {
       type: 'info',

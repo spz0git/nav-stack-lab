@@ -28,7 +28,7 @@ function integrateScan(ranges) {
   for (let k = 0; k < NBEAM; k++) {
     const hit = ranges[k] < LMAX - 1e-3,
       a = e.th - Math.PI + (k * TAU) / NBEAM,
-      r = Math.min(ranges[k], LMAX);
+      r = Math.min(ranges[k], lidarReach()); // a beam that returned nothing saw free space as far as the lidar reaches
     rayCells(i0, j0, cellI(e.x + r * Math.cos(a)), cellI(e.y + r * Math.sin(a)), (idx, last) => {
       if (lo[idx] === L_GAP) lo[idx] = 0; // a real beam starts from unknown, whatever a virtual ray left
       lo[idx] = clamp(lo[idx] + (last && hit ? L_OCC : L_FREE), -L_CLAMP, L_CLAMP);
@@ -40,7 +40,7 @@ function integrateScan(ranges) {
   // rest (unseen above). A cell a beam has crossed keeps its value, and a ray stops at one seen occupied; an obstacle
   // corner between two beams can be marked, and the first beam that hits it makes it occupied as if never marked.
   for (let k = 0; k < NBEAM; k++) {
-    const r = Math.min(ranges[k], ranges[(k + 1) % NBEAM], LMAX) - RES;
+    const r = Math.min(ranges[k], ranges[(k + 1) % NBEAM], lidarReach()) - RES;
     if (r <= RES) continue;
     for (let m = 1; m < SUBRAYS; m++) {
       const a = e.th - Math.PI + ((k + m / SUBRAYS) * TAU) / NBEAM;

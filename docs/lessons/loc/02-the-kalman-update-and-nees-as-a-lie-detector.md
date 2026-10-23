@@ -27,7 +27,7 @@ Answer: 1
 
 ## Try: EKF, odometry bias ×3
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","odoB":3},"tab":"loc","plot":"pos"}
-Setup: The same filter with the calibration bias at ×3 (Localize tab, Odometry): the speed reads 6 % high and the turn rate carries an offset of 0.03 rad/s per m/s. The filter is not told.
+Setup: The same filter with the calibration bias at ×3 (Sensors tab, Odometry): the speed reads 6 % high and the turn rate carries an offset of 0.03 rad/s per m/s. The filter is not told.
 See: The pose error is still small, 2 to 20 cm (peaks near 30 cm), because the beacons keep catching it, but NEES is 6 to 19 whenever the robot is moving, and the status strip flags the filter as overconfident for most of the drive. The error leaves the 2σ band about half the time while driving. When the mission completes near 90 s and the robot stops, NEES falls back to 2 to 5 within about 12 s, once the 20 s window has forgotten the drive.
 Shows: The classic signature of unmodeled bias. $\Sigma$ shrinks as if the odometry were unbiased, so the gain discounts the innovations, which are no longer zero-mean noise but a steady, one-signed pull (the filter keeps believing it went a little farther and turned a little more than it did). The error is small only because the beacons are frequent and precise. The same bias with a landmark every 50 m instead of every 0.2 s would be metres, with the filter still claiming centimetres. NEES drops when the robot stops because the bias is proportional to speed: no motion, no bias, and the filter is suddenly telling the truth again.
 Predict: The calibration bias is tripled and the filter is not told. What does NEES do?

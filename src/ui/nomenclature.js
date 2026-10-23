@@ -67,7 +67,7 @@ const NOMEN = [
       [`${I('G')}, ${I('V')}`, `Jacobians of ${I('g')} with respect to the state and the input`, ''],
       [I('M'), 'Odometry noise covariance, diag(σ<sub>v</sub>², σ<sub>ω</sub>²)', ''],
       ['σ<sub>v</sub>, σ<sub>ω</sub>', 'Odometry noise standard deviations', 'm/s, rad/s'],
-      [I('k'), 'Odometry noise scale (Localize slider); the filter assumes its own multiple of it', ''],
+      [I('k'), 'Odometry noise scale (Sensors slider); the filter assumes its own multiple of it', ''],
       [I('b'), 'Odometry calibration bias, not modeled by the filters', ''],
       [`${I('z')} = [${I('r')}, ${I('b')}]`, 'Beacon measurement: range and bearing', 'm, rad'],
       [I('ẑ'), 'Predicted measurement', 'm, rad'],
@@ -204,7 +204,7 @@ const NOMEN = [
       ['<i class="swatch sq" style="background:var(--amber)"></i>', 'Lidar hits, placed using the estimated pose', ''],
       [
         '<i class="swatch dia" style="background:var(--radar)"></i>',
-        "Radar detections (Perceive → Radar), placed using the estimated pose, with an arrow for 0.5 s of radial velocity (toward the robot: closing), inside the radar's field of view; false detections and ghosts look the same",
+        "Radar detections (Sensors → Radar), placed using the estimated pose, with an arrow for 0.5 s of radial velocity (toward the robot: closing), inside the radar's field of view; false detections and ghosts look the same",
         ''
       ],
       [

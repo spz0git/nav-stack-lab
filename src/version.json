@@ -1,1 +1,1 @@
-{"version": 61, "date": "2026-10-22", "note": "Safety lessons 4 and 5: faults with their time budget, and a search for the failures nobody wrote down; Tools → Safety; a fault schedule; people who wait for the robot (PR #120)"}
+{"version": 62, "date": "2026-10-23", "note": "A Sensors tab: every sensor's switch, noise and specs in one place; noise profiles; lidar reach and dropouts (PR #126)"}

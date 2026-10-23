@@ -373,7 +373,7 @@ const LEVELS = [
       },
       {
         t: '<b>Localize:</b> raise false detections to 2 per scan. Gating and robust weights hold most of the time, but the particle filter loses the robot in short spells (up to 10.8 m off), hits a shelf and skips the last goal (4 of 5, against 5 of 5).',
-        b: [['2 false detections per scan', {set: {clutter: 2}, tab: 'loc'}]]
+        b: [['2 false detections per scan', {set: {clutter: 2}, tab: 'sen'}]]
       },
       {
         t: '<b>Vehicle:</b> make the people react. With social forces they step around the robot, so even Ignore looks better than it is; the contact counts tell the story.',
@@ -384,7 +384,7 @@ const LEVELS = [
       },
       {
         t: '<b>Vehicle:</b> add sensor latency. The lidar and the beacons arrive 0.2 s late and the filter processes stale readings against a prediction that has moved on; the particle filter loses the robot and recovers.',
-        b: [['Sensor latency 0.2 s', {set: {sensLat: 0.2}, tab: 'veh', plot: 'pos'}]]
+        b: [['Sensor latency 0.2 s', {set: {sensLat: 0.2}, tab: 'sen', plot: 'pos'}]]
       },
       {
         t: '<b>Plan:</b> Space-time A* plans in (x, y, t) against the predicted people and will wait in a doorway rather than detour. Compare its replans with A* in the log.',

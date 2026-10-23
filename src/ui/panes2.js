@@ -51,6 +51,7 @@ function wireSym(pane) {
 if (!('look' in LAYERS)) LAYERS.look = true;
 if (!('slip' in LAYERS)) LAYERS.slip = true; // the sideslip arrow of the car with tyre slip, also UI-only
 const TAB_LAYERS = {
+  sen: ['lidar', 'beam', 'gnss', 'sonar', 'radar', 'trail', 'ghostrun', 'slip'],
   loc: ['belief', 'beam', 'gnss', 'trail', 'ghost', 'ghostrun', 'slip', 'graph', 'sonar'],
   per: ['lidar', 'cost', 'ghost', 'ghostrun', 'slip', 'frontier', 'sonar'],
   mis: ['ghostrun', 'slip', 'frontier', 'lidar'],
@@ -299,5 +300,14 @@ document.addEventListener('click', e => {
   if (!b) return;
   const [k, v] = b.dataset.setp.split(':');
   setParam(k, v);
+  renderAllPanes();
+});
+// and some point to another tab (Localize: "the Sensors tab")
+document.addEventListener('click', e => {
+  const b = e.target && e.target.closest ? e.target.closest('[data-gotab]') : null;
+  if (!b) return;
+  activeTab = b.dataset.gotab;
+  consoleOpen = true;
+  buildTabs();
   renderAllPanes();
 });

@@ -602,7 +602,7 @@ const LEVELS = [
       },
       {
         t: '<b>Localize:</b> raise false detections to 2 per scan. Gating and robust weights hold most of the time, but the particle filter loses the robot in short spells (up to 10.8 m off), hits a shelf and skips the last goal (4 of 5, against 5 of 5).',
-        b: [['2 false detections per scan', {set: {clutter: 2}, tab: 'loc'}]]
+        b: [['2 false detections per scan', {set: {clutter: 2}, tab: 'sen'}]]
       },
       {
         t: '<b>Vehicle:</b> make the people react. With social forces they step around the robot, so even Ignore looks better than it is; the contact counts tell the story.',
@@ -613,7 +613,7 @@ const LEVELS = [
       },
       {
         t: '<b>Vehicle:</b> add sensor latency. The lidar and the beacons arrive 0.2 s late and the filter processes stale readings against a prediction that has moved on; the particle filter loses the robot and recovers.',
-        b: [['Sensor latency 0.2 s', {set: {sensLat: 0.2}, tab: 'veh', plot: 'pos'}]]
+        b: [['Sensor latency 0.2 s', {set: {sensLat: 0.2}, tab: 'sen', plot: 'pos'}]]
       },
       {
         t: '<b>Plan:</b> Space-time A* plans in (x, y, t) against the predicted people and will wait in a doorway rather than detour. Compare its replans with A* in the log.',
@@ -1662,6 +1662,8 @@ const DEFAULTS = {
   bOut: 0,
   bOutLen: 1,
   lidarSig: 0.02,
+  lidarRange: 8, // the lidar's reach [m], at most LMAX: a beam with nothing nearer returns nothing
+  lidarDrop: 0, // share of beams that return nothing at random [%], on their own random stream
   seed: 7,
   agents: 'off',
   agPred: 'cv',
@@ -2935,16 +2937,26 @@ const sigR = () => 0.08 * Math.max(P.lmK, 0.25),
 /* ============================================================
    Sensors
    ============================================================ */
+// A beam that returns nothing reads LMAX, whatever the reach (every consumer takes LMAX as "no return")
+const lidarReach = () => clamp(P.lidarRange || LMAX, 1, LMAX);
 function lidarSense() {
   const r = S.robot,
     g = S.rngW,
-    sh = allShapes();
+    sh = allShapes(),
+    R = lidarReach();
   const ranges = new Float32Array(NBEAM);
   for (let k = 0; k < NBEAM; k++) {
     const a = r.th - Math.PI + (k * TAU) / NBEAM;
-    let d = rayCast(r.x, r.y, Math.cos(a), Math.sin(a), LMAX, sh);
-    if (d < LMAX) d = Math.max(0.05, d + P.lidarSig * g.n());
+    let d = rayCast(r.x, r.y, Math.cos(a), Math.sin(a), R, sh);
+    if (d < R) d = Math.max(0.05, d + P.lidarSig * g.n());
+    else d = LMAX;
     ranges[k] = d;
+  }
+  // dropouts draw from their own stream, so switching them on leaves the range noise as it was
+  if (P.lidarDrop > 0) {
+    if (!S.rngLd) S.rngLd = makeRng(P.seed * 2654435761 + 17);
+    const q = Math.min(P.lidarDrop, 100) / 100;
+    for (let k = 0; k < NBEAM; k++) if (S.rngLd.u() < q) ranges[k] = LMAX;
   }
   if (P.weather !== 'clear') weatherLidar(ranges);
   return ranges;
@@ -3227,7 +3239,7 @@ const SENSORS = [
     kind: 'proprio',
     loc: ['dead reckoning', 'EKF', 'particle filter', 'EKF-SLAM', 'pose-graph SLAM', 'your localizer'],
     per: [],
-    gives: 'The turn rate from a gyro instead of the wheels: far less noise, but a bias of its own (Localize → Yaw-rate gyro).'
+    gives: 'The turn rate from a gyro instead of the wheels: far less noise, but a bias of its own (Sensors → Yaw-rate gyro).'
   },
   {
     key: 'lidar',
@@ -3252,7 +3264,7 @@ const SENSORS = [
     loc: ['EKF', 'particle filter', 'EKF-SLAM', 'your localizer'],
     per: [],
     gives:
-      'Range and bearing to each beacon in reach, 5 times a second: position and heading fixes. Off: the EKF coasts on odometry. Single beacons: Localize → Beacons.'
+      'Range and bearing to each beacon in reach, 5 times a second: position and heading fixes. Off: the EKF coasts on odometry. Single beacons: Sensors → Beacons.'
   },
   {
     key: 'gnss',
@@ -3274,7 +3286,7 @@ const SENSORS = [
     loc: ['particle filter (sonar weighting)', 'your localizer'],
     per: ['sonar mapping', 'the sonar safety stop'],
     gives:
-      'The ultrasonic ring: one range per sonar for a whole cone, a few metres at most, the sonars firing in turn: a blurred map, a bumper that stops late at grazing angles, and a rough pose fix against the map. What reads it: Perceive → Ultrasonic ring.'
+      'The ultrasonic ring: one range per sonar for a whole cone, a few metres at most, the sonars firing in turn: a blurred map, a bumper that stops late at grazing angles, and a rough pose fix against the map. Its settings: Sensors → Ultrasonic ring; the map, the safety stop and the particle filter each choose whether to read it.'
   },
   {
     key: 'radar',
@@ -3283,9 +3295,9 @@ const SENSORS = [
     flag: 'radar',
     kind: 'extero',
     loc: [],
-    per: ['the people tracker (Perceive → The tracker updates from)', 'your predictor'],
+    per: ['the people tracker (Perceive → Tracker inputs)', 'your predictor'],
     gives:
-      'A few detections per scan ahead of the robot, each with range, a coarse bearing and the radial speed from the Doppler shift, with clutter and ghosts; it keeps working in fog and rain. What reads it: Perceive → Radar.'
+      'A few detections per scan ahead of the robot, each with range, a coarse bearing and the radial speed from the Doppler shift, with clutter and ghosts; it keeps working in fog and rain. Its settings: Sensors → Radar; the people tracker reads it when Perceive → Tracker inputs says so.'
   }
 ];
 const sensorOn = s => (s.on ? s.on() : !!P[s.flag]);
@@ -5012,7 +5024,7 @@ function integrateScan(ranges) {
   for (let k = 0; k < NBEAM; k++) {
     const hit = ranges[k] < LMAX - 1e-3,
       a = e.th - Math.PI + (k * TAU) / NBEAM,
-      r = Math.min(ranges[k], LMAX);
+      r = Math.min(ranges[k], lidarReach()); // a beam that returned nothing saw free space as far as the lidar reaches
     rayCells(i0, j0, cellI(e.x + r * Math.cos(a)), cellI(e.y + r * Math.sin(a)), (idx, last) => {
       if (lo[idx] === L_GAP) lo[idx] = 0; // a real beam starts from unknown, whatever a virtual ray left
       lo[idx] = clamp(lo[idx] + (last && hit ? L_OCC : L_FREE), -L_CLAMP, L_CLAMP);
@@ -5024,7 +5036,7 @@ function integrateScan(ranges) {
   // rest (unseen above). A cell a beam has crossed keeps its value, and a ray stops at one seen occupied; an obstacle
   // corner between two beams can be marked, and the first beam that hits it makes it occupied as if never marked.
   for (let k = 0; k < NBEAM; k++) {
-    const r = Math.min(ranges[k], ranges[(k + 1) % NBEAM], LMAX) - RES;
+    const r = Math.min(ranges[k], ranges[(k + 1) % NBEAM], lidarReach()) - RES;
     if (r <= RES) continue;
     for (let m = 1; m < SUBRAYS; m++) {
       const a = e.th - Math.PI + ((k + m / SUBRAYS) * TAU) / NBEAM;

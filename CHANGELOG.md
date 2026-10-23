@@ -4,6 +4,17 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v62 · 2026-10-23
+
+- A Sensors tab, first in the pipeline row: every sensor's switch, noise and specs in one place, so Localize keeps
+  only the estimators. It gathers the odometry and the gyro, the lidar, the beacons and their sensor sheet, GNSS, the
+  ultrasonic ring and the radar (until now in Localize, Perceive and Vehicle), the weather, and the sensor latency.
+  The sensor dots beside the health lights open it.
+- Noise profiles in the Sensors tab: *Perfect* (no noise, bias, dropouts, clutter, outages or multipath on any
+  sensor), *This level's* and *Rough* (cheap, worn sensors), each with one tap; the specs stay as they are.
+- Two new lidar specs: its reach (2 to 8 m; beyond it a surface returns nothing and the map learns only that the
+  floor is free out to there) and dropouts (a share of beams that return nothing at random).
+
 ## v61 · 2026-10-22
 
 - Safety, two more lessons:

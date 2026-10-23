@@ -16,7 +16,7 @@ const TAB_NAME = Object.fromEntries(TABS.map(t => [t.id, t.name]));
 function settingFields() {
   const out = [];
   for (const t of Object.keys(SCHEMA)) for (const f of SCHEMA[t]) if (f.k) out.push({k: f.k, f, tab: t});
-  out.push({k: 'bOff', f: {k: 'bOff', type: 'beacons', label: 'Beacons switched off'}, tab: 'loc'}); // the chips field has no key of its own
+  out.push({k: 'bOff', f: {k: 'bOff', type: 'beacons', label: 'Beacons switched off'}, tab: 'sen'}); // the chips field has no key of its own
   return out;
 }
 function fieldValText(f, v) {

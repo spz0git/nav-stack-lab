@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v62 · 2026-10-23
 
 - A Sensors tab, first in the pipeline row: every sensor's switch, noise and specs in one place, so Localize keeps
   only the estimators. It gathers the odometry and the gyro, the lidar, the beacons and their sensor sheet, GNSS, the

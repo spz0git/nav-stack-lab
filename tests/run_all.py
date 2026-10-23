@@ -1,14 +1,56 @@
 #!/usr/bin/env python3
-# Runs the test gate: test.py, p5test.py, tles.py, chtest.py, dyntest.py, extest.py, trtest.py, lvtest.py, sntest.py, saftest.py (about ten minutes), from any directory.
-#   python3 tests/run_all.py            the ten gate tests
-#   python3 tests/run_all.py p5test     a subset, by name
-#   python3 tests/run_all.py --quick    passes --quick to dyntest.py
-# Each script's output is shown as it runs; at the end a table says which passed. A test passes when it exits 0 and
-# prints its "no errors" marker (ERRORS [] etc.). Exit status 1 if any failed.
+# Runs the browser tests, from any directory. A test passes when it exits 0 and prints its "no errors" marker
+# (ERRORS [] etc.); at the end a table says which passed. Exit status 1 if any failed.
+#   python3 tests/run_all.py --changed        the tests this change needs (below); what a PR runs before its merge
+#   python3 tests/run_all.py --changed BASE   the same, against BASE instead of origin/main
+#   python3 tests/run_all.py --changed --list which tests, and the files that call for each, without running them
+#   python3 tests/run_all.py                  all eleven (about twelve minutes): nightly in CI, and for a change to the
+#                                             build or the test harness
+#   python3 tests/run_all.py p5test smoke     a subset, by name
+#   python3 tests/run_all.py --quick          passes --quick to dyntest.py
+# --changed reads `git diff --name-only BASE...HEAD` plus uncommitted changes. Any change to the page (dist/ differs)
+# runs smoke.py (about 40 s: every tab on every level at three widths, Analyze, Learn, a short run); SCOPE then adds
+# the tests that cover the files changed. A change outside the page (documentation, CI) runs nothing. The lint, the
+# format check, the build check and the Node tests (golden L1–L5 numbers) run in CI on every push.
 import os,re,subprocess,sys,time
 HERE=os.path.dirname(os.path.abspath(__file__))
-GATE=[('test.py',[r'ERRORS: \[\]']),('p5test.py',[r'ERRORS \[\]']),('tles.py',[r'ERR \[\]']),('chtest.py',[r'ERRORS \[\]']),('dyntest.py',[r'ERRORS: \[\]',r'FAILS: \[\]']),('extest.py',[r'ERRORS: \[\]',r'FAILS: \[\]']),('trtest.py',[r'ERRORS \[\]']),('lvtest.py',[r'ERRORS \[\]']),('sntest.py',[r'ERRORS \[\]',r'FAILS \[\]']),('saftest.py',[r'ERRORS \[\]',r'FAILS \[\]'])]
-args=[a for a in sys.argv[1:] if not a.startswith('--')]; flags=[a for a in sys.argv[1:] if a.startswith('--')]
+GATE=[('smoke.py',[r'ERRORS \[\]']),('test.py',[r'ERRORS: \[\]']),('p5test.py',[r'ERRORS \[\]']),('tles.py',[r'ERR \[\]']),('chtest.py',[r'ERRORS \[\]']),('dyntest.py',[r'ERRORS: \[\]',r'FAILS: \[\]']),('extest.py',[r'ERRORS: \[\]',r'FAILS: \[\]']),('trtest.py',[r'ERRORS \[\]']),('lvtest.py',[r'ERRORS \[\]']),('sntest.py',[r'ERRORS \[\]',r'FAILS \[\]']),('saftest.py',[r'ERRORS \[\]',r'FAILS \[\]'])]
+# (a changed path, the tests it needs); 'ALL' for what every test depends on. The core runs under every test, so any
+# core change runs the L1–L5 regression and every Try button; the rest follow the subsystem.
+SCOPE=[
+    (r'^(build\.(mjs|sh)|package(-lock)?\.json|src/(manifest\.json|index\.html|worker/)|tools/(tex|changelog)\.mjs|tools/vendor/|tests/(_browser|run_all)\.py)','ALL'),
+    (r'^src/core/',['test.py','p5test.py']),
+    (r'^src/core/(vehicle|controllers|mpc|dispatch|planning-car)\.js|^src/analysis/(num|model|speed|ui)\.js',['dyntest.py']),
+    (r'^src/(core/(slots|custom-controller|examples-data)\.js|examples/)|^src/ui/source\.js|^tools/code\.mjs',['extest.py']),
+    (r'^src/(core/(nn|nn-train|dataset|models-data|agents|predict)\.js|models/)|^src/ui/train\.js',['trtest.py']),
+    (r'^src/core/(levels|worldgen|worlds)\.js|^src/ui/(levelmenu|maptools|urlstate)\.js',['lvtest.py']),
+    (r'^src/core/(sensors|health|localization|fidelity|step)\.js|^src/ui/health\.js',['sntest.py']),
+    (r'^src/core/(safety|search|health|config)\.js|^src/ui/safety\.js|^tools/search\.mjs',['saftest.py']),
+    (r'^docs/lessons/|^src/analysis/(lessons|lessons2|lessons-data|glossary)\.js|^src/ui/(learn|experiments)\.js|^tools/lessons\.mjs',['tles.py','p5test.py']),
+    (r'^docs/notes/|^src/ui/chapters\.js|^tools/notes\.mjs',['chtest.py']),
+    (r'^tests/(\w+\.py)$',None),  # a changed test runs itself
+]
+def changed_scope(base):
+    git=lambda *a: subprocess.run(['git',*a],cwd=HERE,capture_output=True,text=True).stdout.split()
+    files=sorted(set(git('diff','--name-only',f'{base}...HEAD')+git('diff','--name-only','HEAD')))
+    if not files: return [],{}
+    why={}
+    if any(f.startswith('dist/') for f in files): why['smoke.py']=['the page changed']
+    for f in files:
+        for pat,tests in SCOPE:
+            m=re.search(pat,f)
+            if not m: continue
+            if tests=='ALL': return [n for n,_ in GATE],{'all':[f]}
+            for t in tests or [m.group(1)]: why.setdefault(t,[]).append(f)
+    return [n for n,_ in GATE if n in why],why
+args=[a for a in sys.argv[1:] if not a.startswith('--')]; flags=[a for a in sys.argv[1:] if a.startswith('--') and a not in ('--changed','--list')]
+if '--changed' in sys.argv:
+    base=args[0] if args else 'origin/main'
+    names,why=changed_scope(base)
+    for t,fs in why.items(): print(f'{t}: {", ".join(fs[:4])}{" …" if len(fs)>4 else ""}')
+    if not names: sys.exit(f'Nothing to run: no change to the page or its tests since {base}.')
+    if '--list' in sys.argv: print('would run:',' '.join(names)); sys.exit(0)
+    args=names
 todo=[g for g in GATE if not args or g[0] in args or g[0][:-3] in args]
 if args and not todo: sys.exit('no such test; gate tests: '+', '.join(n for n,_ in GATE))
 if not os.path.exists(os.path.join(HERE,'..','dist','nav-stack-lab.html')) and not os.environ.get('NAV_LAB_PAGE'): sys.exit('dist/nav-stack-lab.html is missing: run ./build.sh first')

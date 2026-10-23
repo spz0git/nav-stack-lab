@@ -33,14 +33,20 @@ while working and again on `main` after the merge only repeats them.
    artifact version the next publish will create (the previous publish's version + 1), with `date` and a short
    `note`; rename `## Unreleased` to `## vNN · date` in `CHANGELOG.md`; rebuild and commit. The label in the header
    (`v30 · 2026-10-15`) is the one users quote in bug reports, and this way it matches the artifact's version history.
-3. Run the gate, once: `npm run lint`, `npm run fmt:check`, `npm test` (the Node golden test, 10 s) and
-   `python3 tests/run_all.py` (the ten browser tests: `test.py`, `p5test.py`, `tles.py`, `chtest.py`, `dyntest.py`,
-   `extest.py`, `trtest.py`, `lvtest.py`, `sntest.py`, `saftest.py`). The L1–L5 summary of `test.py` must not change unless the change intends it;
-   `p5test`, `chtest` and `dyntest` must report no errors. If a script fails, fix it and rerun what failed (the whole
-   gate when the fix touches shared code).
+3. Run the scoped gate, once: `python3 tests/run_all.py --changed`, and check that CI is green on the head (it runs
+   `npm run lint`, `npm run fmt:check`, the build check and `npm test`, the Node golden test, on every push). The
+   scoped gate reads the files changed since `origin/main` and runs only what they need: `smoke.py` (about 40 s: every
+   tab on every level at three widths, Analyze, Learn, a short run) for any change to the page, then the tests of the
+   areas touched, from the table `SCOPE` in `tests/run_all.py` (a core change: the L1–L5 regression `test.py` and every
+   Try button `p5test.py`, plus the subsystem's own test; a lesson: `tles.py` and `p5test.py`; a chapter: `chtest.py`;
+   a CSS or layout change: the smoke test alone). A change to the build or the test harness runs all eleven (about
+   twelve minutes). `--changed --list` prints the choice and the files behind it. The L1–L5 summary of `test.py` must
+   not change unless the change intends it. If a script fails, fix it and rerun what failed. The full suite runs
+   every night on `main` (below), which catches what a scope missed; when it does, fix it first, and widen `SCOPE` so
+   the next change like it runs the test.
 4. Merge. Do not run the gate again on `main`: its tree is the branch that was tested. Only if something else landed
-   on `main` since, bring the branch up to date first and run the gate there. Pages deploys on its own when it is
-   turned on (`PAGES_ENABLED`, above). The browser gate also runs nightly and on demand
+   on `main` since, bring the branch up to date first and run the scoped gate there. Pages deploys on its own when it is
+   turned on (`PAGES_ENABLED`, above). The full browser suite runs nightly and on demand
    (`.github/workflows/browser-tests.yml`, Actions → Browser tests → Run workflow).
 5. Republish the live artifact from `dist/nav-stack-lab.html` to the URL above with downloads enabled, and check that
    the Version in the publish result equals `src/version.json`. While a PR is open the live artifact is not touched;

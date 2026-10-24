@@ -42,4 +42,3 @@ Out of scope: runtime dependencies or network access, quoting the safety standar
 1. Confirm the 33 clause numbers the safety lessons cite as unchecked — Spy · an hour with the standards.
 2. Pick the next track from the roadmap: more sensors (a camera, weather-dependent noise), environments (a wall editor, lessons on generated worlds), or the learning tracks — Spy · a decision.
 3. Go public (make the repo public and turn Pages on) — Spy · a decision.
-4. Moving the live simulation into a worker, if the page ever feels slow — Claude · about a week.

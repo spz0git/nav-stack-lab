@@ -1681,6 +1681,9 @@ const DEFAULTS = {
   sensLat: 0,
   vehicles: true,
   guard: false,
+  oddMon: false, // the ODD monitor (core/oddmon.js): a minimal-risk manoeuvre when the robot sees it is outside its domain
+  oddResp: 'crawl', // its manoeuvre: crawl at 0.3 m/s, or stop
+  oddSheet: 'ODD-1', // the sheet it watches: a name in ODD_SHEETS, or a sheet's JSON
   radBrake: false, // the radar emergency brake (core/radar.js): stop for a radar echo in the way, closing, under radTTC
   radTTC: 1, // its time to contact [s]
   // the ultrasonic ring (core/sensors.js), off by default; what reads it: mapSrc, guardSrc, pfSonar
@@ -1731,7 +1734,8 @@ const PARAM_OPTS = {
   mapSrc: ['lidar', 'sonar', 'both'],
   guardSrc: ['lidar', 'sonar', 'both'],
   trkIn: ['lidar', 'radar', 'both'],
-  weather: ['clear', 'rain', 'fog']
+  weather: ['clear', 'rain', 'fog'],
+  oddResp: ['crawl', 'stop']
 };
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
@@ -1846,7 +1850,9 @@ function recFrame() {
       fsm: S.fsm.state,
       dyn: isDyn() ? dynSig(S.robot) : null,
       ood: learnSig(), // the learned blocks' out-of-distribution scores now (core/learnmon.js)
-      brake: P.radBrake ? (S.radBrake && S.t < S.radBrake.until ? 1 : 0) : null
+      brake: P.radBrake ? (S.radBrake && S.t < S.radBrake.until ? 1 : 0) : null,
+      odd: P.oddMon ? (S.odd && S.odd.out ? 1 : 0) : null,
+      share: P.oddMon && S.odd && S.odd.share != null ? S.odd.share : null
     }
   });
   if (REC.frames.length > REC.max) REC.frames.splice(0, REC.frames.length - REC.max);
@@ -11463,6 +11469,91 @@ function learnSummary() {
   return out;
 }
 
+/* ---- core/oddmon.js ---- */
+/* ============================================================
+   The ODD monitor (design C6; safety lesson 9). Off by default (P.oddMon). It watches what the robot itself can observe
+   of its operating domain against the sheet it was given (P.oddSheet, a sheet's name or its JSON) and, once it has been
+   outside for 1 s, takes a minimal-risk manoeuvre (P.oddResp): a crawl at 0.3 m/s or a stop, until it has been back
+   inside for 3 s. Observable here:
+   - the weather, from the lidar's return share averaged over the last 2 s: below 0.65 the air is not clear (measured,
+     L5 and generated warehouses: 0.86–0.93 in clear air, 0.67–0.76 in rain, 0.57–0.59 in fog); checked only when the
+     sheet allows clear air alone, and blind to rain, which sits between;
+   - a learned block in use whose input has been outside its training data for most of the last 5 s (core/learnmon.js).
+   Not observable, and so left to operational restrictions: the floor's grip, the people's intentions, the aisle width
+   before it is seen. With the monitor off nothing here runs.
+   ============================================================ */
+const OM_SHARE = 0.65, // the 2 s mean return share below which the air is not clear
+  OM_WIN = 2, // s
+  OM_ENTER = 1, // s outside before the manoeuvre
+  OM_LEAVE = 3, // s inside before it ends
+  OM_CRAWL = 0.3; // m/s
+function oddSheetOf(v) {
+  if (v && typeof v === 'object') return v;
+  if (typeof v === 'string' && v.trim().startsWith('{'))
+    try {
+      return JSON.parse(v);
+    } catch (_) {
+      return null;
+    }
+  return ODD_SHEETS[v] || null;
+}
+// Once per tick, after the scan (core/step.js postSense)
+function oddTick() {
+  if (!P.oddMon) return;
+  if (!S.odd) S.odd = {win: [], out: false, since: S.t, why: '', outS: 0, first: null, n: 0};
+  const O = S.odd,
+    sh = oddSheetOf(P.oddSheet);
+  if (S.scanTick === S.tick && S.scan && P.lidar) {
+    let h = 0;
+    for (const r of S.scan) if (r < LMAX - 1e-3) h++;
+    O.win.push([S.t, h / S.scan.length]);
+  }
+  while (O.win.length && O.win[0][0] < S.t - OM_WIN) O.win.shift();
+  const why = [];
+  if (sh && sh.weather && sh.weather.length === 1 && sh.weather[0] === 'clear' && O.win.length >= 10) {
+    const m = O.win.reduce((a, w) => a + w[1], 0) / O.win.length;
+    O.share = m;
+    if (m < OM_SHARE) why.push(`the air is not clear (the lidar returns ${(100 * m).toFixed(0)} % of its beams)`);
+  }
+  const L = S.learn;
+  if (L)
+    for (const [b, [, used, name]] of Object.entries(LM_USE)) {
+      const W = used() && L.ood[b] && L.ood[b].win;
+      if (W && W.length >= 3 && W.filter(w => w[1]).length / W.length > 0.5)
+        why.push(`the learned ${name}'s input is unlike its training data`);
+    }
+  const outNow = why.length > 0;
+  if (outNow !== O.rawOut) {
+    O.rawOut = outNow;
+    O.rawSince = S.t;
+  }
+  if (outNow) O.why = why.join('; ');
+  const held = S.t - (O.rawSince ?? S.t);
+  if (!O.out && outNow && held >= OM_ENTER) {
+    O.out = true;
+    O.n++;
+    if (O.first == null) O.first = +S.t.toFixed(2);
+    logE(`Outside the operating domain: ${O.why} · ${P.oddResp === 'stop' ? 'stopping' : `crawling at ${OM_CRAWL} m/s`}`, 'warn');
+  } else if (O.out && !outNow && held >= OM_LEAVE) {
+    O.out = false;
+    logE('Back inside the operating domain · normal speed', 'ok');
+  }
+  if (O.out && S.fsm.state !== 'IDLE' && S.fsm.state !== 'DONE') O.outS += DT;
+}
+// The command with the manoeuvre applied (core/step.js applyCmd, after every controller)
+function oddCmd(c) {
+  if (!P.oddMon || !S.odd || !S.odd.out) return c;
+  const lim = P.oddResp === 'stop' ? 0 : OM_CRAWL,
+    v = Math.abs(c.v || 0);
+  if (v <= lim) return c;
+  const f = v > 1e-9 ? lim / v : 0;
+  return {...c, v: c.v * f, ...(c.w != null && !isCar() ? {w: c.w * f} : {})};
+}
+function oddSummary() {
+  const O = S.odd;
+  return O ? {oddFirst: O.first, oddOutS: +O.outS.toFixed(1), oddN: O.n} : {oddFirst: null, oddOutS: 0, oddN: 0};
+}
+
 /* ---- core/fidelity.js ---- */
 /* ============================================================
    Fidelity: sensor latency, reactive pedestrians (social force), other vehicles
@@ -12171,6 +12262,8 @@ function healthNow(f) {
     C('plan', 'Path', st === 'NO_PATH', 'bad', `no path to the next goal${F.fails ? ` (attempt ${F.fails} of 3)` : ''}`);
     healthSensorChecks(C, 'plan');
     learnHealth(C, 'plan', f);
+    if (P.oddMon)
+      C('plan', 'Operating domain', !f && S.odd && S.odd.out, 'warn', `outside the operating domain: ${S.odd ? S.odd.why : ''}`);
     C('plan', 'Goals', st === 'IDLE' && !n, 'idle', 'no goals: tap the map to add some');
     C('plan', 'Goals skipped', skipped > 0, 'warn', `${skipped} goal${skipped === 1 ? '' : 's'} skipped`);
     C('plan', 'Plan time', ps && ps.ms > 250 && !f, 'warn', ps ? `last plan took ${ps.ms.toFixed(0)} ms (${ps.name})` : '');
@@ -12589,6 +12682,210 @@ function spiTable(runs) {
   return out.sort((a, b) => b.rho - a.rho);
 }
 
+/* ---- core/argument.js ---- */
+/* ============================================================
+   The safety argument (design §3.5; safety lesson 9): claims, the strategies that break them down, and the evidence that
+   supports them, in Goal Structuring Notation, with the evidence live: each solution says what to run and what must
+   hold, and the page (ui/argument.js) or Node (tools/argument.mjs) reruns it and colours the graph. Shared, so both
+   judge an argument the same way.
+   An argument: {format: 'nav-stack-lab-argument', version: 1, name, nodes: [{id, type, text, parent, rel, evidence}]}
+   - type: goal (a claim), strategy (how a goal is broken down), solution (evidence), context, assumption, justification;
+   - parent: the node it hangs from (none for the top goal); rel: 'support' (goal ← strategy ← goal ← solution) or
+     'context' (context, assumption and justification, drawn beside);
+   - evidence (solutions only): {kind: 'runs', level, set, seeds, secs, metric, op, value} runs a configuration at each
+     seed; {kind: 'search', sheet, budget, rounds, seed, imp, metric, op, value} runs a search and reads its random half.
+   A solution passes when its metric meets the bound; a goal or strategy is supported when every supporting child is,
+   and fails as soon as one fails, so a red leaf shows red all the way up. Context, assumptions and justifications are
+   not judged: they are what the claim leans on, made visible.
+   ============================================================ */
+const ARG_TYPES = ['goal', 'strategy', 'solution', 'context', 'assumption', 'justification'],
+  ARG_SIDE = ['context', 'assumption', 'justification'],
+  ARG_OPS = {'<=': (a, b) => a <= b, '<': (a, b) => a < b, '>=': (a, b) => a >= b, '>': (a, b) => a > b, '==': (a, b) => a === b};
+// What a solution can measure: from runs (one summary per seed) or from a search's random runs
+const ARG_METRICS = {
+  contacts: [
+    'contacts with a person, the robot moving (all seeds)',
+    R => R.reduce((a, s) => a + s.events.filter(RISK_EV.contact).length, 0)
+  ],
+  strikes: ['strikes (all seeds)', R => R.reduce((a, s) => a + s.events.filter(RISK_EV.strike).length, 0)],
+  rackSpeed: [
+    'the fastest contact with a rack or wall, m/s',
+    R => Math.max(0, ...R.flatMap(s => s.events.filter(e => e.kind === 'static').map(e => e.v)))
+  ],
+  impact: ['the fastest contact with a person, m/s', R => Math.max(0, ...R.map(s => s.impact || 0))],
+  oddFirst: [
+    'when the ODD monitor first saw the robot outside, s (the latest seed)',
+    R => Math.max(...R.map(s => (s.oddFirst == null ? Infinity : s.oddFirst)))
+  ],
+  goals: ['the share of goals reached (the worst seed)', R => Math.min(...R.map(s => (s.goals ? s.goalsDone / s.goals : 1)))],
+  strikeRateHi: [
+    'the top of the 95 % interval of strikes per hour',
+    (R, W) =>
+      riskRate(
+        R.map((s, i) => ({s, w: W ? W[i] : 1})),
+        'strike'
+      ).hi
+  ],
+  contactRateHi: [
+    'the top of the 95 % interval of contacts per hour',
+    (R, W) =>
+      riskRate(
+        R.map((s, i) => ({s, w: W ? W[i] : 1})),
+        'contact'
+      ).hi
+  ]
+};
+// A malformed argument says why; null when it is fine
+function argError(A) {
+  if (!A || A.format !== 'nav-stack-lab-argument' || !Array.isArray(A.nodes) || !A.nodes.length) return 'not an argument';
+  const ids = new Set();
+  for (const n of A.nodes) {
+    if (!n.id || ids.has(n.id)) return `a node without an id, or a repeated one (${n.id})`;
+    ids.add(n.id);
+    if (!ARG_TYPES.includes(n.type)) return `node ${n.id}: a type of ${ARG_TYPES.join(', ')}`;
+  }
+  const tops = A.nodes.filter(n => !n.parent);
+  if (tops.length !== 1 || tops[0].type !== 'goal') return 'exactly one top node, a goal';
+  for (const n of A.nodes) {
+    if (n.parent && !ids.has(n.parent)) return `node ${n.id}: its parent ${n.parent} is missing`;
+    if (n.evidence) {
+      const E = n.evidence;
+      if (n.type !== 'solution') return `node ${n.id}: only a solution carries evidence`;
+      if (!['runs', 'search'].includes(E.kind) || !ARG_METRICS[E.metric] || !ARG_OPS[E.op] || typeof E.value !== 'number')
+        return `node ${n.id}: evidence needs kind runs or search, a metric of ${Object.keys(ARG_METRICS).join(', ')}, an op and a number`;
+    }
+  }
+  const byId = Object.fromEntries(A.nodes.map(n => [n.id, n]));
+  for (const n of A.nodes) {
+    let p = n;
+    for (let d = 0; p.parent; d++) {
+      if (d > A.nodes.length) return `node ${n.id} is its own ancestor`;
+      p = byId[p.parent];
+    }
+  }
+  return null;
+}
+// The jobs a solution's evidence needs: [{level, set, seed, secs, w}] with the extra settings (your changes) on top
+function argJobs(E, extra = {}) {
+  if (E.kind === 'runs') {
+    const lv = typeof E.level === 'object' ? genSpec(E.level) : E.level;
+    return (E.seeds || [7]).map(seed => ({level: lv, set: {...(E.set || {}), ...extra}, seed, secs: E.secs || 300}));
+  }
+  const sh = typeof E.sheet === 'string' ? ODD_SHEETS[E.sheet] : E.sheet,
+    u = makeRng((E.seed || 1) * 7919 + 17).u,
+    out = [];
+  for (const step of searchPlan(E.budget || 40, 0)) {
+    for (const sc of searchBatch(step, [], sh, u, !!E.imp))
+      out.push({level: sc.level, set: {...sc.set, ...(E.set || {}), ...extra}, seed: sc.seed, secs: E.secs || 300, w: sc.w || 1});
+  }
+  return out;
+}
+// A solution's verdict from its jobs' summaries: {value, pass}
+function argVerdict(E, sums, jobs) {
+  if (sums.some(s => !s)) return {value: null, pass: false, error: true};
+  const v = ARG_METRICS[E.metric][1](
+    sums,
+    jobs.map(j => j.w || 1)
+  );
+  return {value: v, pass: v != null && ARG_OPS[E.op](v, E.value)};
+}
+// Every node's status from the solutions' verdicts: 'pass', 'fail' or null (not run, or not judged)
+function argStatus(A, verdicts) {
+  const kids = id => A.nodes.filter(n => n.parent === id && !ARG_SIDE.includes(n.type)),
+    memo = {};
+  const st = n => {
+    if (n.id in memo) return memo[n.id];
+    let s = null;
+    if (ARG_SIDE.includes(n.type)) s = null;
+    else if (n.type === 'solution') s = verdicts[n.id] ? (verdicts[n.id].pass ? 'pass' : 'fail') : null;
+    else {
+      const K = kids(n.id).map(st);
+      s = K.includes('fail') ? 'fail' : K.length && K.every(x => x === 'pass') ? 'pass' : null;
+    }
+    return (memo[n.id] = s);
+  };
+  for (const n of A.nodes) st(n);
+  return memo;
+}
+// The lesson's argument: the busy floor, inside ODD-1 with people who give way
+const ARG_BUILTIN = {
+  format: 'nav-stack-lab-argument',
+  version: 1,
+  name: 'ARG-1, the busy floor with people who give way',
+  nodes: [
+    {id: 'G1', type: 'goal', text: 'The robot is acceptably safe on the busy floor, within ODD-1 with people who give way'},
+    {
+      id: 'C1',
+      type: 'context',
+      parent: 'G1',
+      rel: 'context',
+      text: 'ODD-1: generated warehouses, aisles of 2 to 3.2 m, up to four people, clear air'
+    },
+    {id: 'C2', type: 'context', parent: 'G1', rel: 'context', text: 'Hazards (lesson 2): striking or bumping a person, hitting a rack'},
+    {id: 'A1', type: 'assumption', parent: 'G1', rel: 'context', text: 'People give way to the robot'},
+    {id: 'S1', type: 'strategy', parent: 'G1', rel: 'support', text: 'Argue over each hazard, then over leaving the domain'},
+    {id: 'G2', type: 'goal', parent: 'S1', rel: 'support', text: 'No contact with a person in the known scenarios'},
+    {
+      id: 'E1',
+      type: 'solution',
+      parent: 'G2',
+      rel: 'support',
+      text: 'The busy floor, people giving way, seeds 7 and 1 to 5: no contact with the robot moving',
+      evidence: {kind: 'runs', level: 4, set: {people: 'reactive'}, seeds: [7, 1, 2, 3, 4, 5], metric: 'contacts', op: '<=', value: 0}
+    },
+    {id: 'G3', type: 'goal', parent: 'S1', rel: 'support', text: 'A search of the domain finds no strike'},
+    {
+      id: 'E2',
+      type: 'solution',
+      parent: 'G3',
+      rel: 'support',
+      text: '40 random worlds of ODD-1 with people giving way, search seed 1: no strike',
+      evidence: {kind: 'search', sheet: 'ODD-1', set: {people: 'reactive'}, budget: 40, seed: 1, metric: 'strikes', op: '<=', value: 0}
+    },
+    {
+      id: 'J1',
+      type: 'justification',
+      parent: 'G3',
+      rel: 'context',
+      text: 'About 1.3 h without a strike bounds the rate below 3 per hour (the rule of three); it does not show it is zero'
+    },
+    {id: 'G4', type: 'goal', parent: 'S1', rel: 'support', text: 'No contact with a rack above 0.3 m/s'},
+    {
+      id: 'E3',
+      type: 'solution',
+      parent: 'G4',
+      rel: 'support',
+      text: 'The same six runs: the fastest contact with a rack at most 0.3 m/s',
+      evidence: {kind: 'runs', level: 4, set: {people: 'reactive'}, seeds: [7, 1, 2, 3, 4, 5], metric: 'rackSpeed', op: '<=', value: 0.3}
+    },
+    {id: 'G5', type: 'goal', parent: 'S1', rel: 'support', text: 'The robot notices fog, outside its domain, within 2 s'},
+    {
+      id: 'E4',
+      type: 'solution',
+      parent: 'G5',
+      rel: 'support',
+      text: 'The busy floor in fog with the ODD monitor: outside within 2 s',
+      evidence: {
+        kind: 'runs',
+        level: 4,
+        set: {people: 'reactive', weather: 'fog', oddMon: true},
+        seeds: [7],
+        secs: 30,
+        metric: 'oddFirst',
+        op: '<=',
+        value: 2
+      }
+    },
+    {
+      id: 'A2',
+      type: 'assumption',
+      parent: 'G5',
+      rel: 'context',
+      text: 'Rain and floor grip, which the robot cannot observe, are excluded by operating rules'
+    }
+  ]
+};
+
 /* ---- core/step.js ---- */
 // One tick, in three parts so that user code in workers can be awaited between them:
 // sense → (custom localizer) → mission and tracking → (custom predictor) → speed planning
@@ -12616,6 +12913,7 @@ function postSense() {
   metrics();
   missionTick();
   agentsTick();
+  oddTick(); // the ODD monitor, when on (core/oddmon.js)
 }
 function preControl() {
   preSense();
@@ -12701,7 +12999,7 @@ function applyCmd(c) {
       steer: c.steer != null ? c.steer + 0.3 * P.actNoise * g.n() : c.steer
     };
   }
-  c = radarBrake(c); // the radar emergency brake, after every controller (core/radar.js)
+  c = oddCmd(radarBrake(c)); // the radar emergency brake and the ODD monitor's manoeuvre, after every controller
   // the zero-velocity update needs the robot still: with it on, the first 2 s of a run are a calibration hold
   if (P.gyro && P.zupt && S.t < 2) c = {v: 0, w: 0, steer: 0};
   S.cmdIssued = c;
@@ -12791,6 +13089,7 @@ function runSummary() {
     mpcMs: S.mpcStats ? +S.mpcStats.ms.toFixed(2) : null,
     ...safeSummary(), // impact speed, clearances, leading indicators and the contact events (core/safety.js)
     ...learnSummary(), // the learned blocks: detection and prediction by slice, out of distribution (core/learnmon.js)
+    ...oddSummary(), // the ODD monitor: when it first saw the robot outside, for how long, how often (core/oddmon.js)
     log: S.log
       .slice(0, 12)
       .map(l => l.t.toFixed(1) + ' ' + l.msg)
@@ -12874,6 +13173,12 @@ self.__core = {
   riskHoursFor,
   poissonCI,
   spiTable,
+  argError,
+  argJobs,
+  argVerdict,
+  argStatus,
+  ARG_BUILTIN,
+  ARG_METRICS,
   makeRng,
   RES,
   get LV() {

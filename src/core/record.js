@@ -54,7 +54,9 @@ function recFrame() {
       fsm: S.fsm.state,
       dyn: isDyn() ? dynSig(S.robot) : null,
       ood: learnSig(), // the learned blocks' out-of-distribution scores now (core/learnmon.js)
-      brake: P.radBrake ? (S.radBrake && S.t < S.radBrake.until ? 1 : 0) : null
+      brake: P.radBrake ? (S.radBrake && S.t < S.radBrake.until ? 1 : 0) : null,
+      odd: P.oddMon ? (S.odd && S.odd.out ? 1 : 0) : null,
+      share: P.oddMon && S.odd && S.odd.share != null ? S.odd.share : null
     }
   });
   if (REC.frames.length > REC.max) REC.frames.splice(0, REC.frames.length - REC.max);

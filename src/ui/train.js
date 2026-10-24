@@ -86,14 +86,16 @@ function trnRecipe(block) {
 const trnRows = () => TRN.rows[TRN.block] || (TRN.rows[TRN.block] = trnDefaultRows(TRN.block));
 const trnModels = block => TRN.models.filter(m => m.block === block);
 
-/* ---------- keeping models in this browser (and the custom levels, ui/levelmenu.js: store 'levels') ---------- */
+/* ---------- keeping models in this browser (and the custom levels, ui/levelmenu.js: store 'levels'; the safety lab's
+   arguments, sheets and sets, ui/argument.js: store 'safety') ---------- */
 let trnDB = null;
 function trnOpenDB() {
   return new Promise(res => {
     try {
-      const r = indexedDB.open('nav-stack-lab', 2);
+      const r = indexedDB.open('nav-stack-lab', 3);
       r.onupgradeneeded = () => {
-        for (const n of ['models', 'levels']) if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, {keyPath: 'id'});
+        for (const n of ['models', 'levels', 'safety'])
+          if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, {keyPath: 'id'});
       };
       r.onsuccess = () => res(r.result);
       r.onerror = r.onblocked = () => res(null);

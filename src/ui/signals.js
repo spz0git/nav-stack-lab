@@ -61,6 +61,8 @@ const SIGNALS = [
   ['tc', 'Steering / turn-rate command', turnU, 'ctl', 'p', d => d.tc],
   ['ta', 'Steering / turn rate', turnU, 'ctl', 'p', d => d.ta],
   ['brake', 'Emergency brake holding (1 = stopped)', '', 'ctl', 'f', f => f.sig && f.sig.brake],
+  ['oddOut', 'ODD monitor: outside the domain (1 = yes)', '', 'plan', 'f', f => f.sig && f.sig.odd],
+  ['oddShare', 'ODD monitor: lidar return share, 2 s mean', '', 'plan', 'f', f => f.sig && f.sig.share],
   ['mpcMs', 'MPC solve time', 'ms', 'ctl', 'f', f => f.sig && f.sig.mpcMs],
   ['mpcIt', 'MPC iterations', '', 'ctl', 'f', f => f.sig && f.sig.mpcIt],
   ['mpcJ', 'MPC cost J', '', 'ctl', 'f', f => f.sig && f.sig.mpcJ],

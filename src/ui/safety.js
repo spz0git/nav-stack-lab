@@ -2,7 +2,8 @@
    Tools → Safety (docs/safety-lab.md, phase 2). The operating domain as a sheet of ranges, checked against the level
    on screen; the scenario search of core/search.js run in background workers, its margin per run charted and the
    worst runs listed, each a button that opens it in the simulator; and scenario sets, the worst runs kept and rerun
-   after a change, exported and imported as JSON. Everything is kept for the session.
+   after a change, exported and imported as JSON. Sheets and sets are kept in this browser (ui/argument.js), and the
+   safety argument has its own section below the sets (ui/argument.js).
    A Try sets it up with cfg.saf = {sheet: 'ODD-1' | {…}, budget, rounds, seed, imp, run: true}.
    Risk (phase 4, lesson 8): the random runs as hours of operation, the rate of contacts and of strikes per hour with
    their 95 % intervals (core/search.js riskRate), the hours a target would need, and the leading indicators ranked
@@ -21,6 +22,7 @@ const SAF = {
   done: 0,
   total: 0,
   sets: [],
+  saved: [], // ODD sheets saved in this browser
   msg: '',
   pts: []
 };
@@ -71,6 +73,11 @@ function safPane() {
     .join('');
   return `<p class="note">Where the stack is meant to work, and a search for the runs inside it where it fails anyway. Every run is a generated ${sh.family} with the settings of ${sh.like}${Object.keys(ex).length ? `, plus what you changed: <b>${esc(fmtOv(ex))}</b>` : ''}, run headless to Mission complete or ${SAF.secs} s.</p>
   <h4 class="saf-h">Operating domain: ${esc(sh.name)}</h4>
+  <div class="exprow"><label>Sheet <select id="saf-sheetpick"><option value="">${esc(sh.name)}</option>${Object.keys(ODD_SHEETS)
+    .map(k => `<option value="b:${k}">${esc(ODD_SHEETS[k].name)}</option>`)
+    .join(
+      ''
+    )}${SAF.saved.map((x, i) => `<option value="s:${i}">${esc(x.name)} (saved)</option>`).join('')}</select></label><label>Save as <input type="text" id="saf-sheetname" size="16" placeholder="a name" aria-label="A name to save this sheet under"></label><button class="linkbtn" id="saf-sheetsave">Save</button><button class="linkbtn" id="saf-monitor" title="The ODD monitor (Mission tab) watches this sheet from now on">${P.oddMon && P.oddSheet === JSON.stringify(sh) ? 'Monitored' : 'Monitor this sheet'}</button></div>
   <div class="exprow saf-sheet">${rng}</div>
   <div class="exprow"><span class="lbl">Weather</span>${box('weather', 'clear', 'clear')}${box('weather', 'rain', 'rain')}${box('weather', 'fog', 'fog')}<span class="lbl">People</span>${box('people', 'scripted', 'scripted')}${box('people', 'reactive', 'react')}<button class="linkbtn" id="saf-reset">Back to ODD-1</button></div>
   ${err ? `<p class="note bad">The sheet needs ${esc(err)}.</p>` : ''}
@@ -81,7 +88,8 @@ function safPane() {
   <div class="expbar" ${SAF.running ? '' : 'hidden'}><i id="saf-bar" style="width:${SAF.total ? (100 * SAF.done) / SAF.total : 0}%"></i></div>
   <div id="saf-out">${safResultsHTML()}</div>
   <h4 class="saf-h">Scenario sets</h4>
-  <div id="saf-sets">${safSetsHTML()}</div>`;
+  <div id="saf-sets">${safSetsHTML()}</div>
+  <div id="arg-sec">${argPaneHTML()}</div>`;
 }
 function safProg() {
   if (SAF.running) return `${SAF.done}/${SAF.total}${SAF.msg ? ' · ' + SAF.msg : ''}`;
@@ -213,7 +221,7 @@ async function safRunJobs(list, extra, done) {
             level: sc.level,
             seed: sc.seed,
             overrides: {...sc.set, ...extra},
-            secs: SAF.secs,
+            secs: sc.secs || SAF.secs,
             stopWhenDone: true,
             models: USER_MODELS
           });
@@ -296,6 +304,28 @@ function safFromTry(c) {
   if (c.sheet) SAF.sheet = oddCopy(typeof c.sheet === 'string' ? ODD_SHEETS[c.sheet] : c.sheet);
   for (const k of ['budget', 'rounds', 'seed']) if (c[k] != null) SAF[k] = c[k];
   SAF.imp = !!c.imp;
+  // the argument: which one, the changes for every run, and whether to check it now
+  if (c.arg != null) {
+    // a name (the start of one), an index, or an argument itself, added once and picked again by name after that
+    let i = typeof c.arg === 'number' ? c.arg : ARG.list.findIndex(a => a.name.startsWith(typeof c.arg === 'string' ? c.arg : c.arg.name));
+    if (i < 0 && typeof c.arg === 'object' && !argError(c.arg)) {
+      argAdd(JSON.parse(JSON.stringify(c.arg)));
+      i = ARG.cur;
+    }
+    if (i >= 0) ARG.cur = i;
+    ARG.sel = argNow().nodes.find(n => !n.parent).id;
+    ARG.verdicts = {};
+    ARG.set = c.argSet || {};
+    if (c.check)
+      (async () => {
+        while (SAF.running || ARG.running) await new Promise(r => setTimeout(r, 100));
+        argCheck();
+        setTimeout(() => {
+          const el = $('#arg-sec');
+          if (el) el.scrollIntoView({block: 'start'});
+        }, 50);
+      })();
+  }
   if (SAF.running) SAF.cancel = true; // a search already running stops after the runs in its workers
   if (c.run)
     (async () => {
@@ -356,11 +386,14 @@ function wireSafOut() {
         .filter(r => r.margin != null)
         .sort((a, b) => a.margin - b.margin || a.i - b.i)
         .slice(0, 5);
-      SAF.sets.push({
+      const set = {
+        id: 's' + Date.now().toString(36),
         name: `Set ${SAF.sets.length + 1}: the worst ${worst.length} runs of the ${SAF.sheet.name.split(',')[0]} search`,
         scenarios: worst.map(r => r.sc),
         last: null
-      });
+      };
+      SAF.sets.push(set);
+      safDBput('set', set.id, set.name, {...set, last: null});
       safRefresh();
     };
 }
@@ -401,7 +434,8 @@ function wireSaf(pane) {
   pane.querySelectorAll('[data-safdrop]').forEach(
     b =>
       (b.onclick = () => {
-        SAF.sets.splice(+b.dataset.safdrop, 1);
+        const [gone] = SAF.sets.splice(+b.dataset.safdrop, 1);
+        if (gone && gone.id) safDBdrop('set', gone.id);
         safRefresh();
       })
   );
@@ -427,14 +461,43 @@ function wireSaf(pane) {
           set: {weather: ok('weather', sc.set && sc.set.weather), people: ok('people', sc.set && sc.set.people)},
           seed: clamp(Math.round(+sc.seed || 7), 1, 99)
         }));
-      SAF.sets.push({name: plainText(j.name, 80) || `Set ${SAF.sets.length + 1}: imported`, scenarios, last: null});
+      const set = {
+        id: 's' + Date.now().toString(36),
+        name: plainText(j.name, 80) || `Set ${SAF.sets.length + 1}: imported`,
+        scenarios,
+        last: null
+      };
+      SAF.sets.push(set);
+      safDBput('set', set.id, set.name, set);
       SAF.msg = `Imported ${scenarios.length} scenarios`;
     } catch (e) {
       SAF.msg = 'Could not import: ' + e.message;
     }
     safRefresh();
   };
+  $('#saf-sheetpick').onchange = e => {
+    const v = e.target.value;
+    if (v.startsWith('b:')) SAF.sheet = oddCopy(ODD_SHEETS[v.slice(2)]);
+    else if (v.startsWith('s:')) SAF.sheet = oddCopy(SAF.saved[+v.slice(2)]);
+    safRefresh();
+  };
+  $('#saf-sheetsave').onclick = () => {
+    const name = plainText($('#saf-sheetname').value || '', 80);
+    if (!name) return toast('Type a name for the sheet first');
+    const sh = {...oddCopy(SAF.sheet), name, id: 'o' + Date.now().toString(36)};
+    SAF.saved.push(sh);
+    SAF.sheet = oddCopy(sh);
+    safDBput('sheet', sh.id, name, sh);
+    safRefresh();
+  };
+  $('#saf-monitor').onclick = () => {
+    setParam('oddSheet', JSON.stringify(SAF.sheet), false);
+    setParam('oddMon', true, false);
+    toast(`The ODD monitor watches ${SAF.sheet.name} (Mission tab)`);
+    safRefresh();
+  };
   wireSafOut();
   drawSafChart();
   drawSpiChart();
+  wireArg(pane);
 }

@@ -435,6 +435,9 @@ const TIPS = {
   mis: 'In order visits goals as numbered. Greedy picks the nearest next. Optimal solves the open-path TSP.',
   replan: 'Replan on a timer in addition to the event-driven triggers.',
   lostGuard: 'Stop when the position uncertainty exceeds 1 m.',
+  oddMon:
+    'Watch what the robot can observe of its operating domain against the sheet it was given, and crawl or stop while it is outside. Off by default.',
+  oddResp: 'What the robot does outside its domain: crawl at 0.3 m/s, or stop until it is back inside.',
   misLoop: 'After the last goal the mission starts again from the first, so the robot drives until you stop it.',
   map: "The level's obstacles, or an empty floor with only the outer walls. Paint (W) and Erase (E) on the map edit either.",
   plan: 'Global planner on the costmap. Reeds–Shepp and Hybrid A* are car-only.',

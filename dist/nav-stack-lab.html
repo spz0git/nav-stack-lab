@@ -5297,6 +5297,97 @@ article.chapter .notes-table td button.try {
 .sens-row.na {
   opacity: 0.6;
 }
+/* the safety argument (ui/argument.js): GSN shapes, coloured by their evidence */
+.arg-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--raise);
+  padding: 6px;
+  margin: 6px 0;
+}
+.argdlg {
+  width: 96vw;
+  max-width: none;
+}
+.argdlg .arg-wrap {
+  margin: 0;
+  border: 0;
+  overflow: auto;
+}
+.arg-svg {
+  display: block;
+  max-width: none;
+  font-family: var(--f-display);
+}
+.arg-n {
+  cursor: pointer;
+}
+.arg-n rect,
+.arg-n polygon,
+.arg-n ellipse {
+  fill: color-mix(in srgb, var(--st) 12%, var(--raise));
+  stroke: var(--st);
+  stroke-width: 1.4;
+}
+.arg-n.context rect,
+.arg-n.assumption ellipse,
+.arg-n.justification ellipse {
+  fill: var(--panel);
+  stroke: var(--line-2);
+  stroke-dasharray: 4 3;
+}
+.arg-n.sel rect,
+.arg-n.sel polygon,
+.arg-n.sel ellipse {
+  stroke-width: 2.6;
+}
+.arg-n:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.arg-t {
+  font-size: 11px;
+  fill: var(--ink);
+  text-anchor: middle;
+}
+.arg-id {
+  font-size: 9px;
+  font-family: var(--f-mono);
+  fill: var(--muted);
+}
+.arg-val {
+  font-size: 10px;
+  font-family: var(--f-mono);
+  fill: var(--st);
+  text-anchor: middle;
+}
+.arg-sup,
+.arg-ctx {
+  fill: none;
+  stroke: var(--line-2);
+  stroke-width: 1.2;
+}
+.arg-ctx {
+  stroke-dasharray: 3 3;
+}
+.arg-hd {
+  fill: var(--line-2);
+}
+.arg-ho {
+  fill: var(--raise);
+  stroke: var(--line-2);
+}
+.arg-set input {
+  width: min(360px, 60vw);
+  font-family: var(--f-mono);
+}
+#arg-text,
+#arg-ev,
+#arg-json {
+  width: 100%;
+  font-family: var(--f-mono);
+  font-size: 12px;
+}
 </style>
 </head>
 <body>
@@ -7098,6 +7189,9 @@ const DEFAULTS = {
   sensLat: 0,
   vehicles: true,
   guard: false,
+  oddMon: false, // the ODD monitor (core/oddmon.js): a minimal-risk manoeuvre when the robot sees it is outside its domain
+  oddResp: 'crawl', // its manoeuvre: crawl at 0.3 m/s, or stop
+  oddSheet: 'ODD-1', // the sheet it watches: a name in ODD_SHEETS, or a sheet's JSON
   radBrake: false, // the radar emergency brake (core/radar.js): stop for a radar echo in the way, closing, under radTTC
   radTTC: 1, // its time to contact [s]
   // the ultrasonic ring (core/sensors.js), off by default; what reads it: mapSrc, guardSrc, pfSonar
@@ -7148,7 +7242,8 @@ const PARAM_OPTS = {
   mapSrc: ['lidar', 'sonar', 'both'],
   guardSrc: ['lidar', 'sonar', 'both'],
   trkIn: ['lidar', 'radar', 'both'],
-  weather: ['clear', 'rain', 'fog']
+  weather: ['clear', 'rain', 'fog'],
+  oddResp: ['crawl', 'stop']
 };
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
@@ -7263,7 +7358,9 @@ function recFrame() {
       fsm: S.fsm.state,
       dyn: isDyn() ? dynSig(S.robot) : null,
       ood: learnSig(), // the learned blocks' out-of-distribution scores now (core/learnmon.js)
-      brake: P.radBrake ? (S.radBrake && S.t < S.radBrake.until ? 1 : 0) : null
+      brake: P.radBrake ? (S.radBrake && S.t < S.radBrake.until ? 1 : 0) : null,
+      odd: P.oddMon ? (S.odd && S.odd.out ? 1 : 0) : null,
+      share: P.oddMon && S.odd && S.odd.share != null ? S.odd.share : null
     }
   });
   if (REC.frames.length > REC.max) REC.frames.splice(0, REC.frames.length - REC.max);
@@ -16880,6 +16977,91 @@ function learnSummary() {
   return out;
 }
 
+/* ---- core/oddmon.js ---- */
+/* ============================================================
+   The ODD monitor (design C6; safety lesson 9). Off by default (P.oddMon). It watches what the robot itself can observe
+   of its operating domain against the sheet it was given (P.oddSheet, a sheet's name or its JSON) and, once it has been
+   outside for 1 s, takes a minimal-risk manoeuvre (P.oddResp): a crawl at 0.3 m/s or a stop, until it has been back
+   inside for 3 s. Observable here:
+   - the weather, from the lidar's return share averaged over the last 2 s: below 0.65 the air is not clear (measured,
+     L5 and generated warehouses: 0.86–0.93 in clear air, 0.67–0.76 in rain, 0.57–0.59 in fog); checked only when the
+     sheet allows clear air alone, and blind to rain, which sits between;
+   - a learned block in use whose input has been outside its training data for most of the last 5 s (core/learnmon.js).
+   Not observable, and so left to operational restrictions: the floor's grip, the people's intentions, the aisle width
+   before it is seen. With the monitor off nothing here runs.
+   ============================================================ */
+const OM_SHARE = 0.65, // the 2 s mean return share below which the air is not clear
+  OM_WIN = 2, // s
+  OM_ENTER = 1, // s outside before the manoeuvre
+  OM_LEAVE = 3, // s inside before it ends
+  OM_CRAWL = 0.3; // m/s
+function oddSheetOf(v) {
+  if (v && typeof v === 'object') return v;
+  if (typeof v === 'string' && v.trim().startsWith('{'))
+    try {
+      return JSON.parse(v);
+    } catch (_) {
+      return null;
+    }
+  return ODD_SHEETS[v] || null;
+}
+// Once per tick, after the scan (core/step.js postSense)
+function oddTick() {
+  if (!P.oddMon) return;
+  if (!S.odd) S.odd = {win: [], out: false, since: S.t, why: '', outS: 0, first: null, n: 0};
+  const O = S.odd,
+    sh = oddSheetOf(P.oddSheet);
+  if (S.scanTick === S.tick && S.scan && P.lidar) {
+    let h = 0;
+    for (const r of S.scan) if (r < LMAX - 1e-3) h++;
+    O.win.push([S.t, h / S.scan.length]);
+  }
+  while (O.win.length && O.win[0][0] < S.t - OM_WIN) O.win.shift();
+  const why = [];
+  if (sh && sh.weather && sh.weather.length === 1 && sh.weather[0] === 'clear' && O.win.length >= 10) {
+    const m = O.win.reduce((a, w) => a + w[1], 0) / O.win.length;
+    O.share = m;
+    if (m < OM_SHARE) why.push(`the air is not clear (the lidar returns ${(100 * m).toFixed(0)} % of its beams)`);
+  }
+  const L = S.learn;
+  if (L)
+    for (const [b, [, used, name]] of Object.entries(LM_USE)) {
+      const W = used() && L.ood[b] && L.ood[b].win;
+      if (W && W.length >= 3 && W.filter(w => w[1]).length / W.length > 0.5)
+        why.push(`the learned ${name}'s input is unlike its training data`);
+    }
+  const outNow = why.length > 0;
+  if (outNow !== O.rawOut) {
+    O.rawOut = outNow;
+    O.rawSince = S.t;
+  }
+  if (outNow) O.why = why.join('; ');
+  const held = S.t - (O.rawSince ?? S.t);
+  if (!O.out && outNow && held >= OM_ENTER) {
+    O.out = true;
+    O.n++;
+    if (O.first == null) O.first = +S.t.toFixed(2);
+    logE(`Outside the operating domain: ${O.why} · ${P.oddResp === 'stop' ? 'stopping' : `crawling at ${OM_CRAWL} m/s`}`, 'warn');
+  } else if (O.out && !outNow && held >= OM_LEAVE) {
+    O.out = false;
+    logE('Back inside the operating domain · normal speed', 'ok');
+  }
+  if (O.out && S.fsm.state !== 'IDLE' && S.fsm.state !== 'DONE') O.outS += DT;
+}
+// The command with the manoeuvre applied (core/step.js applyCmd, after every controller)
+function oddCmd(c) {
+  if (!P.oddMon || !S.odd || !S.odd.out) return c;
+  const lim = P.oddResp === 'stop' ? 0 : OM_CRAWL,
+    v = Math.abs(c.v || 0);
+  if (v <= lim) return c;
+  const f = v > 1e-9 ? lim / v : 0;
+  return {...c, v: c.v * f, ...(c.w != null && !isCar() ? {w: c.w * f} : {})};
+}
+function oddSummary() {
+  const O = S.odd;
+  return O ? {oddFirst: O.first, oddOutS: +O.outS.toFixed(1), oddN: O.n} : {oddFirst: null, oddOutS: 0, oddN: 0};
+}
+
 /* ---- core/fidelity.js ---- */
 /* ============================================================
    Fidelity: sensor latency, reactive pedestrians (social force), other vehicles
@@ -17588,6 +17770,8 @@ function healthNow(f) {
     C('plan', 'Path', st === 'NO_PATH', 'bad', `no path to the next goal${F.fails ? ` (attempt ${F.fails} of 3)` : ''}`);
     healthSensorChecks(C, 'plan');
     learnHealth(C, 'plan', f);
+    if (P.oddMon)
+      C('plan', 'Operating domain', !f && S.odd && S.odd.out, 'warn', `outside the operating domain: ${S.odd ? S.odd.why : ''}`);
     C('plan', 'Goals', st === 'IDLE' && !n, 'idle', 'no goals: tap the map to add some');
     C('plan', 'Goals skipped', skipped > 0, 'warn', `${skipped} goal${skipped === 1 ? '' : 's'} skipped`);
     C('plan', 'Plan time', ps && ps.ms > 250 && !f, 'warn', ps ? `last plan took ${ps.ms.toFixed(0)} ms (${ps.name})` : '');
@@ -18006,6 +18190,210 @@ function spiTable(runs) {
   return out.sort((a, b) => b.rho - a.rho);
 }
 
+/* ---- core/argument.js ---- */
+/* ============================================================
+   The safety argument (design §3.5; safety lesson 9): claims, the strategies that break them down, and the evidence that
+   supports them, in Goal Structuring Notation, with the evidence live: each solution says what to run and what must
+   hold, and the page (ui/argument.js) or Node (tools/argument.mjs) reruns it and colours the graph. Shared, so both
+   judge an argument the same way.
+   An argument: {format: 'nav-stack-lab-argument', version: 1, name, nodes: [{id, type, text, parent, rel, evidence}]}
+   - type: goal (a claim), strategy (how a goal is broken down), solution (evidence), context, assumption, justification;
+   - parent: the node it hangs from (none for the top goal); rel: 'support' (goal ← strategy ← goal ← solution) or
+     'context' (context, assumption and justification, drawn beside);
+   - evidence (solutions only): {kind: 'runs', level, set, seeds, secs, metric, op, value} runs a configuration at each
+     seed; {kind: 'search', sheet, budget, rounds, seed, imp, metric, op, value} runs a search and reads its random half.
+   A solution passes when its metric meets the bound; a goal or strategy is supported when every supporting child is,
+   and fails as soon as one fails, so a red leaf shows red all the way up. Context, assumptions and justifications are
+   not judged: they are what the claim leans on, made visible.
+   ============================================================ */
+const ARG_TYPES = ['goal', 'strategy', 'solution', 'context', 'assumption', 'justification'],
+  ARG_SIDE = ['context', 'assumption', 'justification'],
+  ARG_OPS = {'<=': (a, b) => a <= b, '<': (a, b) => a < b, '>=': (a, b) => a >= b, '>': (a, b) => a > b, '==': (a, b) => a === b};
+// What a solution can measure: from runs (one summary per seed) or from a search's random runs
+const ARG_METRICS = {
+  contacts: [
+    'contacts with a person, the robot moving (all seeds)',
+    R => R.reduce((a, s) => a + s.events.filter(RISK_EV.contact).length, 0)
+  ],
+  strikes: ['strikes (all seeds)', R => R.reduce((a, s) => a + s.events.filter(RISK_EV.strike).length, 0)],
+  rackSpeed: [
+    'the fastest contact with a rack or wall, m/s',
+    R => Math.max(0, ...R.flatMap(s => s.events.filter(e => e.kind === 'static').map(e => e.v)))
+  ],
+  impact: ['the fastest contact with a person, m/s', R => Math.max(0, ...R.map(s => s.impact || 0))],
+  oddFirst: [
+    'when the ODD monitor first saw the robot outside, s (the latest seed)',
+    R => Math.max(...R.map(s => (s.oddFirst == null ? Infinity : s.oddFirst)))
+  ],
+  goals: ['the share of goals reached (the worst seed)', R => Math.min(...R.map(s => (s.goals ? s.goalsDone / s.goals : 1)))],
+  strikeRateHi: [
+    'the top of the 95 % interval of strikes per hour',
+    (R, W) =>
+      riskRate(
+        R.map((s, i) => ({s, w: W ? W[i] : 1})),
+        'strike'
+      ).hi
+  ],
+  contactRateHi: [
+    'the top of the 95 % interval of contacts per hour',
+    (R, W) =>
+      riskRate(
+        R.map((s, i) => ({s, w: W ? W[i] : 1})),
+        'contact'
+      ).hi
+  ]
+};
+// A malformed argument says why; null when it is fine
+function argError(A) {
+  if (!A || A.format !== 'nav-stack-lab-argument' || !Array.isArray(A.nodes) || !A.nodes.length) return 'not an argument';
+  const ids = new Set();
+  for (const n of A.nodes) {
+    if (!n.id || ids.has(n.id)) return `a node without an id, or a repeated one (${n.id})`;
+    ids.add(n.id);
+    if (!ARG_TYPES.includes(n.type)) return `node ${n.id}: a type of ${ARG_TYPES.join(', ')}`;
+  }
+  const tops = A.nodes.filter(n => !n.parent);
+  if (tops.length !== 1 || tops[0].type !== 'goal') return 'exactly one top node, a goal';
+  for (const n of A.nodes) {
+    if (n.parent && !ids.has(n.parent)) return `node ${n.id}: its parent ${n.parent} is missing`;
+    if (n.evidence) {
+      const E = n.evidence;
+      if (n.type !== 'solution') return `node ${n.id}: only a solution carries evidence`;
+      if (!['runs', 'search'].includes(E.kind) || !ARG_METRICS[E.metric] || !ARG_OPS[E.op] || typeof E.value !== 'number')
+        return `node ${n.id}: evidence needs kind runs or search, a metric of ${Object.keys(ARG_METRICS).join(', ')}, an op and a number`;
+    }
+  }
+  const byId = Object.fromEntries(A.nodes.map(n => [n.id, n]));
+  for (const n of A.nodes) {
+    let p = n;
+    for (let d = 0; p.parent; d++) {
+      if (d > A.nodes.length) return `node ${n.id} is its own ancestor`;
+      p = byId[p.parent];
+    }
+  }
+  return null;
+}
+// The jobs a solution's evidence needs: [{level, set, seed, secs, w}] with the extra settings (your changes) on top
+function argJobs(E, extra = {}) {
+  if (E.kind === 'runs') {
+    const lv = typeof E.level === 'object' ? genSpec(E.level) : E.level;
+    return (E.seeds || [7]).map(seed => ({level: lv, set: {...(E.set || {}), ...extra}, seed, secs: E.secs || 300}));
+  }
+  const sh = typeof E.sheet === 'string' ? ODD_SHEETS[E.sheet] : E.sheet,
+    u = makeRng((E.seed || 1) * 7919 + 17).u,
+    out = [];
+  for (const step of searchPlan(E.budget || 40, 0)) {
+    for (const sc of searchBatch(step, [], sh, u, !!E.imp))
+      out.push({level: sc.level, set: {...sc.set, ...(E.set || {}), ...extra}, seed: sc.seed, secs: E.secs || 300, w: sc.w || 1});
+  }
+  return out;
+}
+// A solution's verdict from its jobs' summaries: {value, pass}
+function argVerdict(E, sums, jobs) {
+  if (sums.some(s => !s)) return {value: null, pass: false, error: true};
+  const v = ARG_METRICS[E.metric][1](
+    sums,
+    jobs.map(j => j.w || 1)
+  );
+  return {value: v, pass: v != null && ARG_OPS[E.op](v, E.value)};
+}
+// Every node's status from the solutions' verdicts: 'pass', 'fail' or null (not run, or not judged)
+function argStatus(A, verdicts) {
+  const kids = id => A.nodes.filter(n => n.parent === id && !ARG_SIDE.includes(n.type)),
+    memo = {};
+  const st = n => {
+    if (n.id in memo) return memo[n.id];
+    let s = null;
+    if (ARG_SIDE.includes(n.type)) s = null;
+    else if (n.type === 'solution') s = verdicts[n.id] ? (verdicts[n.id].pass ? 'pass' : 'fail') : null;
+    else {
+      const K = kids(n.id).map(st);
+      s = K.includes('fail') ? 'fail' : K.length && K.every(x => x === 'pass') ? 'pass' : null;
+    }
+    return (memo[n.id] = s);
+  };
+  for (const n of A.nodes) st(n);
+  return memo;
+}
+// The lesson's argument: the busy floor, inside ODD-1 with people who give way
+const ARG_BUILTIN = {
+  format: 'nav-stack-lab-argument',
+  version: 1,
+  name: 'ARG-1, the busy floor with people who give way',
+  nodes: [
+    {id: 'G1', type: 'goal', text: 'The robot is acceptably safe on the busy floor, within ODD-1 with people who give way'},
+    {
+      id: 'C1',
+      type: 'context',
+      parent: 'G1',
+      rel: 'context',
+      text: 'ODD-1: generated warehouses, aisles of 2 to 3.2 m, up to four people, clear air'
+    },
+    {id: 'C2', type: 'context', parent: 'G1', rel: 'context', text: 'Hazards (lesson 2): striking or bumping a person, hitting a rack'},
+    {id: 'A1', type: 'assumption', parent: 'G1', rel: 'context', text: 'People give way to the robot'},
+    {id: 'S1', type: 'strategy', parent: 'G1', rel: 'support', text: 'Argue over each hazard, then over leaving the domain'},
+    {id: 'G2', type: 'goal', parent: 'S1', rel: 'support', text: 'No contact with a person in the known scenarios'},
+    {
+      id: 'E1',
+      type: 'solution',
+      parent: 'G2',
+      rel: 'support',
+      text: 'The busy floor, people giving way, seeds 7 and 1 to 5: no contact with the robot moving',
+      evidence: {kind: 'runs', level: 4, set: {people: 'reactive'}, seeds: [7, 1, 2, 3, 4, 5], metric: 'contacts', op: '<=', value: 0}
+    },
+    {id: 'G3', type: 'goal', parent: 'S1', rel: 'support', text: 'A search of the domain finds no strike'},
+    {
+      id: 'E2',
+      type: 'solution',
+      parent: 'G3',
+      rel: 'support',
+      text: '40 random worlds of ODD-1 with people giving way, search seed 1: no strike',
+      evidence: {kind: 'search', sheet: 'ODD-1', set: {people: 'reactive'}, budget: 40, seed: 1, metric: 'strikes', op: '<=', value: 0}
+    },
+    {
+      id: 'J1',
+      type: 'justification',
+      parent: 'G3',
+      rel: 'context',
+      text: 'About 1.3 h without a strike bounds the rate below 3 per hour (the rule of three); it does not show it is zero'
+    },
+    {id: 'G4', type: 'goal', parent: 'S1', rel: 'support', text: 'No contact with a rack above 0.3 m/s'},
+    {
+      id: 'E3',
+      type: 'solution',
+      parent: 'G4',
+      rel: 'support',
+      text: 'The same six runs: the fastest contact with a rack at most 0.3 m/s',
+      evidence: {kind: 'runs', level: 4, set: {people: 'reactive'}, seeds: [7, 1, 2, 3, 4, 5], metric: 'rackSpeed', op: '<=', value: 0.3}
+    },
+    {id: 'G5', type: 'goal', parent: 'S1', rel: 'support', text: 'The robot notices fog, outside its domain, within 2 s'},
+    {
+      id: 'E4',
+      type: 'solution',
+      parent: 'G5',
+      rel: 'support',
+      text: 'The busy floor in fog with the ODD monitor: outside within 2 s',
+      evidence: {
+        kind: 'runs',
+        level: 4,
+        set: {people: 'reactive', weather: 'fog', oddMon: true},
+        seeds: [7],
+        secs: 30,
+        metric: 'oddFirst',
+        op: '<=',
+        value: 2
+      }
+    },
+    {
+      id: 'A2',
+      type: 'assumption',
+      parent: 'G5',
+      rel: 'context',
+      text: 'Rain and floor grip, which the robot cannot observe, are excluded by operating rules'
+    }
+  ]
+};
+
 /* ---- core/step.js ---- */
 // One tick, in three parts so that user code in workers can be awaited between them:
 // sense → (custom localizer) → mission and tracking → (custom predictor) → speed planning
@@ -18033,6 +18421,7 @@ function postSense() {
   metrics();
   missionTick();
   agentsTick();
+  oddTick(); // the ODD monitor, when on (core/oddmon.js)
 }
 function preControl() {
   preSense();
@@ -18118,7 +18507,7 @@ function applyCmd(c) {
       steer: c.steer != null ? c.steer + 0.3 * P.actNoise * g.n() : c.steer
     };
   }
-  c = radarBrake(c); // the radar emergency brake, after every controller (core/radar.js)
+  c = oddCmd(radarBrake(c)); // the radar emergency brake and the ODD monitor's manoeuvre, after every controller
   // the zero-velocity update needs the robot still: with it on, the first 2 s of a run are a calibration hold
   if (P.gyro && P.zupt && S.t < 2) c = {v: 0, w: 0, steer: 0};
   S.cmdIssued = c;
@@ -18208,6 +18597,7 @@ function runSummary() {
     mpcMs: S.mpcStats ? +S.mpcStats.ms.toFixed(2) : null,
     ...safeSummary(), // impact speed, clearances, leading indicators and the contact events (core/safety.js)
     ...learnSummary(), // the learned blocks: detection and prediction by slice, out of distribution (core/learnmon.js)
+    ...oddSummary(), // the ODD monitor: when it first saw the robot outside, for how long, how often (core/oddmon.js)
     log: S.log
       .slice(0, 12)
       .map(l => l.t.toFixed(1) + ' ' + l.msg)
@@ -18291,6 +18681,12 @@ self.__core = {
   riskHoursFor,
   poissonCI,
   spiTable,
+  argError,
+  argJobs,
+  argVerdict,
+  argStatus,
+  ARG_BUILTIN,
+  ARG_METRICS,
   makeRng,
   RES,
   get LV() {
@@ -20050,6 +20446,9 @@ const DEFAULTS = {
   sensLat: 0,
   vehicles: true,
   guard: false,
+  oddMon: false, // the ODD monitor (core/oddmon.js): a minimal-risk manoeuvre when the robot sees it is outside its domain
+  oddResp: 'crawl', // its manoeuvre: crawl at 0.3 m/s, or stop
+  oddSheet: 'ODD-1', // the sheet it watches: a name in ODD_SHEETS, or a sheet's JSON
   radBrake: false, // the radar emergency brake (core/radar.js): stop for a radar echo in the way, closing, under radTTC
   radTTC: 1, // its time to contact [s]
   // the ultrasonic ring (core/sensors.js), off by default; what reads it: mapSrc, guardSrc, pfSonar
@@ -20100,7 +20499,8 @@ const PARAM_OPTS = {
   mapSrc: ['lidar', 'sonar', 'both'],
   guardSrc: ['lidar', 'sonar', 'both'],
   trkIn: ['lidar', 'radar', 'both'],
-  weather: ['clear', 'rain', 'fog']
+  weather: ['clear', 'rain', 'fog'],
+  oddResp: ['crawl', 'stop']
 };
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
@@ -20215,7 +20615,9 @@ function recFrame() {
       fsm: S.fsm.state,
       dyn: isDyn() ? dynSig(S.robot) : null,
       ood: learnSig(), // the learned blocks' out-of-distribution scores now (core/learnmon.js)
-      brake: P.radBrake ? (S.radBrake && S.t < S.radBrake.until ? 1 : 0) : null
+      brake: P.radBrake ? (S.radBrake && S.t < S.radBrake.until ? 1 : 0) : null,
+      odd: P.oddMon ? (S.odd && S.odd.out ? 1 : 0) : null,
+      share: P.oddMon && S.odd && S.odd.share != null ? S.odd.share : null
     }
   });
   if (REC.frames.length > REC.max) REC.frames.splice(0, REC.frames.length - REC.max);
@@ -29832,6 +30234,91 @@ function learnSummary() {
   return out;
 }
 
+/* ---- core/oddmon.js ---- */
+/* ============================================================
+   The ODD monitor (design C6; safety lesson 9). Off by default (P.oddMon). It watches what the robot itself can observe
+   of its operating domain against the sheet it was given (P.oddSheet, a sheet's name or its JSON) and, once it has been
+   outside for 1 s, takes a minimal-risk manoeuvre (P.oddResp): a crawl at 0.3 m/s or a stop, until it has been back
+   inside for 3 s. Observable here:
+   - the weather, from the lidar's return share averaged over the last 2 s: below 0.65 the air is not clear (measured,
+     L5 and generated warehouses: 0.86–0.93 in clear air, 0.67–0.76 in rain, 0.57–0.59 in fog); checked only when the
+     sheet allows clear air alone, and blind to rain, which sits between;
+   - a learned block in use whose input has been outside its training data for most of the last 5 s (core/learnmon.js).
+   Not observable, and so left to operational restrictions: the floor's grip, the people's intentions, the aisle width
+   before it is seen. With the monitor off nothing here runs.
+   ============================================================ */
+const OM_SHARE = 0.65, // the 2 s mean return share below which the air is not clear
+  OM_WIN = 2, // s
+  OM_ENTER = 1, // s outside before the manoeuvre
+  OM_LEAVE = 3, // s inside before it ends
+  OM_CRAWL = 0.3; // m/s
+function oddSheetOf(v) {
+  if (v && typeof v === 'object') return v;
+  if (typeof v === 'string' && v.trim().startsWith('{'))
+    try {
+      return JSON.parse(v);
+    } catch (_) {
+      return null;
+    }
+  return ODD_SHEETS[v] || null;
+}
+// Once per tick, after the scan (core/step.js postSense)
+function oddTick() {
+  if (!P.oddMon) return;
+  if (!S.odd) S.odd = {win: [], out: false, since: S.t, why: '', outS: 0, first: null, n: 0};
+  const O = S.odd,
+    sh = oddSheetOf(P.oddSheet);
+  if (S.scanTick === S.tick && S.scan && P.lidar) {
+    let h = 0;
+    for (const r of S.scan) if (r < LMAX - 1e-3) h++;
+    O.win.push([S.t, h / S.scan.length]);
+  }
+  while (O.win.length && O.win[0][0] < S.t - OM_WIN) O.win.shift();
+  const why = [];
+  if (sh && sh.weather && sh.weather.length === 1 && sh.weather[0] === 'clear' && O.win.length >= 10) {
+    const m = O.win.reduce((a, w) => a + w[1], 0) / O.win.length;
+    O.share = m;
+    if (m < OM_SHARE) why.push(`the air is not clear (the lidar returns ${(100 * m).toFixed(0)} % of its beams)`);
+  }
+  const L = S.learn;
+  if (L)
+    for (const [b, [, used, name]] of Object.entries(LM_USE)) {
+      const W = used() && L.ood[b] && L.ood[b].win;
+      if (W && W.length >= 3 && W.filter(w => w[1]).length / W.length > 0.5)
+        why.push(`the learned ${name}'s input is unlike its training data`);
+    }
+  const outNow = why.length > 0;
+  if (outNow !== O.rawOut) {
+    O.rawOut = outNow;
+    O.rawSince = S.t;
+  }
+  if (outNow) O.why = why.join('; ');
+  const held = S.t - (O.rawSince ?? S.t);
+  if (!O.out && outNow && held >= OM_ENTER) {
+    O.out = true;
+    O.n++;
+    if (O.first == null) O.first = +S.t.toFixed(2);
+    logE(`Outside the operating domain: ${O.why} · ${P.oddResp === 'stop' ? 'stopping' : `crawling at ${OM_CRAWL} m/s`}`, 'warn');
+  } else if (O.out && !outNow && held >= OM_LEAVE) {
+    O.out = false;
+    logE('Back inside the operating domain · normal speed', 'ok');
+  }
+  if (O.out && S.fsm.state !== 'IDLE' && S.fsm.state !== 'DONE') O.outS += DT;
+}
+// The command with the manoeuvre applied (core/step.js applyCmd, after every controller)
+function oddCmd(c) {
+  if (!P.oddMon || !S.odd || !S.odd.out) return c;
+  const lim = P.oddResp === 'stop' ? 0 : OM_CRAWL,
+    v = Math.abs(c.v || 0);
+  if (v <= lim) return c;
+  const f = v > 1e-9 ? lim / v : 0;
+  return {...c, v: c.v * f, ...(c.w != null && !isCar() ? {w: c.w * f} : {})};
+}
+function oddSummary() {
+  const O = S.odd;
+  return O ? {oddFirst: O.first, oddOutS: +O.outS.toFixed(1), oddN: O.n} : {oddFirst: null, oddOutS: 0, oddN: 0};
+}
+
 /* ---- core/fidelity.js ---- */
 /* ============================================================
    Fidelity: sensor latency, reactive pedestrians (social force), other vehicles
@@ -30540,6 +31027,8 @@ function healthNow(f) {
     C('plan', 'Path', st === 'NO_PATH', 'bad', `no path to the next goal${F.fails ? ` (attempt ${F.fails} of 3)` : ''}`);
     healthSensorChecks(C, 'plan');
     learnHealth(C, 'plan', f);
+    if (P.oddMon)
+      C('plan', 'Operating domain', !f && S.odd && S.odd.out, 'warn', `outside the operating domain: ${S.odd ? S.odd.why : ''}`);
     C('plan', 'Goals', st === 'IDLE' && !n, 'idle', 'no goals: tap the map to add some');
     C('plan', 'Goals skipped', skipped > 0, 'warn', `${skipped} goal${skipped === 1 ? '' : 's'} skipped`);
     C('plan', 'Plan time', ps && ps.ms > 250 && !f, 'warn', ps ? `last plan took ${ps.ms.toFixed(0)} ms (${ps.name})` : '');
@@ -30958,6 +31447,210 @@ function spiTable(runs) {
   return out.sort((a, b) => b.rho - a.rho);
 }
 
+/* ---- core/argument.js ---- */
+/* ============================================================
+   The safety argument (design §3.5; safety lesson 9): claims, the strategies that break them down, and the evidence that
+   supports them, in Goal Structuring Notation, with the evidence live: each solution says what to run and what must
+   hold, and the page (ui/argument.js) or Node (tools/argument.mjs) reruns it and colours the graph. Shared, so both
+   judge an argument the same way.
+   An argument: {format: 'nav-stack-lab-argument', version: 1, name, nodes: [{id, type, text, parent, rel, evidence}]}
+   - type: goal (a claim), strategy (how a goal is broken down), solution (evidence), context, assumption, justification;
+   - parent: the node it hangs from (none for the top goal); rel: 'support' (goal ← strategy ← goal ← solution) or
+     'context' (context, assumption and justification, drawn beside);
+   - evidence (solutions only): {kind: 'runs', level, set, seeds, secs, metric, op, value} runs a configuration at each
+     seed; {kind: 'search', sheet, budget, rounds, seed, imp, metric, op, value} runs a search and reads its random half.
+   A solution passes when its metric meets the bound; a goal or strategy is supported when every supporting child is,
+   and fails as soon as one fails, so a red leaf shows red all the way up. Context, assumptions and justifications are
+   not judged: they are what the claim leans on, made visible.
+   ============================================================ */
+const ARG_TYPES = ['goal', 'strategy', 'solution', 'context', 'assumption', 'justification'],
+  ARG_SIDE = ['context', 'assumption', 'justification'],
+  ARG_OPS = {'<=': (a, b) => a <= b, '<': (a, b) => a < b, '>=': (a, b) => a >= b, '>': (a, b) => a > b, '==': (a, b) => a === b};
+// What a solution can measure: from runs (one summary per seed) or from a search's random runs
+const ARG_METRICS = {
+  contacts: [
+    'contacts with a person, the robot moving (all seeds)',
+    R => R.reduce((a, s) => a + s.events.filter(RISK_EV.contact).length, 0)
+  ],
+  strikes: ['strikes (all seeds)', R => R.reduce((a, s) => a + s.events.filter(RISK_EV.strike).length, 0)],
+  rackSpeed: [
+    'the fastest contact with a rack or wall, m/s',
+    R => Math.max(0, ...R.flatMap(s => s.events.filter(e => e.kind === 'static').map(e => e.v)))
+  ],
+  impact: ['the fastest contact with a person, m/s', R => Math.max(0, ...R.map(s => s.impact || 0))],
+  oddFirst: [
+    'when the ODD monitor first saw the robot outside, s (the latest seed)',
+    R => Math.max(...R.map(s => (s.oddFirst == null ? Infinity : s.oddFirst)))
+  ],
+  goals: ['the share of goals reached (the worst seed)', R => Math.min(...R.map(s => (s.goals ? s.goalsDone / s.goals : 1)))],
+  strikeRateHi: [
+    'the top of the 95 % interval of strikes per hour',
+    (R, W) =>
+      riskRate(
+        R.map((s, i) => ({s, w: W ? W[i] : 1})),
+        'strike'
+      ).hi
+  ],
+  contactRateHi: [
+    'the top of the 95 % interval of contacts per hour',
+    (R, W) =>
+      riskRate(
+        R.map((s, i) => ({s, w: W ? W[i] : 1})),
+        'contact'
+      ).hi
+  ]
+};
+// A malformed argument says why; null when it is fine
+function argError(A) {
+  if (!A || A.format !== 'nav-stack-lab-argument' || !Array.isArray(A.nodes) || !A.nodes.length) return 'not an argument';
+  const ids = new Set();
+  for (const n of A.nodes) {
+    if (!n.id || ids.has(n.id)) return `a node without an id, or a repeated one (${n.id})`;
+    ids.add(n.id);
+    if (!ARG_TYPES.includes(n.type)) return `node ${n.id}: a type of ${ARG_TYPES.join(', ')}`;
+  }
+  const tops = A.nodes.filter(n => !n.parent);
+  if (tops.length !== 1 || tops[0].type !== 'goal') return 'exactly one top node, a goal';
+  for (const n of A.nodes) {
+    if (n.parent && !ids.has(n.parent)) return `node ${n.id}: its parent ${n.parent} is missing`;
+    if (n.evidence) {
+      const E = n.evidence;
+      if (n.type !== 'solution') return `node ${n.id}: only a solution carries evidence`;
+      if (!['runs', 'search'].includes(E.kind) || !ARG_METRICS[E.metric] || !ARG_OPS[E.op] || typeof E.value !== 'number')
+        return `node ${n.id}: evidence needs kind runs or search, a metric of ${Object.keys(ARG_METRICS).join(', ')}, an op and a number`;
+    }
+  }
+  const byId = Object.fromEntries(A.nodes.map(n => [n.id, n]));
+  for (const n of A.nodes) {
+    let p = n;
+    for (let d = 0; p.parent; d++) {
+      if (d > A.nodes.length) return `node ${n.id} is its own ancestor`;
+      p = byId[p.parent];
+    }
+  }
+  return null;
+}
+// The jobs a solution's evidence needs: [{level, set, seed, secs, w}] with the extra settings (your changes) on top
+function argJobs(E, extra = {}) {
+  if (E.kind === 'runs') {
+    const lv = typeof E.level === 'object' ? genSpec(E.level) : E.level;
+    return (E.seeds || [7]).map(seed => ({level: lv, set: {...(E.set || {}), ...extra}, seed, secs: E.secs || 300}));
+  }
+  const sh = typeof E.sheet === 'string' ? ODD_SHEETS[E.sheet] : E.sheet,
+    u = makeRng((E.seed || 1) * 7919 + 17).u,
+    out = [];
+  for (const step of searchPlan(E.budget || 40, 0)) {
+    for (const sc of searchBatch(step, [], sh, u, !!E.imp))
+      out.push({level: sc.level, set: {...sc.set, ...(E.set || {}), ...extra}, seed: sc.seed, secs: E.secs || 300, w: sc.w || 1});
+  }
+  return out;
+}
+// A solution's verdict from its jobs' summaries: {value, pass}
+function argVerdict(E, sums, jobs) {
+  if (sums.some(s => !s)) return {value: null, pass: false, error: true};
+  const v = ARG_METRICS[E.metric][1](
+    sums,
+    jobs.map(j => j.w || 1)
+  );
+  return {value: v, pass: v != null && ARG_OPS[E.op](v, E.value)};
+}
+// Every node's status from the solutions' verdicts: 'pass', 'fail' or null (not run, or not judged)
+function argStatus(A, verdicts) {
+  const kids = id => A.nodes.filter(n => n.parent === id && !ARG_SIDE.includes(n.type)),
+    memo = {};
+  const st = n => {
+    if (n.id in memo) return memo[n.id];
+    let s = null;
+    if (ARG_SIDE.includes(n.type)) s = null;
+    else if (n.type === 'solution') s = verdicts[n.id] ? (verdicts[n.id].pass ? 'pass' : 'fail') : null;
+    else {
+      const K = kids(n.id).map(st);
+      s = K.includes('fail') ? 'fail' : K.length && K.every(x => x === 'pass') ? 'pass' : null;
+    }
+    return (memo[n.id] = s);
+  };
+  for (const n of A.nodes) st(n);
+  return memo;
+}
+// The lesson's argument: the busy floor, inside ODD-1 with people who give way
+const ARG_BUILTIN = {
+  format: 'nav-stack-lab-argument',
+  version: 1,
+  name: 'ARG-1, the busy floor with people who give way',
+  nodes: [
+    {id: 'G1', type: 'goal', text: 'The robot is acceptably safe on the busy floor, within ODD-1 with people who give way'},
+    {
+      id: 'C1',
+      type: 'context',
+      parent: 'G1',
+      rel: 'context',
+      text: 'ODD-1: generated warehouses, aisles of 2 to 3.2 m, up to four people, clear air'
+    },
+    {id: 'C2', type: 'context', parent: 'G1', rel: 'context', text: 'Hazards (lesson 2): striking or bumping a person, hitting a rack'},
+    {id: 'A1', type: 'assumption', parent: 'G1', rel: 'context', text: 'People give way to the robot'},
+    {id: 'S1', type: 'strategy', parent: 'G1', rel: 'support', text: 'Argue over each hazard, then over leaving the domain'},
+    {id: 'G2', type: 'goal', parent: 'S1', rel: 'support', text: 'No contact with a person in the known scenarios'},
+    {
+      id: 'E1',
+      type: 'solution',
+      parent: 'G2',
+      rel: 'support',
+      text: 'The busy floor, people giving way, seeds 7 and 1 to 5: no contact with the robot moving',
+      evidence: {kind: 'runs', level: 4, set: {people: 'reactive'}, seeds: [7, 1, 2, 3, 4, 5], metric: 'contacts', op: '<=', value: 0}
+    },
+    {id: 'G3', type: 'goal', parent: 'S1', rel: 'support', text: 'A search of the domain finds no strike'},
+    {
+      id: 'E2',
+      type: 'solution',
+      parent: 'G3',
+      rel: 'support',
+      text: '40 random worlds of ODD-1 with people giving way, search seed 1: no strike',
+      evidence: {kind: 'search', sheet: 'ODD-1', set: {people: 'reactive'}, budget: 40, seed: 1, metric: 'strikes', op: '<=', value: 0}
+    },
+    {
+      id: 'J1',
+      type: 'justification',
+      parent: 'G3',
+      rel: 'context',
+      text: 'About 1.3 h without a strike bounds the rate below 3 per hour (the rule of three); it does not show it is zero'
+    },
+    {id: 'G4', type: 'goal', parent: 'S1', rel: 'support', text: 'No contact with a rack above 0.3 m/s'},
+    {
+      id: 'E3',
+      type: 'solution',
+      parent: 'G4',
+      rel: 'support',
+      text: 'The same six runs: the fastest contact with a rack at most 0.3 m/s',
+      evidence: {kind: 'runs', level: 4, set: {people: 'reactive'}, seeds: [7, 1, 2, 3, 4, 5], metric: 'rackSpeed', op: '<=', value: 0.3}
+    },
+    {id: 'G5', type: 'goal', parent: 'S1', rel: 'support', text: 'The robot notices fog, outside its domain, within 2 s'},
+    {
+      id: 'E4',
+      type: 'solution',
+      parent: 'G5',
+      rel: 'support',
+      text: 'The busy floor in fog with the ODD monitor: outside within 2 s',
+      evidence: {
+        kind: 'runs',
+        level: 4,
+        set: {people: 'reactive', weather: 'fog', oddMon: true},
+        seeds: [7],
+        secs: 30,
+        metric: 'oddFirst',
+        op: '<=',
+        value: 2
+      }
+    },
+    {
+      id: 'A2',
+      type: 'assumption',
+      parent: 'G5',
+      rel: 'context',
+      text: 'Rain and floor grip, which the robot cannot observe, are excluded by operating rules'
+    }
+  ]
+};
+
 /* ---- core/step.js ---- */
 // One tick, in three parts so that user code in workers can be awaited between them:
 // sense → (custom localizer) → mission and tracking → (custom predictor) → speed planning
@@ -30985,6 +31678,7 @@ function postSense() {
   metrics();
   missionTick();
   agentsTick();
+  oddTick(); // the ODD monitor, when on (core/oddmon.js)
 }
 function preControl() {
   preSense();
@@ -31070,7 +31764,7 @@ function applyCmd(c) {
       steer: c.steer != null ? c.steer + 0.3 * P.actNoise * g.n() : c.steer
     };
   }
-  c = radarBrake(c); // the radar emergency brake, after every controller (core/radar.js)
+  c = oddCmd(radarBrake(c)); // the radar emergency brake and the ODD monitor's manoeuvre, after every controller
   // the zero-velocity update needs the robot still: with it on, the first 2 s of a run are a calibration hold
   if (P.gyro && P.zupt && S.t < 2) c = {v: 0, w: 0, steer: 0};
   S.cmdIssued = c;
@@ -33726,6 +34420,26 @@ const SCHEMA = {
     {k: 'exploreMin', label: 'Smallest frontier worth a visit', min: 2, max: 30, step: 1, unit: 'cells', show: () => P.mis === 'explore'},
     {k: 'replan', label: 'Periodic replan (0 = event-driven only)', min: 0, max: 5, step: 0.5, unit: 's'},
     {k: 'lostGuard', type: 'bool', label: 'Stop when position σ exceeds 1 m (diff-drive also turns in place)'},
+    {k: 'oddMon', type: 'bool', label: 'ODD monitor: a minimal-risk manoeuvre when the robot sees it has left its operating domain'},
+    {
+      k: 'oddResp',
+      type: 'seg',
+      label: 'Manoeuvre',
+      opts: [
+        ['crawl', 'Crawl at 0.3 m/s'],
+        ['stop', 'Stop']
+      ],
+      show: () => P.oddMon
+    },
+    {
+      type: 'info',
+      text: () => {
+        const sh = oddSheetOf(P.oddSheet),
+          O = S && S.odd;
+        return `Watching ${sh ? `<b>${esc(sh.name || 'a sheet')}</b>` : 'no sheet'} (Tools → Safety → Monitor this sheet sets it). What the robot can see of it: whether the air is clear, from the lidar's return share over 2 s (below 65 %: fog yes, rain mostly not), and whether a learned block in use reads inputs unlike its training data. Outside for 1 s, it ${P.oddResp === 'stop' ? 'stops' : 'crawls at 0.3 m/s'} until it has been back inside for 3 s. The floor's grip, the people's intentions and the aisle width it has not yet seen are not observable: those boundaries need operational rules, not a monitor.${O ? ` Now: ${O.out ? `<b>outside</b>: ${esc(O.why)}` : 'inside'}${O.share != null ? `, returns ${(100 * O.share).toFixed(0)} %` : ''}.` : ''}`;
+      },
+      show: () => P.oddMon
+    },
     {k: 'misLoop', type: 'bool', label: 'Repeat the goals: after the last one start again, lap after lap', show: () => P.mis !== 'explore'},
     {type: 'head', label: 'Map'},
     {
@@ -34863,6 +35577,9 @@ const TIPS = {
   mis: 'In order visits goals as numbered. Greedy picks the nearest next. Optimal solves the open-path TSP.',
   replan: 'Replan on a timer in addition to the event-driven triggers.',
   lostGuard: 'Stop when the position uncertainty exceeds 1 m.',
+  oddMon:
+    'Watch what the robot can observe of its operating domain against the sheet it was given, and crawl or stop while it is outside. Off by default.',
+  oddResp: 'What the robot does outside its domain: crawl at 0.3 m/s, or stop until it is back inside.',
   misLoop: 'After the last goal the mission starts again from the first, so the robot drives until you stop it.',
   map: "The level's obstacles, or an empty floor with only the outer walls. Paint (W) and Erase (E) on the map edit either.",
   plan: 'Global planner on the costmap. Reeds–Shepp and Hybrid A* are car-only.',
@@ -42564,7 +43281,8 @@ function configFromHash() {
    Tools → Safety (docs/safety-lab.md, phase 2). The operating domain as a sheet of ranges, checked against the level
    on screen; the scenario search of core/search.js run in background workers, its margin per run charted and the
    worst runs listed, each a button that opens it in the simulator; and scenario sets, the worst runs kept and rerun
-   after a change, exported and imported as JSON. Everything is kept for the session.
+   after a change, exported and imported as JSON. Sheets and sets are kept in this browser (ui/argument.js), and the
+   safety argument has its own section below the sets (ui/argument.js).
    A Try sets it up with cfg.saf = {sheet: 'ODD-1' | {…}, budget, rounds, seed, imp, run: true}.
    Risk (phase 4, lesson 8): the random runs as hours of operation, the rate of contacts and of strikes per hour with
    their 95 % intervals (core/search.js riskRate), the hours a target would need, and the leading indicators ranked
@@ -42583,6 +43301,7 @@ const SAF = {
   done: 0,
   total: 0,
   sets: [],
+  saved: [], // ODD sheets saved in this browser
   msg: '',
   pts: []
 };
@@ -42633,6 +43352,11 @@ function safPane() {
     .join('');
   return `<p class="note">Where the stack is meant to work, and a search for the runs inside it where it fails anyway. Every run is a generated ${sh.family} with the settings of ${sh.like}${Object.keys(ex).length ? `, plus what you changed: <b>${esc(fmtOv(ex))}</b>` : ''}, run headless to Mission complete or ${SAF.secs} s.</p>
   <h4 class="saf-h">Operating domain: ${esc(sh.name)}</h4>
+  <div class="exprow"><label>Sheet <select id="saf-sheetpick"><option value="">${esc(sh.name)}</option>${Object.keys(ODD_SHEETS)
+    .map(k => `<option value="b:${k}">${esc(ODD_SHEETS[k].name)}</option>`)
+    .join(
+      ''
+    )}${SAF.saved.map((x, i) => `<option value="s:${i}">${esc(x.name)} (saved)</option>`).join('')}</select></label><label>Save as <input type="text" id="saf-sheetname" size="16" placeholder="a name" aria-label="A name to save this sheet under"></label><button class="linkbtn" id="saf-sheetsave">Save</button><button class="linkbtn" id="saf-monitor" title="The ODD monitor (Mission tab) watches this sheet from now on">${P.oddMon && P.oddSheet === JSON.stringify(sh) ? 'Monitored' : 'Monitor this sheet'}</button></div>
   <div class="exprow saf-sheet">${rng}</div>
   <div class="exprow"><span class="lbl">Weather</span>${box('weather', 'clear', 'clear')}${box('weather', 'rain', 'rain')}${box('weather', 'fog', 'fog')}<span class="lbl">People</span>${box('people', 'scripted', 'scripted')}${box('people', 'reactive', 'react')}<button class="linkbtn" id="saf-reset">Back to ODD-1</button></div>
   ${err ? `<p class="note bad">The sheet needs ${esc(err)}.</p>` : ''}
@@ -42643,7 +43367,8 @@ function safPane() {
   <div class="expbar" ${SAF.running ? '' : 'hidden'}><i id="saf-bar" style="width:${SAF.total ? (100 * SAF.done) / SAF.total : 0}%"></i></div>
   <div id="saf-out">${safResultsHTML()}</div>
   <h4 class="saf-h">Scenario sets</h4>
-  <div id="saf-sets">${safSetsHTML()}</div>`;
+  <div id="saf-sets">${safSetsHTML()}</div>
+  <div id="arg-sec">${argPaneHTML()}</div>`;
 }
 function safProg() {
   if (SAF.running) return `${SAF.done}/${SAF.total}${SAF.msg ? ' · ' + SAF.msg : ''}`;
@@ -42775,7 +43500,7 @@ async function safRunJobs(list, extra, done) {
             level: sc.level,
             seed: sc.seed,
             overrides: {...sc.set, ...extra},
-            secs: SAF.secs,
+            secs: sc.secs || SAF.secs,
             stopWhenDone: true,
             models: USER_MODELS
           });
@@ -42858,6 +43583,28 @@ function safFromTry(c) {
   if (c.sheet) SAF.sheet = oddCopy(typeof c.sheet === 'string' ? ODD_SHEETS[c.sheet] : c.sheet);
   for (const k of ['budget', 'rounds', 'seed']) if (c[k] != null) SAF[k] = c[k];
   SAF.imp = !!c.imp;
+  // the argument: which one, the changes for every run, and whether to check it now
+  if (c.arg != null) {
+    // a name (the start of one), an index, or an argument itself, added once and picked again by name after that
+    let i = typeof c.arg === 'number' ? c.arg : ARG.list.findIndex(a => a.name.startsWith(typeof c.arg === 'string' ? c.arg : c.arg.name));
+    if (i < 0 && typeof c.arg === 'object' && !argError(c.arg)) {
+      argAdd(JSON.parse(JSON.stringify(c.arg)));
+      i = ARG.cur;
+    }
+    if (i >= 0) ARG.cur = i;
+    ARG.sel = argNow().nodes.find(n => !n.parent).id;
+    ARG.verdicts = {};
+    ARG.set = c.argSet || {};
+    if (c.check)
+      (async () => {
+        while (SAF.running || ARG.running) await new Promise(r => setTimeout(r, 100));
+        argCheck();
+        setTimeout(() => {
+          const el = $('#arg-sec');
+          if (el) el.scrollIntoView({block: 'start'});
+        }, 50);
+      })();
+  }
   if (SAF.running) SAF.cancel = true; // a search already running stops after the runs in its workers
   if (c.run)
     (async () => {
@@ -42918,11 +43665,14 @@ function wireSafOut() {
         .filter(r => r.margin != null)
         .sort((a, b) => a.margin - b.margin || a.i - b.i)
         .slice(0, 5);
-      SAF.sets.push({
+      const set = {
+        id: 's' + Date.now().toString(36),
         name: `Set ${SAF.sets.length + 1}: the worst ${worst.length} runs of the ${SAF.sheet.name.split(',')[0]} search`,
         scenarios: worst.map(r => r.sc),
         last: null
-      });
+      };
+      SAF.sets.push(set);
+      safDBput('set', set.id, set.name, {...set, last: null});
       safRefresh();
     };
 }
@@ -42963,7 +43713,8 @@ function wireSaf(pane) {
   pane.querySelectorAll('[data-safdrop]').forEach(
     b =>
       (b.onclick = () => {
-        SAF.sets.splice(+b.dataset.safdrop, 1);
+        const [gone] = SAF.sets.splice(+b.dataset.safdrop, 1);
+        if (gone && gone.id) safDBdrop('set', gone.id);
         safRefresh();
       })
   );
@@ -42989,16 +43740,458 @@ function wireSaf(pane) {
           set: {weather: ok('weather', sc.set && sc.set.weather), people: ok('people', sc.set && sc.set.people)},
           seed: clamp(Math.round(+sc.seed || 7), 1, 99)
         }));
-      SAF.sets.push({name: plainText(j.name, 80) || `Set ${SAF.sets.length + 1}: imported`, scenarios, last: null});
+      const set = {
+        id: 's' + Date.now().toString(36),
+        name: plainText(j.name, 80) || `Set ${SAF.sets.length + 1}: imported`,
+        scenarios,
+        last: null
+      };
+      SAF.sets.push(set);
+      safDBput('set', set.id, set.name, set);
       SAF.msg = `Imported ${scenarios.length} scenarios`;
     } catch (e) {
       SAF.msg = 'Could not import: ' + e.message;
     }
     safRefresh();
   };
+  $('#saf-sheetpick').onchange = e => {
+    const v = e.target.value;
+    if (v.startsWith('b:')) SAF.sheet = oddCopy(ODD_SHEETS[v.slice(2)]);
+    else if (v.startsWith('s:')) SAF.sheet = oddCopy(SAF.saved[+v.slice(2)]);
+    safRefresh();
+  };
+  $('#saf-sheetsave').onclick = () => {
+    const name = plainText($('#saf-sheetname').value || '', 80);
+    if (!name) return toast('Type a name for the sheet first');
+    const sh = {...oddCopy(SAF.sheet), name, id: 'o' + Date.now().toString(36)};
+    SAF.saved.push(sh);
+    SAF.sheet = oddCopy(sh);
+    safDBput('sheet', sh.id, name, sh);
+    safRefresh();
+  };
+  $('#saf-monitor').onclick = () => {
+    setParam('oddSheet', JSON.stringify(SAF.sheet), false);
+    setParam('oddMon', true, false);
+    toast(`The ODD monitor watches ${SAF.sheet.name} (Mission tab)`);
+    safRefresh();
+  };
   wireSafOut();
   drawSafChart();
   drawSpiChart();
+  wireArg(pane);
+}
+
+/* ---- ui/argument.js ---- */
+/* ============================================================
+   Tools → Safety → Safety argument (phase 4b; safety lesson 9). The argument of core/argument.js drawn in Goal
+   Structuring Notation (goals as boxes, strategies as parallelograms, solutions as ellipses, context as rounded boxes,
+   assumptions and justifications as ellipses marked A and J), each node coloured by its evidence once checked; a node
+   picked on the graph can be edited, given a child, or removed; "Check the evidence" reruns every solution in the
+   background workers, with the changes typed under it added to every run, and runs that two solutions share are run
+   once. Arguments, ODD sheets and scenario sets are kept in this browser (IndexedDB, store 'safety', beside the custom
+   levels and models), saved and loaded as JSON, and an argument travels in a link (#arg= deflated, or #argj= plain).
+   ============================================================ */
+const ARG = {
+  list: [JSON.parse(JSON.stringify(ARG_BUILTIN))],
+  cur: 0,
+  sel: 'G1',
+  set: {}, // the changes added to every run of the evidence
+  verdicts: {},
+  running: false,
+  done: 0,
+  total: 0,
+  msg: ''
+};
+const argNow = () => ARG.list[ARG.cur];
+const ARG_W = 168, // a node's box
+  ARG_SW = 128, // a context, assumption or justification
+  ARG_GAP = 14,
+  ARG_ROW = 30; // vertical space between rows, beyond the tallest node
+// Words to lines of at most n characters, at most m lines
+function argLines(t, n, m) {
+  const out = [];
+  let cur = '';
+  for (const w of String(t).split(/\s+/)) {
+    if ((cur + ' ' + w).trim().length > n && cur) {
+      out.push(cur);
+      cur = w;
+    } else cur = (cur + ' ' + w).trim();
+  }
+  if (cur) out.push(cur);
+  if (out.length > m) {
+    out.length = m;
+    out[m - 1] = out[m - 1].replace(/.{0,2}$/, '…');
+  }
+  return out;
+}
+// The layout: each goal or strategy over its supporting children, its context to its right; returns {pos, w, h}
+function argLayout(A) {
+  const kids = id => A.nodes.filter(n => n.parent === id && !ARG_SIDE.includes(n.type)),
+    sides = id => A.nodes.filter(n => n.parent === id && ARG_SIDE.includes(n.type)),
+    lines = n => argLines(n.text, ARG_SIDE.includes(n.type) ? 20 : 26, 6),
+    hOf = n => 22 + 13 * lines(n).length + (n.type === 'solution' ? 14 : 0),
+    pos = {},
+    width = {};
+  const unit = n => ARG_W + sides(n.id).length * (ARG_SW + ARG_GAP);
+  const wOf = n => {
+    const K = kids(n.id);
+    return (width[n.id] = Math.max(unit(n), K.reduce((a, k) => a + wOf(k), 0) + ARG_GAP * Math.max(0, K.length - 1)));
+  };
+  const top = A.nodes.find(n => !n.parent);
+  const total = wOf(top),
+    rowH = [];
+  const depth = (n, d) => {
+    rowH[d] = Math.max(rowH[d] || 0, hOf(n), ...sides(n.id).map(hOf));
+    kids(n.id).forEach(k => depth(k, d + 1));
+  };
+  depth(top, 0);
+  const rowY = rowH.map((_, d) => rowH.slice(0, d).reduce((a, h) => a + h + ARG_ROW, 0));
+  const place = (n, x0, d) => {
+    const w = width[n.id],
+      u = unit(n),
+      ux = x0 + (w - u) / 2;
+    pos[n.id] = {x: ux, y: rowY[d], w: ARG_W, h: hOf(n), lines: lines(n)};
+    sides(n.id).forEach(
+      (s, i) => (pos[s.id] = {x: ux + ARG_W + ARG_GAP + i * (ARG_SW + ARG_GAP), y: rowY[d], w: ARG_SW, h: hOf(s), lines: lines(s)})
+    );
+    let x = x0 + (w - (kids(n.id).reduce((a, k) => a + width[k.id], 0) + ARG_GAP * Math.max(0, kids(n.id).length - 1))) / 2;
+    for (const k of kids(n.id)) {
+      place(k, x, d + 1);
+      x += width[k.id] + ARG_GAP;
+    }
+  };
+  place(top, 0, 0);
+  return {pos, w: total, h: rowY[rowY.length - 1] + rowH[rowH.length - 1] + 4};
+}
+function argSVG() {
+  const A = argNow(),
+    {pos, w, h} = argLayout(A),
+    st = argStatus(A, ARG.verdicts),
+    col = s => (s === 'pass' ? 'var(--ok)' : s === 'fail' ? 'var(--bad)' : 'var(--line-2)');
+  let edges = '',
+    nodes = '';
+  for (const n of A.nodes) {
+    if (!n.parent) continue;
+    const p = pos[n.parent],
+      c = pos[n.id];
+    if (ARG_SIDE.includes(n.type))
+      edges += `<line x1="${p.x + p.w}" y1="${p.y + 14}" x2="${c.x}" y2="${c.y + 14}" class="arg-ctx" marker-end="url(#arg-open)"/>`;
+    else {
+      const x1 = p.x + p.w / 2,
+        y1 = p.y + p.h,
+        x2 = c.x + c.w / 2,
+        y2 = c.y,
+        my = (y1 + y2) / 2;
+      edges += `<path d="M${x1} ${y1} V${my} H${x2} V${y2 - 1}" class="arg-sup" marker-end="url(#arg-solid)"/>`;
+    }
+  }
+  for (const n of A.nodes) {
+    const p = pos[n.id],
+      s = st[n.id],
+      v = ARG.verdicts[n.id],
+      x = p.x,
+      y = p.y,
+      W = p.w,
+      Hh = p.h,
+      sel = n.id === ARG.sel ? ' sel' : '';
+    let shape;
+    if (n.type === 'goal') shape = `<rect x="${x}" y="${y}" width="${W}" height="${Hh}" rx="2"/>`;
+    else if (n.type === 'strategy') shape = `<polygon points="${x + 12},${y} ${x + W},${y} ${x + W - 12},${y + Hh} ${x},${y + Hh}"/>`;
+    else if (n.type === 'context') shape = `<rect x="${x}" y="${y}" width="${W}" height="${Hh}" rx="${Math.min(16, Hh / 2)}"/>`;
+    else shape = `<ellipse cx="${x + W / 2}" cy="${y + Hh / 2}" rx="${W / 2}" ry="${Hh / 2 + 4}"/>`;
+    const mark = n.type === 'assumption' ? 'A' : n.type === 'justification' ? 'J' : '',
+      text = p.lines.map((l, i) => `<tspan x="${x + W / 2}" y="${y + 18 + 13 * i}">${esc(l)}</tspan>`).join(''),
+      val =
+        n.type === 'solution' && v
+          ? `<text class="arg-val" x="${x + W / 2}" y="${y + 18 + 13 * p.lines.length + 2}">${esc(argValText(n.evidence, v))}</text>`
+          : '';
+    nodes += `<g class="arg-n ${n.type}${sel}" data-argnode="${esc(n.id)}" style="--st:${col(s)}" tabindex="0" role="button" aria-label="${esc(`${n.id}, ${n.type}: ${n.text}${s ? ', ' + (s === 'pass' ? 'supported' : 'not supported') : ''}`)}">${shape}<text class="arg-id" x="${x + 5}" y="${y + 11}">${esc(n.id)}</text>${mark ? `<text class="arg-id" x="${x + W - 12}" y="${y + Hh + 2}">${mark}</text>` : ''}<text class="arg-t">${text}</text>${val}</g>`;
+  }
+  return `<svg class="arg-svg" viewBox="-4 -4 ${w + 8} ${h + 12}" width="${w + 8}" height="${h + 12}" role="group" aria-label="The safety argument"><defs><marker id="arg-solid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" class="arg-hd"/></marker><marker id="arg-open" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" class="arg-ho"/></marker></defs>${edges}${nodes}</svg>`;
+}
+const argValText = (E, v) =>
+  v.error
+    ? 'a run failed'
+    : `${E.metric} = ${v.value == null ? '—' : isFinite(v.value) ? +(+v.value).toFixed(2) : 'never'} (${E.op} ${E.value})`;
+function argPaneHTML() {
+  const A = argNow(),
+    n = A.nodes.find(q => q.id === ARG.sel) || A.nodes[0],
+    st = argStatus(A, ARG.verdicts),
+    top = st[A.nodes.find(q => !q.parent).id],
+    opts = ARG.list.map((a, i) => `<option value="${i}" ${i === ARG.cur ? 'selected' : ''}>${esc(a.name)}</option>`).join(''),
+    typeOpts = (cur, allow) => allow.map(t => `<option ${t === cur ? 'selected' : ''}>${t}</option>`).join('');
+  const childTypes =
+    n.type === 'goal'
+      ? ['strategy', 'goal', 'solution', 'context', 'assumption', 'justification']
+      : n.type === 'strategy'
+        ? ['goal', 'context', 'assumption', 'justification']
+        : [];
+  return `<h4 class="saf-h">Safety argument</h4>
+  <p class="note">Claims, how they are broken down, and the evidence for each, in Goal Structuring Notation. Check the evidence to rerun every solution's runs; a failed solution turns its claims red all the way up. Type changes below to rerun the whole argument with them: one changed setting shows which claims it breaks.</p>
+  <div class="exprow"><label>Argument <select id="arg-pick">${opts}</select></label><button class="linkbtn" id="arg-copy">Copy as a new argument</button></div>
+  <div class="arg-wrap">${argSVG()}</div>
+  <div class="controls"><button class="btn small" id="arg-wide">Open the graph full width</button><span class="lbl">Scroll sideways here, or open it over the page; pick a node to edit it.</span></div>
+  <p class="note">${top === 'pass' ? '<b>The top claim is supported</b> by the evidence as it stands.' : top === 'fail' ? '<b class="bad">The top claim is not supported</b>: follow the red nodes down to the evidence that failed.' : 'Not checked yet.'}${ARG.msg ? ' ' + esc(ARG.msg) : ''}</p>
+  <div class="exprow"><label class="arg-set">Changes for every run <input type="text" id="arg-set" spellcheck="false" value="${esc(JSON.stringify(ARG.set))}" aria-label="Settings added to every run, as JSON"></label></div>
+  <div class="controls"><button class="btn primary" id="arg-run" ${ARG.running || SAF.running ? 'disabled' : ''}>Check the evidence</button><button class="btn" id="arg-cancel" ${ARG.running ? '' : 'hidden'}>Cancel</button><span class="lbl" id="arg-prog">${ARG.running ? `${ARG.done}/${ARG.total} runs` : ''}</span></div>
+  <details class="how" open><summary>${esc(n.id)}: edit this node</summary><div class="how-body">
+    <div class="exprow"><label>Type <select id="arg-type">${typeOpts(n.type, n.parent ? ARG_TYPES : ['goal'])}</select></label></div>
+    <textarea id="arg-text" rows="2" aria-label="The node's text">${esc(n.text)}</textarea>
+    ${n.type === 'solution' ? `<p class="lbl">Evidence: {kind: "runs", level, set, seeds, metric, op, value} or {kind: "search", sheet, set, budget, seed, imp, metric, op, value}; metrics ${Object.keys(ARG_METRICS).join(', ')}</p><textarea id="arg-ev" rows="3" spellcheck="false" aria-label="The evidence, as JSON">${esc(JSON.stringify(n.evidence || {}))}</textarea>` : ''}
+    <div class="controls"><button class="btn small" id="arg-apply">Apply</button>${childTypes.length ? `<label>Add a <select id="arg-addtype">${typeOpts(childTypes[0], childTypes)}</select></label><button class="btn small" id="arg-add">under it</button>` : ''}${n.parent ? '<button class="btn small" id="arg-del">Remove it and what hangs from it</button>' : ''}</div>
+  </div></details>
+  <div class="controls"><button class="btn small" id="arg-save">Save JSON</button><button class="btn small" id="arg-link">Copy a link</button>${ARG.cur > 0 ? '<button class="btn small" id="arg-drop">Remove this argument</button>' : ''}<span class="lbl">${SAFDB.ok ? 'Kept in this browser' : ''}</span></div>
+  <details class="how"><summary>Import an argument</summary><div class="how-body"><textarea id="arg-json" rows="3" spellcheck="false" aria-label="Argument JSON"></textarea><div class="controls"><button class="btn" id="arg-import">Import</button></div></div></details>`;
+}
+// Every solution's evidence in the workers; runs that two solutions share are run once
+async function argCheck() {
+  if (ARG.running || SAF.running) return;
+  const A = argNow(),
+    sols = A.nodes.filter(n => n.type === 'solution' && n.evidence),
+    plan = sols.map(n => ({n, jobs: argJobs(n.evidence, ARG.set)})),
+    key = j => JSON.stringify([j.level, j.set, j.seed, j.secs]),
+    uniq = new Map();
+  for (const p of plan) for (const j of p.jobs) if (!uniq.has(key(j))) uniq.set(key(j), j);
+  const list = [...uniq.values()];
+  Object.assign(ARG, {running: true, done: 0, total: list.length, verdicts: {}, msg: ''});
+  SAF.cancel = false;
+  safRefresh();
+  const sums = await safRunJobs(
+    list.map(j => ({level: j.level, set: j.set, seed: j.seed, secs: j.secs})),
+    {},
+    () => {
+      ARG.done++;
+      const el = $('#arg-prog');
+      if (el) el.textContent = `${ARG.done}/${ARG.total} runs`;
+    }
+  );
+  const byKey = new Map(list.map((j, i) => [key(j), sums[i]]));
+  if (!SAF.cancel)
+    for (const p of plan)
+      ARG.verdicts[p.n.id] = argVerdict(
+        p.n.evidence,
+        p.jobs.map(j => byKey.get(key(j))),
+        p.jobs
+      );
+  const st = argStatus(A, ARG.verdicts),
+    top = st[A.nodes.find(q => !q.parent).id];
+  ARG.running = false;
+  ARG.msg = SAF.cancel ? 'Cancelled.' : `${list.length} runs${Object.keys(ARG.set).length ? ` with ${fmtOv(ARG.set)}` : ''}.`;
+  if (!SAF.cancel)
+    logE(
+      `Safety argument: the top claim is ${top === 'pass' ? 'supported' : 'not supported'} (${ARG.msg})`,
+      top === 'pass' ? 'ok' : 'warn'
+    );
+  safRefresh();
+}
+/* ---------- keeping arguments, sheets and sets in this browser, and links ---------- */
+const SAFDB = {ok: false};
+async function safDBput(kind, id, name, data) {
+  SAFDB.ok = !!(await trnDBdo('put', {id: `${kind}:${id}`, kind, name, data, saved: Date.now()}, 'safety'));
+}
+const safDBdrop = (kind, id) => trnDBdo('delete', `${kind}:${id}`, 'safety');
+async function safLoadSaved() {
+  const all = await trnDBdo('all', null, 'safety');
+  SAFDB.ok = !!all;
+  for (const r of (all || []).sort((a, b) => a.saved - b.saved)) {
+    if (r.kind === 'argument' && !argError(r.data) && !ARG.list.some(a => a.id === r.data.id)) ARG.list.push(r.data);
+    else if (r.kind === 'set' && !SAF.sets.some(s => s.id === r.data.id)) SAF.sets.push(r.data);
+    else if (r.kind === 'sheet' && !oddSheetError(r.data) && !SAF.saved.some(s => s.id === r.data.id)) SAF.saved.push(r.data);
+  }
+  if (all && all.length && activeTab === 'saf') renderAllPanes();
+}
+const argSave = A => {
+  if (!A.id) A.id = 'a' + Date.now().toString(36);
+  return safDBput('argument', A.id, A.name, A);
+};
+function argAdd(A) {
+  const err = argError(A);
+  if (err) throw new Error('the argument needs ' + err);
+  A.id = 'a' + Date.now().toString(36);
+  ARG.list.push(A);
+  ARG.cur = ARG.list.length - 1;
+  ARG.sel = A.nodes.find(n => !n.parent).id;
+  ARG.verdicts = {};
+  argSave(A);
+}
+// #arg=<deflated> or #argj=<plain base64url JSON>: the argument is added and Tools → Safety opens on it
+async function argFromHash() {
+  const m = /^#arg(j?)=([\w-]+)$/.exec(location.hash);
+  if (!m) return false;
+  try {
+    const A = JSON.parse(m[1] ? b64uDecText(m[2]) : await inflateText(m[2]));
+    argAdd({...A, name: plainText(A.name, 80) || 'An argument from a link'});
+    activeTab = 'saf';
+    consoleOpen = true;
+    buildTabs();
+    renderAllPanes();
+    logE(`Opened the argument "${argNow().name}" from the link`, 'ok');
+  } catch (e) {
+    logE('Could not open the argument in the link: ' + e.message, 'warn');
+  }
+  return true;
+}
+window.addEventListener('hashchange', () => argFromHash());
+// The graph over the page, at full width (a node picked there is picked here too)
+function argWide() {
+  let d = $('#argdlg');
+  if (!d) {
+    d = document.createElement('dialog');
+    d.id = 'argdlg';
+    d.className = 'srcdlg argdlg';
+    document.body.appendChild(d);
+    d.addEventListener('click', e => {
+      if (e.target === d) d.close();
+    });
+  }
+  const st = argStatus(argNow(), ARG.verdicts),
+    top = st[argNow().nodes.find(q => !q.parent).id];
+  d.innerHTML = `<div class="srchead"><b>${esc(argNow().name)}</b><span class="lbl">${top === 'pass' ? 'supported' : top === 'fail' ? 'not supported' : 'not checked'}</span><button class="btn" id="argdlg-close">Close</button></div><div class="arg-wrap">${argSVG()}</div>`;
+  $('#argdlg-close').onclick = () => d.close();
+  d.querySelectorAll('[data-argnode]').forEach(
+    g =>
+      (g.onclick = () => {
+        ARG.sel = g.dataset.argnode;
+        d.close();
+        safRefresh();
+      })
+  );
+  if (!d.open) d.showModal();
+}
+function wireArg(pane) {
+  const A = argNow(),
+    n = A.nodes.find(q => q.id === ARG.sel) || A.nodes[0];
+  pane.querySelectorAll('[data-argnode]').forEach(g => {
+    const pick = () => {
+      ARG.sel = g.dataset.argnode;
+      safRefresh();
+    };
+    g.onclick = pick;
+    g.onkeydown = e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), pick());
+  });
+  const editable = () => {
+    if (ARG.cur > 0) return A;
+    // the built-in argument stays as it is: an edit makes a copy
+    argAdd({...JSON.parse(JSON.stringify(A)), name: A.name.replace(/^ARG-1/, 'ARG-1 (edited)')});
+    return argNow();
+  };
+  $('#arg-pick').onchange = e => {
+    ARG.cur = +e.target.value;
+    ARG.sel = argNow().nodes.find(q => !q.parent).id;
+    ARG.verdicts = {};
+    safRefresh();
+  };
+  $('#arg-copy').onclick = () => {
+    argAdd({...JSON.parse(JSON.stringify(A)), name: `${A.name} (copy)`});
+    safRefresh();
+  };
+  $('#arg-set').onchange = e => {
+    try {
+      const v = JSON.parse(e.target.value || '{}');
+      if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('settings as {"key": value}');
+      ARG.set = v;
+      ARG.msg = '';
+    } catch (er) {
+      ARG.msg = 'The changes need JSON: ' + er.message;
+    }
+    safRefresh();
+  };
+  $('#arg-run').onclick = () => argCheck();
+  $('#arg-wide').onclick = () => argWide();
+  $('#arg-cancel').onclick = () => (SAF.cancel = true);
+  $('#arg-apply').onclick = () => {
+    const B = editable(),
+      m = B.nodes.find(q => q.id === n.id);
+    m.text = plainText($('#arg-text').value, 300) || m.text;
+    m.type = $('#arg-type').value;
+    if (m.type === 'solution') {
+      try {
+        const ev = $('#arg-ev') ? JSON.parse($('#arg-ev').value || '{}') : null;
+        if (ev && Object.keys(ev).length) m.evidence = ev;
+      } catch (er) {
+        ARG.msg = 'The evidence needs JSON: ' + er.message;
+      }
+    } else delete m.evidence;
+    m.rel = ARG_SIDE.includes(m.type) ? 'context' : 'support';
+    const err = argError(B);
+    ARG.msg = err ? 'The argument needs ' + err : ARG.msg;
+    ARG.verdicts = {};
+    argSave(B);
+    safRefresh();
+  };
+  const add = $('#arg-add');
+  if (add)
+    add.onclick = () => {
+      const B = editable(),
+        t = $('#arg-addtype').value,
+        pre = {goal: 'G', strategy: 'S', solution: 'E', context: 'C', assumption: 'A', justification: 'J'}[t];
+      let k = 1;
+      while (B.nodes.some(q => q.id === pre + k)) k++;
+      const node = {id: pre + k, type: t, parent: n.id, rel: ARG_SIDE.includes(t) ? 'context' : 'support', text: `A new ${t}`};
+      if (t === 'solution') node.evidence = {kind: 'runs', level: 4, set: {}, seeds: [7], metric: 'contacts', op: '<=', value: 0};
+      B.nodes.push(node);
+      ARG.sel = node.id;
+      ARG.verdicts = {};
+      argSave(B);
+      safRefresh();
+    };
+  const del = $('#arg-del');
+  if (del)
+    del.onclick = () => {
+      const B = editable(),
+        gone = new Set([n.id]);
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const q of B.nodes)
+          if (q.parent && gone.has(q.parent) && !gone.has(q.id)) {
+            gone.add(q.id);
+            grew = true;
+          }
+      }
+      B.nodes = B.nodes.filter(q => !gone.has(q.id));
+      ARG.sel = n.parent;
+      ARG.verdicts = {};
+      argSave(B);
+      safRefresh();
+    };
+  $('#arg-save').onclick = () =>
+    download(
+      `nav-lab-argument-${A.name.split(',')[0].replace(/\W+/g, '-').toLowerCase()}.json`,
+      JSON.stringify(A, null, 1),
+      'application/json'
+    );
+  $('#arg-link').onclick = async () => {
+    const js = JSON.stringify({...A, id: undefined}),
+      z = await deflateText(js),
+      u = location.href.split('#')[0] + (z ? '#arg=' + z : '#argj=' + b64uText(js));
+    if (navigator.clipboard)
+      navigator.clipboard.writeText(u).then(
+        () => toast('Link to the argument copied'),
+        () => toast(u)
+      );
+    else toast(u);
+  };
+  const drop = $('#arg-drop');
+  if (drop)
+    drop.onclick = () => {
+      safDBdrop('argument', A.id);
+      ARG.list.splice(ARG.cur, 1);
+      ARG.cur = 0;
+      ARG.sel = 'G1';
+      ARG.verdicts = {};
+      safRefresh();
+    };
+  $('#arg-import').onclick = () => {
+    try {
+      const j = JSON.parse($('#arg-json').value);
+      argAdd({...j, name: plainText(j.name, 80) || 'Imported argument'});
+      ARG.msg = 'Imported.';
+    } catch (e) {
+      ARG.msg = 'Could not import: ' + e.message;
+    }
+    safRefresh();
+  };
 }
 
 /* ---- ui/train.js ---- */
@@ -43090,14 +44283,16 @@ function trnRecipe(block) {
 const trnRows = () => TRN.rows[TRN.block] || (TRN.rows[TRN.block] = trnDefaultRows(TRN.block));
 const trnModels = block => TRN.models.filter(m => m.block === block);
 
-/* ---------- keeping models in this browser (and the custom levels, ui/levelmenu.js: store 'levels') ---------- */
+/* ---------- keeping models in this browser (and the custom levels, ui/levelmenu.js: store 'levels'; the safety lab's
+   arguments, sheets and sets, ui/argument.js: store 'safety') ---------- */
 let trnDB = null;
 function trnOpenDB() {
   return new Promise(res => {
     try {
-      const r = indexedDB.open('nav-stack-lab', 2);
+      const r = indexedDB.open('nav-stack-lab', 3);
       r.onupgradeneeded = () => {
-        for (const n of ['models', 'levels']) if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, {keyPath: 'id'});
+        for (const n of ['models', 'levels', 'safety'])
+          if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, {keyPath: 'id'});
       };
       r.onsuccess = () => res(r.result);
       r.onerror = r.onblocked = () => res(null);
@@ -46134,6 +47329,8 @@ const SIGNALS = [
   ['tc', 'Steering / turn-rate command', turnU, 'ctl', 'p', d => d.tc],
   ['ta', 'Steering / turn rate', turnU, 'ctl', 'p', d => d.ta],
   ['brake', 'Emergency brake holding (1 = stopped)', '', 'ctl', 'f', f => f.sig && f.sig.brake],
+  ['oddOut', 'ODD monitor: outside the domain (1 = yes)', '', 'plan', 'f', f => f.sig && f.sig.odd],
+  ['oddShare', 'ODD monitor: lidar return share, 2 s mean', '', 'plan', 'f', f => f.sig && f.sig.share],
   ['mpcMs', 'MPC solve time', 'ms', 'ctl', 'f', f => f.sig && f.sig.mpcMs],
   ['mpcIt', 'MPC iterations', '', 'ctl', 'f', f => f.sig && f.sig.mpcIt],
   ['mpcJ', 'MPC cost J', '', 'ctl', 'f', f => f.sig && f.sig.mpcJ],
@@ -48663,9 +49860,11 @@ let linkCfg = null;
   }
 }
 custLoadSaved();
+safLoadSaved(); // the safety lab's arguments, sheets and sets kept in this browser (ui/argument.js)
 syncModeUI();
 renderLearn();
 lessonFromHash() || chapterFromHash() || (location.hash === '#learn' && setUIMode('learn'));
+argFromHash(); // #arg=…: an argument from a link (ui/argument.js)
 readTokens();
 draw();
 drawPlot();
@@ -48746,6 +49945,7 @@ window.__nav = {
   LAYERS,
   EXP,
   SAF, // Tools → Safety (ui/safety.js)
+  ARG, // its safety argument (ui/argument.js)
   safSearch,
   expCSV,
   configURL,

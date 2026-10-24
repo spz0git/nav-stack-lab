@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v64 · 2026-10-24
 
 - Safety, two more lessons:
   - *Learned blocks: the data is the specification*: the learned people detector, predictor and policy measured by

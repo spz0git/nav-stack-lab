@@ -1,6 +1,8 @@
 # Safety lab: design
 
-Status: phases 1 and 2 built (v60, v61, 2026-10-22); phase 3 built (v64, 2026-10-24); phase 4 next. Written against v59 as a
+Status: phases 1 and 2 built (v60, v61, 2026-10-22); phase 3 built (v64, 2026-10-24); phase 4 in two parts, 4a built (v65,
+2026-10-24: rates, importance sampling, leading indicators, lesson 8), 4b next (the ODD monitor, the argument, storage,
+lesson 9). Written against v59 as a
 proposal for a new track inside Nav Stack Lab that teaches the ideas of four safety standards by doing them on the
 simulator; what was built is in the roadmap's "Safety lab" sections. The owner's decisions on the design
 questions are recorded in section 9; the clause numbers the track cites wait for the owner's check in section 10.
@@ -454,7 +456,8 @@ check; the radar emergency brake as an opt-in mitigation. Lessons 6 (learned blo
 safety stop's tuning (decision 7) became a measurement in lesson 7 rather than a change: in fog it inherits the
 lidar's blindness, which no tuning fixes.
 
-**Phase 4, risk and the argument.** Rates with intervals and importance sampling in Search; the SPI chart; the GSN
+**Phase 4, risk and the argument** (4a built, v65: rates with intervals, importance sampling, the leading indicators'
+ranking and chart, lesson 8; 4b next). Rates with intervals and importance sampling in Search; the SPI chart; the GSN
 format, renderer, editor and evidence runner, with arguments, ODD sheets, hazard logs and scenario sets stored in the
 browser like custom levels, with JSON export and links (decision 6); C6, the ODD monitor, off by default (decision 11).
 Lessons 8 and 9, and the rest of the safety chapter.

@@ -1,7 +1,7 @@
 id: ch8
 num: 8
 sys: saf
-summary: The ideas behind the Safety lessons: the four standards in the lab's own words, the operating domain as a set of conditions, hazard analysis with the lab's severity scale and measured exposure, the safety measures the simulator keeps, triggering conditions, faults and their time budget, searching the domain for failures, the learned blocks measured by slice and watched for inputs outside their data, and mitigations with their price.
+summary: The ideas behind the Safety lessons: the four standards in the lab's own words, the operating domain as a set of conditions, hazard analysis with the lab's severity scale and measured exposure, the safety measures the simulator keeps, triggering conditions, faults and their time budget, searching the domain for failures, the learned blocks measured by slice and watched for inputs outside their data, mitigations with their price, and rates per hour with their intervals and leading indicators.
 
 # Safety: domains, hazards, faults and search
 
@@ -231,3 +231,41 @@ with $d$ the echo's range and $\ell_f$ the distance from the radar to the body's
 The brake removes every strike in fog because it reads the one sensor the fog does not reach; the lidar safety stop inherits the lidar's blindness. In clear air the brake costs stops and does little, and the slower robot meets different people at different moments and does worse. The radar brake's case for shipping is "on where a monitor says the lidar is degraded": §8's monitor sees fog in half a second.
 
 [try: Fog, with the radar emergency brake | {"sim":true,"level":4,"set":{"weather":"fog","radar":true,"radBrake":true},"tab":"ctl","layers":{"agents":true,"radar":true}}]
+
+## 10. Rates, intervals and indicators
+
+**A rate from a search.** The random half of a search samples the domain: run $i$ operates for $T_i$ seconds (the time its mission ran) and has $k_i$ events, a contact with a person while the robot moves, a strike, or any contact. The refined half is left out, since it was chosen for being bad. With $T = \sum T_i$ and $k = \sum k_i$ the rate is $\hat\lambda = k/T$. If events arrive independently at a constant rate, $k$ is Poisson with mean $\lambda T$, and the exact (Garwood) 95 % interval is the pair of means for which the observed count sits in the tails:
+$$
+P(X \ge k;\ \lambda_{lo} T) = 0.025, \qquad P(X \le k;\ \lambda_{hi} T) = 0.025, \qquad P(X \le k;\ m) = \sum_{j=0}^{k} e^{-m}\frac{m^j}{j!} .
+$$
+The lab solves both by bisection. ISO 21448 turns acceptance criteria into validation targets with exactly this arithmetic (clause 9).
+
+**The rule of three.** With no event, $P(X = 0) = e^{-\lambda T}$. Every $\lambda$ for which that is under 5 % is ruled out at 95 %, one-sided, leaving
+$$
+\lambda < \frac{-\ln 0.05}{T} = \frac{2.996}{T} \approx \frac{3}{T} ;
+$$
+the two-sided interval's top for $k = 0$ is $-\ln 0.025/T = 3.69/T$, which is what the Risk table shows. To claim a target $\lambda^*$ takes $3/\lambda^*$ hours without an event: 3 000 hours for one per thousand, 3 million for one per million, which is why no one validates a rare-event target by operating hours alone.
+
+**Importance sampling.** The sampler draws the people from $q(x) = 2x$ over their range ($x$ from 0 to 1) instead of the sheet's uniform $p(x) = 1$, and weights run $i$ by $w_i = p/q = 1/(2x_i)$, clipped at $x = 0.05$. The weighted rate
+$$
+\hat\lambda_w = \frac{\sum_i w_i k_i}{\sum_i w_i T_i}
+$$
+estimates the domain's rate, since $E_q[w\,f] = E_p[f]$ for anything the run depends on. Its interval is a bootstrap over the runs (1 000 resamples, a fixed seed); with no event at all, the rule of three on the sample's effective hours $T_{eff} = (\sum w_i T_i)^2 / \sum w_i^2 T_i$. Weights that vary spend sample size: $T_{eff} < T$. Importance sampling pays when the oversampled worlds are where the events happen, and costs when they are not.
+
+**Leading indicators.** For each candidate $m$, its value per hour in each random run is ranked against the run's contacts per hour, and Spearman's $\rho$ (the correlation of the ranks) says how well it orders the runs as the harm does. UL 4600 asks for safety performance indicators, leading ones among them, watched in operation (clause 16).
+
+**Measured**, 40 random runs per search, each to Mission complete:
+
+| Search | Hours | Contacts with a person, per hour (95 %) | Strikes, per hour (95 %) | Leading indicators, ρ |
+| --- | --- | --- | --- | --- |
+| ODD-1, search seed 1 | 1.27 | 18: 14.1 (8.4–22.3) | 11: 8.6 (4.3–15.4) | under 0.3 m 0.80, closest 0.79, TTC < 1 s 0.70, within 2 m 0.48 |
+| ODD-1, seed 2 | 1.37 | 20: 14.6 (8.9–22.5) | 13: 9.5 (5.1–16.2) | 0.86, TTC 0.81, closest 0.77, within 2 m 0.60 |
+| ODD-1, seed 3 | 1.24 | 12: 9.7 (5.0–16.9) | 9: 7.2 (3.3–13.7) | 0.72, closest 0.71, TTC 0.63, within 2 m 0.38 |
+| ODD-1 importance-sampled, seeds 1–3 | 1.30, 1.37, 1.31 | 13.0, 12.1, 15.9 (weighted) | 7.6, 9.1, 3.9 (weighted) | a closeness measure first, within 2 m last |
+| People who react, seeds 1–3 | 1.26, 1.34, 1.24 | 5: 4.0 (1.3–9.3); 0; 0 | 0: below 2.9, 2.8, 3.0 | under 0.3 m 0.66, … within 2 m 0.27 (seed 1) |
+| People who react, importance-sampled, seeds 1–3 | 1.33, 1.34, 1.28 | 1.7 weighted; 0; 0 | 0: below 3.75, 4.86, 3.76 | |
+
+On ODD-1 contacts are common, and importance sampling gives the same rates within their intervals, with intervals about as wide (the strikes' a little narrower in absolute terms, but around lower estimates): little to gain where nothing is rare. With people who react there is no strike either way, and importance sampling's bound is wider on every seed, because the weights spent effective hours on worlds that held no strike. Every search with contacts ranks a measure of how close the robot came first and the time with a person within 2 m last: exposure is not a leading indicator.
+
+[try: The busy floor's domain, per hour | {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":"ODD-1","budget":40,"rounds":0,"seed":1,"run":true}}]
+

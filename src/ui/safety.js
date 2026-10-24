@@ -3,13 +3,17 @@
    on screen; the scenario search of core/search.js run in background workers, its margin per run charted and the
    worst runs listed, each a button that opens it in the simulator; and scenario sets, the worst runs kept and rerun
    after a change, exported and imported as JSON. Everything is kept for the session.
-   A Try sets it up with cfg.saf = {sheet: 'ODD-1' | {…}, budget, rounds, seed, run: true}.
+   A Try sets it up with cfg.saf = {sheet: 'ODD-1' | {…}, budget, rounds, seed, imp, run: true}.
+   Risk (phase 4, lesson 8): the random runs as hours of operation, the rate of contacts and of strikes per hour with
+   their 95 % intervals (core/search.js riskRate), the hours a target would need, and the leading indicators ranked
+   against the contacts, the best of them charted run by run.
    ============================================================ */
 const SAF = {
   sheet: oddCopy(ODD_SHEETS['ODD-1']),
   budget: 40,
   rounds: 2,
   seed: 1,
+  imp: false, // importance sampling: the random runs drawn with more people, each weighted (core/search.js)
   secs: 300,
   results: [],
   running: false,
@@ -72,7 +76,7 @@ function safPane() {
   ${err ? `<p class="note bad">The sheet needs ${esc(err)}.</p>` : ''}
   <details class="how"><summary>Is the level on screen inside it?</summary><div class="exptab"><table><thead><tr><th>Attribute</th><th>This level</th><th>The sheet</th><th></th></tr></thead><tbody>${chk}</tbody></table></div></details>
   <h4 class="saf-h">Search</h4>
-  <div class="exprow"><label>Runs <input type="number" id="saf-budget" min="4" max="400" step="2" value="${SAF.budget}"></label><label>Refine rounds <input type="number" id="saf-rounds" min="0" max="4" value="${SAF.rounds}"></label><label>Search seed <input type="number" id="saf-seed" min="1" max="999" value="${SAF.seed}"></label></div>
+  <div class="exprow"><label>Runs <input type="number" id="saf-budget" min="4" max="400" step="2" value="${SAF.budget}"></label><label>Refine rounds <input type="number" id="saf-rounds" min="0" max="4" value="${SAF.rounds}"></label><label>Search seed <input type="number" id="saf-seed" min="1" max="999" value="${SAF.seed}"></label><label class="check sm" title="Draw the random runs with more people than the sheet's even mix, and weight each run by how much likelier the even mix would have drawn it: more of the rare, people-dense worlds for the same budget, and an estimate that still describes the domain"><input type="checkbox" id="saf-imp" ${SAF.imp ? 'checked' : ''}><span>Importance sampling (more people, weighted)</span></label></div>
   <div class="controls"><button class="btn primary" id="saf-run" ${SAF.running || err ? 'disabled' : ''}>Search</button><button class="btn" id="saf-cancel" ${SAF.running ? '' : 'hidden'}>Cancel</button><span class="lbl" id="saf-prog">${safProg()}</span></div>
   <div class="expbar" ${SAF.running ? '' : 'hidden'}><i id="saf-bar" style="width:${SAF.total ? (100 * SAF.done) / SAF.total : 0}%"></i></div>
   <div id="saf-out">${safResultsHTML()}</div>
@@ -103,7 +107,81 @@ function safResultsHTML() {
         `<tr><td>${r.i + 1} ${r.kind}</td><td class="${r.margin < 0 ? 'bad' : ''}">${r.margin.toFixed(2)}</td><td>${esc(safWhat(r.s))}</td><td>${esc(safWorld(r.sc))}</td><td><button class="btn small" data-safopen="${r.i}">Open</button></td></tr>`
     )
     .join('')}</tbody></table></div>
-  <div class="controls"><button class="btn" id="saf-keep" ${SAF.running ? 'disabled' : ''}>Keep the worst 5 as a set</button></div>`;
+  <div class="controls"><button class="btn" id="saf-keep" ${SAF.running ? 'disabled' : ''}>Keep the worst 5 as a set</button></div>
+  ${safRiskHTML()}`;
+}
+// The random runs as a sample of the domain's hours: rates with their intervals, and the leading indicators
+function safRiskHTML() {
+  const rnd = SAF.results.filter(r => r.kind === 'random' && r.s);
+  if (rnd.length < 2) return '';
+  const row = (label, ev) => {
+      const q = riskRate(rnd, ev),
+        f = x => (x == null ? '—' : x < 10 ? x.toFixed(2) : x.toFixed(1));
+      return `<tr><td>${label}</td><td>${q.k}</td><td>${f(q.rate)}</td><td>${f(q.lo)} to ${f(q.hi)}</td></tr>`;
+    },
+    q = riskRate(rnd, 'contact'),
+    spi = spiTable(rnd);
+  SAF.spi = spi[0] || null;
+  return `<h4 class="saf-h">Risk</h4>
+  <p class="note">The ${rnd.length} random runs as ${q.hours.toFixed(2)} hours of operation${q.weighted ? ", each weighted by how much likelier the sheet's even mix would have drawn it" : ''}. The refined runs are left out: they were chosen for being bad.</p>
+  <div class="exptab"><table><thead><tr><th>Per hour of operation</th><th>Events</th><th>Rate</th><th>95 % interval</th></tr></thead><tbody>${row('Contacts with a person (the robot moving)', 'contact')}${row('Strikes (above 1 m/s)', 'strike')}${row('Any contact the robot makes, racks too', 'any')}</tbody></table></div>
+  <p class="note">${q.weighted ? 'The interval is a bootstrap over the runs. ' : 'The interval is exact for a count of independent events (Poisson). '}With no event at all you can claim the rate is below 3 / hours at 95 % (the rule of three): to claim fewer than one contact per 1 000 hours takes about ${Math.round(riskHoursFor(0.001)).toLocaleString('en')} hours without one, ${Math.round(riskHoursFor(0.001) / Math.max(q.hours, 1e-6)).toLocaleString('en')} times what this search ran.</p>
+  ${
+    spi.length
+      ? `<h4 class="saf-h">Leading indicators</h4><p class="note">Each measure per hour, run by run, ranked against the run's contacts per hour (Spearman's ρ: 1, the same order; 0, none). A good indicator moves before anyone is hurt.</p>
+  <div class="exptab"><table><thead><tr><th>Indicator</th><th>ρ</th><th>Runs</th></tr></thead><tbody>${spi.map(x => `<tr><td>${esc(x.label)}</td><td>${x.rho.toFixed(2)}</td><td>${x.n}</td></tr>`).join('')}</tbody></table></div>
+  <canvas id="cv-spi" class="expchart" aria-label="The best indicator against contacts per hour, run by run"></canvas>`
+      : ''
+  }`;
+}
+// The best-ranked indicator (x) against contacts per hour (y), one dot per random run
+function drawSpiChart() {
+  const c = $('#cv-spi'),
+    best = SAF.spi;
+  if (!c || !best) return;
+  readTokens();
+  const R = SAF.results.filter(r => r.kind === 'random' && r.s && r.s.opS > 0),
+    hrs = r => r.s.opS / 3600,
+    cand = SPI_CAND[best.id],
+    pts = R.map(r => {
+      const v = cand[1](r.s);
+      return v == null ? null : [cand[2] ? v : v / hrs(r), r.s.events.filter(RISK_EV.contact).length / hrs(r)];
+    }).filter(Boolean);
+  if (!pts.length) return;
+  const dpr = sizeCanvas(c),
+    g = c.getContext('2d'),
+    w = c.width,
+    h = c.height,
+    xs = pts.map(p => p[0]),
+    ys = pts.map(p => p[1]),
+    x0 = Math.min(...xs),
+    x1 = Math.max(...xs) || 1,
+    y1 = Math.max(1, ...ys),
+    padL = 40 * dpr,
+    padR = 10 * dpr,
+    padT = 18 * dpr,
+    padB = 22 * dpr,
+    X = v => padL + ((v - x0) / (x1 - x0 || 1)) * (w - padL - padR),
+    Y = v => padT + (1 - v / y1) * (h - padT - padB);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = TOK['map-bg'];
+  g.fillRect(0, 0, w, h);
+  g.font = `${Math.round(10 * dpr)}px ${getComputedStyle(document.body).getPropertyValue('--f-mono') || 'monospace'}`;
+  g.fillStyle = TOK.muted;
+  g.textAlign = 'left';
+  g.textBaseline = 'middle';
+  g.fillText(`contacts per hour (up) against ${best.label} (right)`, padL + 4 * dpr, padT - 9 * dpr);
+  g.textAlign = 'right';
+  for (const v of [y1, 0]) g.fillText(v.toFixed(0), padL - 5 * dpr, Y(v));
+  g.textAlign = 'center';
+  g.fillText(x0.toFixed(0), X(x0), h - padB / 2);
+  g.fillText(x1.toFixed(0), X(x1), h - padB / 2);
+  g.fillStyle = TOK.accent;
+  for (const [a, b] of pts) {
+    g.beginPath();
+    g.arc(X(a), Y(b), 3.2 * dpr, 0, 2 * Math.PI);
+    g.fill();
+  }
 }
 function safSetsHTML() {
   const sets = SAF.sets
@@ -170,18 +248,19 @@ async function safSearch() {
   for (const step of plan) {
     if (SAF.cancel) break;
     SAF.msg = step.kind === 'random' ? 'sampling the domain' : 'refining around the worst';
-    const batch = searchBatch(step, SAF.results, sh, u),
+    const batch = searchBatch(step, SAF.results, sh, u, SAF.imp),
       base = SAF.results.length;
     const sums = await safRunJobs(batch, extra, () => {
       SAF.done++;
       safProgress();
     });
-    batch.forEach((sc, k) => SAF.results.push({i: base + k, kind: step.kind, sc, s: sums[k], margin: searchMargin(sums[k])}));
+    batch.forEach((sc, k) => SAF.results.push({i: base + k, kind: step.kind, sc, s: sums[k], margin: searchMargin(sums[k]), w: sc.w || 1}));
     const o = $('#saf-out');
     if (o && activeTab === 'saf') {
       o.innerHTML = safResultsHTML();
       wireSafOut();
       drawSafChart();
+      drawSpiChart();
     }
   }
   SAF.running = false;
@@ -216,6 +295,7 @@ function safOpen(sc) {
 function safFromTry(c) {
   if (c.sheet) SAF.sheet = oddCopy(typeof c.sheet === 'string' ? ODD_SHEETS[c.sheet] : c.sheet);
   for (const k of ['budget', 'rounds', 'seed']) if (c[k] != null) SAF[k] = c[k];
+  SAF.imp = !!c.imp;
   if (SAF.running) SAF.cancel = true; // a search already running stops after the runs in its workers
   if (c.run)
     (async () => {
@@ -309,6 +389,8 @@ function wireSaf(pane) {
   num('#saf-budget', 'budget');
   num('#saf-rounds', 'rounds');
   num('#saf-seed', 'seed');
+  const imp = $('#saf-imp');
+  if (imp) imp.onchange = () => (SAF.imp = imp.checked);
   $('#saf-reset').onclick = () => {
     SAF.sheet = oddCopy(ODD_SHEETS['ODD-1']);
     safRefresh();
@@ -354,4 +436,5 @@ function wireSaf(pane) {
   };
   wireSafOut();
   drawSafChart();
+  drawSpiChart();
 }

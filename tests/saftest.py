@@ -10,7 +10,8 @@ from _browser import launch, page_url, ROOT
 #   - the safety measures in the worker's summary;
 #   - phase 3: in fog the learned detector's input is outside its data and the Perceive light says so within a second,
 #     with the Metrics lines for the detector; the radar emergency brake stops in fog, says so in the log, counts its
-#     stops in the Metrics list, and its settings are in the Control tab.
+#     stops in the Metrics list, and its settings are in the Control tab;
+#   - phase 4a: after a search, the Risk table rates the random runs per hour with their 95 % intervals.
 # FAILS and ERRORS must be [].
 FAILS, ERRORS = [], []
 def check(ok, what):
@@ -87,6 +88,10 @@ async def main():
         check(len(r['rows']) >= 5 and any('inside' in x for x in r['rows']), 'the domain check lists the attributes')
         check(len(r['margins']) == budget and all(m is not None for m in r['margins']), f'the search ran {budget} runs')
         check(r['n'] > 0 and r['chart'], 'the worst runs and the chart are shown')
+        risk = await pg.evaluate("() => (document.querySelector('#saf-out') || {}).innerText || ''")
+        check('Risk' in risk and '95 % interval' in risk and 'rule of three' in risk, 'the Risk table rates the random runs per hour with their intervals')
+        rr = await pg.evaluate("() => { const R = window.__nav.SAF.results.filter(r => r.kind === 'random'); return [R.length, R.every(r => r.w === 1)]; }")
+        check(rr[0] >= 2 and rr[1], 'plain sampling weighs every random run 1')
         out = os.path.join(tempfile.mkdtemp(), 'search.json')
         subprocess.run(['node', os.path.join(ROOT, 'tools', 'search.mjs'), '--budget', str(budget), '--rounds', str(rounds), '--seed', str(seed), '--json', out], check=True, cwd=ROOT, stdout=subprocess.DEVNULL)
         node = [x['margin'] for x in json.load(open(out))]

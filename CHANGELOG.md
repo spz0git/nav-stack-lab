@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v66 · 2026-10-24
 
 - Safety, the last lesson, *The safety argument: claims, evidence, and what breaks it*: the busy floor's safety case
   drawn as a graph of claims and evidence, every piece of evidence a run the page reruns. One claim fails as it stands

@@ -563,6 +563,26 @@ const SCHEMA = {
     {k: 'exploreMin', label: 'Smallest frontier worth a visit', min: 2, max: 30, step: 1, unit: 'cells', show: () => P.mis === 'explore'},
     {k: 'replan', label: 'Periodic replan (0 = event-driven only)', min: 0, max: 5, step: 0.5, unit: 's'},
     {k: 'lostGuard', type: 'bool', label: 'Stop when position σ exceeds 1 m (diff-drive also turns in place)'},
+    {k: 'oddMon', type: 'bool', label: 'ODD monitor: a minimal-risk manoeuvre when the robot sees it has left its operating domain'},
+    {
+      k: 'oddResp',
+      type: 'seg',
+      label: 'Manoeuvre',
+      opts: [
+        ['crawl', 'Crawl at 0.3 m/s'],
+        ['stop', 'Stop']
+      ],
+      show: () => P.oddMon
+    },
+    {
+      type: 'info',
+      text: () => {
+        const sh = oddSheetOf(P.oddSheet),
+          O = S && S.odd;
+        return `Watching ${sh ? `<b>${esc(sh.name || 'a sheet')}</b>` : 'no sheet'} (Tools → Safety → Monitor this sheet sets it). What the robot can see of it: whether the air is clear, from the lidar's return share over 2 s (below 65 %: fog yes, rain mostly not), and whether a learned block in use reads inputs unlike its training data. Outside for 1 s, it ${P.oddResp === 'stop' ? 'stops' : 'crawls at 0.3 m/s'} until it has been back inside for 3 s. The floor's grip, the people's intentions and the aisle width it has not yet seen are not observable: those boundaries need operational rules, not a monitor.${O ? ` Now: ${O.out ? `<b>outside</b>: ${esc(O.why)}` : 'inside'}${O.share != null ? `, returns ${(100 * O.share).toFixed(0)} %` : ''}.` : ''}`;
+      },
+      show: () => P.oddMon
+    },
     {k: 'misLoop', type: 'bool', label: 'Repeat the goals: after the last one start again, lap after lap', show: () => P.mis !== 'explore'},
     {type: 'head', label: 'Map'},
     {

@@ -57,9 +57,11 @@ let linkCfg = null;
   }
 }
 custLoadSaved();
+safLoadSaved(); // the safety lab's arguments, sheets and sets kept in this browser (ui/argument.js)
 syncModeUI();
 renderLearn();
 lessonFromHash() || chapterFromHash() || (location.hash === '#learn' && setUIMode('learn'));
+argFromHash(); // #arg=…: an argument from a link (ui/argument.js)
 readTokens();
 draw();
 drawPlot();
@@ -140,6 +142,7 @@ window.__nav = {
   LAYERS,
   EXP,
   SAF, // Tools → Safety (ui/safety.js)
+  ARG, // its safety argument (ui/argument.js)
   safSearch,
   expCSV,
   configURL,

@@ -5277,3 +5277,94 @@ article.chapter .notes-table td button.try {
 .sens-row.na {
   opacity: 0.6;
 }
+/* the safety argument (ui/argument.js): GSN shapes, coloured by their evidence */
+.arg-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--raise);
+  padding: 6px;
+  margin: 6px 0;
+}
+.argdlg {
+  width: 96vw;
+  max-width: none;
+}
+.argdlg .arg-wrap {
+  margin: 0;
+  border: 0;
+  overflow: auto;
+}
+.arg-svg {
+  display: block;
+  max-width: none;
+  font-family: var(--f-display);
+}
+.arg-n {
+  cursor: pointer;
+}
+.arg-n rect,
+.arg-n polygon,
+.arg-n ellipse {
+  fill: color-mix(in srgb, var(--st) 12%, var(--raise));
+  stroke: var(--st);
+  stroke-width: 1.4;
+}
+.arg-n.context rect,
+.arg-n.assumption ellipse,
+.arg-n.justification ellipse {
+  fill: var(--panel);
+  stroke: var(--line-2);
+  stroke-dasharray: 4 3;
+}
+.arg-n.sel rect,
+.arg-n.sel polygon,
+.arg-n.sel ellipse {
+  stroke-width: 2.6;
+}
+.arg-n:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.arg-t {
+  font-size: 11px;
+  fill: var(--ink);
+  text-anchor: middle;
+}
+.arg-id {
+  font-size: 9px;
+  font-family: var(--f-mono);
+  fill: var(--muted);
+}
+.arg-val {
+  font-size: 10px;
+  font-family: var(--f-mono);
+  fill: var(--st);
+  text-anchor: middle;
+}
+.arg-sup,
+.arg-ctx {
+  fill: none;
+  stroke: var(--line-2);
+  stroke-width: 1.2;
+}
+.arg-ctx {
+  stroke-dasharray: 3 3;
+}
+.arg-hd {
+  fill: var(--line-2);
+}
+.arg-ho {
+  fill: var(--raise);
+  stroke: var(--line-2);
+}
+.arg-set input {
+  width: min(360px, 60vw);
+  font-family: var(--f-mono);
+}
+#arg-text,
+#arg-ev,
+#arg-json {
+  width: 100%;
+  font-family: var(--f-mono);
+  font-size: 12px;
+}

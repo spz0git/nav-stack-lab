@@ -54,6 +54,7 @@ for (const c of cases) {
         guardS: f(Z.guardS, 1),
         brakes: Z.brakes.map(b => `${b.t.toFixed(1)}s ${b.kind} ttc ${b.ttc}`),
         brakeS: f(Z.brakeS, 1),
+        odd: S.odd ? {first: S.odd.first, outS: f(S.odd.outS, 1), n: S.odd.n} : null,
         reloc: log(/^Relocalized/),
         yields: log(/yield/i),
         dist: f(S.dist, 1),

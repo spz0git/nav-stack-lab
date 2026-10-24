@@ -123,6 +123,9 @@ const DEFAULTS = {
   sensLat: 0,
   vehicles: true,
   guard: false,
+  oddMon: false, // the ODD monitor (core/oddmon.js): a minimal-risk manoeuvre when the robot sees it is outside its domain
+  oddResp: 'crawl', // its manoeuvre: crawl at 0.3 m/s, or stop
+  oddSheet: 'ODD-1', // the sheet it watches: a name in ODD_SHEETS, or a sheet's JSON
   radBrake: false, // the radar emergency brake (core/radar.js): stop for a radar echo in the way, closing, under radTTC
   radTTC: 1, // its time to contact [s]
   // the ultrasonic ring (core/sensors.js), off by default; what reads it: mapSrc, guardSrc, pfSonar
@@ -173,7 +176,8 @@ const PARAM_OPTS = {
   mapSrc: ['lidar', 'sonar', 'both'],
   guardSrc: ['lidar', 'sonar', 'both'],
   trkIn: ['lidar', 'radar', 'both'],
-  weather: ['clear', 'rain', 'fog']
+  weather: ['clear', 'rain', 'fog'],
+  oddResp: ['crawl', 'stop']
 };
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own

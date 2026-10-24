@@ -1,7 +1,7 @@
 id: ch8
 num: 8
 sys: saf
-summary: The ideas behind the Safety lessons: the four standards in the lab's own words, the operating domain as a set of conditions, hazard analysis with the lab's severity scale and measured exposure, the safety measures the simulator keeps, triggering conditions, faults and their time budget, searching the domain for failures, the learned blocks measured by slice and watched for inputs outside their data, mitigations with their price, and rates per hour with their intervals and leading indicators.
+summary: The ideas behind the Safety lessons: the four standards in the lab's own words, the operating domain as a set of conditions, hazard analysis with the lab's severity scale and measured exposure, the safety measures the simulator keeps, triggering conditions, faults and their time budget, searching the domain for failures, the learned blocks measured by slice and watched for inputs outside their data, mitigations with their price, rates per hour with their intervals and leading indicators, the ODD monitor, and the safety argument kept live.
 
 # Safety: domains, hazards, faults and search
 
@@ -268,4 +268,36 @@ estimates the domain's rate, since $E_q[w\,f] = E_p[f]$ for anything the run dep
 On ODD-1 contacts are common, and importance sampling gives the same rates within their intervals, with intervals about as wide (the strikes' a little narrower in absolute terms, but around lower estimates): little to gain where nothing is rare. With people who react there is no strike either way, and importance sampling's bound is wider on every seed, because the weights spent effective hours on worlds that held no strike. Every search with contacts ranks a measure of how close the robot came first and the time with a person within 2 m last: exposure is not a leading indicator.
 
 [try: The busy floor's domain, per hour | {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":"ODD-1","budget":40,"rounds":0,"seed":1,"run":true}}]
+
+## 11. The safety argument and the ODD monitor
+
+**The argument as data.** A node is a goal (a claim), a strategy (how a goal is broken down), a solution (evidence), or context, an assumption or a justification (what a goal leans on, drawn beside it). Each hangs from its parent by a supporting link or a context link. A solution names what to run and what must hold: either *runs*, a configuration at a list of seeds, or a *search* of a sheet, read on its random half, and a metric with a bound,
+$$
+\text{pass}(E) = \bigl[\, m(E) \ \mathrm{op}\ v(E) \,\bigr], \qquad \text{status}(G) = \begin{cases} \text{fail} & \text{if any supporting child fails} \\ \text{pass} & \text{if every supporting child passes} \\ \text{open} & \text{otherwise.} \end{cases}
+$$
+The metrics: contacts with a person while the robot moves, strikes, the fastest contact with a rack, the fastest with a person, when the ODD monitor first saw the robot outside, the worst seed's share of goals, and a search's upper 95 % rate bounds (§10). Context, assumptions and justifications are not judged; they are what a reader checks by hand. UL 4600 makes such a case the centre of a safety assessment and asks that it be kept current (clause 5); ISO 26262 (part 2, 6.4.8) and ISO/PAS 8800 (clause 8) ask for one too.
+
+**Checking it.** Every solution's runs are listed; the changes typed for every run are added on top of each (they win over the solution's own settings, so a change can break the evidence); runs two solutions share are run once; each solution's verdict comes from its runs' summaries, and the statuses follow. The page and `tools/argument.mjs` share the code, so they reach the same verdicts.
+
+**The ODD monitor.** What a robot can observe of its domain decides what it can monitor. The monitor (off by default) watches two things. The weather, through the lidar's return share: the share of the 120 beams that return, averaged over 2 s. Measured on L5 and generated warehouses it is 0.86 to 0.93 in clear air, 0.67 to 0.76 in rain and 0.57 to 0.59 in fog, so a threshold at 0.65 sees fog and not rain. And the learned blocks in use, through §8's out-of-distribution window. Outside for 1 s, it takes a minimal-risk manoeuvre: a crawl at 0.3 m/s or a stop, until it has been back inside for 3 s. The floor's grip, the people's intentions and an aisle not yet seen are not observable; they need operating rules, written in the argument as assumptions.
+
+**Measured.** The monitor on L5, seed 7 (seeds 1–5 in brackets):
+
+| Condition | First outside | Outside | Strikes | Mission |
+| --- | --- | --- | --- | --- |
+| Clear | never (never) | 0 s | the same as with the monitor off, run for run | 121 s |
+| Fog, crawl | 1.95 s (1.95 s) | 254 s | none (1 on seed 2; 5 of 6 seeds have one without it) | 286 s (272–296 s; seed 1: 300 s, 1 goal) |
+| Fog, stop | 1.95 s (1.95 s) | the rest of the run | none | no goal reached; the mission gives them up by 81 s |
+| Rain | 102.7 s (94–292 s on 3 more; never on 2) | 12 s (8–13 s) | 0 (2, 2, 3, 3, 0) | 131 s |
+
+ARG-1, the busy floor within ODD-1 with people who give way, checked with `tools/argument.mjs` and in the page (47 runs):
+
+| Changes for every run | No contact, six runs | No strike, search | Rack ≤ 0.3 m/s | Fog within 2 s | Top claim |
+| --- | --- | --- | --- | --- | --- |
+| none | 0: pass | 0: pass | 0.52 m/s (seed 3): fail | 1.95 s: pass | not supported |
+| people who do not react | 7: fail | 11: fail | 0: pass | 1.95 s: pass | not supported |
+| the monitor off | 0: pass | 0: pass | 0.52: fail | never: fail | not supported |
+| a defeater added: people who step out (40 runs, still giving way) | | | | | not supported: 11 contacts, no strike (12 and 8 at search seeds 2 and 3) |
+
+[try: Check the argument | {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"arg":"ARG-1","argSet":{},"check":true}}]
 

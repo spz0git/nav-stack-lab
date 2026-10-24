@@ -128,6 +128,8 @@ function healthNow(f) {
     C('plan', 'Path', st === 'NO_PATH', 'bad', `no path to the next goal${F.fails ? ` (attempt ${F.fails} of 3)` : ''}`);
     healthSensorChecks(C, 'plan');
     learnHealth(C, 'plan', f);
+    if (P.oddMon)
+      C('plan', 'Operating domain', !f && S.odd && S.odd.out, 'warn', `outside the operating domain: ${S.odd ? S.odd.why : ''}`);
     C('plan', 'Goals', st === 'IDLE' && !n, 'idle', 'no goals: tap the map to add some');
     C('plan', 'Goals skipped', skipped > 0, 'warn', `${skipped} goal${skipped === 1 ? '' : 's'} skipped`);
     C('plan', 'Plan time', ps && ps.ms > 250 && !f, 'warn', ps ? `last plan took ${ps.ms.toFixed(0)} ms (${ps.name})` : '');

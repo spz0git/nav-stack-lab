@@ -11,7 +11,10 @@ from _browser import launch, page_url, ROOT
 #   - phase 3: in fog the learned detector's input is outside its data and the Perceive light says so within a second,
 #     with the Metrics lines for the detector; the radar emergency brake stops in fog, says so in the log, counts its
 #     stops in the Metrics list, and its settings are in the Control tab;
-#   - phase 4a: after a search, the Risk table rates the random runs per hour with their 95 % intervals.
+#   - phase 4a: after a search, the Risk table rates the random runs per hour with their 95 % intervals;
+#   - phase 4b: the ODD monitor sees fog and crawls, with its light and log line; a small argument checked in the page
+#     gives the verdicts core/argument.js gives; arguments stay in this browser across a reload; an argument travels in
+#     a link.
 # FAILS and ERRORS must be [].
 FAILS, ERRORS = [], []
 def check(ok, what):
@@ -66,6 +69,20 @@ async () => {
     pane: document.querySelector('#pane').innerText,
     met: [...document.querySelectorAll('.console *, .metrics *, #metrics *')].filter(e => !e.children.length).map(e => e.textContent).join(' | ')};
 }'''
+ODDMON = r'''
+async () => {
+  const N = window.__nav;
+  await N.tryGo({sim: true, level: 4, set: {weather: 'fog', oddMon: true}, tab: 'mis', hold: true});
+  await N.advance(Math.round(6 / 0.05));
+  const H = N.health();
+  return {warn: (H.all.plan || []).filter(c => c.on && c.lvl === 'warn').map(c => c.name), log: N.S.log.filter(l => /Outside the operating domain/.test(l.msg)).length,
+    v: Math.abs(N.S.robot.v), out: !!(N.S.odd && N.S.odd.out)};
+}'''
+SMALLARG = {'format': 'nav-stack-lab-argument', 'version': 1, 'name': 'Test argument: fog noticed', 'nodes': [
+  {'id': 'G1', 'type': 'goal', 'text': 'The robot notices fog within 2 s'},
+  {'id': 'A1', 'type': 'assumption', 'parent': 'G1', 'rel': 'context', 'text': 'Only fog matters here'},
+  {'id': 'E1', 'type': 'solution', 'parent': 'G1', 'rel': 'support', 'text': 'Fog with the monitor',
+   'evidence': {'kind': 'runs', 'level': 4, 'set': {'weather': 'fog', 'oddMon': True}, 'seeds': [7], 'secs': 20, 'metric': 'oddFirst', 'op': '<=', 'value': 2}}]}
 async def main():
     async with async_playwright() as p:
         b = await launch(p)
@@ -125,6 +142,24 @@ async def main():
         await pg.wait_for_timeout(300)
         r2 = await pg.evaluate("() => [...document.querySelectorAll('*')].filter(e => !e.children.length && e.textContent === 'Emergency brake').length")
         check(r2 >= 1, 'the Metrics list counts its stops')
+        r = await pg.evaluate(ODDMON)
+        check('Operating domain' in r['warn'] and r['log'] >= 1 and r['out'], 'in fog the ODD monitor warns, logs and holds the robot outside: ' + ', '.join(r['warn']))
+        check(r['v'] <= 0.31, f"it crawls ({r['v']:.2f} m/s)")
+        await pg.evaluate("a => window.__nav.tryGo({sim: true, level: 4, tab: 'saf', hold: true, saf: {arg: a, argSet: {}, check: true}})", SMALLARG)
+        for _ in range(120):
+            await pg.wait_for_timeout(500)
+            if await pg.evaluate("() => !window.__nav.ARG.running && Object.keys(window.__nav.ARG.verdicts).length > 0"): break
+        v = await pg.evaluate("() => window.__nav.ARG.verdicts.E1")
+        check(v and v['pass'] and v['value'] <= 2, f"a small argument checked in the page passes as in Node: {v}")
+        svg = await pg.evaluate("() => document.querySelectorAll('.arg-svg [data-argnode]').length")
+        check(svg >= 3, 'the graph draws every node')
+        await pg.reload(); await pg.wait_for_timeout(1500)
+        kept = await pg.evaluate("() => window.__nav.ARG.list.map(a => a.name)")
+        check('Test argument: fog noticed' in kept, 'the argument is still there after a reload (IndexedDB)')
+        b64 = await pg.evaluate("a => { const s = JSON.stringify({...a, name: 'Linked argument'}); return btoa(unescape(encodeURIComponent(s))).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, ''); }", SMALLARG)
+        await pg.evaluate("h => { location.hash = h; }", '#argj=' + b64); await pg.wait_for_timeout(800)
+        kept = await pg.evaluate("() => window.__nav.ARG.list.map(a => a.name)")
+        check('Linked argument' in kept, 'an argument opens from a link')
     print('FAILS', FAILS)
     print('ERRORS', ERRORS[:5])
     sys.exit(1 if FAILS or ERRORS else 0)

@@ -33,6 +33,7 @@ function runSummary() {
     mpcMs: S.mpcStats ? +S.mpcStats.ms.toFixed(2) : null,
     ...safeSummary(), // impact speed, clearances, leading indicators and the contact events (core/safety.js)
     ...learnSummary(), // the learned blocks: detection and prediction by slice, out of distribution (core/learnmon.js)
+    ...oddSummary(), // the ODD monitor: when it first saw the robot outside, for how long, how often (core/oddmon.js)
     log: S.log
       .slice(0, 12)
       .map(l => l.t.toFixed(1) + ' ' + l.msg)
@@ -116,6 +117,12 @@ self.__core = {
   riskHoursFor,
   poissonCI,
   spiTable,
+  argError,
+  argJobs,
+  argVerdict,
+  argStatus,
+  ARG_BUILTIN,
+  ARG_METRICS,
   makeRng,
   RES,
   get LV() {

@@ -1,7 +1,7 @@
 id: ch8
 num: 8
 sys: saf
-summary: The ideas behind the Safety lessons: the four standards in the lab's own words, the operating domain as a set of conditions, hazard analysis with the lab's severity scale and measured exposure, the safety measures the simulator keeps, triggering conditions, faults and their time budget, and searching the domain for failures.
+summary: The ideas behind the Safety lessons: the four standards in the lab's own words, the operating domain as a set of conditions, hazard analysis with the lab's severity scale and measured exposure, the safety measures the simulator keeps, triggering conditions, faults and their time budget, searching the domain for failures, the learned blocks measured by slice and watched for inputs outside their data, and mitigations with their price.
 
 # Safety: domains, hazards, faults and search
 
@@ -173,3 +173,61 @@ Refinement finds more runs with a contact than random sampling on every seed; it
 **Sorting what it finds.** Every failure is opened and attributed: a known triggering condition in a new place (search seed 1's worst run is §5's person turning back, head-on in a 2 m aisle) becomes one more scenario in that condition's regression set; a new kind of failure becomes a new row. Kept as a set, the scenarios are rerun after every change, and a change is accepted when the whole set improves, not only the case that motivated it.
 
 [try: Search the busy floor's domain | {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":"ODD-1","budget":40,"rounds":2,"seed":1,"run":true}}]
+
+## 8. Learned blocks: slices and the edge of the data
+
+**Performance by slice.** One number per block hides where it fails. The lab cuts the people detector's recall by range, at every lidar scan of a tracker that detects: a person is *visible* when a beam's true end point lies on their disc (from the true pose), and *found* when a detection lies within 0.6 m of where the estimate's frame puts them; a detection near nobody is false. With $V_s$ visible and $F_s$ found in slice $s$,
+$$
+r_s = \frac{F_s}{V_s}, \qquad \text{false detections per scan} = \frac{\#\{\text{detections near nobody}\}}{\#\text{scans}} .
+$$
+The slices are the range (under 2.5 m, 2.5 to 5 m, farther), next to a rack or wall (the disc within 0.4 m of one) or in the open, walking or standing. The predictors are cut the same way: each 2 s prediction is filed by what the person did in those 2 s, walking on as they were, *changing* (turning by more than 30°, stopping or starting) or standing, and by whether they were within 3 m of the robot. ISO/PAS 8800 sets the requirements on the data and its coverage (clause 11) and verifies the trained component against them (clause 12): slices are how a requirement names the situations that matter, and how a test shows they are covered.
+
+**Out of distribution.** Each built-in model carries a reference: the mean $\mu_i$ and spread $\sigma_i$ of a short description $x$ of its inputs over the runs its file lists as its training data, replayed on the headless core (`tools/ood-ref.mjs`; the policy's file lists datasets, so its collector's recipes are replayed). The detector's description is its scan's mean and spread of range, the shares of beams that return and return within 1.5 m, the mean change from the last scan, the speed and turn rate, and the map's mean evidence on the hits (8 numbers); the policy's, its 12 sector minima, mean range, the two shares, the goal distance, speed and turn rate (18); the predictor's, its 24 inputs as they are. The score of an input is
+$$
+s = \sqrt{\frac1m \sum_{i=1}^{m} \min\!\Bigl(10,\ \frac{|x_i - \mu_i|}{\sigma_i}\Bigr)^{2}} ,
+$$
+the root mean square of its z-scores, each clipped so one wild element cannot dominate. The threshold $s_{99}$ is the score 99 % of the training inputs stay under: 1.91 for the detector, 2.24 for the predictor, 1.84 for the policy. A block in use whose input is above it for more than half of the last 5 s turns its subsystem's light amber. It is the simplest monitor that works, a diagonal Gaussian; it is blind to anything its description leaves out, and it says nothing about whether the block's answer is right. ISO/PAS 8800 asks for such measures in operation (clause 14). A model trained in the Train tab carries the reference of its own training data.
+
+**Measured**, L5 at seed 7 (seeds 2–5 in brackets), up to Mission complete:
+
+| Block and condition | Found: all, under 2.5 m, 2.5–5 m, farther | False per scan | Score outside | Light |
+| --- | --- | --- | --- | --- |
+| Rule detector, clear | 100, 100, 100, 100 % (the same) | 0.07 (0.03–0.06) | — | — |
+| Learned detector, clear | 96, 100, 96, 90 % (far 85–91 %) | 0.03 (0.03–0.06) | 1 % | none |
+| Learned detector, seed 1 (the filter keeps losing itself) | 90, 97, 95, 79 % | 0.32 (the rule: 2.98) | 1 % | none |
+| Learned detector, fog | 92, 100, 89 % (one person farther: the fog's reach is about 4 m) | 6.99 (6.8–7.3) | 96 % | amber at 0.5 s (every seed) |
+| Learned detector, rain | 94, 100, 97, 81 % | 2.66 (2.7–3.1) | 13 % (10–12 %) | first at 107.5 s (109.5–138.5 s; seed 1 never) |
+
+| Predictor, error at 2 s | Steady walkers | Changing course | Share changing |
+| --- | --- | --- | --- |
+| Learned | 0.28 m (0.20–0.25) | 0.78 m (0.66–0.80) | 6 % (6–8 %) |
+| Constant velocity | 0.36 m (0.33–0.37) | 1.61 m (1.38–1.67) | |
+
+The policy on L5, a floor with people it was never trained with: 0.4 % of its inputs outside (0.4–0.5 %), no light, and 4 contacts with people (2, 4, 1, 1) where the classical stack has 1 on each seed. L5's people walk the middle of the aisles, so the slices by a rack and standing are empty there.
+
+[try: The learned detector in fog | {"sim":true,"level":4,"set":{"agents":"learned","weather":"fog"},"tab":"per","layers":{"agents":true,"lidar":true},"panes":[["oodDet"]]}]
+
+## 9. Mitigations and their price
+
+**Modifying the function.** ISO 21448 removes or reduces a functional insufficiency by changing the function: better sensing, a restricted function or domain, a hand-over, a minimal-risk manoeuvre (clause 8), and the changed function is verified again. In the lab the price of a mitigation is availability, the time the robot spends stopped or slowed and the missions it no longer finishes, and its false interventions; the benefit is the contacts and severities it removes. Both are measured on the same scenarios.
+
+**The radar emergency brake.** At each radar scan (10 Hz) it takes the echoes the people tracker would (moving against the static world, or not explained by the map), keeps those ahead within half the body's width plus 0.2 m of the arc the odometry says the robot is turning on, and for each that closes at $v_c > 0.1$ m/s computes the time to contact
+$$
+T = \frac{d - \ell_f}{v_c},
+$$
+with $d$ the echo's range and $\ell_f$ the distance from the radar to the body's front. Under $T_{brake}$ (1 s by default) the robot is held at a stop for 0.5 s, renewed by each scan that still sees an echo there. It reads one scan and keeps no track, so it reacts at the radar's rate and in fog; and it cannot tell a person's echo from a ghost or clutter, so some of its stops are for nothing. The simulator knows what each echo was and counts the stops by cause.
+
+**Measured**, L5 up to Mission complete, seed 7 (in brackets seeds 2–5, and seed 1 where named; *still*: a person walked into the stopped robot):
+
+| Condition, mitigation | Contacts with people | Strikes | Stops (for clutter or a rack) | Time stopped or capped | Mission |
+| --- | --- | --- | --- | --- | --- |
+| Fog, none | 1 | 1 (on 5 of 6 seeds) | — | — | 121 s |
+| Fog, radar brake | 0 (seeds 2–5: 2 still; 1 bump; 1 bump and 1 still; 2 still; seed 1: 0) | 0 (none on any seed) | 11 (5 of 11; 2–4 of 5–10) | 7.3 s | 125 s |
+| Fog, lidar safety stop | 3 bumps (a contact on every seed) | 0 (on 2 of 6 seeds) | — | 6.2 s capped (4–8 s; seed 1: 53 s) | 118 s |
+| Clear, none | 1 bump at 51.6 s | 0 (seeds 1, 3: a strike) | — | — | 121 s |
+| Clear, radar brake | 1 still at 52.1 s (a bump at 51–53 s on seeds 2–5) | 0 | 6 (3 of 6; 2–6 of 3–9) | 3.3 s | 123 s |
+| Clear, cruise 0.5 m/s | a strike at 126.1 s and a bump at 131.6 s (the same on seeds 2–5) | 1 (on 5 of 6 seeds) | — | — | 178 s |
+
+The brake removes every strike in fog because it reads the one sensor the fog does not reach; the lidar safety stop inherits the lidar's blindness. In clear air the brake costs stops and does little, and the slower robot meets different people at different moments and does worse. The radar brake's case for shipping is "on where a monitor says the lidar is degraded": §8's monitor sees fog in half a second.
+
+[try: Fog, with the radar emergency brake | {"sim":true,"level":4,"set":{"weather":"fog","radar":true,"radBrake":true},"tab":"ctl","layers":{"agents":true,"radar":true}}]

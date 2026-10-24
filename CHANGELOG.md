@@ -4,6 +4,22 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- Safety, two more lessons:
+  - *Learned blocks: the data is the specification*: the learned people detector, predictor and policy measured by
+    slice instead of by one number, and watched for inputs unlike their training data. In fog a new health light says
+    within half a second that the detector is outside what it was trained on; the policy's watch never notices the
+    people it was not trained with.
+  - *Mitigations, and what they cost*: a radar emergency brake removes every strike in fog on six seeds, at the price
+    of stops for clutter; the lidar safety stop inherits the fog's blindness; a slower cruise speed makes things worse.
+- Control → Radar emergency brake (off by default): stops for a radar echo in the way that would arrive sooner than the
+  time to contact allows.
+- The Metrics list shows the people found by range, the prediction error for people who walk on and people who change
+  course, each learned block's out-of-distribution score, the brake's stops, and contacts where a person walked into
+  the stopped robot.
+- Fix: Experiments listed none of the settings that moved to the Sensors tab in v62.
+
 ## v63 · 2026-10-23
 
 - Every tab in the pipeline row is numbered now, Sensors (1) through Vehicle (7), in the order the data flows.

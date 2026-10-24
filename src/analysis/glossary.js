@@ -1249,6 +1249,48 @@ Object.assign(GLOSS, {
     'The gap to a person divided by the speed the two are closing at: how long until contact if both keep their velocities (Metrics).',
     's',
     ['time to contact']
+  ],
+  slice: [
+    'slice',
+    'A part of the situations a block meets, named so that its performance can be measured there alone: people far away, people who change course. A requirement on a slice is how the hazard reaches the data.',
+    '',
+    ['slices', 'slice']
+  ],
+  coverage: [
+    'data coverage',
+    "How well a learned block's training data spans the situations of the operating domain, slice by slice. What the data does not cover, the block was never shown.",
+    '',
+    ['data coverage', 'coverage']
+  ],
+  ood: [
+    'out of distribution',
+    "An input unlike those a learned block was trained on. The lab scores it as the root mean square of the z-scores of a short description of the input against the training inputs' statistics; above the 99th percentile of the training scores it counts as outside.",
+    '',
+    ['out-of-distribution score', 'out of distribution', 'out-of-distribution']
+  ],
+  monitor: [
+    'runtime monitor',
+    'A check that runs while the system works and says when it has left the conditions it was made for: the health lights, the out-of-distribution score. It detects; something else has to react.',
+    '',
+    ['monitors', 'monitor']
+  ],
+  aeb: [
+    'emergency brake',
+    'A last-moment stop on one sensor, here the radar: an echo in the way whose time to contact falls below a threshold stops the robot. It needs no tracking, so it is fast, and it stops for whatever the sensor reports.',
+    '',
+    ['emergency brake']
+  ],
+  falsestop: [
+    'false stop',
+    'A stop for nothing there: a ghost, clutter, a wall the brake took for an obstacle in the way. The price of a fast safety function, counted against what it prevents.',
+    '',
+    ['stops for nothing', 'false stops', 'false stop']
+  ],
+  avail: [
+    'availability',
+    'How much of its job the system still does: time spent moving rather than stopped or slowed, missions finished. What a mitigation usually pays with.',
+    '',
+    ['availability']
   ]
 });
 const LESSON_TERMS = {
@@ -1258,6 +1300,10 @@ const LESSON_TERMS = {
     'hara hazard hazevent opsit severity sevclass vrel exposure controllability asil safetygoal speedplanner socialforce contacts closest sotif',
   'Something breaks: detect it, react, in time':
     'fault ftti safetymech safestate faultsched fmea degraded lostguard lidar beacon pf sigx contacts sevclass speedplanner',
+  'Learned blocks: the data is the specification':
+    'slice coverage ood monitor recall distshift multimodal prederr mlp fog track speedplanner contacts lidar beam',
+  'Mitigations, and what they cost':
+    'aeb falsestop avail ttc radar doppler ghost clutter guard fog sotif trigcond safestate contacts sevclass scenset monitor',
   'Looking for the failures nobody wrote down':
     'scenario runmargin refine scenset odd fourareas trigcond sevclass contacts guard speedplanner',
   'Nothing breaks, and it still fails: triggering conditions':

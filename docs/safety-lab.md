@@ -1,6 +1,6 @@
 # Safety lab: design
 
-Status: phases 1 and 2 built (v60, v61, 2026-10-22); phase 3 in progress (2026-10-24). Written against v59 as a
+Status: phases 1 and 2 built (v60, v61, 2026-10-22); phase 3 built (v64, 2026-10-24); phase 4 next. Written against v59 as a
 proposal for a new track inside Nav Stack Lab that teaches the ideas of four safety standards by doing them on the
 simulator; what was built is in the roadmap's "Safety lab" sections. The owner's decisions on the design
 questions are recorded in section 9; the clause numbers the track cites wait for the owner's check in section 10.
@@ -448,9 +448,11 @@ loc/03, loc/04 and loc/07 re-measured in the same PR; decision 10), C5, C7. Page
 Search (random, refinement, the worst cases with Open, saved scenario sets), `tools/search.mjs`, `tests/saftest.py`.
 Lessons 4 and 6, which became 4 and 5 (the search moved before the learned blocks, so phase 3 appends its lessons).
 
-**Phase 3, the learned blocks and mitigations.** Per-slice metrics for the detector, predictor and policy; an
-out-of-distribution score from the training runs the model files list. The radar emergency brake as an opt-in
-mitigation. Lessons 6 (learned blocks) and 7.
+**Phase 3, the learned blocks and mitigations** (built, v64). Per-slice metrics for the detector and predictor; an
+out-of-distribution score for all three learned blocks from the training runs the model files list, with a health
+check; the radar emergency brake as an opt-in mitigation. Lessons 6 (learned blocks) and 7, chapter 8 §8–§9. The lidar
+safety stop's tuning (decision 7) became a measurement in lesson 7 rather than a change: in fog it inherits the
+lidar's blindness, which no tuning fixes.
 
 **Phase 4, risk and the argument.** Rates with intervals and importance sampling in Search; the SPI chart; the GSN
 format, renderer, editor and evidence runner, with arguments, ODD sheets, hazard logs and scenario sets stored in the

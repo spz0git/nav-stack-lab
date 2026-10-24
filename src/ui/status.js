@@ -128,12 +128,18 @@ function safetyItems() {
   const Z = S.safe;
   if (!Z) return [];
   const s1 = x => `${x.toFixed(1)} s`,
-    hits = Z.events.filter(e => e.kind !== 'person' || !e.still);
+    hits = Z.events;
   const out = [
     [
       'Contacts by speed',
       hits.length
-        ? hits.map(e => `${e.v.toFixed(2)} m/s ${e.sev} (${e.kind === 'static' ? 'wall' : 'person'}, ${e.t.toFixed(0)} s)`).join(' · ')
+        ? hits
+            .map(e =>
+              e.kind === 'person' && e.still
+                ? `a person walked into the stopped robot (${e.t.toFixed(0)} s)` // not the robot's impact (core/safety.js)
+                : `${e.v.toFixed(2)} m/s ${e.sev} (${e.kind === 'static' ? 'wall' : 'person'}, ${e.t.toFixed(0)} s)`
+            )
+            .join(' · ')
         : 'none',
       'saf'
     ],

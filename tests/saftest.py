@@ -7,7 +7,10 @@ from _browser import launch, page_url, ROOT
 #   - people who wait for the robot: a generated world with stepout people keeps them still until the robot comes near;
 #   - Tools → Safety: the sheet's check of the level on screen; a short search whose margins equal tools/search.mjs's for
 #     the same search seed (the page's workers and Node draw the same scenarios); Open; a kept set rerun; import;
-#   - the safety measures in the worker's summary.
+#   - the safety measures in the worker's summary;
+#   - phase 3: in fog the learned detector's input is outside its data and the Perceive light says so within a second,
+#     with the Metrics lines for the detector; the radar emergency brake stops in fog, says so in the log, counts its
+#     stops in the Metrics list, and its settings are in the Control tab.
 # FAILS and ERRORS must be [].
 FAILS, ERRORS = [], []
 def check(ok, what):
@@ -43,6 +46,24 @@ async ({budget, rounds, seed}) => {
   Object.assign(A, {budget, rounds, seed});
   await N.safSearch();
   return {rows, margins: A.results.map(r => r.margin), n: document.querySelectorAll('#saf-out tbody tr').length, chart: !!document.querySelector('#cv-saf')};
+}'''
+LEARN = r'''
+async () => {
+  const N = window.__nav;
+  await N.tryGo({sim: true, level: 4, set: {agents: 'learned', weather: 'fog'}, tab: 'per', hold: true});
+  await N.advance(Math.round(2 / 0.05));
+  const H = N.health();
+  return {warn: (H.all.per || []).filter(c => c.on && c.lvl === 'warn').map(c => c.name), out: N.S.learn.ood.detector.out / Math.max(1, N.S.learn.ood.detector.n),
+    met: [...document.querySelectorAll('.console *, .metrics *')].filter(e => !e.children.length).map(e => e.textContent).join(' | ')};
+}'''
+BRAKE = r'''
+async () => {
+  const N = window.__nav;
+  await N.tryGo({sim: true, level: 4, set: {weather: 'fog', radar: true, radBrake: true}, tab: 'ctl', hold: true});
+  await N.advance(Math.round(70 / 0.05));
+  return {brakes: N.S.safe.brakes.length, log: N.S.log.filter(l => /Emergency brake/.test(l.msg)).length,
+    pane: document.querySelector('#pane').innerText,
+    met: [...document.querySelectorAll('.console *, .metrics *, #metrics *')].filter(e => !e.children.length).map(e => e.textContent).join(' | ')};
 }'''
 async def main():
     async with async_playwright() as p:
@@ -87,6 +108,18 @@ async def main():
         await pg.click('[data-safopen]'); await pg.wait_for_timeout(400)
         lv = await pg.evaluate('[window.__nav.LV.id, window.__nav.LV.name, window.__nav.S.fsm.state]')
         check(lv[0] == 'G', 'Open loads the scenario: ' + ' '.join(map(str, lv)))
+        r = await pg.evaluate(LEARN)
+        check('Out of distribution (detector)' in r['warn'], 'in fog the Perceive light says the detector is out of distribution: ' + ', '.join(r['warn']))
+        check(r['out'] > 0.5, f"most of the scans are outside ({r['out']:.0%})")
+        await pg.wait_for_timeout(300)
+        r2 = await pg.evaluate("() => [...document.querySelectorAll('*')].filter(e => !e.children.length && /^(People found|Detector input)$/.test(e.textContent)).length")
+        check(r2 >= 2, 'the Metrics list has the People found and Detector input lines')
+        r = await pg.evaluate(BRAKE)
+        check(r['brakes'] > 0 and r['log'] > 0, f"the radar brake stops in fog and the log says so ({r['brakes']} stops)")
+        check('Radar emergency brake' in r['pane'] and 'time to contact' in r['pane'], 'its settings are in the Control tab')
+        await pg.wait_for_timeout(300)
+        r2 = await pg.evaluate("() => [...document.querySelectorAll('*')].filter(e => !e.children.length && e.textContent === 'Emergency brake').length")
+        check(r2 >= 1, 'the Metrics list counts its stops')
     print('FAILS', FAILS)
     print('ERRORS', ERRORS[:5])
     sys.exit(1 if FAILS or ERRORS else 0)

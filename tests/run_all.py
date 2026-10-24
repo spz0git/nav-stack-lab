@@ -25,7 +25,7 @@ SCOPE=[
     (r'^src/(core/(nn|nn-train|dataset|models-data|agents|predict)\.js|models/)|^src/ui/train\.js',['trtest.py']),
     (r'^src/core/(levels|worldgen|worlds)\.js|^src/ui/(levelmenu|maptools|urlstate)\.js',['lvtest.py']),
     (r'^src/core/(sensors|health|localization|fidelity|step)\.js|^src/ui/health\.js',['sntest.py']),
-    (r'^src/core/(safety|search|health|config)\.js|^src/ui/safety\.js|^tools/search\.mjs',['saftest.py']),
+    (r'^src/core/(safety|search|health|config|learnmon|radar)\.js|^src/ui/(safety|status)\.js|^tools/(search|ood-ref)\.mjs',['saftest.py']),
     (r'^docs/lessons/|^src/analysis/(lessons|lessons2|lessons-data|glossary)\.js|^src/ui/(learn|experiments)\.js|^tools/lessons\.mjs',['tles.py','p5test.py']),
     (r'^docs/notes/|^src/ui/chapters\.js|^tools/notes\.mjs',['chtest.py']),
     (r'^tests/(\w+\.py)$',None),  # a changed test runs itself

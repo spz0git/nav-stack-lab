@@ -109,6 +109,7 @@ function applyCmd(c) {
       steer: c.steer != null ? c.steer + 0.3 * P.actNoise * g.n() : c.steer
     };
   }
+  c = radarBrake(c); // the radar emergency brake, after every controller (core/radar.js)
   // the zero-velocity update needs the robot still: with it on, the first 2 s of a run are a calibration hold
   if (P.gyro && P.zupt && S.t < 2) c = {v: 0, w: 0, steer: 0};
   S.cmdIssued = c;

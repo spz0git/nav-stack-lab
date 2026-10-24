@@ -2,7 +2,9 @@
 // and seed, the run up to Mission complete (or secs), then the contacts with their relative speed and the lab's
 // severity class, the closest approach, the wall clearance, and the leading indicators and exposure of core/safety.js;
 // with them the relocalizations, the speed planner's yields, the skipped goals, and when each health check first
-// turned amber or red (core/health.js, as the page's lights).
+// turned amber or red (core/health.js, as the page's lights); the radar emergency brake's stops and what triggered them;
+// and with "learn": true the learned blocks' detection and prediction by slice and out-of-distribution scores
+// (core/learnmon.js).
 //   node tests/measure_saf.mjs '[{"name": "…", "cfg": {"level": 4, "set": {"spd": "none"}}, "seeds": [7, 1, 2], "secs": 300}]'
 // cfg is a Try's cfg as the lesson writes it: level (a built-in's index or a generator spec), set and goals; a cfg seed is
 // the default for seeds. With "every": n, a row every n seconds as well.
@@ -50,11 +52,14 @@ for (const c of cases) {
         opS: f(Z.opS, 1),
         revS: f(Z.revS, 1),
         guardS: f(Z.guardS, 1),
+        brakes: Z.brakes.map(b => `${b.t.toFixed(1)}s ${b.kind} ttc ${b.ttc}`),
+        brakeS: f(Z.brakeS, 1),
         reloc: log(/^Relocalized/),
         yields: log(/yield/i),
         dist: f(S.dist, 1),
         ev,
-        health: Object.entries(Z.health).map(([k, h]) => `${h.t}s ${k} ${h.lvl}`)
+        health: Object.entries(Z.health).map(([k, h]) => `${h.t}s ${k} ${h.lvl}`),
+        ...(c.learn ? {learn: C.learnSummary()} : {})
       })
     );
     for (const r of rows) console.log('   ', JSON.stringify(r));

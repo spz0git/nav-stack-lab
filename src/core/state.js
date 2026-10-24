@@ -199,6 +199,7 @@ function reset() {
     collPedStill: 0,
     minPed: Infinity,
     safe: safeInit(), // contact events, clearances and leading indicators (core/safety.js)
+    learn: learnInit(), // the learned blocks' detection and prediction by slice, and how far out of distribution (core/learnmon.js)
     lap: 1 // the lap of the goal list (Repeat the goals)
   };
   for (const w of WPS) {

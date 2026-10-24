@@ -139,6 +139,7 @@ function predLearned(t, M) {
   const e = S.est,
     v = S.odo ? S.odo.v : 0,
     {f, fr} = predFeatures(t, S.agents.hist && S.agents.hist.get(t.id), e, v);
+  oodNote('predictor', f, M);
   return predDecode(mlpForward(M, f), f, fr);
 }
 // Every scan: the learned futures of each confirmed track (when a model is there and the learned predictor is picked or
@@ -200,6 +201,7 @@ function predScore() {
         s = E[d.kind];
       s[d.h ? 2 : 0] += err;
       s[d.h ? 3 : 1]++;
+      if (d.h) predSliceAdd(d, p, err); // by slice, for the safety lessons (core/learnmon.js)
     }
     E.due.splice(i, 1);
   }
@@ -209,14 +211,15 @@ function predScore() {
     if (!t.conf) continue;
     const j = predNearest(t, tf);
     if (j < 0) continue;
+    const sl = predSliceAt(j);
     for (const [h, tt] of [
       [0, 1],
       [1, 2]
     ]) {
-      E.due.push({t: S.t + tt, j, h, tf, kind: 'cv', x: t.x + t.vx * tt, y: t.y + t.vy * tt});
+      E.due.push({t: S.t + tt, j, h, tf, kind: 'cv', x: t.x + t.vx * tt, y: t.y + t.vy * tt, ...sl});
       if (t.lp) {
         const q = predAt(t.lp.modes[0], tt);
-        E.due.push({t: S.t + tt, j, h, tf, kind: 'ln', x: q[0], y: q[1]});
+        E.due.push({t: S.t + tt, j, h, tf, kind: 'ln', x: q[0], y: q[1], ...sl});
       }
     }
   }

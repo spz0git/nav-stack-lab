@@ -73,7 +73,9 @@ function policyPlan(e, wp) {
       S.policySub = q;
     }
   } else S.policySub = null;
-  const y = mlpForward(M, policyFeatures(S.scan, e, target, S.odo)),
+  const f = policyFeatures(S.scan, e, target, S.odo);
+  oodNote('policy', f, M); // how far this input is from what the policy was trained on (core/learnmon.js)
+  const y = mlpForward(M, f),
     K = policyK(M),
     c = Math.cos(e.th),
     s = Math.sin(e.th);

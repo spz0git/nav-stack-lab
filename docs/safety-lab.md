@@ -1,7 +1,8 @@
 # Safety lab: design
 
-Status: design only, nothing built (2026-10-22, written against v59). This document proposes a new track inside Nav Stack
-Lab that teaches the ideas of four safety standards by doing them on the simulator. The owner's decisions on the design
+Status: phases 1 and 2 built (v60, v61, 2026-10-22); phase 3 built (v64, 2026-10-24); phase 4 next. Written against v59 as a
+proposal for a new track inside Nav Stack Lab that teaches the ideas of four safety standards by doing them on the
+simulator; what was built is in the roadmap's "Safety lab" sections. The owner's decisions on the design
 questions are recorded in section 9; the clause numbers the track cites wait for the owner's check in section 10.
 
 - [1. What the track is for](#1-what-the-track-is-for)
@@ -326,7 +327,8 @@ Why not a mode: a mode replaces the stage, but safety work happens on simulation
 map, a red evidence node is rerun and watched, a hazard is pointed at in a replay. The Tools tabs already do this for
 Experiments and Train. The one part that wants room is the argument graph; it can open in the plot dock at full height
 or as an overlay on the stage with the map behind it. If, once built, it does not fit, promoting Safety to a mode is a
-UI change, not a redesign; the owner decided to revisit the question after phase 2 (decision 4).
+UI change, not a redesign; the owner revisited the question after phase 2 and kept the Learn group and the Tools tab,
+to look again when the argument graph of phase 4 shows whether it needs the room (decision 4).
 
 **Registering the group** touches, as for every group today: `GROUPS` in `tools/lessons.mjs`, the placeholder in
 `src/analysis/lessons-data.js`, `SIM_LESSONS` in `src/analysis/lessons2.js`, `LESSON_GROUPS` in
@@ -446,9 +448,11 @@ loc/03, loc/04 and loc/07 re-measured in the same PR; decision 10), C5, C7. Page
 Search (random, refinement, the worst cases with Open, saved scenario sets), `tools/search.mjs`, `tests/saftest.py`.
 Lessons 4 and 6, which became 4 and 5 (the search moved before the learned blocks, so phase 3 appends its lessons).
 
-**Phase 3, the learned blocks and mitigations.** Per-slice metrics for the detector, predictor and policy; an
-out-of-distribution score from the training runs the model files list. The radar emergency brake as an opt-in
-mitigation. Lessons 6 (learned blocks) and 7.
+**Phase 3, the learned blocks and mitigations** (built, v64). Per-slice metrics for the detector and predictor; an
+out-of-distribution score for all three learned blocks from the training runs the model files list, with a health
+check; the radar emergency brake as an opt-in mitigation. Lessons 6 (learned blocks) and 7, chapter 8 §8–§9. The lidar
+safety stop's tuning (decision 7) became a measurement in lesson 7 rather than a change: in fog it inherits the
+lidar's blindness, which no tuning fixes.
 
 **Phase 4, risk and the argument.** Rates with intervals and importance sampling in Search; the SPI chart; the GSN
 format, renderer, editor and evidence runner, with arguments, ODD sheets, hazard logs and scenario sets stored in the
@@ -478,7 +482,7 @@ The owner's answers to the design questions (2026-10-22). Question 2, the clause
 | 1 | Which standards | Only the four: ISO 26262, ISO 21448, ISO/PAS 8800 and UL 4600. No sidebar on the robot-specific standards, and no companion standards cited; GSN is used as a notation only. |
 | 2 | Clause numbers | First: the owner checks them in section 10, and no lesson cites an unchecked row. Changed 2026-10-22 (the licensed texts are not available here): the lessons and chapter cite the best available numbers of section 10, say that they come from public outlines and are unchecked, and a row is corrected wherever it is cited once someone checks it. |
 | 3 | Severity scale | The lab's own scale from the relative speed at contact, labelled as the lab's: under 0.3 m/s, 0.3–1 m/s, over 1 m/s. |
-| 4 | Tools tab or mode | A Learn group `saf` plus Tools → Safety; whether Safety becomes a mode is revisited after phase 2. |
+| 4 | Tools tab or mode | A Learn group `saf` plus Tools → Safety. Revisited after phase 2 (2026-10-24): it stays so, since the safety work happens on runs the map shows; looked at again with phase 4, once the GSN graph shows whether it needs a mode's room. |
 | 5 | Page size | About +320 KB (to about 4.65 MB) accepted; the models' lighter export stays a separate item. |
 | 6 | Persistence | ODD sheets, hazard logs, scenario sets and arguments are stored in the browser (IndexedDB, like custom levels) with JSON export and links. |
 | 7 | Roadmap mitigations | The radar emergency brake and the lidar safety stop's tuning are built inside the track as lesson 7's mitigations, opt-in, with default runs unchanged. |

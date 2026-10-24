@@ -158,6 +158,7 @@ function agDetectLearned() {
     prev = A.prevScan ? scanReproject(A.prevScan, v, w, S.t - (A.prevT || S.t)) : null,
     f = detFeatures(R, prev, v, w, M.layers[0].cin > 6 ? detStatic(R, e) : null),
     thr = M.threshold || (M.layers[0].cin > 6 ? DET_THR : 0.6);
+  oodNote('detector', f, M); // how far this scan is from the scans the model was trained on (core/learnmon.js)
   A.prevScan = Float32Array.from(R);
   A.prevT = S.t;
   const p = nnForward(M, f, NBEAM);
@@ -646,6 +647,7 @@ function agentsTick() {
   if (lid) {
     if (P.agents === 'learned') agDetectLearned();
     else agDetect();
+    learnDetTick(); // detection by slice, against the people the scan really hits (core/learnmon.js)
   }
   if (!P.lidar && P.agents !== 'truth') A.tracks = []; // people detection reads the lidar: with it off, no tracks
   if (agOn() && (lid || P.agents === 'truth')) agTrack();

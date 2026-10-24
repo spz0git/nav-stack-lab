@@ -457,6 +457,10 @@ async function trnTrain() {
     if (block === 'detector') Object.assign(TRN.result, {threshold: DET_THR, minBeams: DET_MIN});
     if (block === 'predictor') Object.assign(TRN.result, {K: PRED_K, horizon: PRED_H, sigma: PRED_SIG});
     if (block === 'policy') Object.assign(TRN.result, {K: POLICY_K, sigma: POLICY_SIG});
+    // the statistics of its own training inputs, for its out-of-distribution score (core/learnmon.js)
+    const descs = [];
+    for (let i = 0; i < ds.n; i++) descs.push(oodDesc(block, ds.X.subarray(i * ds.NF, (i + 1) * ds.NF)));
+    if (descs.length) TRN.result.ref = {...oodRef(descs), from: 'its training data'};
     logE(
       `Train: ${TRN_BLOCKS[block].name.toLowerCase()} trained for ${last.epoch} epoch${last.epoch === 1 ? '' : 's'}${stopped ? ' (stopped)' : ''}: ${trnEvText(block, last.ev)}`,
       'ok'

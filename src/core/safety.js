@@ -53,6 +53,8 @@ function safeInit() {
     near2S: 0,
     revS: 0,
     guardS: 0,
+    brakes: [], // the radar emergency brake's stops: time, what the echo really was, its time to contact and range
+    brakeS: 0,
     opS: 0,
     gap: Infinity,
     health: {}, // the first time each health check turned amber or red: 'sys/name' → {t, lvl, msg} (C5)
@@ -129,6 +131,7 @@ function safeTick() {
   if (Z.gap < 2) Z.near2S += DT;
   if (r.v < -0.05) Z.revS += DT;
   if (S.guard) Z.guardS += DT;
+  if (S.radBrake && S.t < S.radBrake.until) Z.brakeS += DT;
   if (!S.peds.length) return;
   const [rx, ry] = safeVel(r);
   let ttc = Infinity;
@@ -173,6 +176,9 @@ function safeSummary() {
     near2S: f(Z.near2S, 1),
     revS: f(Z.revS, 1),
     guardS: f(Z.guardS, 1),
+    brakes: Z.brakes.length,
+    brakesFalse: Z.brakes.filter(b => b.kind !== 'person').length, // braked for a ghost, clutter or a wall
+    brakeS: f(Z.brakeS, 1),
     opS: f(Z.opS, 1),
     events: Z.events,
     health: Z.health,

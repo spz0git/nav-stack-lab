@@ -52,7 +52,9 @@ function recFrame() {
       rejected: S.rejected,
       dist: S.dist,
       fsm: S.fsm.state,
-      dyn: isDyn() ? dynSig(S.robot) : null
+      dyn: isDyn() ? dynSig(S.robot) : null,
+      ood: learnSig(), // the learned blocks' out-of-distribution scores now (core/learnmon.js)
+      brake: P.radBrake ? (S.radBrake && S.t < S.radBrake.until ? 1 : 0) : null
     }
   });
   if (REC.frames.length > REC.max) REC.frames.splice(0, REC.frames.length - REC.max);

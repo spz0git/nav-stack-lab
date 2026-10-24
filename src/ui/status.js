@@ -147,5 +147,46 @@ function safetyItems() {
     );
   if (isCar()) out.push(['Reversing', s1(Z.revS), 'saf']);
   if (P.guard) out.push(['Safety stop capping the speed', s1(Z.guardS), 'saf']);
+  if (P.radBrake) {
+    const nf = Z.brakes.filter(b => b.kind !== 'person').length;
+    out.push([
+      'Emergency brake',
+      `${Z.brakes.length} stop${Z.brakes.length === 1 ? '' : 's'}${nf ? `, ${nf} for a ghost, clutter or a wall` : ''} · held ${s1(Z.brakeS)}`,
+      'saf'
+    ]);
+  }
+  return out.concat(learnItems());
+}
+// The learned blocks (core/learnmon.js): people found by range, the prediction error by slice, how far out of distribution
+function learnItems() {
+  const L = learnSummary(),
+    pc = x => (x == null ? '—' : `${(100 * x).toFixed(0)} %`),
+    out = [];
+  if (L.det) {
+    const s = L.det.slices;
+    out.push([
+      'People found',
+      `${pc(L.det.recall)} of those the scan hits · under 2.5 m ${pc(s.near[0])} · 2.5–5 m ${pc(s.mid[0])} · farther ${pc(s.far[0])} · ${L.det.fpScan.toFixed(2)} false per scan`,
+      'saf'
+    ]);
+  }
+  if (L.predSl && agOn()) {
+    const line = k => {
+      const E = L.predSl[k];
+      return E
+        ? ['steady', 'changing']
+            .map(s => (E[s] ? `${s} ${E[s][0].toFixed(2)} m` : ''))
+            .filter(Boolean)
+            .join(', ')
+        : '—';
+    };
+    out.push(['Prediction error at 2 s', `learned: ${line('ln')} · constant velocity: ${line('cv')}`, 'saf']);
+  }
+  const names = {detector: 'Detector input', predictor: 'Predictor input', policy: 'Policy input'},
+    sig = learnSig() || {};
+  for (const [b, o] of Object.entries(L.ood || {})) {
+    if (sig[b] == null) continue;
+    out.push([names[b], `score ${sig[b].toFixed(2)} now (outside above ${o.thr}) · ${pc(o.out)} of the run outside`, 'saf']);
+  }
   return out;
 }

@@ -802,6 +802,18 @@ const SCHEMA = {
         "Path trackers follow the path and never read the lidar; the path is only as good as the map, and a map built on a drifting estimate puts walls in the wrong place. The safety stop sweeps the footprint along the arc the tracker commands, against this scan (its points are where the lidar measured them, relative to the robot), and caps the speed at what stops in time, like a robot's collision monitor. Stopped, the robot replans after 5 s. DWA and MPC check the scan themselves.",
       show: () => GUARD_CTL.includes(P.ctl) && P.guard
     },
+    {
+      k: 'radBrake',
+      type: 'bool',
+      label: 'Radar emergency brake: stop for an echo in the way that closes faster than the time to contact allows'
+    },
+    {k: 'radTTC', label: 'Brake below a time to contact of', min: 0.3, max: 3, step: 0.1, unit: 's', show: () => P.radBrake},
+    {
+      type: 'info',
+      text: () =>
+        `Every radar scan (10 Hz), the echoes the tracker would take, moving or not on the map, that lie ahead within half the body's width and 0.2 m of the arc the robot is turning on: the gap over the closing speed is the time to contact, and under ${P.radTTC.toFixed(1)} s the robot stops and holds for 0.5 s, renewed while the echo stays. One scan is enough: no track, no prediction, so it works in fog; and it stops for a ghost or clutter as readily as for a person. After every controller, your code's too.${radarOn() ? '' : ' <b>The radar is off</b>: the brake has nothing to read. <button type="button" class="linkbtn" data-gotab="sen">Sensors tab</button>'}`,
+      show: () => P.radBrake
+    },
     {k: 'ppL0', label: 'Lookahead L<sub>0</sub>', min: 0.1, max: 2.5, step: 0.05, unit: 'm', show: () => P.ctl === 'pp' || P.ctl === 'pid'},
     {
       k: 'ppK',

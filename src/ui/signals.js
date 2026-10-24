@@ -34,6 +34,9 @@ const SIGNALS = [
   ['zn', 'Beacon readings per scan', '', 'loc', 'f', f => (f.lastZ ? f.lastZ.length : null)],
   ['gated', 'Gated readings (total)', '', 'loc', 'f', f => f.sig && f.sig.rejected],
   ['lidar', 'Lidar hits', '', 'per', 'f', f => (f.scan ? f.scan.length / 2 : null)],
+  ['oodDet', 'Detector input, out-of-distribution score', '', 'per', 'f', f => f.sig && f.sig.ood && f.sig.ood.detector],
+  ['oodPred', 'Predictor input, out-of-distribution score', '', 'per', 'f', f => f.sig && f.sig.ood && f.sig.ood.predictor],
+  ['oodPol', 'Policy input, out-of-distribution score', '', 'plan', 'f', f => f.sig && f.sig.ood && f.sig.ood.policy],
   ['trk', 'Agent tracks, confirmed', '', 'per', 'f', f => (f.agents ? f.agents.tracks.filter(t => t.conf).length : null)],
   ['trkall', 'Agent tracks, all', '', 'per', 'f', f => (f.agents ? f.agents.tracks.length : null)],
   [
@@ -57,6 +60,7 @@ const SIGNALS = [
   ['va', 'Speed', 'm/s', 'ctl', 'p', d => d.va],
   ['tc', 'Steering / turn-rate command', turnU, 'ctl', 'p', d => d.tc],
   ['ta', 'Steering / turn rate', turnU, 'ctl', 'p', d => d.ta],
+  ['brake', 'Emergency brake holding (1 = stopped)', '', 'ctl', 'f', f => f.sig && f.sig.brake],
   ['mpcMs', 'MPC solve time', 'ms', 'ctl', 'f', f => f.sig && f.sig.mpcMs],
   ['mpcIt', 'MPC iterations', '', 'ctl', 'f', f => f.sig && f.sig.mpcIt],
   ['mpcJ', 'MPC cost J', '', 'ctl', 'f', f => f.sig && f.sig.mpcJ],

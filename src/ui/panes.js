@@ -451,6 +451,9 @@ const TIPS = {
   vcruise: 'Speed the reference profile aims for on straights.',
   spd: "How path trackers and MPC react to tracked agents. Ignore: not at all. Reactive stop: brake for hits in the corridor ahead (path trackers). Velocity obstacles: steer and slow to the nearest velocity outside every person\'s collision cone (path trackers). Speed planning: ST-graph speed profile against the predictions; it caps a path tracker's speed and is MPC's reference.",
   stMarg: 'Clearance the speed planner keeps from predicted agents.',
+  radBrake:
+    "Stop when a radar echo in the robot's way closes faster than the time to contact allows. Reads the radar alone, one scan at a time, after every controller. Off by default.",
+  radTTC: 'The emergency brake stops when the gap to an echo in the way, over its closing speed, falls below this.',
   ppL0: 'Lookahead distance at zero speed.',
   ppK: 'Extra lookahead per m/s of speed.',
   alat: 'Lateral acceleration cap that slows the robot in curves.',

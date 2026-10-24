@@ -123,6 +123,8 @@ const DEFAULTS = {
   sensLat: 0,
   vehicles: true,
   guard: false,
+  radBrake: false, // the radar emergency brake (core/radar.js): stop for a radar echo in the way, closing, under radTTC
+  radTTC: 1, // its time to contact [s]
   // the ultrasonic ring (core/sensors.js), off by default; what reads it: mapSrc, guardSrc, pfSonar
   sonar: false,
   sonN: 8, // sonars round the hull (4–16)

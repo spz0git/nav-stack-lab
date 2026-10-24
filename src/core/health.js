@@ -91,6 +91,7 @@ function healthNow(f) {
     for (const p of V.peds) gap = Math.min(gap, hyp(r.x - p.x, r.y - p.y) - (p.r || 0.3) - RR);
     C('per', 'Person contact', r.pedContact, 'bad', 'contact with a person');
     healthSensorChecks(C, 'per');
+    learnHealth(C, 'per', f); // a learned block reading inputs unlike its training data (core/learnmon.js)
     if (P.lidar) C('per', 'Lidar returns', V.t > 0.5 && hits === 0, 'warn', 'no lidar returns');
     if (agOn())
       C(
@@ -126,6 +127,7 @@ function healthNow(f) {
       n = f ? f.done.length : WPS.length;
     C('plan', 'Path', st === 'NO_PATH', 'bad', `no path to the next goal${F.fails ? ` (attempt ${F.fails} of 3)` : ''}`);
     healthSensorChecks(C, 'plan');
+    learnHealth(C, 'plan', f);
     C('plan', 'Goals', st === 'IDLE' && !n, 'idle', 'no goals: tap the map to add some');
     C('plan', 'Goals skipped', skipped > 0, 'warn', `${skipped} goal${skipped === 1 ? '' : 's'} skipped`);
     C('plan', 'Plan time', ps && ps.ms > 250 && !f, 'warn', ps ? `last plan took ${ps.ms.toFixed(0)} ms (${ps.name})` : '');
@@ -157,6 +159,7 @@ function healthNow(f) {
       ayF = dq && dq.mug > 0 ? Math.abs(dq.ay) / dq.mug : 0;
     C('ctl', 'Obstacle contact', r.contact, 'bad', 'contact with an obstacle');
     healthSensorChecks(C, 'ctl');
+    C('ctl', 'Emergency brake', P.radBrake && !radarOn(), 'warn', 'the radar emergency brake is on, but the radar is off (Sensors)');
     if (isDyn())
       C(
         'ctl',

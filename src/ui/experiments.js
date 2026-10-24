@@ -33,6 +33,8 @@ const EXP_METRICS = [
   ['minObs', 'Wall clearance', 'm'],
   ['nearS', 'Under 0.3 m of a person', 's'],
   ['ttc1S', 'Time to contact under 1 s', 's'],
+  ['brakes', 'Emergency brakes', ''], // the radar emergency brake's stops, and those for a ghost, clutter or a wall
+  ['brakesFalse', 'Brakes for nothing there', ''],
   ['cteRMS', 'Cross-track RMS', 'm'],
   ['poseRMS', 'Pose RMS', 'm'],
   ['nees', 'NEES', ''],
@@ -41,8 +43,9 @@ const EXP_METRICS = [
 ];
 function paramList() {
   const out = [];
-  for (const t of ['loc', 'per', 'mis', 'plan', 'ctl', 'veh'])
-    for (const f of SCHEMA[t]) {
+  for (const t of TAB_GROUPS[0].tabs)
+    // the pipeline's tabs, Sensors to Vehicle
+    for (const f of SCHEMA[t] || []) {
       if (!f.k || f.k === 'seed') continue;
       out.push(f);
     }
@@ -132,7 +135,7 @@ function expResultsHTML() {
     if (m === '—') return '—';
     const d = ['t', 'dist'].includes(k)
       ? 0
-      : ['goalsDone', 'coll', 'ped', 'replans', 'nees', 'nearS', 'ttc1S'].includes(k)
+      : ['goalsDone', 'coll', 'ped', 'replans', 'nees', 'nearS', 'ttc1S', 'brakes', 'brakesFalse'].includes(k)
         ? 1
         : k === 'impact'
           ? 2

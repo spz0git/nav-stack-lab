@@ -216,7 +216,55 @@ function radarApply(D) {
   S.radar = {t: S.t, det: D.map(d => ({...d, x: e.x + d.r * Math.cos(e.th + d.b), y: e.y + d.r * Math.sin(e.th + d.b)}))};
   S.radar.ve = radEgoSpeed(S.radar.det);
   S.radTick = S.tick;
+  if (P.radBrake) radBrakeCheck();
 }
+// @code rad-brake | radBrakeCheck: the radar emergency brake, from one scan, with no tracking
+// The radar emergency brake (P.radBrake, off by default; safety lesson 7). At each radar scan, the detections the people
+// tracker would take (moving against the static world, or not on the map: radCandidates) that lie in the robot's way:
+// ahead, within half the body's width and 0.2 m of the arc the odometry says the robot is turning on, and closing. The
+// time to contact is the gap (the range less the body's front) over the closing speed (minus the radial velocity,
+// which includes the robot's own motion). Under P.radTTC the robot is held at a stop for 0.5 s, renewed by every scan
+// that still sees it. It reads one scan and needs no tracking, so it reacts in fog as in clear air; and it brakes for
+// whatever the radar reports, a ghost or clutter as readily as a person.
+const RB_HOLD = 0.5,
+  RB_SIDE = 0.2;
+function radBrakeCheck() {
+  const o = S.odo,
+    v = o ? o.v : 0;
+  if (S.fsm.state !== 'DRIVE' || v < 0.05) return;
+  const k = isCar() ? Math.tan(S.robot.d || 0) / P.wheelbase : o.w / v, // curvature of the path ahead, 1/m
+    front = isCar() ? carLen() - CAR.rear : RR,
+    half = (isCar() ? CAR.width / 2 : RR) + RB_SIDE;
+  let hit = null;
+  for (const d of radCandidates()) {
+    const x = d.r * Math.cos(d.b),
+      y = d.r * Math.sin(d.b),
+      side = Math.abs(k) < 1e-3 ? Math.abs(y) : Math.abs(hyp(x, y - 1 / k) - 1 / Math.abs(k)),
+      close = -d.v,
+      gap = d.r - front;
+    if (x <= 0 || side > half || close < 0.1) continue;
+    const ttc = Math.max(0, gap) / close;
+    if (ttc < P.radTTC && (!hit || ttc < hit.ttc)) hit = {ttc, r: d.r, close, kind: d.kind};
+  }
+  if (!hit) return;
+  const on = S.radBrake && S.t < S.radBrake.until;
+  S.radBrake = {until: S.t + RB_HOLD, ...hit};
+  if (on) return;
+  S.safe.brakes.push({t: +S.t.toFixed(2), kind: hit.kind, ttc: +hit.ttc.toFixed(2), r: +hit.r.toFixed(2)}); // what triggered it: the simulator knows, the robot does not
+  if (!S.radBrakeLogT || S.t - S.radBrakeLogT > 2) {
+    S.radBrakeLogT = S.t;
+    logE(
+      `Emergency brake: a radar echo ${hit.r.toFixed(1)} m ahead closing at ${hit.close.toFixed(1)} m/s (time to contact ${hit.ttc.toFixed(1)} s)`,
+      'warn'
+    );
+  }
+}
+// The command with the brake applied: no forward speed while it holds (the unicycle stops turning too)
+function radarBrake(c) {
+  if (!P.radBrake || !S.radBrake || S.t >= S.radBrake.until || !(c.v > 0)) return c;
+  return {...c, v: 0, ...(c.w != null && !isCar() ? {w: 0} : {})};
+}
+// @end
 // The robot's own speed from the static world's echoes. Doppler is relative: to know how fast a person moves, the
 // robot must know how fast it moves itself, better than wheel odometry tells it from one tick (σ about 0.15 m/s on the
 // busy floor, more than the radar's 0.1). Everything static closes at v cos b, so the echoes whose radial velocity is

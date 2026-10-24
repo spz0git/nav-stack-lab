@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v65 · 2026-10-24
 
 - Safety, lesson 8, *How many hours make it safe enough*: the busy floor's rate of contacts per hour of operation with
   its 95 % interval (about 14 an hour), a stack with nothing left to count and what that silence is worth (the rule of

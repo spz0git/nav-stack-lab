@@ -9,6 +9,12 @@
    - A search: half the budget sampled at random from the sheet, the other half in refinement rounds, each perturbing
      the worst runs so far within the sheet by a shrinking step. Each batch is drawn only from the finished runs of
      the batches before it, ordered by their index, so the order the workers finish in does not matter.
+   - Risk (lesson 8): the random runs as a sample of the domain's hours of operation. The rate of an event per hour with
+     a 95 % interval, exact for plain sampling (Poisson; with no event its top is 3.7 / hours, and the one-sided claim
+     "below 3 / hours" is the rule of three); with
+     importance sampling (the random half drawn with more people than the sheet's uniform mix, each run weighted by how
+     much likelier that mix would have drawn it) the weighted rate and a bootstrap interval over the runs. And the
+     leading indicators: which per-hour measure ranks the runs as their contacts per hour do (Spearman).
    ============================================================ */
 // The ranges a sheet may set: the generator's (core/worldgen.js) that change the floor and its people
 const ODD_KEYS = ['aisle', 'cross', 'gaps', 'people', 'stepout'];
@@ -39,10 +45,23 @@ function oddSheetError(sh) {
   return null;
 }
 const oddPick = (list, u) => list[Math.min(list.length - 1, Math.floor(u() * list.length))];
-function searchSample(sh, u) {
+// imp: importance sampling, the people drawn from q(x) = 2x over their range (x from 0 to 1) instead of uniformly, and
+// the scenario carries its weight w = p / q = 1 / (2x), the continuous draw's (unbiased for whatever the run's outcome
+// depends on, though the generator rounds the count); x is clipped at 0.05 so that no weight exceeds 10, which moves a
+// quarter of a percent of the draws. Without imp the draws are the same as they always were
+function searchSample(sh, u, imp) {
   const lv = {gen: sh.family, seed: 1 + Math.floor(u() * 9999), like: sh.like, w: sh.w, h: sh.h};
-  for (const [k, [lo, hi]] of Object.entries(sh.ranges)) lv[k] = lo + u() * (hi - lo);
-  return {level: genSpec(lv), set: {weather: oddPick(sh.weather, u), people: oddPick(sh.people, u)}, seed: 1 + Math.floor(u() * 99)};
+  let w = 1;
+  for (const [k, [lo, hi]] of Object.entries(sh.ranges)) {
+    if (imp && k === 'people' && hi > lo) {
+      const x = Math.max(0.05, Math.sqrt(u()));
+      lv[k] = lo + x * (hi - lo);
+      w = 1 / (2 * x);
+    } else lv[k] = lo + u() * (hi - lo);
+  }
+  const sc = {level: genSpec(lv), set: {weather: oddPick(sh.weather, u), people: oddPick(sh.people, u)}, seed: 1 + Math.floor(u() * 99)};
+  if (imp) sc.w = +w.toFixed(4);
+  return sc;
 }
 // A neighbour of a scenario: the same world seed, each range moved by up to f of its width, a new run seed half the time
 function searchPerturb(sc, sh, u, f) {
@@ -69,8 +88,8 @@ function searchPlan(budget, rounds) {
   return out;
 }
 // The next batch's scenarios: random from the sheet, or neighbours of the worst runs so far (results: [{sc, margin}])
-function searchBatch(step, results, sh, u) {
-  if (step.kind === 'random') return Array.from({length: step.n}, () => searchSample(sh, u));
+function searchBatch(step, results, sh, u, imp) {
+  if (step.kind === 'random') return Array.from({length: step.n}, () => searchSample(sh, u, imp));
   const ranked = results.filter(r => r.margin != null).sort((a, b) => a.margin - b.margin || a.i - b.i),
     worst = ranked.slice(0, Math.max(3, Math.ceil(results.length / 10)));
   if (!worst.length) return Array.from({length: step.n}, () => searchSample(sh, u));
@@ -101,4 +120,127 @@ function oddCheck(sh) {
   rows.push(['weather', P.weather, sh.weather.join(', '), sh.weather.includes(P.weather)]);
   rows.push(['people react', P.people, sh.people.join(', '), sh.people.includes(P.people)]);
   return rows;
+}
+// ---- risk (lesson 8) ----
+// What counts: a contact with a person while the robot moves (a person walking into the stopped robot is not its
+// impact), a strike among those, or any contact the robot makes (racks included)
+const RISK_EV = {
+  contact: e => e.kind === 'person' && !e.still,
+  strike: e => e.kind === 'person' && !e.still && e.sev === 'strike',
+  any: e => e.kind !== 'person' || !e.still
+};
+// P(X ≤ k) for a Poisson count of mean m
+function poissonCdf(k, m) {
+  if (m <= 0) return 1;
+  let t = Math.exp(-m),
+    s = t;
+  for (let i = 1; i <= k; i++) {
+    t *= m / i;
+    s += t;
+  }
+  return Math.min(1, s);
+}
+// The exact (Garwood) 95 % interval of a Poisson mean from k events: [m with P(X ≥ k) = 0.025, m with P(X ≤ k) = 0.025]
+function poissonCI(k) {
+  const solve = (f, lo, hi) => {
+    for (let i = 0; i < 80; i++) {
+      const m = (lo + hi) / 2;
+      if (f(m)) hi = m;
+      else lo = m;
+    }
+    return (lo + hi) / 2;
+  };
+  const top = k + 10 + 10 * Math.sqrt(k + 1);
+  return [k ? solve(m => 1 - poissonCdf(k - 1, m) >= 0.025, 0, top) : 0, solve(m => poissonCdf(k, m) <= 0.025, 0, top)];
+}
+// The rate of an event per hour over the runs [{s, w}] (s: a run's summary; w: its importance weight, 1 by default):
+// {n, k (events counted), hours, rate, lo, hi, weighted}. Hours are the time the mission ran (opS).
+function riskRate(runs, ev = 'contact') {
+  const f = RISK_EV[ev],
+    rows = runs.filter(r => r.s).map(r => ({w: r.w || 1, k: (r.s.events || []).filter(f).length, h: (r.s.opS || 0) / 3600}));
+  const n = rows.length,
+    k = rows.reduce((a, r) => a + r.k, 0),
+    hours = rows.reduce((a, r) => a + r.h, 0),
+    weighted = rows.some(r => r.w !== 1),
+    out = {n, k, hours: +hours.toFixed(3), weighted};
+  if (!n || !hours) return {...out, rate: null, lo: null, hi: null};
+  if (!weighted) {
+    const [a, b] = poissonCI(k);
+    return {...out, rate: k / hours, lo: a / hours, hi: b / hours};
+  }
+  const ratio = R => {
+    const W = R.reduce((a, r) => a + r.w * r.h, 0);
+    return W ? R.reduce((a, r) => a + r.w * r.k, 0) / W : 0;
+  };
+  const rate = ratio(rows);
+  if (!k) {
+    // no event at all: the rule of three on the weighted sample's effective hours
+    const Wh = rows.reduce((a, r) => a + r.w * r.h, 0),
+      W2h = rows.reduce((a, r) => a + r.w * r.w * r.h, 0);
+    return {...out, rate: 0, lo: 0, hi: poissonCI(0)[1] / ((Wh * Wh) / W2h)};
+  }
+  const u = mulberry32(12345),
+    bs = [];
+  for (let b = 0; b < 1000; b++) bs.push(ratio(rows.map(() => rows[Math.floor(u() * n)])));
+  bs.sort((a, b) => a - b);
+  return {...out, rate, lo: bs[25], hi: bs[974]};
+}
+// The hours with no event that a target rate needs, claimed at 95 %: −ln 0.05 ≈ 3.0 over the target (the rule of three,
+// a one-sided bound; the two-sided interval's top for no event is 3.7 over the hours)
+const riskHoursFor = target => -Math.log(0.05) / target;
+// Leading indicators: per run, each candidate per hour of operation (the closest approach as it is, lower being worse),
+// ranked against the run's contacts per hour; Spearman's ρ, highest first
+const SPI_CAND = {
+  nearS: ['seconds under 0.3 m of a person, per hour', s => s.nearS],
+  ttc1S: ['seconds with a time to contact under 1 s, per hour', s => s.ttc1S],
+  near2S: ['seconds with a person within 2 m, per hour', s => s.near2S],
+  minPed: ['closest approach to a person (lower is worse)', s => (s.minPed == null ? null : -s.minPed), true],
+  guardS: ['seconds the safety stop capped the speed, per hour', s => s.guardS],
+  brakes: ['emergency brake stops, per hour', s => s.brakes]
+};
+function spearman(x, y) {
+  const rank = v => {
+    const ix = v.map((a, i) => [a, i]).sort((a, b) => a[0] - b[0]),
+      r = new Array(v.length);
+    for (let i = 0; i < ix.length;) {
+      let j = i;
+      while (j + 1 < ix.length && ix[j + 1][0] === ix[i][0]) j++;
+      for (let q = i; q <= j; q++) r[ix[q][1]] = (i + j) / 2;
+      i = j + 1;
+    }
+    return r;
+  };
+  const a = rank(x),
+    b = rank(y),
+    n = x.length,
+    ma = a.reduce((p, q) => p + q, 0) / n,
+    mb = b.reduce((p, q) => p + q, 0) / n;
+  let sab = 0,
+    saa = 0,
+    sbb = 0;
+  for (let i = 0; i < n; i++) {
+    sab += (a[i] - ma) * (b[i] - mb);
+    saa += (a[i] - ma) ** 2;
+    sbb += (b[i] - mb) ** 2;
+  }
+  return saa && sbb ? sab / Math.sqrt(saa * sbb) : null;
+}
+function spiTable(runs) {
+  const R = runs.filter(r => r.s && r.s.opS > 0),
+    y = R.map(r => (r.s.events || []).filter(RISK_EV.contact).length / (r.s.opS / 3600)),
+    out = [];
+  for (const [id, [label, get, raw]] of Object.entries(SPI_CAND)) {
+    const v = R.map(r => {
+      const x = get(r.s);
+      return x == null ? null : raw ? x : x / (r.s.opS / 3600);
+    });
+    const ok = v.map((x, i) => (x == null ? -1 : i)).filter(i => i >= 0);
+    if (ok.length < 5 || new Set(ok.map(i => v[i])).size < 2) continue;
+    const rho = spearman(
+      ok.map(i => v[i]),
+      ok.map(i => y[i])
+    );
+    if (rho != null) out.push({id, label, rho: +rho.toFixed(2), n: ok.length});
+  }
+  return out.sort((a, b) => b.rho - a.rho);
 }

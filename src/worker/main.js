@@ -112,6 +112,10 @@ self.__core = {
   searchPlan,
   searchBatch,
   searchMargin,
+  riskRate,
+  riskHoursFor,
+  poissonCI,
+  spiTable,
   makeRng,
   RES,
   get LV() {

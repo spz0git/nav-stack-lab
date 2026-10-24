@@ -1,8 +1,9 @@
 # Safety lab: design
 
-Status: phases 1 and 2 built (v60, v61, 2026-10-22); phase 3 built (v64, 2026-10-24); phase 4 in two parts, 4a built (v65,
-2026-10-24: rates, importance sampling, leading indicators, lesson 8), 4b next (the ODD monitor, the argument, storage,
-lesson 9). Written against v59 as a
+Status: built, all four phases and nine lessons (v60–v66, 2026-10-22 to 2026-10-24): phases 1 and 2 (v60, v61), phase 3
+(v64), phase 4a (v65: rates, importance sampling, leading indicators, lesson 8) and 4b (v66: the ODD monitor, the
+argument, storage, lesson 9). Decision 4 was looked at again with the argument graph: it fits the Tools tab with a
+full-width view, so Safety stays a Learn group and a Tools tab. The clause numbers of section 10 still wait for a check. Written against v59 as a
 proposal for a new track inside Nav Stack Lab that teaches the ideas of four safety standards by doing them on the
 simulator; what was built is in the roadmap's "Safety lab" sections. The owner's decisions on the design
 questions are recorded in section 9; the clause numbers the track cites wait for the owner's check in section 10.
@@ -457,7 +458,7 @@ safety stop's tuning (decision 7) became a measurement in lesson 7 rather than a
 lidar's blindness, which no tuning fixes.
 
 **Phase 4, risk and the argument** (4a built, v65: rates with intervals, importance sampling, the leading indicators'
-ranking and chart, lesson 8; 4b next). Rates with intervals and importance sampling in Search; the SPI chart; the GSN
+ranking and chart, lesson 8; 4b built, v66). Rates with intervals and importance sampling in Search; the SPI chart; the GSN
 format, renderer, editor and evidence runner, with arguments, ODD sheets, hazard logs and scenario sets stored in the
 browser like custom levels, with JSON export and links (decision 6); C6, the ODD monitor, off by default (decision 11).
 Lessons 8 and 9, and the rest of the safety chapter.

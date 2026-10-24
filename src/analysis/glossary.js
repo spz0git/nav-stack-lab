@@ -1286,6 +1286,42 @@ Object.assign(GLOSS, {
     '',
     ['stops for nothing', 'false stops', 'false stop']
   ],
+  safecase: [
+    'safety case',
+    'The argument, with its evidence, that a system is acceptably safe for a given use: claims, how they are broken down, the evidence for each, and what they assume. Kept current as the system changes.',
+    '',
+    ['safety case', 'assurance argument']
+  ],
+  gsn: [
+    'Goal Structuring Notation',
+    'A way to draw a safety argument: goals (claims) as boxes, strategies as parallelograms, solutions (evidence) as circles, context, assumptions and justifications beside them.',
+    '',
+    ['Goal Structuring Notation', 'GSN']
+  ],
+  defeater: [
+    'defeater',
+    'A reason a claim might be false that the argument does not address. Finding them, and turning each into a claim with its own evidence, is how an argument improves.',
+    '',
+    ['defeaters', 'defeater']
+  ],
+  assumption: [
+    'assumption',
+    'Something a claim needs that nobody measured: people give way, the floor is dry. Made visible in the argument so that it can be checked, monitored or enforced by operating rules.',
+    '',
+    ['assumptions', 'assumption']
+  ],
+  oddmon: [
+    'ODD monitor',
+    "A check, running in operation, of what the robot can observe of its operating domain (the lidar's return share for the weather, a learned block's input) against the sheet; outside, a minimal-risk manoeuvre.",
+    '',
+    ['ODD monitor']
+  ],
+  mrm: [
+    'minimal-risk manoeuvre',
+    'What the system does when it can no longer carry on safely: here, crawl at 0.3 m/s or stop until it is back inside its domain.',
+    '',
+    ['minimal-risk manoeuvre']
+  ],
   ruleof3: [
     'rule of three',
     'With no event in T hours, the rate is below 3 / T per hour with 95 % confidence; so a target of one per N hours needs about 3N hours without an event.',
@@ -1338,6 +1374,8 @@ const LESSON_TERMS = {
     'fault ftti safetymech safestate faultsched fmea degraded lostguard lidar beacon pf sigx contacts sevclass speedplanner',
   'Learned blocks: the data is the specification':
     'slice coverage ood monitor recall distshift multimodal prederr mlp fog track speedplanner contacts lidar beam',
+  'The safety argument: claims, evidence, and what breaks it':
+    'safecase gsn defeater assumption oddmon mrm odd hazard contacts sevclass scenario scenset ruleof3 fog lidar ood',
   'How many hours make it safe enough':
     'ruleof3 poisson impsamp effhours leadind spearman exposure scenario refine sevclass contacts closest ttcsafe odd',
   'Mitigations, and what they cost':

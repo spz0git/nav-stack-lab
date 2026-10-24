@@ -4,6 +4,17 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- Safety, the last lesson, *The safety argument: claims, evidence, and what breaks it*: the busy floor's safety case
+  drawn as a graph of claims and evidence, every piece of evidence a run the page reruns. One claim fails as it stands
+  (a rack bumped on one seed in six); people who don't give way break the claims about people; switching the ODD
+  monitor off breaks the claim that the robot notices fog; a defeater, people who step out, adds a gap nobody had tested.
+- Tools → Safety → Safety argument: draw, edit and check an argument; open it full width; save it as JSON or share it
+  as a link. Arguments, ODD sheets (Save as) and scenario sets are now kept in this browser.
+- Mission → ODD monitor (off by default): when the robot can see it has left its operating domain (fog, or a learned
+  block reading unfamiliar input), it crawls or stops until it is back inside. Tools → Safety can point it at any sheet.
+
 ## v65 · 2026-10-24
 
 - Safety, lesson 8, *How many hours make it safe enough*: the busy floor's rate of contacts per hour of operation with

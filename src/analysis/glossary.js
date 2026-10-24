@@ -1286,6 +1286,42 @@ Object.assign(GLOSS, {
     '',
     ['stops for nothing', 'false stops', 'false stop']
   ],
+  ruleof3: [
+    'rule of three',
+    'With no event in T hours, the rate is below 3 / T per hour with 95 % confidence; so a target of one per N hours needs about 3N hours without an event.',
+    '',
+    ['rule of three']
+  ],
+  poisson: [
+    'Poisson interval',
+    'The exact interval for a rate from a count of independent events: the rates for which the count seen would sit in the tails of the Poisson distribution.',
+    '',
+    ['Poisson interval', 'Poisson']
+  ],
+  impsamp: [
+    'importance sampling',
+    "Drawing more of the cases where the event is likely and weighting each by how much likelier the domain's own mix would have drawn it, so that the estimate still describes the domain.",
+    '',
+    ['importance sampling']
+  ],
+  effhours: [
+    'effective hours',
+    'What a weighted sample is worth in unweighted hours, (Σ w T)² / Σ w² T: less than it ran when the weights vary.',
+    'h',
+    ['effective hours']
+  ],
+  leadind: [
+    'leading indicator',
+    'A measure that rises with the harm but far more often than it happens, so it moves first: seconds very close to a person, a time to contact under 1 s. A safety performance indicator watched in operation.',
+    '',
+    ['leading indicators', 'leading indicator', 'safety performance indicators', 'safety performance indicator']
+  ],
+  spearman: [
+    "Spearman's ρ",
+    'The correlation of ranks: 1 when two measures order the runs the same way, 0 when their orders are unrelated.',
+    '',
+    ["Spearman's ρ", 'Spearman']
+  ],
   avail: [
     'availability',
     'How much of its job the system still does: time spent moving rather than stopped or slowed, missions finished. What a mitigation usually pays with.',
@@ -1302,6 +1338,8 @@ const LESSON_TERMS = {
     'fault ftti safetymech safestate faultsched fmea degraded lostguard lidar beacon pf sigx contacts sevclass speedplanner',
   'Learned blocks: the data is the specification':
     'slice coverage ood monitor recall distshift multimodal prederr mlp fog track speedplanner contacts lidar beam',
+  'How many hours make it safe enough':
+    'ruleof3 poisson impsamp effhours leadind spearman exposure scenario refine sevclass contacts closest ttcsafe odd',
   'Mitigations, and what they cost':
     'aeb falsestop avail ttc radar doppler ghost clutter guard fog sotif trigcond safestate contacts sevclass scenset monitor',
   'Looking for the failures nobody wrote down':

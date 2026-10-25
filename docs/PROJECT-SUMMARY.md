@@ -20,8 +20,8 @@ A robot navigation simulator and course that runs in the browser as one offline 
 
 ## Status
 - Released at v66 (2026-10-24): the safety lab complete (ODD monitor, a live GSN safety argument, risk rates, learned-block monitors, a radar brake; lessons 6–9).
-- Audited on 2026-10-25 (docs/assessment-2026-10-25.md): the v29 plan is delivered except the live simulation in a worker; the whole gate passes from a fresh clone. Found: three parameter-boundary bugs in the core (one freezes the page from a link), one console error on the phone, two lessons whose self-check cannot pass, the Q/R noise letters contradicted in three places, three gate checks that print instead of fail, docs and versions quoting v36.
-- Testing: a PR runs a 40 s smoke test plus the tests of the areas it touches; the full 12-minute suite runs nightly and has been green.
+- Audited on 2026-10-25 (docs/assessment-2026-10-25.md): the v29 plan is delivered except the live simulation in a worker; the whole gate passes. Found: three parameter-boundary bugs in the core (one freezes the page from a link), a phone console error, two lessons whose self-check cannot pass, the Q/R letters contradicted, three gate checks that print instead of fail, docs quoting v36.
+- Testing: a PR runs a 40 s smoke test plus the tests of its area; the full suite runs nightly, green.
 - Waiting on Spy: the 33 clause numbers; public or private; the next feature track once the fixes land.
 
 ## Features and scope
@@ -32,14 +32,14 @@ A robot navigation simulator and course that runs in the browser as one offline 
 - Localization: EKF, particle filter, EKF-SLAM, scan matching and pose-graph SLAM.
 - Planning and control: A*, RRT*, Hybrid A*, D* Lite, MPC, DWA and more, with user code slots and tested examples.
 - Three learned models (detector, predictor, policy) that can be retrained in the page.
-- Safety tools: contact severity, leading indicators, an ODD sheet, scenario search over generated worlds, learned-block monitors, a radar emergency brake, risk rates with intervals, an ODD monitor and a live safety argument.
+- Safety tools: contact severity, leading indicators, ODD sheet and monitor, scenario search over generated worlds, learned-block monitors, a radar brake, risk rates, a live safety argument.
 - Levels stored as JSON, plus a seeded world generator.
 
 Out of scope: runtime dependencies or network access, quoting the safety standards, and public hosting while the repo is private.
 
 ## Next big items
 1. Phase A of the audit: the core bugs, the phone error, the two unpassable lessons, the noise letters, the printing tests — Claude · about a week, ten PRs.
-2. Phase B: smoke test on every PR, a golden-file guard, one version source with tags, a UI test for the untested modules, keyboard and phone gaps, the docs refresh — Claude · one to two weeks, interleaved with features.
-3. Confirm the 33 clause numbers the safety lessons cite, starting with the five the audit flags — Spy · an hour with the standards.
+2. Phase B: smoke test on every PR, a golden-file guard, one version source, a UI test for the untested modules, keyboard and phone gaps, the docs refresh — Claude · one to two weeks, interleaved with features.
+3. Confirm the 33 clause numbers the safety lessons cite, the five the audit flags first — Spy · an hour.
 4. Pick the next track from the roadmap: more sensors, environments, or the learning tracks — Spy · a decision.
 5. Go public (make the repo public and turn Pages on) — Spy · a decision.

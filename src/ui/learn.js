@@ -99,6 +99,7 @@ function openLesson(id, opts) {
   const it = lessonItem(id);
   if (!it) return false;
   const fresh = lessonOpen !== id && !(opts && opts.restore);
+  if (lessonOpen !== id) searchPlayStop();
   if (!userLayers) userLayers = {...LAYERS};
   lessonOpen = id;
   Object.assign(LAYERS, lessonLayers(id));
@@ -123,6 +124,7 @@ function lessonStage(id) {
   else lessonGo({...cfg, test: undefined});
 }
 function lessonBack() {
+  searchPlayStop();
   lessonOpen = null;
   if (userLayers) {
     Object.assign(LAYERS, userLayers);

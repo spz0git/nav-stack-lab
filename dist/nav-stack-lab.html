@@ -2642,7 +2642,12 @@ details.see > p {
   color: var(--bad);
 }
 .how-body a.chref {
-  display: inline-block;
+  /* inline, so a long one wraps; each line keeps the chip's border and padding */
+  display: inline;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  overflow-wrap: anywhere;
+  line-height: 1.9;
   font-family: var(--f-mono);
   font-size: var(--fs-small);
   color: var(--accent);
@@ -2651,7 +2656,6 @@ details.see > p {
   border-radius: 999px;
   padding: 1px 9px;
   margin-left: 2px;
-  white-space: nowrap;
   vertical-align: baseline;
 }
 .how-body a.chref:hover {
@@ -32262,6 +32266,7 @@ function fitWorld() {
   syncViewUI();
 }
 function draw() {
+  if (!cv.clientWidth || !cv.clientHeight) return; // hidden (Analyze, or the phone's Learn): nothing to fit the world to
   readTokens();
   fitWorld();
   if (VIEW.follow && VIEW.z > 1 && S) {
@@ -39897,6 +39902,10 @@ function anInvalidate(keepMeas) {
   }
 }
 function setMode(m) {
+  if (m !== AN.mode) {
+    searchPlayStop();
+    legendShow(false);
+  }
   AN.mode = m;
   $('#simview').hidden = m !== 'sim';
   $('#anview').hidden = m !== 'an';
@@ -41624,6 +41633,7 @@ function openLesson(id, opts) {
   const it = lessonItem(id);
   if (!it) return false;
   const fresh = lessonOpen !== id && !(opts && opts.restore);
+  if (lessonOpen !== id) searchPlayStop();
   if (!userLayers) userLayers = {...LAYERS};
   lessonOpen = id;
   Object.assign(LAYERS, lessonLayers(id));
@@ -41648,6 +41658,7 @@ function lessonStage(id) {
   else lessonGo({...cfg, test: undefined});
 }
 function lessonBack() {
+  searchPlayStop();
   lessonOpen = null;
   if (userLayers) {
     Object.assign(LAYERS, userLayers);
@@ -46492,12 +46503,7 @@ function tapAt(x, y, e) {
     syncViewUI();
     draw();
   };
-  $('#mv-key').onclick = () => {
-    const l = $('#legend'),
-      on = l.hidden;
-    l.hidden = !on;
-    $('#mv-key').setAttribute('aria-pressed', String(on));
-  };
+  $('#mv-key').onclick = () => legendShow($('#legend').hidden);
   $('#mv-follow').onclick = () => {
     VIEW.follow = !VIEW.follow;
     if (VIEW.follow && VIEW.z === 1) VIEW.z = 2.5;
@@ -46505,6 +46511,11 @@ function tapAt(x, y, e) {
     draw();
   };
   syncViewUI();
+}
+// The map key ("?"): Escape, a mode change and a level change close it; it stays open across tabs and tools.
+function legendShow(on) {
+  $('#legend').hidden = !on;
+  $('#mv-key').setAttribute('aria-pressed', String(on));
 }
 function hideTip() {
   const t = $('#maptip');
@@ -47159,6 +47170,10 @@ function searchPlayEnd() {
   renderSearchChip();
   draw();
 }
+// A lesson, mode or level change ends a playback: its loop would otherwise keep drawing a hidden map.
+function searchPlayStop() {
+  if (SP.on) searchPlayEnd();
+}
 function spTick(now) {
   if (!SP.on || !SP.play) return;
   const N = SP.tr.n;
@@ -47332,7 +47347,7 @@ function drawSearchPlay(px) {
   }
 }
 
-/* ---------- keys: V G H K B pick a tool, L opens Layers, Esc closes Layers, clears the selection, returns to Goal ---------- */
+/* ---------- keys: V G H K B pick a tool, L opens Layers, Esc closes Layers or the map key, clears the selection, returns to Goal ---------- */
 document.addEventListener('keydown', e => {
   const t = e.target,
     tag = t && t.tagName;
@@ -47341,6 +47356,10 @@ document.addEventListener('keydown', e => {
     if (!$('#layerpop').hidden) {
       toggleLayerPop(false);
       $('#mv-layers').focus();
+      return;
+    }
+    if (!$('#legend').hidden) {
+      legendShow(false);
       return;
     }
     if (SEL) {
@@ -49918,6 +49937,8 @@ UI.refresh = refreshAll;
 UI.invalidate = anInvalidate;
 UI.levelChanged = () => {
   SEL = null;
+  searchPlayStop();
+  legendShow(false);
   if (REPLAY.active) {
     REPLAY.active = false;
     logDirty = true;

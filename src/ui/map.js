@@ -192,6 +192,7 @@ function fitWorld() {
   syncViewUI();
 }
 function draw() {
+  if (!cv.clientWidth || !cv.clientHeight) return; // hidden (Analyze, or the phone's Learn): nothing to fit the world to
   readTokens();
   fitWorld();
   if (VIEW.follow && VIEW.z > 1 && S) {

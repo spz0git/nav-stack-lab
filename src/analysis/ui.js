@@ -1770,6 +1770,10 @@ function anInvalidate(keepMeas) {
   }
 }
 function setMode(m) {
+  if (m !== AN.mode) {
+    searchPlayStop();
+    legendShow(false);
+  }
   AN.mode = m;
   $('#simview').hidden = m !== 'sim';
   $('#anview').hidden = m !== 'an';

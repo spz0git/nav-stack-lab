@@ -535,12 +535,7 @@ function tapAt(x, y, e) {
     syncViewUI();
     draw();
   };
-  $('#mv-key').onclick = () => {
-    const l = $('#legend'),
-      on = l.hidden;
-    l.hidden = !on;
-    $('#mv-key').setAttribute('aria-pressed', String(on));
-  };
+  $('#mv-key').onclick = () => legendShow($('#legend').hidden);
   $('#mv-follow').onclick = () => {
     VIEW.follow = !VIEW.follow;
     if (VIEW.follow && VIEW.z === 1) VIEW.z = 2.5;
@@ -548,6 +543,11 @@ function tapAt(x, y, e) {
     draw();
   };
   syncViewUI();
+}
+// The map key ("?"): Escape, a mode change and a level change close it; it stays open across tabs and tools.
+function legendShow(on) {
+  $('#legend').hidden = !on;
+  $('#mv-key').setAttribute('aria-pressed', String(on));
 }
 function hideTip() {
   const t = $('#maptip');

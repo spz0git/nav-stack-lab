@@ -6,6 +6,8 @@ UI.refresh = refreshAll;
 UI.invalidate = anInvalidate;
 UI.levelChanged = () => {
   SEL = null;
+  searchPlayStop();
+  legendShow(false);
   if (REPLAY.active) {
     REPLAY.active = false;
     logDirty = true;

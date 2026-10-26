@@ -564,6 +564,10 @@ function searchPlayEnd() {
   renderSearchChip();
   draw();
 }
+// A lesson, mode or level change ends a playback: its loop would otherwise keep drawing a hidden map.
+function searchPlayStop() {
+  if (SP.on) searchPlayEnd();
+}
 function spTick(now) {
   if (!SP.on || !SP.play) return;
   const N = SP.tr.n;
@@ -737,7 +741,7 @@ function drawSearchPlay(px) {
   }
 }
 
-/* ---------- keys: V G H K B pick a tool, L opens Layers, Esc closes Layers, clears the selection, returns to Goal ---------- */
+/* ---------- keys: V G H K B pick a tool, L opens Layers, Esc closes Layers or the map key, clears the selection, returns to Goal ---------- */
 document.addEventListener('keydown', e => {
   const t = e.target,
     tag = t && t.tagName;
@@ -746,6 +750,10 @@ document.addEventListener('keydown', e => {
     if (!$('#layerpop').hidden) {
       toggleLayerPop(false);
       $('#mv-layers').focus();
+      return;
+    }
+    if (!$('#legend').hidden) {
+      legendShow(false);
       return;
     }
     if (SEL) {

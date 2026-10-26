@@ -26,11 +26,17 @@ function setSpeed(v) {
   speed = v;
   $('#speed').value = String(v);
 }
+// whether focus last moved by keyboard (Tab, arrows) rather than by a click: Space then presses a focused button or tab
+// instead of running, while a button just clicked keeps Space as Run
+let kbNav = false;
+document.addEventListener('pointerdown', () => (kbNav = false), true);
 document.addEventListener('keydown', e => {
   const t = e.target,
     tag = t && t.tagName;
+  if (/^(Tab|Arrow|Home$|End$)/.test(e.key)) kbNav = true;
   if ((tag === 'INPUT' && t.type !== 'range') || tag === 'TEXTAREA' || tag === 'SELECT' || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === ' ') {
+    if (kbNav && (tag === 'BUTTON' || t.getAttribute('role') === 'tab')) return;
     e.preventDefault();
     $('#run').click();
   } else if (e.key === 'n' || e.key === 'N') $('#stepb').click();

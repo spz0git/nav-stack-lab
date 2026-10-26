@@ -4693,21 +4693,38 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     grid-template-rows: auto minmax(0, 1fr);
     max-height: 78vh;
   }
+  /* every floor in view: four to a row, the names wrapping (a strip that scrolled sideways hid L4 to L7) */
   .lvl-list {
-    flex-direction: row;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    max-height: 34vh;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
   .lvl-list .lvl {
-    flex: 0 0 auto;
     grid-template-columns: auto;
+    align-content: start;
+    padding: 6px;
+  }
+  .lvl-list .lvl-n {
+    font-size: var(--fs-small);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
   }
   .lvl-list .lvl b {
     grid-row: auto;
   }
   .lvl-list .lvl-d {
     display: none;
+  }
+  /* the Mission state machine at its own size (labels 9 px as on desktop), scrolled sideways */
+  .fsm-wrap {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  .fsm {
+    width: 600px;
+    max-width: none;
   }
   .console,
   .learncol {
@@ -4869,11 +4886,31 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     font-size: var(--fs-read);
     margin-top: 6px;
   }
-  .sheet-head .ibtn {
+  .sheet-head > .ibtn {
     margin-left: auto;
     margin-top: 6px;
     padding: 2px 10px;
     font-size: var(--fs-title);
+  }
+  .sheet-tools {
+    display: flex;
+    gap: 2px;
+    margin: 6px 0 0 auto;
+  }
+  .sheet-tools .ibtn {
+    min-height: 36px;
+    padding: 2px 7px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--ink);
+    font-size: var(--fs-ui);
+    white-space: nowrap;
+  }
+  .sheet-tools .ibtn[aria-expanded='true'] {
+    background: var(--track);
+  }
+  .sheet-tools + .ibtn {
+    margin-left: 0;
   }
   .tele-title {
     flex-wrap: wrap;
@@ -35607,20 +35644,55 @@ document.addEventListener(
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !tabMore.hidden) tabMoreOpen(false);
 });
+// Keyboard (assessment 2026-10-25, UI 3): the row is one tab stop (the selected tab, or More while a tool is open);
+// ← → Home End move along it and select, ↓ on More opens the menu; in the menu ↑ ↓ Home End move, Esc returns to More.
+$('#tabs').addEventListener('keydown', e => {
+  const row = [...$('#tabs').children],
+    i = row.indexOf(e.target);
+  if (i < 0) return;
+  if (e.key === 'ArrowDown' && e.target.id === 'tab-more') {
+    e.preventDefault();
+    tabMoreOpen(true);
+    tabMore.querySelector('.tm-item').focus();
+    return;
+  }
+  const j = {ArrowLeft: i - 1, ArrowRight: i + 1, Home: 0, End: row.length - 1}[e.key];
+  if (j === undefined) return;
+  e.preventDefault();
+  const b = row[(j + row.length) % row.length];
+  if (b.getAttribute('role') === 'tab' && b.getAttribute('aria-selected') !== 'true') b.click();
+  $('#' + b.id).focus();
+});
+tabMore.addEventListener('keydown', e => {
+  const items = [...tabMore.querySelectorAll('.tm-item')],
+    i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape' || e.key === 'Tab') {
+    if (e.key === 'Escape') e.preventDefault();
+    tabMoreOpen(false);
+    $('#tab-more').focus();
+    return;
+  }
+  const j = {ArrowUp: i - 1, ArrowDown: i + 1, Home: 0, End: items.length - 1}[e.key];
+  if (j === undefined) return;
+  e.preventDefault();
+  items[(j + items.length) % items.length].focus();
+});
 function buildTabs() {
   const pipe = TAB_GROUPS[0].tabs,
     more = TAB_GROUPS.slice(1),
     inMore = !pipe.includes(activeTab),
-    cur = TABS.find(t => t.id === activeTab);
+    cur = TABS.find(t => t.id === activeTab),
+    ae = document.activeElement,
+    refocus = tabMore.contains(ae) ? 'tab-more' : $('#tabs').contains(ae) ? ae.id : null; // the row is rebuilt: focus comes back
   $('#tabgroups').innerHTML = '';
   $('#tabs').innerHTML =
     TABS.filter(t => pipe.includes(t.id))
       .map(
         t =>
-          `<button class="tab" role="tab" id="tab-${t.id}"${SYS[t.id] ? ` data-sys="${t.id}"` : ''} aria-selected="${t.id === activeTab}" aria-controls="pane">${t.n ? `<small>${t.n}</small>` : ''}${t.name}</button>`
+          `<button class="tab" role="tab" id="tab-${t.id}"${SYS[t.id] ? ` data-sys="${t.id}"` : ''} aria-selected="${t.id === activeTab}" tabindex="${t.id === activeTab ? 0 : -1}" aria-controls="pane">${t.n ? `<small>${t.n}</small>` : ''}${t.name}</button>`
       )
       .join('') +
-    `<button class="tab tab-more" type="button" id="tab-more" aria-haspopup="menu" aria-expanded="false" aria-selected="${inMore}">${inMore && cur ? cur.name : 'More'}<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    `<button class="tab tab-more" type="button" id="tab-more" aria-haspopup="menu" aria-expanded="false" aria-selected="${inMore}" tabindex="${inMore ? 0 : -1}">${inMore && cur ? cur.name : 'More'}<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
   tabMore.innerHTML = more
     .map(
       g =>
@@ -35628,7 +35700,7 @@ function buildTabs() {
         TABS.filter(t => g.tabs.includes(t.id))
           .map(
             t =>
-              `<button type="button" role="menuitem" class="tm-item" id="tab-${t.id}" aria-current="${t.id === activeTab}">${t.name}</button>`
+              `<button type="button" role="menuitem" class="tm-item" id="tab-${t.id}" tabindex="-1" aria-current="${t.id === activeTab}">${t.name}</button>`
           )
           .join('')
     )
@@ -35643,7 +35715,10 @@ function buildTabs() {
         renderAllPanes();
       })
   );
-  $('#tab-more').onclick = () => tabMoreOpen(tabMore.hidden);
+  $('#tab-more').onclick = e => {
+    tabMoreOpen(tabMore.hidden);
+    if (!tabMore.hidden && !e.detail) tabMore.querySelector('.tm-item').focus(); // opened with Enter or Space
+  };
   $('#tabs')
     .querySelectorAll('.tab[role="tab"]')
     .forEach(
@@ -35662,6 +35737,7 @@ function buildTabs() {
         })
     );
   $('.console').classList.toggle('collapsed', !consoleOpen);
+  if (refocus && $('#' + refocus)) $('#' + refocus).focus({preventScroll: true});
 }
 function renderAllPanes() {
   hashSoon();
@@ -46129,11 +46205,17 @@ function setSpeed(v) {
   speed = v;
   $('#speed').value = String(v);
 }
+// whether focus last moved by keyboard (Tab, arrows) rather than by a click: Space then presses a focused button or tab
+// instead of running, while a button just clicked keeps Space as Run
+let kbNav = false;
+document.addEventListener('pointerdown', () => (kbNav = false), true);
 document.addEventListener('keydown', e => {
   const t = e.target,
     tag = t && t.tagName;
+  if (/^(Tab|Arrow|Home$|End$)/.test(e.key)) kbNav = true;
   if ((tag === 'INPUT' && t.type !== 'range') || tag === 'TEXTAREA' || tag === 'SELECT' || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === ' ') {
+    if (kbNav && (tag === 'BUTTON' || t.getAttribute('role') === 'tab')) return;
     e.preventDefault();
     $('#run').click();
   } else if (e.key === 'n' || e.key === 'N') $('#stepb').click();
@@ -48527,7 +48609,7 @@ function openPalette() {
     d.id = 'palette';
     d.className = 'palette';
     d.hidden = true;
-    d.innerHTML = `<div class="pal-box" role="dialog" aria-modal="true" aria-label="Search"><div class="pal-in"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4L14 14"/></svg><input id="pal-q" type="text" role="combobox" aria-label="Search" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" placeholder="Search settings, actions, lessons, chapters, symbols, signals…" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></div><ul id="pal-list" role="listbox" aria-label="Results"></ul><p class="pal-hint" id="pal-hint"></p></div>`;
+    d.innerHTML = `<div class="pal-box" role="dialog" aria-modal="true" aria-label="Search"><div class="pal-in"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4L14 14"/></svg><input id="pal-q" type="text" role="combobox" aria-label="Search" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" placeholder="Search settings, actions, lessons, chapters, symbols, signals…" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></div><ul id="pal-list" role="listbox" aria-label="Results" tabindex="-1"></ul><p class="pal-hint" id="pal-hint"></p></div>`;
     document.body.appendChild(d);
     d.addEventListener('pointerdown', e => {
       if (e.target === d) closePalette();
@@ -48550,12 +48632,25 @@ function openPalette() {
       } else if (e.key === 'Enter') {
         e.preventDefault();
         palRun(PAL.shown[PAL.sel]);
-      } else if (e.key === 'Escape') {
+      }
+    };
+    // a modal dialog: Tab and Shift+Tab stay inside it, and Escape closes it from anywhere in it
+    d.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
         closePalette();
+      } else if (e.key === 'Tab') {
+        const f = [...d.querySelectorAll('input,button,a[href],[tabindex]:not([tabindex="-1"])')].filter(
+            x => !x.disabled && x.offsetParent
+          ),
+          i = f.indexOf(document.activeElement);
+        if (f.length && (e.shiftKey ? i <= 0 : i < 0 || i === f.length - 1)) {
+          e.preventDefault();
+          f[e.shiftKey ? f.length - 1 : 0].focus();
+        }
       }
-    };
+    });
     $('#pal-list').addEventListener('click', e => {
       const li = e.target.closest('li[data-i]');
       if (li) palRun(PAL.shown[+li.dataset.i]);
@@ -49628,7 +49723,7 @@ document.addEventListener('keydown', e => {
       consoleOpen = true;
       buildTabs();
       renderAllPanes();
-      right.scrollTop = 0;
+      head.parentNode.scrollTop = 0;
     }
   };
   fab.onclick = () => set(!document.body.classList.contains('sheet-open'));
@@ -49636,8 +49731,15 @@ document.addEventListener('keydown', e => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && document.body.classList.contains('sheet-open')) set(false);
   });
+  // the header's Changed, Runs and View are hidden on phones: there they sit in the sheet's head
+  const tools = document.createElement('span');
+  tools.className = 'sheet-tools';
+  head.insertBefore(tools, $('#sheet-x'));
+  const placeTools = () => ['#tg-chg', '#tg-runs', '#tg-view'].forEach(id => (narrowUI() ? tools : $('#bartools')).appendChild($(id)));
+  placeTools();
   matchMedia('(max-width:760px)').addEventListener('change', e => {
     if (!e.matches) set(false);
+    placeTools();
   });
 }
 
@@ -49813,6 +49915,7 @@ function loop(ts) {
   const ctxEl = $('.ctx'),
     con = $('.console');
   ctxEl.parentNode.insertBefore(right, ctxEl);
+  if ($('.sheet-head')) right.appendChild($('.sheet-head')); // the phone sheet's head (ui/polish.js) heads the part that scrolls
   right.appendChild(ctxEl);
   right.appendChild(con);
   right.appendChild($('#learnview'));

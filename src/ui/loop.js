@@ -54,6 +54,7 @@ function loop(ts) {
   const ctxEl = $('.ctx'),
     con = $('.console');
   ctxEl.parentNode.insertBefore(right, ctxEl);
+  if ($('.sheet-head')) right.appendChild($('.sheet-head')); // the phone sheet's head (ui/polish.js) heads the part that scrolls
   right.appendChild(ctxEl);
   right.appendChild(con);
   right.appendChild($('#learnview'));

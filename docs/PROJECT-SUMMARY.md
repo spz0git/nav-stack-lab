@@ -4,11 +4,11 @@ project: nav-stack-lab
 title: Nav Stack Lab
 kind: code
 source: https://github.com/spz0git/nav-stack-lab
-commit: b11732a
+commit: dbc6f59
 updated: 2026-10-25
 status: active
-stage: v66 released 2026-10-24; the safety lab is complete; an audit on 2026-10-25 found the gate green and a short list of fixes to make before the next feature track
-next_action: Claude works through Phase A of docs/assessment-2026-10-25.md (ten PR-sized fixes, about a week); Spy confirms the 33 clause numbers in parallel
+stage: v67 released 2026-10-26 with Phase A of the 2026-10-25 audit; Phases B and C remain
+next_action: Claude works through Phase B of docs/assessment-2026-10-25.md (smoke test on every PR, a golden guard, one version source, a UI test for the untested modules, keyboard and phone gaps, the docs refresh); Spy confirms the 33 clause numbers in parallel
 blocked_on: nothing
 confidential: false
 ---
@@ -19,8 +19,8 @@ confidential: false
 A robot navigation simulator and course in one offline HTML file, for students and engineers learning how localization, perception, planning, control and safety standards fit together. The repo is private; the live page is a claude.ai artifact (https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7). GitHub Pages stays off until the repo goes public.
 
 ## Status
-- Released at v66 (2026-10-24): the safety lab complete (ODD monitor, a live GSN safety argument, risk rates, learned-block monitors, a radar brake; lessons 6–9).
-- Audited on 2026-10-25 (docs/assessment-2026-10-25.md): the v29 plan is delivered except the live simulation in a worker; the gate passes. Found: three parameter bugs in the core (one freezes the page from a link), a phone console error, two lessons whose self-check cannot pass, the Q/R letters contradicted, three gate checks that print instead of fail.
+- Released at v67 (2026-10-26): Phase A of the audit. v66 (2026-10-24) completed the safety lab (ODD monitor, a live safety argument, risk rates, learned-block monitors, a radar brake).
+- Audited on 2026-10-25 (docs/assessment-2026-10-25.md): the v29 plan is delivered except the live simulation in a worker; the gate passes. Its Phase A (the core parameter bugs, the phone error, the two unpassable lessons, the Q/R letters, the printing gate checks) landed as v67.
 - Testing: a PR runs a 40 s smoke test plus the tests of its area; the full suite runs nightly, green.
 - Waiting on Spy: the 33 clause numbers; public or private; the next track.
 
@@ -38,8 +38,8 @@ A robot navigation simulator and course in one offline HTML file, for students a
 Out of scope: runtime dependencies or network access, quoting the safety standards, public hosting while private.
 
 ## Next big items
-1. Phase A of the audit: the core bugs, the phone error, the unpassable lessons, the noise letters, the printing tests — Claude · a week, ten PRs.
-2. Phase B: smoke test on every PR, a golden guard, one version source, a UI test for the untested modules, keyboard and phone gaps, docs refresh — Claude · one to two weeks.
+1. Phase B of the audit: smoke test on every PR, a golden guard, one version source, a UI test for the untested modules, keyboard and phone gaps, docs refresh — Claude · one to two weeks.
+2. Phase C: the functions over 200 lines split, the duplicated tracker merged, tests for the analysis numerics, then the live simulation in a worker — Claude · one PR each.
 3. Confirm the 33 clause numbers the safety lessons cite, the five the audit flags first — Spy · an hour.
 4. Pick the next track: sensors, environments, or the learning tracks — Spy · a decision.
 5. Go public and turn Pages on — Spy · a decision.

@@ -8383,7 +8383,12 @@ const SLOT_DEFS = {
 };
 const SLOTS = {};
 for (const k of Object.keys(SLOT_DEFS))
-  SLOTS[k] = {code: slotExample(k).code, worker: null, status: {msg: 'No code loaded: pick an example or paste a function, then Load and use.', cls: ''}, lastErr: ''};
+  SLOTS[k] = {
+    code: slotExample(k).code,
+    worker: null,
+    status: {msg: 'No code loaded: pick an example or paste a function, then Load and use.', cls: ''},
+    lastErr: ''
+  };
 function slotWorker(k, code) {
   const D = SLOT_DEFS[k];
   const src = `"use strict";\n${code}\n;const __mem={};const __wrap=${D.wrap.toString()};self.onmessage=(e)=>{if(e.data&&e.data.reset){for(const k in __mem)delete __mem[k];return;}try{if(typeof ${D.fn}!=='function')throw new Error('Define a function named ${D.fn}(obs, mem)');const r=${D.fn}(e.data,__mem)||{};self.postMessage(__wrap(r));}catch(err){self.postMessage({ok:false,error:String(err&&err.message||err)});}};`;

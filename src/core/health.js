@@ -23,53 +23,59 @@ function healthNow(f) {
   const C = (k, name, on, lvl, msg) => {
     (all[k] || (all[k] = [])).push({name, on: !!on, lvl, msg});
   };
-  // localization
-  {
-    const sp = V.Pc ? Math.sqrt(Math.max(0, V.Pc[0] + V.Pc[4])) : null,
-      nees = sig ? sig.nees : S.nees.length ? S.nees.slice(-25).reduce((a, b) => a + b, 0) / Math.min(25, S.nees.length) : null,
-      neff = neffAvg(V.t),
-      N = S.pf ? S.pf.N : P.npart,
-      usesB = ['ekf', 'pf', 'slam'].includes(P.loc),
-      silent = usesB && !f ? S.t - (S.zLastT || 0) : 0; // the last tick with beacon readings (core/safety.js)
-    healthSensorChecks(C, 'loc');
-    if (P.loc === 'truth') C('loc', 'Estimator', true, 'idle', 'ground truth: the pose is known');
-    else {
-      C('loc', 'Lost', st === 'LOST' || (sp != null && sp > 1), 'bad', `lost: position σ ${sp != null ? sp.toFixed(1) : '?'} m`);
+  healthLoc(C, V, f, sig, st, drive);
+  healthPer(C, V, f, r, drive);
+  healthPlan(C, F, f, st);
+  healthCtl(C, V, f, sig, r, st, drive);
+  return healthWorst(all);
+}
+// localization: the estimator's checks (lost, consistency, particles, beacon readings) and its status line, then the
+// sensors switched off. C(k, name, on, lvl, msg) records a check; V is the live state S or the frame f.
+function healthLoc(C, V, f, sig, st, drive) {
+  const sp = V.Pc ? Math.sqrt(Math.max(0, V.Pc[0] + V.Pc[4])) : null,
+    nees = sig ? sig.nees : S.nees.length ? S.nees.slice(-25).reduce((a, b) => a + b, 0) / Math.min(25, S.nees.length) : null,
+    neff = neffAvg(V.t),
+    N = S.pf ? S.pf.N : P.npart,
+    usesB = ['ekf', 'pf', 'slam'].includes(P.loc),
+    silent = usesB && !f ? S.t - (S.zLastT || 0) : 0; // the last tick with beacon readings (core/safety.js)
+  healthSensorChecks(C, 'loc');
+  if (P.loc === 'truth') C('loc', 'Estimator', true, 'idle', 'ground truth: the pose is known');
+  else {
+    C('loc', 'Lost', st === 'LOST' || (sp != null && sp > 1), 'bad', `lost: position σ ${sp != null ? sp.toFixed(1) : '?'} m`);
+    C(
+      'loc',
+      'Consistency',
+      nees != null && nees > 9,
+      'warn',
+      `overconfident: NEES ${nees != null ? nees.toFixed(1) : '—'} (3 is consistent)`
+    );
+    if (P.loc === 'pf')
       C(
         'loc',
-        'Consistency',
-        nees != null && nees > 9,
+        'Particles',
+        neff != null && neff < 0.15 * N,
         'warn',
-        `overconfident: NEES ${nees != null ? nees.toFixed(1) : '—'} (3 is consistent)`
+        `particles degenerate: N_eff ${neff != null ? neff.toFixed(0) : '—'} of ${N} (2 s mean)`
       );
-      if (P.loc === 'pf')
-        C(
-          'loc',
-          'Particles',
-          neff != null && neff < 0.15 * N,
-          'warn',
-          `particles degenerate: N_eff ${neff != null ? neff.toFixed(0) : '—'} of ${N} (2 s mean)`
-        );
-      if (usesB && sensorOn(sensorByKey('beacons')))
-        C(
-          'loc',
-          'Beacon readings',
-          silent > 3 && drive,
-          beaconUse() ? 'ok' : 'warn',
-          beaconUse()
-            ? `no beacon readings for ${silent.toFixed(0)} s; lidar against the map holds it (σ ${sp != null ? sp.toFixed(2) : '—'} m)`
-            : `no beacon readings for ${silent.toFixed(1)} s`
-        );
+    if (usesB && sensorOn(sensorByKey('beacons')))
       C(
         'loc',
-        'Estimator',
-        true,
-        'ok',
-        P.loc === 'dr'
-          ? `dead reckoning${sp != null ? `: σ ${sp.toFixed(2)} m and growing` : ''}`
-          : `σ ${sp != null ? sp.toFixed(2) : '—'} m${nees != null ? ` · NEES ${nees.toFixed(1)}` : ''}${neff != null && P.loc === 'pf' ? ` · N_eff ${neff.toFixed(0)}` : ''}`
+        'Beacon readings',
+        silent > 3 && drive,
+        beaconUse() ? 'ok' : 'warn',
+        beaconUse()
+          ? `no beacon readings for ${silent.toFixed(0)} s; lidar against the map holds it (σ ${sp != null ? sp.toFixed(2) : '—'} m)`
+          : `no beacon readings for ${silent.toFixed(1)} s`
       );
-    }
+    C(
+      'loc',
+      'Estimator',
+      true,
+      'ok',
+      P.loc === 'dr'
+        ? `dead reckoning${sp != null ? `: σ ${sp.toFixed(2)} m and growing` : ''}`
+        : `σ ${sp != null ? sp.toFixed(2) : '—'} m${nees != null ? ` · NEES ${nees.toFixed(1)}` : ''}${neff != null && P.loc === 'pf' ? ` · N_eff ${neff.toFixed(0)}` : ''}`
+    );
   }
   // the sensors switched off, listed last so that it never stands in for the estimator's own line
   C(
@@ -81,133 +87,137 @@ function healthNow(f) {
       .map(s => s.label)
       .join(', ')}`
   );
-  // perception
-  {
-    const hits = f ? (f.scan ? f.scan.length / 2 : 0) : S.scanPts.length,
-      tr = V.agents ? V.agents.tracks : [],
-      cf = tr.filter(t => t.conf).length,
-      people = V.peds.filter(p => !p.car).length;
-    let gap = Infinity;
-    for (const p of V.peds) gap = Math.min(gap, hyp(r.x - p.x, r.y - p.y) - (p.r || 0.3) - RR);
-    C('per', 'Person contact', r.pedContact, 'bad', 'contact with a person');
-    healthSensorChecks(C, 'per');
-    learnHealth(C, 'per', f); // a learned block reading inputs unlike its training data (core/learnmon.js)
-    if (P.lidar) C('per', 'Lidar returns', V.t > 0.5 && hits === 0, 'warn', 'no lidar returns');
-    if (agOn())
-      C(
-        'per',
-        'Phantom tracks',
-        cf > people + 1,
-        'warn',
-        `${cf} confirmed tracks for ${people} ${people === 1 ? 'person' : 'people'}: phantom tracks`
-      );
-    if (people) C('per', 'Person nearby', gap < 0.3 && drive, 'warn', `a person ${Math.max(0, gap).toFixed(2)} m away`);
-    if (!P.lidar)
-      C(
-        'per',
-        'Sensing',
-        true,
-        'idle',
-        `lidar off${agOn() ? ` · ${cf} track${cf === 1 ? '' : 's'}` : ''}${P.per === 'mapping' ? ' · the map no longer grows' : ''}`
-      );
-    else if (people && !agOn()) C('per', 'Tracking', true, 'idle', `${hits} lidar hits · people not tracked (agent tracking off)`);
-    else
-      C(
-        'per',
-        'Sensing',
-        true,
-        'ok',
-        `${hits} lidar hits${agOn() ? ` · ${cf} track${cf === 1 ? '' : 's'}` : ''}${P.per === 'mapping' ? ' · mapping' : ''}`
-      );
-  }
-  // mission and plan
-  {
-    const ps = S.planStats,
-      skipped = f ? f.done.filter(d => d[1]).length : WPS.filter(w => w.skipped).length,
-      n = f ? f.done.length : WPS.length;
-    C('plan', 'Path', st === 'NO_PATH', 'bad', `no path to the next goal${F.fails ? ` (attempt ${F.fails} of 3)` : ''}`);
-    healthSensorChecks(C, 'plan');
-    learnHealth(C, 'plan', f);
-    if (P.oddMon)
-      C('plan', 'Operating domain', !f && S.odd && S.odd.out, 'warn', `outside the operating domain: ${S.odd ? S.odd.why : ''}`);
-    C('plan', 'Goals', st === 'IDLE' && !n, 'idle', 'no goals: tap the map to add some');
-    C('plan', 'Goals skipped', skipped > 0, 'warn', `${skipped} goal${skipped === 1 ? '' : 's'} skipped`);
-    C('plan', 'Plan time', ps && ps.ms > 250 && !f, 'warn', ps ? `last plan took ${ps.ms.toFixed(0)} ms (${ps.name})` : '');
+}
+// perception: person contact, the sensors, learned blocks, lidar returns, phantom tracks, a person nearby, and the
+// status line
+function healthPer(C, V, f, r, drive) {
+  const hits = f ? (f.scan ? f.scan.length / 2 : 0) : S.scanPts.length,
+    tr = V.agents ? V.agents.tracks : [],
+    cf = tr.filter(t => t.conf).length,
+    people = V.peds.filter(p => !p.car).length;
+  let gap = Infinity;
+  for (const p of V.peds) gap = Math.min(gap, hyp(r.x - p.x, r.y - p.y) - (p.r || 0.3) - RR);
+  C('per', 'Person contact', r.pedContact, 'bad', 'contact with a person');
+  healthSensorChecks(C, 'per');
+  learnHealth(C, 'per', f); // a learned block reading inputs unlike its training data (core/learnmon.js)
+  if (P.lidar) C('per', 'Lidar returns', V.t > 0.5 && hits === 0, 'warn', 'no lidar returns');
+  if (agOn())
     C(
-      'plan',
-      'Mission',
-      true,
-      st === 'DONE' ? 'ok' : st === 'IDLE' ? 'idle' : 'ok',
-      st === 'DONE'
-        ? 'all goals reached'
-        : st === 'IDLE'
-          ? 'ready: press Run'
-          : ps
-            ? `${ps.name} · ${ps.len.toFixed(1)} m · ${ps.ms.toFixed(0)} ms`
-            : st.toLowerCase()
-    );
-  }
-  // control
-  {
-    const D = S.plot,
-      tE = V.t,
-      win = D.filter(d => d.t > tE - 2 && d.t <= tE + 1e-6),
-      lim = isCar() ? 0.97 * P.steerMaxDeg : 0.97 * P.wmax,
-      sat = win.length ? win.filter(d => d.ta != null && Math.abs(d.ta) >= lim).length / win.length : 0,
-      last = win.length ? win[win.length - 1] : null,
-      cte = last && last.cte != null ? Math.abs(last.cte) : null,
-      mms = sig ? sig.mpcMs : S.mpcStats && P.ctl === 'mpc' ? S.mpcStats.ms : null;
-    const dq = !isDyn() ? null : f ? sig.dyn : dynSig(r),
-      ayF = dq && dq.mug > 0 ? Math.abs(dq.ay) / dq.mug : 0;
-    C('ctl', 'Obstacle contact', r.contact, 'bad', 'contact with an obstacle');
-    healthSensorChecks(C, 'ctl');
-    C('ctl', 'Emergency brake', P.radBrake && !radarOn(), 'warn', 'the radar emergency brake is on, but the radar is off (Sensors)');
-    if (isDyn())
-      C(
-        'ctl',
-        'Grip',
-        drive && ayF > 0.8,
-        'warn',
-        dq
-          ? `near the grip limit: a_y ${Math.abs(dq.ay).toFixed(2)} m/s², ${(100 * ayF).toFixed(0)} % of μg (${dq.mug.toFixed(2)} m/s²)`
-          : ''
-      );
-    C(
-      'ctl',
-      'Actuator limit',
-      drive && sat > 0.5,
+      'per',
+      'Phantom tracks',
+      cf > people + 1,
       'warn',
-      `${isCar() ? 'steering' : 'turn rate'} at its limit ${(sat * 100).toFixed(0)} % of the last 2 s`
+      `${cf} confirmed tracks for ${people} ${people === 1 ? 'person' : 'people'}: phantom tracks`
     );
-    if (P.ctl === 'mpc') {
-      C(
-        'ctl',
-        'MPC budget',
-        mms != null && P.mpcBudget > 0 && mms >= 0.85 * P.mpcBudget,
-        'warn',
-        `MPC at its ${P.mpcBudget} ms budget (${mms != null ? mms.toFixed(1) : '—'} ms)`
-      );
-      C(
-        'ctl',
-        'MPC constraints',
-        !f && S.mpcStats && S.mpcStats.viol > 0.05,
-        'warn',
-        S.mpcStats ? `MPC constraints violated by ${S.mpcStats.viol.toFixed(2)}` : ''
-      );
-    }
-    C('ctl', 'On the path', drive && cte != null && cte > 0.5, 'warn', `${cte != null ? cte.toFixed(2) : '—'} m off the path`);
+  if (people) C('per', 'Person nearby', gap < 0.3 && drive, 'warn', `a person ${Math.max(0, gap).toFixed(2)} m away`);
+  if (!P.lidar)
+    C(
+      'per',
+      'Sensing',
+      true,
+      'idle',
+      `lidar off${agOn() ? ` · ${cf} track${cf === 1 ? '' : 's'}` : ''}${P.per === 'mapping' ? ' · the map no longer grows' : ''}`
+    );
+  else if (people && !agOn()) C('per', 'Tracking', true, 'idle', `${hits} lidar hits · people not tracked (agent tracking off)`);
+  else
+    C(
+      'per',
+      'Sensing',
+      true,
+      'ok',
+      `${hits} lidar hits${agOn() ? ` · ${cf} track${cf === 1 ? '' : 's'}` : ''}${P.per === 'mapping' ? ' · mapping' : ''}`
+    );
+}
+// mission and plan: no path, the sensors, learned blocks, the operating domain, goals, skipped goals, plan time, and
+// the mission line
+function healthPlan(C, F, f, st) {
+  const ps = S.planStats,
+    skipped = f ? f.done.filter(d => d[1]).length : WPS.filter(w => w.skipped).length,
+    n = f ? f.done.length : WPS.length;
+  C('plan', 'Path', st === 'NO_PATH', 'bad', `no path to the next goal${F.fails ? ` (attempt ${F.fails} of 3)` : ''}`);
+  healthSensorChecks(C, 'plan');
+  learnHealth(C, 'plan', f);
+  if (P.oddMon) C('plan', 'Operating domain', !f && S.odd && S.odd.out, 'warn', `outside the operating domain: ${S.odd ? S.odd.why : ''}`);
+  C('plan', 'Goals', st === 'IDLE' && !n, 'idle', 'no goals: tap the map to add some');
+  C('plan', 'Goals skipped', skipped > 0, 'warn', `${skipped} goal${skipped === 1 ? '' : 's'} skipped`);
+  C('plan', 'Plan time', ps && ps.ms > 250 && !f, 'warn', ps ? `last plan took ${ps.ms.toFixed(0)} ms (${ps.name})` : '');
+  C(
+    'plan',
+    'Mission',
+    true,
+    st === 'DONE' ? 'ok' : st === 'IDLE' ? 'idle' : 'ok',
+    st === 'DONE'
+      ? 'all goals reached'
+      : st === 'IDLE'
+        ? 'ready: press Run'
+        : ps
+          ? `${ps.name} · ${ps.len.toFixed(1)} m · ${ps.ms.toFixed(0)} ms`
+          : st.toLowerCase()
+  );
+}
+// control: obstacle contact, the sensors, the radar brake, grip, actuator limit, the MPC's budget and constraints,
+// cross-track error, and the driving line
+function healthCtl(C, V, f, sig, r, st, drive) {
+  const D = S.plot,
+    tE = V.t,
+    win = D.filter(d => d.t > tE - 2 && d.t <= tE + 1e-6),
+    lim = isCar() ? 0.97 * P.steerMaxDeg : 0.97 * P.wmax,
+    sat = win.length ? win.filter(d => d.ta != null && Math.abs(d.ta) >= lim).length / win.length : 0,
+    last = win.length ? win[win.length - 1] : null,
+    cte = last && last.cte != null ? Math.abs(last.cte) : null,
+    mms = sig ? sig.mpcMs : S.mpcStats && P.ctl === 'mpc' ? S.mpcStats.ms : null;
+  const dq = !isDyn() ? null : f ? sig.dyn : dynSig(r),
+    ayF = dq && dq.mug > 0 ? Math.abs(dq.ay) / dq.mug : 0;
+  C('ctl', 'Obstacle contact', r.contact, 'bad', 'contact with an obstacle');
+  healthSensorChecks(C, 'ctl');
+  C('ctl', 'Emergency brake', P.radBrake && !radarOn(), 'warn', 'the radar emergency brake is on, but the radar is off (Sensors)');
+  if (isDyn())
     C(
       'ctl',
-      'Driving',
-      true,
-      drive ? 'ok' : 'idle',
-      !drive
-        ? st === 'DONE'
-          ? 'stopped: mission complete'
-          : 'not driving'
-        : `cross-track ${cte != null ? cte.toFixed(2) : '—'} m${mms != null ? ` · MPC ${mms.toFixed(1)} ms` : ''}`
+      'Grip',
+      drive && ayF > 0.8,
+      'warn',
+      dq ? `near the grip limit: a_y ${Math.abs(dq.ay).toFixed(2)} m/s², ${(100 * ayF).toFixed(0)} % of μg (${dq.mug.toFixed(2)} m/s²)` : ''
+    );
+  C(
+    'ctl',
+    'Actuator limit',
+    drive && sat > 0.5,
+    'warn',
+    `${isCar() ? 'steering' : 'turn rate'} at its limit ${(sat * 100).toFixed(0)} % of the last 2 s`
+  );
+  if (P.ctl === 'mpc') {
+    C(
+      'ctl',
+      'MPC budget',
+      mms != null && P.mpcBudget > 0 && mms >= 0.85 * P.mpcBudget,
+      'warn',
+      `MPC at its ${P.mpcBudget} ms budget (${mms != null ? mms.toFixed(1) : '—'} ms)`
+    );
+    C(
+      'ctl',
+      'MPC constraints',
+      !f && S.mpcStats && S.mpcStats.viol > 0.05,
+      'warn',
+      S.mpcStats ? `MPC constraints violated by ${S.mpcStats.viol.toFixed(2)}` : ''
     );
   }
+  C('ctl', 'On the path', drive && cte != null && cte > 0.5, 'warn', `${cte != null ? cte.toFixed(2) : '—'} m off the path`);
+  C(
+    'ctl',
+    'Driving',
+    true,
+    drive ? 'ok' : 'idle',
+    !drive
+      ? st === 'DONE'
+        ? 'stopped: mission complete'
+        : 'not driving'
+      : `cross-track ${cte != null ? cte.toFixed(2) : '—'} m${mms != null ? ` · MPC ${mms.toFixed(1)} ms` : ''}`
+  );
+}
+// H.all = all; H[k] = [level, reason] of the worst check of subsystem k that holds (ties: the first listed), or of its
+// last check (the status line) when none does
+function healthWorst(all) {
   const H = {all};
   for (const k of Object.keys(all)) {
     const on = all[k].filter(c => c.on).sort((a, b) => H_RANK[b.lvl] - H_RANK[a.lvl]);
@@ -234,6 +244,8 @@ function neffAvg(t) {
   return n ? a / n : S.pf ? S.pf.neff : null;
 }
 
+// The checks for the sensors switched off, as they bear on subsystem k (loc, per, plan or ctl): blind, odometry,
+// beacons, lidar and GNSS for the estimator, the lidar for perception, planning and control. C as in healthNow.
 function healthSensorChecks(C, k) {
   const off = sensorsOff().map(s => s.key),
     est = segName(P.loc),

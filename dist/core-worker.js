@@ -5538,152 +5538,228 @@ function rrtstar(sx, sy, gx, gy) {
 // @end
 
 /* RS_BEGIN */
+// Reeds–Shepp helpers in normalized units (turning radius 1): rsMod wraps an angle to [-π, π], rsPol gives the
+// polar form [r, θ] of (x, y).
+const RS_HP = Math.PI / 2;
+function rsMod(x) {
+  let v = x % (2 * Math.PI);
+  if (v < -Math.PI) v += 2 * Math.PI;
+  else if (v > Math.PI) v -= 2 * Math.PI;
+  return v;
+}
+function rsPol(x, y) {
+  return [Math.hypot(x, y), Math.atan2(y, x)];
+}
+// Path families in normalized units (turning radius 1): each takes the goal (x, y, φ) relative to the start and
+// returns [signed segment lengths, segment letters] or null. Signed lengths: negative = reverse.
+function rsLSL(x, y, p) {
+  const [u, t] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (t >= 0 && t <= Math.PI) {
+    const v = rsMod(p - t);
+    if (v >= 0 && v <= Math.PI) return [[t, u, v], 'LSL'];
+  }
+  return null;
+}
+function rsLSR(x, y, p) {
+  let [u1, t1] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  u1 *= u1;
+  if (u1 >= 4) {
+    const u = Math.sqrt(u1 - 4),
+      th = Math.atan2(2, u),
+      t = rsMod(t1 + th),
+      v = rsMod(t - p);
+    if (t >= 0 && v >= 0) return [[t, u, v], 'LSR'];
+  }
+  return null;
+}
+function rsLxRxL(x, y, p) {
+  const [u1, th] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (u1 <= 4) {
+    const A = Math.acos(0.25 * u1),
+      t = rsMod(A + th + RS_HP),
+      u = rsMod(Math.PI - 2 * A),
+      v = rsMod(p - t - u);
+    return [[t, -u, v], 'LRL'];
+  }
+  return null;
+}
+function rsLxRL(x, y, p) {
+  const [u1, th] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (u1 <= 4) {
+    const A = Math.acos(0.25 * u1),
+      t = rsMod(A + th + RS_HP),
+      u = rsMod(Math.PI - 2 * A),
+      v = rsMod(-p + t + u);
+    return [[t, -u, -v], 'LRL'];
+  }
+  return null;
+}
+function rsLRxL(x, y, p) {
+  const [u1, th] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (u1 <= 4 && u1 > 1e-9) {
+    const u = Math.acos(1 - u1 * u1 * 0.125),
+      A = Math.asin(Math.max(-1, Math.min(1, (2 * Math.sin(u)) / u1))),
+      t = rsMod(-A + th + RS_HP),
+      v = rsMod(t - u - p);
+    return [[t, u, -v], 'LRL'];
+  }
+  return null;
+}
+function rsLRxLR(x, y, p) {
+  const [u1, th] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  if (u1 <= 2) {
+    const A = Math.acos((u1 + 2) * 0.25),
+      t = rsMod(th + A + RS_HP),
+      u = rsMod(A),
+      v = rsMod(p - t + 2 * u);
+    if (t >= 0 && u >= 0 && v >= 0) return [[t, u, -u, -v], 'LRLR'];
+  }
+  return null;
+}
+function rsLxRLxR(x, y, p) {
+  const [u1, th] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  const u2 = (20 - u1 * u1) / 16;
+  if (u2 >= 0 && u2 <= 1 && u1 > 1e-9) {
+    const u = Math.acos(u2),
+      A = Math.asin(Math.max(-1, Math.min(1, (2 * Math.sin(u)) / u1))),
+      t = rsMod(th + A + RS_HP),
+      v = rsMod(t - p);
+    if (t >= 0 && v >= 0) return [[t, -u, -u, v], 'LRLR'];
+  }
+  return null;
+}
+function rsLxR90SL(x, y, p) {
+  const [u1, th] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (u1 >= 2) {
+    const q = Math.sqrt(u1 * u1 - 4),
+      u = q - 2,
+      A = Math.atan2(2, q),
+      t = rsMod(th + A + RS_HP),
+      v = rsMod(t - p + RS_HP);
+    if (t >= 0 && v >= 0) return [[t, -RS_HP, -u, -v], 'LRSL'];
+  }
+  return null;
+}
+function rsLSR90xL(x, y, p) {
+  const [u1, th] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (u1 >= 2) {
+    const q = Math.sqrt(u1 * u1 - 4),
+      u = q - 2,
+      A = Math.atan2(q, 2),
+      t = rsMod(th - A + RS_HP),
+      v = rsMod(t - p - RS_HP);
+    if (t >= 0 && v >= 0) return [[t, u, RS_HP, -v], 'LSRL'];
+  }
+  return null;
+}
+function rsLxR90SR(x, y, p) {
+  const [u1, th] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  if (u1 >= 2) {
+    const t = rsMod(th + RS_HP),
+      u = u1 - 2,
+      v = rsMod(p - t - RS_HP);
+    if (t >= 0 && v >= 0) return [[t, -RS_HP, -u, -v], 'LRSR'];
+  }
+  return null;
+}
+function rsLSL90xR(x, y, p) {
+  const [u1, th] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  if (u1 >= 2) {
+    const t = rsMod(th),
+      u = u1 - 2,
+      v = rsMod(p - t - RS_HP);
+    if (t >= 0 && v >= 0) return [[t, u, RS_HP, -v], 'LSLR'];
+  }
+  return null;
+}
+function rsLxR90SL90xR(x, y, p) {
+  const [u1, th] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  if (u1 >= 4) {
+    const q = Math.sqrt(u1 * u1 - 4),
+      u = q - 4,
+      A = Math.atan2(2, q),
+      t = rsMod(th + A + RS_HP),
+      v = rsMod(t - p);
+    if (t >= 0 && v >= 0) return [[t, -RS_HP, -u, -RS_HP, v], 'LRSLR'];
+  }
+  return null;
+}
+// The pose [x, y, θ] reached by following candidate c ({L, T}) from q0 at turning radius R.
+function rsEndpoint(q0, c, R) {
+  let x = q0[0],
+    y = q0[1],
+    th = q0[2];
+  for (let i = 0; i < c.L.length; i++) {
+    const d = c.L[i],
+      t = c.T[i];
+    if (t === 'S') {
+      x += R * d * Math.cos(th);
+      y += R * d * Math.sin(th);
+    } else if (t === 'L') {
+      const t2 = th + d;
+      x += R * (Math.sin(t2) - Math.sin(th));
+      y += R * (-Math.cos(t2) + Math.cos(th));
+      th = t2;
+    } else {
+      const t2 = th - d;
+      x += R * (-Math.sin(t2) + Math.sin(th));
+      y += R * (Math.cos(t2) - Math.cos(th));
+      th = t2;
+    }
+  }
+  return [x, y, wrap(th)];
+}
+// Sample poses every ds metres along candidate c from q0, split into legs by gear: [{dir, pts: [[x, y, θ]]}].
+function rsSample(q0, c, R, ds) {
+  const segs = [];
+  let x = q0[0],
+    y = q0[1],
+    th = q0[2],
+    cur = null;
+  for (let i = 0; i < c.L.length; i++) {
+    const d = c.L[i],
+      t = c.T[i],
+      dir = d >= 0 ? 1 : -1,
+      len = Math.abs(d) * R;
+    if (len < 1e-6) continue;
+    if (!cur || cur.dir !== dir) {
+      cur = {dir, pts: [[x, y, th]]};
+      segs.push(cur);
+    }
+    const n = Math.max(1, Math.ceil(len / ds)),
+      x0 = x,
+      y0 = y,
+      t0 = th;
+    for (let k = 1; k <= n; k++) {
+      const dk = (d * k) / n;
+      let xx, yy, tt;
+      if (t === 'S') {
+        xx = x0 + R * dk * Math.cos(t0);
+        yy = y0 + R * dk * Math.sin(t0);
+        tt = t0;
+      } else if (t === 'L') {
+        tt = t0 + dk;
+        xx = x0 + R * (Math.sin(tt) - Math.sin(t0));
+        yy = y0 + R * (-Math.cos(tt) + Math.cos(t0));
+      } else {
+        tt = t0 - dk;
+        xx = x0 + R * (-Math.sin(tt) + Math.sin(t0));
+        yy = y0 + R * (Math.cos(tt) - Math.cos(t0));
+      }
+      cur.pts.push([xx, yy, wrap(tt)]);
+    }
+    const l = cur.pts[cur.pts.length - 1];
+    x = l[0];
+    y = l[1];
+    th = l[2];
+  }
+  return segs;
+}
+// Reeds–Shepp shortest paths: solve (every verified candidate, shortest first), length (for the heuristic), sample.
 const RS = (() => {
-  const PI = Math.PI,
-    HP = PI / 2,
-    sin = Math.sin,
+  const sin = Math.sin,
     cos = Math.cos;
-  const M = x => {
-    let v = x % (2 * PI);
-    if (v < -PI) v += 2 * PI;
-    else if (v > PI) v -= 2 * PI;
-    return v;
-  };
-  const pol = (x, y) => [Math.hypot(x, y), Math.atan2(y, x)];
-  // Path families in normalized units (turning radius 1). Signed lengths: negative = reverse.
-  function LSL(x, y, p) {
-    const [u, t] = pol(x - sin(p), y - 1 + cos(p));
-    if (t >= 0 && t <= PI) {
-      const v = M(p - t);
-      if (v >= 0 && v <= PI) return [[t, u, v], 'LSL'];
-    }
-    return null;
-  }
-  function LSR(x, y, p) {
-    let [u1, t1] = pol(x + sin(p), y - 1 - cos(p));
-    u1 *= u1;
-    if (u1 >= 4) {
-      const u = Math.sqrt(u1 - 4),
-        th = Math.atan2(2, u),
-        t = M(t1 + th),
-        v = M(t - p);
-      if (t >= 0 && v >= 0) return [[t, u, v], 'LSR'];
-    }
-    return null;
-  }
-  function LxRxL(x, y, p) {
-    const [u1, th] = pol(x - sin(p), y - 1 + cos(p));
-    if (u1 <= 4) {
-      const A = Math.acos(0.25 * u1),
-        t = M(A + th + HP),
-        u = M(PI - 2 * A),
-        v = M(p - t - u);
-      return [[t, -u, v], 'LRL'];
-    }
-    return null;
-  }
-  function LxRL(x, y, p) {
-    const [u1, th] = pol(x - sin(p), y - 1 + cos(p));
-    if (u1 <= 4) {
-      const A = Math.acos(0.25 * u1),
-        t = M(A + th + HP),
-        u = M(PI - 2 * A),
-        v = M(-p + t + u);
-      return [[t, -u, -v], 'LRL'];
-    }
-    return null;
-  }
-  function LRxL(x, y, p) {
-    const [u1, th] = pol(x - sin(p), y - 1 + cos(p));
-    if (u1 <= 4 && u1 > 1e-9) {
-      const u = Math.acos(1 - u1 * u1 * 0.125),
-        A = Math.asin(Math.max(-1, Math.min(1, (2 * sin(u)) / u1))),
-        t = M(-A + th + HP),
-        v = M(t - u - p);
-      return [[t, u, -v], 'LRL'];
-    }
-    return null;
-  }
-  function LRxLR(x, y, p) {
-    const [u1, th] = pol(x + sin(p), y - 1 - cos(p));
-    if (u1 <= 2) {
-      const A = Math.acos((u1 + 2) * 0.25),
-        t = M(th + A + HP),
-        u = M(A),
-        v = M(p - t + 2 * u);
-      if (t >= 0 && u >= 0 && v >= 0) return [[t, u, -u, -v], 'LRLR'];
-    }
-    return null;
-  }
-  function LxRLxR(x, y, p) {
-    const [u1, th] = pol(x + sin(p), y - 1 - cos(p));
-    const u2 = (20 - u1 * u1) / 16;
-    if (u2 >= 0 && u2 <= 1 && u1 > 1e-9) {
-      const u = Math.acos(u2),
-        A = Math.asin(Math.max(-1, Math.min(1, (2 * sin(u)) / u1))),
-        t = M(th + A + HP),
-        v = M(t - p);
-      if (t >= 0 && v >= 0) return [[t, -u, -u, v], 'LRLR'];
-    }
-    return null;
-  }
-  function LxR90SL(x, y, p) {
-    const [u1, th] = pol(x - sin(p), y - 1 + cos(p));
-    if (u1 >= 2) {
-      const q = Math.sqrt(u1 * u1 - 4),
-        u = q - 2,
-        A = Math.atan2(2, q),
-        t = M(th + A + HP),
-        v = M(t - p + HP);
-      if (t >= 0 && v >= 0) return [[t, -HP, -u, -v], 'LRSL'];
-    }
-    return null;
-  }
-  function LSR90xL(x, y, p) {
-    const [u1, th] = pol(x - sin(p), y - 1 + cos(p));
-    if (u1 >= 2) {
-      const q = Math.sqrt(u1 * u1 - 4),
-        u = q - 2,
-        A = Math.atan2(q, 2),
-        t = M(th - A + HP),
-        v = M(t - p - HP);
-      if (t >= 0 && v >= 0) return [[t, u, HP, -v], 'LSRL'];
-    }
-    return null;
-  }
-  function LxR90SR(x, y, p) {
-    const [u1, th] = pol(x + sin(p), y - 1 - cos(p));
-    if (u1 >= 2) {
-      const t = M(th + HP),
-        u = u1 - 2,
-        v = M(p - t - HP);
-      if (t >= 0 && v >= 0) return [[t, -HP, -u, -v], 'LRSR'];
-    }
-    return null;
-  }
-  function LSL90xR(x, y, p) {
-    const [u1, th] = pol(x + sin(p), y - 1 - cos(p));
-    if (u1 >= 2) {
-      const t = M(th),
-        u = u1 - 2,
-        v = M(p - t - HP);
-      if (t >= 0 && v >= 0) return [[t, u, HP, -v], 'LSLR'];
-    }
-    return null;
-  }
-  function LxR90SL90xR(x, y, p) {
-    const [u1, th] = pol(x + sin(p), y - 1 - cos(p));
-    if (u1 >= 4) {
-      const q = Math.sqrt(u1 * u1 - 4),
-        u = q - 4,
-        A = Math.atan2(2, q),
-        t = M(th + A + HP),
-        v = M(t - p);
-      if (t >= 0 && v >= 0) return [[t, -HP, -u, -HP, v], 'LRSLR'];
-    }
-    return null;
-  }
-  const FAMS = [LSL, LSR, LxRxL, LxRL, LRxL, LRxLR, LxRLxR, LxR90SL, LSR90xL, LxR90SR, LSL90xR, LxR90SL90xR];
+  const FAMS = [rsLSL, rsLSR, rsLxRxL, rsLxRL, rsLRxL, rsLRxLR, rsLxRLxR, rsLxR90SL, rsLSR90xL, rsLxR90SR, rsLSL90xR, rsLxR90SL90xR];
   const flip = s => s.replace(/[LR]/g, c => (c === 'L' ? 'R' : 'L'));
   function cands(x, y, p) {
     const out = [];
@@ -5709,32 +5785,8 @@ const RS = (() => {
       s = sin(q0[2]);
     return [(c * dx + s * dy) / R, (-s * dx + c * dy) / R, wrap(q1[2] - q0[2])];
   }
-  function endpoint(q0, c, R) {
-    let x = q0[0],
-      y = q0[1],
-      th = q0[2];
-    for (let i = 0; i < c.L.length; i++) {
-      const d = c.L[i],
-        t = c.T[i];
-      if (t === 'S') {
-        x += R * d * cos(th);
-        y += R * d * sin(th);
-      } else if (t === 'L') {
-        const t2 = th + d;
-        x += R * (sin(t2) - sin(th));
-        y += R * (-cos(t2) + cos(th));
-        th = t2;
-      } else {
-        const t2 = th - d;
-        x += R * (-sin(t2) + sin(th));
-        y += R * (cos(t2) - cos(th));
-        th = t2;
-      }
-    }
-    return [x, y, wrap(th)];
-  }
   function valid(q0, q1, c, R) {
-    const e = endpoint(q0, c, R);
+    const e = rsEndpoint(q0, c, R);
     return hyp(e[0] - q1[0], e[1] - q1[1]) < 1e-3 * Math.max(1, R) && Math.abs(wrap(e[2] - q1[2])) < 1e-3;
   }
   // All endpoint-verified candidates, shortest first
@@ -5748,53 +5800,7 @@ const RS = (() => {
     for (const c of cands(x, y, p)) if (valid(q0, q1, c, R)) return c.len * R;
     return Infinity;
   }
-  // Sample poses every ds metres, split into legs by gear
-  function sample(q0, c, R, ds) {
-    const segs = [];
-    let x = q0[0],
-      y = q0[1],
-      th = q0[2],
-      cur = null;
-    for (let i = 0; i < c.L.length; i++) {
-      const d = c.L[i],
-        t = c.T[i],
-        dir = d >= 0 ? 1 : -1,
-        len = Math.abs(d) * R;
-      if (len < 1e-6) continue;
-      if (!cur || cur.dir !== dir) {
-        cur = {dir, pts: [[x, y, th]]};
-        segs.push(cur);
-      }
-      const n = Math.max(1, Math.ceil(len / ds)),
-        x0 = x,
-        y0 = y,
-        t0 = th;
-      for (let k = 1; k <= n; k++) {
-        const dk = (d * k) / n;
-        let xx, yy, tt;
-        if (t === 'S') {
-          xx = x0 + R * dk * cos(t0);
-          yy = y0 + R * dk * sin(t0);
-          tt = t0;
-        } else if (t === 'L') {
-          tt = t0 + dk;
-          xx = x0 + R * (sin(tt) - sin(t0));
-          yy = y0 + R * (-cos(tt) + cos(t0));
-        } else {
-          tt = t0 - dk;
-          xx = x0 + R * (-sin(tt) + sin(t0));
-          yy = y0 + R * (cos(tt) - cos(t0));
-        }
-        cur.pts.push([xx, yy, wrap(tt)]);
-      }
-      const l = cur.pts[cur.pts.length - 1];
-      x = l[0];
-      y = l[1];
-      th = l[2];
-    }
-    return segs;
-  }
-  return {solve, length, sample, endpoint, cands, norm, valid, NF: FAMS.length};
+  return {solve, length, sample: rsSample, endpoint: rsEndpoint, cands, norm, valid, NF: FAMS.length};
 })();
 
 /* ---- core/planning-dstar.js ---- */
@@ -6276,10 +6282,44 @@ function hybridAstar(e, wp) {
     BUDGET = 60000;
   const goalTh = wp.th != null ? wp.th : null,
     q1 = [wp.x, wp.y, goalTh];
+  const clearAt = hyFootprint(dist);
+  if (goalTh != null && clearAt(wp.x, wp.y, goalTh) < MARG)
+    return {ok: false, reason: goalBlocked(wp.x, wp.y) || 'the goal pose overlaps an obstacle'};
+  if (goalTh == null && cellIdx(wp.x, wp.y) >= 0 && dist[cellIdx(wp.x, wp.y)] < CAR.width / 2 + MARG)
+    return {ok: false, reason: goalBlocked(wp.x, wp.y) || 'goal is too close to an obstacle for the car'};
+  const startClear = clearAt(e.x, e.y, e.th);
+  const hAt = hyHeuristic(wp, q1, R, dist);
+  const B = hyBuf();
+  const steers = [-dm, -dm / 2, 0, dm / 2, dm],
+    dirs = P.revOK ? [1, -1] : [1];
+  const s0 = hyKey(e.x, e.y, e.th);
+  if (s0 < 0) return {ok: false, reason: 'start is outside the map'};
+  const H = {B, e, wp, goalTh, q1, R, L, dm, MARG, STEP, SUB, BUDGET, clearAt, hAt, startClear, steers, dirs, s0};
+  // A car touching something may back out at reduced margin. Clearance reads come in whole 0.1 m cells, so a start
+  // one cell above MARG can be boxed in too: a 1 cm move drops the reading by a cell and every way out of a tight
+  // slot fails. Such a start gets the same leniency, but only when the strict search runs out of nodes.
+  let r = hySearch(H, startClear < MARG);
+  if (r.fin < 0 && r.exp < BUDGET && startClear >= MARG && startClear - RES < MARG) {
+    hyBuf();
+    r = hySearch(H, true);
+  }
+  const {viz, exp, fin, tail, pix} = r;
+  S.search = {type: 'hybrid', pts: viz};
+  S.searchTrace = {type: 'pts', name: 'Hybrid A*', n: viz.length / 2, pts: viz, pix, cell: 0};
+  if (fin < 0)
+    return {ok: false, reason: exp >= BUDGET ? `search budget of ${BUDGET} expansions used up` : 'no kinematically feasible route', exp};
+  const segs = hyRebuild(H, fin, tail);
+  let len = 0;
+  for (const g of segs) len += pathLen(g.pts);
+  return {ok: true, segs, len, exp, extra: `${segs.length - 1} cusp${segs.length === 2 ? '' : 's'}${tail ? ' · RS shot' : ''}`};
+}
+// The car's footprint as three discs along its length: returns clearAt(x, y, θ), the smallest clearance of the three
+// discs on the distance field dist [m] (-1 off the map).
+function hyFootprint(dist) {
   const part = carLen() / 3,
     rc = Math.hypot(part / 2, CAR.width / 2),
     offs = [0, 1, 2].map(i => -CAR.rear + part * (i + 0.5));
-  const clearAt = (x, y, th) => {
+  return (x, y, th) => {
     const c = Math.cos(th),
       s = Math.sin(th);
     let m = Infinity;
@@ -6291,11 +6331,10 @@ function hybridAstar(e, wp) {
     }
     return m;
   };
-  if (goalTh != null && clearAt(wp.x, wp.y, goalTh) < MARG)
-    return {ok: false, reason: goalBlocked(wp.x, wp.y) || 'the goal pose overlaps an obstacle'};
-  if (goalTh == null && cellIdx(wp.x, wp.y) >= 0 && dist[cellIdx(wp.x, wp.y)] < CAR.width / 2 + MARG)
-    return {ok: false, reason: goalBlocked(wp.x, wp.y) || 'goal is too close to an obstacle for the car'};
-  const startClear = clearAt(e.x, e.y, e.th);
+}
+// The heuristic: returns hAt(x, y, θ), the 2D Dijkstra distance to the goal wp on dist, raised to the Reeds–Shepp
+// length to the goal pose q1 (turning radius R) near the goal when the goal has a heading and P.hybH is 'both'.
+function hyHeuristic(wp, q1, R, dist) {
   const h2 = holoField(wp.x, wp.y, dist, CAR.width / 2 + 0.02);
   const h2At = (x, y) => {
     const k = cellIdx(x, y);
@@ -6303,8 +6342,8 @@ function hybridAstar(e, wp) {
     const v = h2[k];
     return isFinite(v) ? v : hyp(x - wp.x, y - wp.y) + 20;
   };
-  const useRS = goalTh != null && P.hybH === 'both';
-  const hAt = (x, y, th) => {
+  const useRS = q1[2] != null && P.hybH === 'both';
+  return (x, y, th) => {
     let h = h2At(x, y);
     if (useRS && h < 5) {
       const r = RS.length([x, y, th], q1, R);
@@ -6312,157 +6351,166 @@ function hybridAstar(e, wp) {
     }
     return h;
   };
-  const B = hyBuf(),
-    NT = HY.NT,
+}
+// The lattice cell of a pose: index into the search buffers, -1 off the lattice
+function hyKey(x, y, th) {
+  const NT = HY.NT,
     XY = HY.XY,
     NX = HY.NX;
-  const key = (x, y, th) => {
-    const i = Math.floor(x / XY),
-      j = Math.floor(y / XY);
-    if (i < 0 || j < 0 || i >= NX || j >= HY.NY) return -1;
-    return (j * NX + i) * NT + (((Math.round(th / (TAU / NT)) % NT) + NT) % NT);
-  };
-  const steers = [-dm, -dm / 2, 0, dm / 2, dm],
-    dirs = P.revOK ? [1, -1] : [1];
-  const s0 = key(e.x, e.y, e.th);
-  if (s0 < 0) return {ok: false, reason: 'start is outside the map'};
-  let viz, exp, fin, tail, shots, pix, im; // pix: each expansion's parent, as an index into the expansion order (playback)
-  // lenient: within 1 m of the start, primitives need only startClear − RES (one grid cell below the start's reading)
-  const search = lenient => {
-    B.g[s0] = 0;
-    B.par[s0] = -1;
-    B.x[s0] = e.x;
-    B.y[s0] = e.y;
-    B.th[s0] = e.th;
-    B.dir[s0] = 0;
-    B.st[s0] = S.robot.d || 0;
-    const heap = new Heap();
-    heap.push(s0, P.eps * hAt(e.x, e.y, e.th));
-    viz = [];
-    exp = 0;
-    fin = -1;
-    tail = null;
-    shots = 0;
-    pix = [];
-    im = new Map();
-    while (heap.size && exp < BUDGET) {
-      const u = heap.pop();
-      if (B.closed[u]) continue;
-      B.closed[u] = 1;
-      exp++;
-      const x = B.x[u],
-        y = B.y[u],
-        th = B.th[u];
-      im.set(u, exp - 1);
-      if (viz.length < 40000) {
-        viz.push(x, y);
-        const pu = B.par[u];
-        pix.push(pu >= 0 && im.has(pu) ? im.get(pu) : -1);
+  const i = Math.floor(x / XY),
+    j = Math.floor(y / XY);
+  if (i < 0 || j < 0 || i >= NX || j >= HY.NY) return -1;
+  return (j * NX + i) * NT + (((Math.round(th / (TAU / NT)) % NT) + NT) % NT);
+}
+// Analytic expansion from (x, y, θ): the first collision-free Reeds–Shepp shot to the goal among the four shortest
+// usable ones (no reverse legs when reversing is off, no gear leg under 0.25 m); returns its legs, or null.
+function hyShot(H, x, y, th) {
+  const {q1, R, clearAt, MARG, SUB} = H;
+  let tail = null;
+  const cs = RS.solve([x, y, th], q1, R);
+  for (let ci = 0, tried = 0; ci < cs.length && tried < 4 && !tail; ci++) {
+    if (!P.revOK && cs[ci].L.some(d => d < -1e-9)) continue; // Allow reversing off: forward-only shots, as the expansions
+    // reject shots with gear legs too short to execute (< 0.25 m)
+    let short = false,
+      acc = 0,
+      sg0 = 0;
+    for (const d of cs[ci].L) {
+      const sg = Math.sign(d);
+      if (Math.abs(d) < 1e-9) continue;
+      if (sg !== sg0 && sg0 !== 0) {
+        if (acc < 0.25) short = true;
+        acc = 0;
       }
-      const dg = hyp(x - wp.x, y - wp.y);
-      if (dg < 0.15 && (goalTh == null || Math.abs(wrap(th - goalTh)) < 0.12)) {
-        fin = u;
-        break;
-      } // inside the arrival tolerance
-      // analytic expansion: try a Reeds–Shepp shot to the goal
-      if (goalTh != null && (dg < 2.5 || exp % 10 === 0)) {
-        shots++;
-        const cs = RS.solve([x, y, th], q1, R);
-        for (let ci = 0, tried = 0; ci < cs.length && tried < 4 && !tail; ci++) {
-          if (!P.revOK && cs[ci].L.some(d => d < -1e-9)) continue; // Allow reversing off: forward-only shots, as the expansions
-          // reject shots with gear legs too short to execute (< 0.25 m)
-          let short = false,
-            acc = 0,
-            sg0 = 0;
-          for (const d of cs[ci].L) {
-            const sg = Math.sign(d);
-            if (Math.abs(d) < 1e-9) continue;
-            if (sg !== sg0 && sg0 !== 0) {
-              if (acc < 0.25) short = true;
-              acc = 0;
-            }
-            sg0 = sg;
-            acc += Math.abs(d) * R;
-          }
-          if (acc < 0.25 && cs[ci].len * R > 0.25) short = true;
-          if (short) continue;
-          tried++;
-          const segs = RS.sample([x, y, th], cs[ci], R, SUB);
-          let ok = true;
-          for (const sg of segs) {
-            for (const p of sg.pts) {
-              if (clearAt(p[0], p[1], p[2]) < MARG) {
-                ok = false;
-                break;
-              }
-            }
-            if (!ok) break;
-          }
-          if (ok) tail = segs;
-        }
-        if (tail) {
-          fin = u;
+      sg0 = sg;
+      acc += Math.abs(d) * R;
+    }
+    if (acc < 0.25 && cs[ci].len * R > 0.25) short = true;
+    if (short) continue;
+    tried++;
+    const segs = RS.sample([x, y, th], cs[ci], R, SUB);
+    let ok = true;
+    for (const sg of segs) {
+      for (const p of sg.pts) {
+        if (clearAt(p[0], p[1], p[2]) < MARG) {
+          ok = false;
           break;
         }
       }
-      for (const d of dirs)
-        for (const st of steers) {
-          let nx = x,
-            ny = y,
-            nt = th,
-            minC = Infinity,
-            ok = true;
-          const w = (d * Math.tan(st)) / L;
-          for (let k = 0; k < Math.round(STEP / SUB); k++) {
-            const n = integ(nx, ny, nt, d, w, SUB);
-            nx = n.x;
-            ny = n.y;
-            nt = n.th;
-            const c = clearAt(nx, ny, nt),
-              need = lenient && hyp(nx - e.x, ny - e.y) < 1.0 ? startClear - RES : MARG; // let a car in a tight spot back out
-            if (c < need) {
-              ok = false;
-              break;
-            }
-            if (c < minC) minC = c;
-          }
-          if (!ok) continue;
-          const v = key(nx, ny, nt);
-          if (v < 0 || B.closed[v]) continue;
-          const prox = Math.max(0, (0.4 - minC) / 0.4);
-          const cost =
-            STEP * (d > 0 ? 1 : P.revPen) +
-            (0.05 * Math.abs(st)) / dm +
-            (0.1 * Math.abs(st - B.st[u])) / dm +
-            (B.dir[u] !== 0 && B.dir[u] !== d ? P.gearPen : 0) +
-            STEP * 2 * prox * prox;
-          const ng = B.g[u] + cost;
-          if (ng < B.g[v]) {
-            B.g[v] = ng;
-            B.par[v] = u;
-            B.x[v] = nx;
-            B.y[v] = ny;
-            B.th[v] = nt;
-            B.dir[v] = d;
-            B.st[v] = st;
-            heap.push(v, ng + P.eps * hAt(nx, ny, nt));
-          }
-        }
+      if (!ok) break;
     }
-  };
-  // A car touching something may back out at reduced margin. Clearance reads come in whole 0.1 m cells, so a start
-  // one cell above MARG can be boxed in too: a 1 cm move drops the reading by a cell and every way out of a tight
-  // slot fails. Such a start gets the same leniency, but only when the strict search runs out of nodes.
-  search(startClear < MARG);
-  if (fin < 0 && exp < BUDGET && startClear >= MARG && startClear - RES < MARG) {
-    hyBuf();
-    search(true);
+    if (ok) tail = segs;
   }
-  S.search = {type: 'hybrid', pts: viz};
-  S.searchTrace = {type: 'pts', name: 'Hybrid A*', n: viz.length / 2, pts: viz, pix, cell: 0};
-  if (fin < 0)
-    return {ok: false, reason: exp >= BUDGET ? `search budget of ${BUDGET} expansions used up` : 'no kinematically feasible route', exp};
-  // rebuild: re-simulate each primitive from its parent pose
+  return tail;
+}
+// Expands node u: every primitive (direction × steering) integrated in SUB steps over STEP, rejected where the
+// footprint's clearance drops below the margin, costed (length, reverse, steering, steering change, gear change,
+// proximity) and pushed onto the heap where it improves the target cell.
+function hyExpand(H, heap, u, lenient) {
+  const {B, e, L, dm, MARG, STEP, SUB, clearAt, hAt, startClear, steers, dirs} = H;
+  const x = B.x[u],
+    y = B.y[u],
+    th = B.th[u];
+  for (const d of dirs)
+    for (const st of steers) {
+      let nx = x,
+        ny = y,
+        nt = th,
+        minC = Infinity,
+        ok = true;
+      const w = (d * Math.tan(st)) / L;
+      for (let k = 0; k < Math.round(STEP / SUB); k++) {
+        const n = integ(nx, ny, nt, d, w, SUB);
+        nx = n.x;
+        ny = n.y;
+        nt = n.th;
+        const c = clearAt(nx, ny, nt),
+          need = lenient && hyp(nx - e.x, ny - e.y) < 1.0 ? startClear - RES : MARG; // let a car in a tight spot back out
+        if (c < need) {
+          ok = false;
+          break;
+        }
+        if (c < minC) minC = c;
+      }
+      if (!ok) continue;
+      const v = hyKey(nx, ny, nt);
+      if (v < 0 || B.closed[v]) continue;
+      const prox = Math.max(0, (0.4 - minC) / 0.4);
+      const cost =
+        STEP * (d > 0 ? 1 : P.revPen) +
+        (0.05 * Math.abs(st)) / dm +
+        (0.1 * Math.abs(st - B.st[u])) / dm +
+        (B.dir[u] !== 0 && B.dir[u] !== d ? P.gearPen : 0) +
+        STEP * 2 * prox * prox;
+      const ng = B.g[u] + cost;
+      if (ng < B.g[v]) {
+        B.g[v] = ng;
+        B.par[v] = u;
+        B.x[v] = nx;
+        B.y[v] = ny;
+        B.th[v] = nt;
+        B.dir[v] = d;
+        B.st[v] = st;
+        heap.push(v, ng + P.eps * hAt(nx, ny, nt));
+      }
+    }
+}
+// One search from s0 on H.B: {viz, exp, fin (final node, -1: none), tail (the shot's legs or null), shots, pix (each
+// expansion's parent as an index into the expansion order, for playback)}. lenient: within 1 m of the start,
+// primitives need only startClear − RES (one grid cell below the start's reading).
+function hySearch(H, lenient) {
+  const {B, e, wp, goalTh, s0, BUDGET, hAt} = H;
+  B.g[s0] = 0;
+  B.par[s0] = -1;
+  B.x[s0] = e.x;
+  B.y[s0] = e.y;
+  B.th[s0] = e.th;
+  B.dir[s0] = 0;
+  B.st[s0] = S.robot.d || 0;
+  const heap = new Heap();
+  heap.push(s0, P.eps * hAt(e.x, e.y, e.th));
+  const viz = [],
+    pix = [],
+    im = new Map();
+  let exp = 0,
+    fin = -1,
+    tail = null,
+    shots = 0;
+  while (heap.size && exp < BUDGET) {
+    const u = heap.pop();
+    if (B.closed[u]) continue;
+    B.closed[u] = 1;
+    exp++;
+    const x = B.x[u],
+      y = B.y[u],
+      th = B.th[u];
+    im.set(u, exp - 1);
+    if (viz.length < 40000) {
+      viz.push(x, y);
+      const pu = B.par[u];
+      pix.push(pu >= 0 && im.has(pu) ? im.get(pu) : -1);
+    }
+    const dg = hyp(x - wp.x, y - wp.y);
+    if (dg < 0.15 && (goalTh == null || Math.abs(wrap(th - goalTh)) < 0.12)) {
+      fin = u;
+      break;
+    } // inside the arrival tolerance
+    // analytic expansion: try a Reeds–Shepp shot to the goal
+    if (goalTh != null && (dg < 2.5 || exp % 10 === 0)) {
+      shots++;
+      tail = hyShot(H, x, y, th);
+      if (tail) {
+        fin = u;
+        break;
+      }
+    }
+    hyExpand(H, heap, u, lenient);
+  }
+  return {viz, exp, fin, tail, shots, pix};
+}
+// rebuild: re-simulate each primitive from its parent pose, from fin back to s0, then append the shot's legs (tail);
+// returns the path split into legs by gear, [{dir, pts: [[x, y, θ]]}]
+function hyRebuild(H, fin, tail) {
+  const {B, e, s0, L, STEP, SUB} = H;
   const chain = [];
   for (let k = fin; k !== s0 && k >= 0; k = B.par[k]) chain.push(k);
   chain.reverse();
@@ -6500,9 +6548,7 @@ function hybridAstar(e, wp) {
         [e.x + 1e-3 * Math.cos(e.th), e.y + 1e-3 * Math.sin(e.th), e.th]
       ]
     });
-  let len = 0;
-  for (const g of segs) len += pathLen(g.pts);
-  return {ok: true, segs, len, exp, extra: `${segs.length - 1} cusp${segs.length === 2 ? '' : 's'}${tail ? ' · RS shot' : ''}`};
+  return segs;
 }
 // @end
 
@@ -7094,37 +7140,11 @@ const posSigma = () => (S.Pc ? Math.sqrt(Math.max(0, S.Pc[0] + S.Pc[4])) : 0);
 function missionTick() {
   const F = S.fsm;
   if (F.state === 'PLAN') {
-    if (F.planPending) return;
-    if (exploring() && !F.queue.length) {
-      // the first frontier once the first scan is in; an empty map after 3 s, or no frontier left, ends the exploration
-      const waiting = S.t - (F.scanT || 0) < 3;
-      if (!exploreNext(F.scanT != null ? 'start' : 'next', waiting)) {
-        if (!waiting) {
-          F.state = 'DONE';
-          S.track = null;
-          S.plan = null;
-        }
-        return;
-      }
-      F.scanT = null;
-    }
-    doPlan(F.pendingReason || 'initial');
-    F.pendingReason = null;
+    tickPlan(F);
     return;
   }
-  if (F.state === 'NO_PATH') {
-    if (S.t - F.lastPlanT > 2) {
-      F.state = 'PLAN';
-      F.pendingReason = 'retry';
-    }
-    return;
-  }
-  if (F.state === 'LOST') {
-    if (posSigma() < 0.4) {
-      logE(`Relocalized (σ ${posSigma().toFixed(2)} m). Resuming.`, 'ok');
-      F.state = 'PLAN';
-      F.pendingReason = 'relocalized';
-    }
+  if (F.state === 'NO_PATH' || F.state === 'LOST') {
+    tickWaiting(F);
     return;
   }
   if (F.state !== 'DRIVE') return;
@@ -7136,13 +7156,7 @@ function missionTick() {
   const wp = WPS[F.queue[0]],
     e = S.est;
   if (F.recover) {
-    // backing off (startRecovery): until the clear cell is reached, or 3 s, then a fresh plan from there
-    const end = F.recover.to;
-    if (hyp(end[0] - e.x, end[1] - e.y) < 0.12 || S.t - F.recover.t > 3) {
-      F.recover = null;
-      F.state = 'PLAN';
-      F.pendingReason = 'stuck';
-    }
+    tickRecover(F, e);
     return;
   }
   // heading for the edge of the seen floor (unseenGoalProxy): a fresh plan every second as the map grows
@@ -7151,26 +7165,78 @@ function missionTick() {
     F.pendingReason = 'periodic';
     return;
   }
-  if (wp.explore && S.t - (F.frontierT || 0) >= 1) {
-    F.frontierT = S.t;
-    if (frontierGone(wp)) {
-      logE(`Frontier at (${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}) seen on the way: next`);
-      wp.done = true;
-      F.queue.shift();
-      F.stuckN = 0;
-      S.ctlState = {I: 0, prev: null};
-      if (exploreMore()) {
-        F.state = 'PLAN';
-        F.pendingReason = 'initial';
-      } else {
+  if (wp.explore && S.t - (F.frontierT || 0) >= 1 && tickFrontier(F, wp)) return;
+  const lastSeg = tickCusp(F, e);
+  if (tickArrive(F, wp, e, lastSeg)) return;
+  if (tickReplan(F, e)) return;
+  tickStuck(F, e);
+}
+// PLAN: in exploration, the next frontier first; then a plan for the pending reason
+function tickPlan(F) {
+  if (F.planPending) return;
+  if (exploring() && !F.queue.length) {
+    // the first frontier once the first scan is in; an empty map after 3 s, or no frontier left, ends the exploration
+    const waiting = S.t - (F.scanT || 0) < 3;
+    if (!exploreNext(F.scanT != null ? 'start' : 'next', waiting)) {
+      if (!waiting) {
         F.state = 'DONE';
         S.track = null;
         S.plan = null;
-        logE(`Exploration complete in ${S.t.toFixed(1)} s`, 'ok');
       }
       return;
     }
+    F.scanT = null;
   }
+  doPlan(F.pendingReason || 'initial');
+  F.pendingReason = null;
+}
+// NO_PATH: a retry 2 s after the last plan; LOST: resume once the position σ is back under 0.4 m
+function tickWaiting(F) {
+  if (F.state === 'NO_PATH') {
+    if (S.t - F.lastPlanT > 2) {
+      F.state = 'PLAN';
+      F.pendingReason = 'retry';
+    }
+    return;
+  }
+  if (posSigma() < 0.4) {
+    logE(`Relocalized (σ ${posSigma().toFixed(2)} m). Resuming.`, 'ok');
+    F.state = 'PLAN';
+    F.pendingReason = 'relocalized';
+  }
+}
+// backing off (startRecovery): until the clear cell is reached, or 3 s, then a fresh plan from there
+function tickRecover(F, e) {
+  const end = F.recover.to;
+  if (hyp(end[0] - e.x, end[1] - e.y) < 0.12 || S.t - F.recover.t > 3) {
+    F.recover = null;
+    F.state = 'PLAN';
+    F.pendingReason = 'stuck';
+  }
+}
+// Exploring, once a second: a frontier goal seen on the way is done; on to the next or the end. True when it was.
+function tickFrontier(F, wp) {
+  F.frontierT = S.t;
+  if (!frontierGone(wp)) return false;
+  logE(`Frontier at (${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}) seen on the way: next`);
+  wp.done = true;
+  F.queue.shift();
+  F.stuckN = 0;
+  S.ctlState = {I: 0, prev: null};
+  if (exploreMore()) {
+    F.state = 'PLAN';
+    F.pendingReason = 'initial';
+  } else {
+    F.state = 'DONE';
+    S.track = null;
+    S.plan = null;
+    logE(`Exploration complete in ${S.t.toFixed(1)} s`, 'ok');
+  }
+  return true;
+}
+// A plan in legs (cusps): the next leg once the estimate is at the end of this one. Returns whether the leg driven is
+// the last.
+function tickCusp(F, e) {
   let lastSeg = !S.plan || S.segIdx >= S.plan.segs.length - 1;
   if (!lastSeg) {
     const pr = project(e.x, e.y, true),
@@ -7184,6 +7250,11 @@ function missionTick() {
       lastSeg = S.segIdx >= S.plan.segs.length - 1;
     }
   }
+  return lastSeg;
+}
+// Arrival at goal wp: the heading alignment at posed goals, then the goal reached by the estimate and the next goal,
+// lap or the end. True when the tick ends here (aligning, or the goal reached).
+function tickArrive(F, wp, e, lastSeg) {
   // A goal with a heading: the car's pose planners (Hybrid A*, Reeds–Shepp, your code) arrive with it; the unicycle
   // drives to the point and then turns in place (F.align) until the estimate faces the goal heading within ALIGN_TOL.
   // Point planners on the car cannot honour it, so the heading is reported and not waited for.
@@ -7205,44 +7276,47 @@ function missionTick() {
     F.align = false;
   }
   if (F.align) {
-    if (!headOK) return;
+    if (!headOK) return true;
   }
-  if (lastSeg && headOK && legDone && near) {
-    F.align = false;
-    const te = hyp(S.robot.x - wp.x, S.robot.y - wp.y),
-      he = posed ? Math.abs(deg(wrap(S.robot.th - wp.th))) : 0;
-    logE(
-      `Reached goal ${wpLabel(F.queue[0])} by estimate · true error ${te.toFixed(2)} m${posed ? ` · ${he.toFixed(0)}°` : ''}`,
-      te > 0.5 || he > 20 ? 'warn' : 'ok'
-    );
-    wp.done = true;
-    F.queue.shift();
-    F.stuckN = 0;
-    S.ctlState = {I: 0, prev: null};
-    if (F.queue.length || exploreMore()) {
-      F.state = 'PLAN';
-      F.pendingReason = 'initial';
-    } else if (P.misLoop && !exploring() && missionRepeat(`Lap ${S.lap || 1} complete in ${S.t.toFixed(1)} s`)) {
-      F.pendingReason = 'initial';
-    } else {
-      F.state = 'DONE';
-      S.track = null;
-      S.plan = null;
-      logE(exploring() ? `Exploration complete in ${S.t.toFixed(1)} s` : `Mission complete in ${S.t.toFixed(1)} s`, 'ok');
-    }
-    return;
+  if (!(lastSeg && headOK && legDone && near)) return false;
+  F.align = false;
+  const te = hyp(S.robot.x - wp.x, S.robot.y - wp.y),
+    he = posed ? Math.abs(deg(wrap(S.robot.th - wp.th))) : 0;
+  logE(
+    `Reached goal ${wpLabel(F.queue[0])} by estimate · true error ${te.toFixed(2)} m${posed ? ` · ${he.toFixed(0)}°` : ''}`,
+    te > 0.5 || he > 20 ? 'warn' : 'ok'
+  );
+  wp.done = true;
+  F.queue.shift();
+  F.stuckN = 0;
+  S.ctlState = {I: 0, prev: null};
+  if (F.queue.length || exploreMore()) {
+    F.state = 'PLAN';
+    F.pendingReason = 'initial';
+  } else if (P.misLoop && !exploring() && missionRepeat(`Lap ${S.lap || 1} complete in ${S.t.toFixed(1)} s`)) {
+    F.pendingReason = 'initial';
+  } else {
+    F.state = 'DONE';
+    S.track = null;
+    S.plan = null;
+    logE(exploring() ? `Exploration complete in ${S.t.toFixed(1)} s` : `Mission complete in ${S.t.toFixed(1)} s`, 'ok');
   }
+  return true;
+}
+// The replan triggers while driving: off path, the replan timer, and the path ahead blocked (the car's footprint along
+// a Hybrid A* plan, the costmap along any other). True when one fired (the machine is in PLAN with its reason).
+function tickReplan(F, e) {
   // the estimate is far from the path (kidnapped, relocalized, pushed aside): plan again from where the robot is now
   if (S.t - F.lastPlanT > 0.5 && project(e.x, e.y, true).d > OFFPATH) {
     F.state = 'PLAN';
     F.pendingReason = 'off path';
-    return;
+    return true;
   }
   const per = P.plan === 'policy' ? Math.min(0.5, P.replan || 0.5) : P.replan; // the policy's trajectory is 4 s long: refreshed every half second
   if (per > 0 && S.t - F.lastPlanT >= per) {
     F.state = 'PLAN';
     F.pendingReason = 'periodic';
-    return;
+    return true;
   }
   if (P.plan === 'hybrid' && isCar() && S.t - F.lastBlockT > 0.5) {
     // footprint check of the remaining legs (poses carry heading)
@@ -7260,7 +7334,7 @@ function missionTick() {
         if (c < 0) {
           F.state = 'PLAN';
           F.pendingReason = 'path blocked';
-          return;
+          return true;
         }
       }
     }
@@ -7277,10 +7351,14 @@ function missionTick() {
       if (bad) {
         F.state = 'PLAN';
         F.pendingReason = 'path blocked';
-        return;
+        return true;
       }
     }
   }
+  return false;
+}
+// Every 5 s: under 0.15 m of progress is stuck; three times skips the goal, otherwise back off (startRecovery) or replan
+function tickStuck(F, e) {
   if (S.t - F.prog.t > 5) {
     if (hyp(e.x - F.prog.x, e.y - F.prog.y) < 0.15) {
       F.stuckN = (F.stuckN || 0) + 1;
@@ -7832,23 +7910,7 @@ function ctlMPC() {
   const LC = S.mpcCmd && S.mpcCmd.tick === S.tick - 1 ? S.mpcCmd : {v: S.odo.v, steer: S.robot.d, w: S.odo.w};
   if (M.lag) x0.push(LC.v || 0, car ? LC.steer || 0 : LC.w || 0);
   if (M.dyn) x0.push(S.robot.vy || 0, S.robot.r || 0); // v_y and r as a gyro and a sideslip estimator would give them (here: the true values)
-  // reference states (θ unwrapped next to the robot) and the inputs that would produce them
-  const Xr = [],
-    Ur = [];
-  let thp = x0[2];
-  for (let k = 0; k <= Np; k++) {
-    const th = thp + wrap(ref[k].th - thp);
-    thp = th;
-    const sr = car ? dir * Math.atan(P.wheelbase * ref[k].kap) : ref[k].v * ref[k].kap;
-    const xr = [ref[k].x, ref[k].y, th, ref[k].v, sr];
-    if (M.lag) xr.push(xr[3], xr[4]);
-    if (M.dyn) {
-      const rr = (ref[k].v * Math.tan(sr)) / P.wheelbase;
-      xr.push(dynGeom().lr * rr, rr);
-    } // no slip on the reference
-    Xr.push(xr);
-  }
-  for (let k = 0; k < Np; k++) Ur.push([(Xr[k + 1][3] - Xr[k][3]) / dt, (Xr[k + 1][4] - Xr[k][4]) / dt]);
+  const {Xr, Ur} = mpcRefStates(M, ref, dir, x0, Np, dt);
   // bounds and constraints
   const aMax = P.accel ? P.amax : 3,
     rMax = car ? P.steerRate : P.accel ? P.alpha : 8;
@@ -7879,7 +7941,83 @@ function ctlMPC() {
   const ABr = ltv ? mpcLinearize(M, Xr, Ur, Np, dt) : null;
   const rollout = U => mpcRollout(U, x0, M, ltv, Np, dt, uk, ABr, Xr, Ur, n);
   const cons = mpcConstraintFn(dir, vMax, sMax, obs, offs, pts, rc, agM, agCons, brk);
-  // residuals of step k (1..Np) as [r, grad over state]; inputs handled separately
+  const Q = {n, Np, Nc, nU, nc, rho, ref, Xr, W, uk, cons, rollout};
+  const {stateRes, inRes, cost} = mpcResiduals(Q);
+  Q.stateRes = stateRes;
+  Q.inRes = inRes;
+  Q.cost = cost;
+  let X = rollout(U),
+    J = cost(X, U),
+    it = 0;
+  const iters = ltv ? 2 : Math.round(P.mpcIt);
+  for (; it < iters; it++) {
+    if (P.mpcBudget > 0 && performance.now() - t0 > P.mpcBudget) break; // real-time budget (0: none, iterate to the end)
+    const AB = ltv ? ABr : X.slice(0, Np).map((x, k) => mpcJac(M, x, uk(U, k), dt));
+    const {H, g} = mpcGaussNewton(Q, AB, X, U);
+    const lo = new Float64Array(nU),
+      hi = new Float64Array(nU);
+    for (let i = 0; i < nU; i++) {
+      lo[i] = ulo(i) - U[i];
+      hi[i] = uhi(i) - U[i];
+    }
+    const dU = boxQP(H, g, lo, hi, nU);
+    const ls = mpcLineSearch(Q, U, J, dU);
+    let acc = false;
+    if (ls) {
+      ({U, X, J} = ls);
+      acc = true;
+    }
+    mpcMultipliers(Q, X);
+    J = cost(X, U);
+    if (!acc) break;
+  }
+  W.U = U;
+  const u0 = uk(U, 0);
+  W.uPrev = u0;
+  let viol = 0;
+  for (let k = 1; k <= Np; k++) for (const [cv] of cons(k, X[k])) viol = Math.max(viol, cv);
+  // what the chosen inputs really do (nonlinear), drawn next to the LTV prediction
+  let Xtrue = X;
+  if (ltv) {
+    Xtrue = [x0.slice()];
+    for (let k = 0; k < Np; k++) Xtrue.push(M.f(Xtrue[k], uk(U, k), dt));
+  }
+  S.ctlViz = {pred: Xtrue.map(x => [x[0], x[1]]), lin: ltv ? X.map(x => [x[0], x[1]]) : null, ref: ref.map(r => [r.x, r.y])};
+  S.mpcStats = {ms: performance.now() - t0, it, J, viol, mode: ltv ? 'LTV' : 'NMPC', Np, Nc};
+  const bv = LC.v || 0,
+    bs = car ? LC.steer || 0 : LC.w || 0,
+    vc = bv + u0[0] * DT,
+    sc = bs + u0[1] * DT; // u = u_prev + u̇·T
+  S.mpcCmd = {v: vc, steer: car ? clamp(sc, -steerMax(), steerMax()) : 0, w: car ? 0 : clamp(sc, -P.wmax, P.wmax), tick: S.tick};
+  return car ? {v: vc, steer: sc} : {v: vc, w: sc};
+}
+// Reference states (θ unwrapped next to the robot's x0) and the inputs that would produce them: {Xr: Np + 1 states,
+// Ur: Np input rates}, from the reference ref along the leg driven in direction dir
+function mpcRefStates(M, ref, dir, x0, Np, dt) {
+  const car = M.car,
+    Xr = [],
+    Ur = [];
+  let thp = x0[2];
+  for (let k = 0; k <= Np; k++) {
+    const th = thp + wrap(ref[k].th - thp);
+    thp = th;
+    const sr = car ? dir * Math.atan(P.wheelbase * ref[k].kap) : ref[k].v * ref[k].kap;
+    const xr = [ref[k].x, ref[k].y, th, ref[k].v, sr];
+    if (M.lag) xr.push(xr[3], xr[4]);
+    if (M.dyn) {
+      const rr = (ref[k].v * Math.tan(sr)) / P.wheelbase;
+      xr.push(dynGeom().lr * rr, rr);
+    } // no slip on the reference
+    Xr.push(xr);
+  }
+  for (let k = 0; k < Np; k++) Ur.push([(Xr[k + 1][3] - Xr[k][3]) / dt, (Xr[k + 1][4] - Xr[k][4]) / dt]);
+  return {Xr, Ur};
+}
+// The least-squares residuals on the problem Q: stateRes(k, x) for step k (1..Np) as [r, grad over state] (tracking
+// in the path frame, heading, speed, and the augmented-Lagrangian constraint terms), inRes(U, k) for the inputs and
+// their changes, and cost(X, U), the sum of their squares.
+function mpcResiduals(Q) {
+  const {Np, Nc, nc, rho, ref, Xr, W, uk, cons} = Q;
   const sq = Math.sqrt,
     lamOf = (k, c) => W.lam[(k - 1) * nc + c];
   const stateRes = (k, x) => {
@@ -7924,108 +8062,80 @@ function ctlMPC() {
     for (let k = 0; k < Np; k++) for (const [r] of inRes(U, k)) J += r * r;
     return J;
   };
-  let X = rollout(U),
-    J = cost(X, U),
-    it = 0;
-  const iters = ltv ? 2 : Math.round(P.mpcIt);
-  for (; it < iters; it++) {
-    if (P.mpcBudget > 0 && performance.now() - t0 > P.mpcBudget) break; // real-time budget (0: none, iterate to the end)
-    const AB = ltv ? ABr : X.slice(0, Np).map((x, k) => mpcJac(M, x, uk(U, k), dt));
-    // Gauss–Newton: H = JᵀJ, g = Jᵀr, with sensitivities S_k = ∂x_k/∂U (move blocking after Nc)
-    const H = new Float64Array(nU * nU),
-      g = new Float64Array(nU);
-    const addRow = (row, r) => {
-      for (let a = 0; a < nU; a++) {
-        const ra = row[a];
-        if (ra === 0) continue;
-        g[a] += ra * r;
-        for (let b = 0; b < nU; b++) H[a * nU + b] += ra * row[b];
-      }
-    };
-    let Sk = new Float64Array(n * nU);
-    for (let k = 0; k < Np; k++) {
-      const {A, B} = AB[k],
-        j = Math.min(k, Nc - 1),
-        Sn = new Float64Array(n * nU);
-      for (let i = 0; i < n; i++) {
-        for (let c = 0; c < nU; c++) {
-          let s = 0;
-          for (let m = 0; m < n; m++) s += A[i * n + m] * Sk[m * nU + c];
-          Sn[i * nU + c] = s;
-        }
-        Sn[i * nU + 2 * j] += B[i * 2];
-        Sn[i * nU + 2 * j + 1] += B[i * 2 + 1];
-      }
-      Sk = Sn;
-      for (const [r, gr] of stateRes(k + 1, X[k + 1])) {
-        const row = new Float64Array(nU);
-        for (let m = 0; m < 5; m++) {
-          if (gr[m] === 0) continue;
-          for (let c = 0; c < nU; c++) row[c] += gr[m] * Sk[m * nU + c];
-        }
-        addRow(row, r);
-      }
-      const ir = inRes(U, k);
-      for (let q = 0; q < ir.length; q++) {
-        const row = new Float64Array(nU),
-          ch = q % 2,
-          f = q < 2 ? (q ? sq(P.mpcRs) : sq(P.mpcRa)) : sq(P.mpcRd);
-        row[2 * j + ch] = f;
-        if (q >= 2 && k > 0) row[2 * (k - 1) + ch] = -f;
-        addRow(row, ir[q][0]);
-      }
+  return {stateRes, inRes, cost};
+}
+// Gauss–Newton: H = JᵀJ, g = Jᵀr, with sensitivities S_k = ∂x_k/∂U (move blocking after Nc), from the step
+// Jacobians AB along the rollout X of the inputs U; returns {H, g}, H with a small Levenberg damping on its diagonal.
+function mpcGaussNewton(Q, AB, X, U) {
+  const {n, Np, Nc, nU, stateRes, inRes} = Q,
+    sq = Math.sqrt;
+  const H = new Float64Array(nU * nU),
+    g = new Float64Array(nU);
+  const addRow = (row, r) => {
+    for (let a = 0; a < nU; a++) {
+      const ra = row[a];
+      if (ra === 0) continue;
+      g[a] += ra * r;
+      for (let b = 0; b < nU; b++) H[a * nU + b] += ra * row[b];
     }
-    for (let i = 0; i < nU; i++) H[i * nU + i] += 1e-6 + 1e-4 * H[i * nU + i];
-    const lo = new Float64Array(nU),
-      hi = new Float64Array(nU);
-    for (let i = 0; i < nU; i++) {
-      lo[i] = ulo(i) - U[i];
-      hi[i] = uhi(i) - U[i];
-    }
-    const dU = boxQP(H, g, lo, hi, nU);
-    let al = 1,
-      acc = false;
-    while (al >= 0.1) {
-      const Un = U.map((u, i) => u + al * dU[i]),
-        Xn = rollout(Un),
-        Jn = cost(Xn, Un);
-      if (Jn < J) {
-        U = Un;
-        X = Xn;
-        J = Jn;
-        acc = true;
-        break;
+  };
+  let Sk = new Float64Array(n * nU);
+  for (let k = 0; k < Np; k++) {
+    const {A, B} = AB[k],
+      j = Math.min(k, Nc - 1),
+      Sn = new Float64Array(n * nU);
+    for (let i = 0; i < n; i++) {
+      for (let c = 0; c < nU; c++) {
+        let s = 0;
+        for (let m = 0; m < n; m++) s += A[i * n + m] * Sk[m * nU + c];
+        Sn[i * nU + c] = s;
       }
-      al *= 0.5;
+      Sn[i * nU + 2 * j] += B[i * 2];
+      Sn[i * nU + 2 * j + 1] += B[i * 2 + 1];
     }
-    // augmented-Lagrangian multiplier update
-    for (let k = 1; k <= Np; k++)
-      cons(k, X[k]).forEach(([cv], ci) => {
-        const i = (k - 1) * nc + ci;
-        W.lam[i] = Math.max(0, W.lam[i] + rho * cv);
-      });
-    J = cost(X, U);
-    if (!acc) break;
+    Sk = Sn;
+    for (const [r, gr] of stateRes(k + 1, X[k + 1])) {
+      const row = new Float64Array(nU);
+      for (let m = 0; m < 5; m++) {
+        if (gr[m] === 0) continue;
+        for (let c = 0; c < nU; c++) row[c] += gr[m] * Sk[m * nU + c];
+      }
+      addRow(row, r);
+    }
+    const ir = inRes(U, k);
+    for (let q = 0; q < ir.length; q++) {
+      const row = new Float64Array(nU),
+        ch = q % 2,
+        f = q < 2 ? (q ? sq(P.mpcRs) : sq(P.mpcRa)) : sq(P.mpcRd);
+      row[2 * j + ch] = f;
+      if (q >= 2 && k > 0) row[2 * (k - 1) + ch] = -f;
+      addRow(row, ir[q][0]);
+    }
   }
-  W.U = U;
-  const u0 = uk(U, 0);
-  W.uPrev = u0;
-  let viol = 0;
-  for (let k = 1; k <= Np; k++) for (const [cv] of cons(k, X[k])) viol = Math.max(viol, cv);
-  // what the chosen inputs really do (nonlinear), drawn next to the LTV prediction
-  let Xtrue = X;
-  if (ltv) {
-    Xtrue = [x0.slice()];
-    for (let k = 0; k < Np; k++) Xtrue.push(M.f(Xtrue[k], uk(U, k), dt));
+  for (let i = 0; i < nU; i++) H[i * nU + i] += 1e-6 + 1e-4 * H[i * nU + i];
+  return {H, g};
+}
+// Backtracking line search along the step dU from U (cost J): steps 1, ½, ¼, ⅛ until the cost falls; returns the
+// accepted {U, X, J}, or null when none does
+function mpcLineSearch(Q, U, J, dU) {
+  let al = 1;
+  while (al >= 0.1) {
+    const Un = U.map((u, i) => u + al * dU[i]),
+      Xn = Q.rollout(Un),
+      Jn = Q.cost(Xn, Un);
+    if (Jn < J) return {U: Un, X: Xn, J: Jn};
+    al *= 0.5;
   }
-  S.ctlViz = {pred: Xtrue.map(x => [x[0], x[1]]), lin: ltv ? X.map(x => [x[0], x[1]]) : null, ref: ref.map(r => [r.x, r.y])};
-  S.mpcStats = {ms: performance.now() - t0, it, J, viol, mode: ltv ? 'LTV' : 'NMPC', Np, Nc};
-  const bv = LC.v || 0,
-    bs = car ? LC.steer || 0 : LC.w || 0,
-    vc = bv + u0[0] * DT,
-    sc = bs + u0[1] * DT; // u = u_prev + u̇·T
-  S.mpcCmd = {v: vc, steer: car ? clamp(sc, -steerMax(), steerMax()) : 0, w: car ? 0 : clamp(sc, -P.wmax, P.wmax), tick: S.tick};
-  return car ? {v: vc, steer: sc} : {v: vc, w: sc};
+  return null;
+}
+// augmented-Lagrangian multiplier update: λ ← max(0, λ + ρ·c) for every constraint along the rollout X (in Q.W.lam)
+function mpcMultipliers(Q, X) {
+  const {Np, nc, rho, W, cons} = Q;
+  for (let k = 1; k <= Np; k++)
+    cons(k, X[k]).forEach(([cv], ci) => {
+      const i = (k - 1) * nc + ci;
+      W.lam[i] = Math.max(0, W.lam[i] + rho * cv);
+    });
 }
 
 // Predicted agents at each step of the horizon (null when agents are not constrained). The prediction ends at Np·dt, but
@@ -12299,53 +12409,59 @@ function healthNow(f) {
   const C = (k, name, on, lvl, msg) => {
     (all[k] || (all[k] = [])).push({name, on: !!on, lvl, msg});
   };
-  // localization
-  {
-    const sp = V.Pc ? Math.sqrt(Math.max(0, V.Pc[0] + V.Pc[4])) : null,
-      nees = sig ? sig.nees : S.nees.length ? S.nees.slice(-25).reduce((a, b) => a + b, 0) / Math.min(25, S.nees.length) : null,
-      neff = neffAvg(V.t),
-      N = S.pf ? S.pf.N : P.npart,
-      usesB = ['ekf', 'pf', 'slam'].includes(P.loc),
-      silent = usesB && !f ? S.t - (S.zLastT || 0) : 0; // the last tick with beacon readings (core/safety.js)
-    healthSensorChecks(C, 'loc');
-    if (P.loc === 'truth') C('loc', 'Estimator', true, 'idle', 'ground truth: the pose is known');
-    else {
-      C('loc', 'Lost', st === 'LOST' || (sp != null && sp > 1), 'bad', `lost: position σ ${sp != null ? sp.toFixed(1) : '?'} m`);
+  healthLoc(C, V, f, sig, st, drive);
+  healthPer(C, V, f, r, drive);
+  healthPlan(C, F, f, st);
+  healthCtl(C, V, f, sig, r, st, drive);
+  return healthWorst(all);
+}
+// localization: the estimator's checks (lost, consistency, particles, beacon readings) and its status line, then the
+// sensors switched off. C(k, name, on, lvl, msg) records a check; V is the live state S or the frame f.
+function healthLoc(C, V, f, sig, st, drive) {
+  const sp = V.Pc ? Math.sqrt(Math.max(0, V.Pc[0] + V.Pc[4])) : null,
+    nees = sig ? sig.nees : S.nees.length ? S.nees.slice(-25).reduce((a, b) => a + b, 0) / Math.min(25, S.nees.length) : null,
+    neff = neffAvg(V.t),
+    N = S.pf ? S.pf.N : P.npart,
+    usesB = ['ekf', 'pf', 'slam'].includes(P.loc),
+    silent = usesB && !f ? S.t - (S.zLastT || 0) : 0; // the last tick with beacon readings (core/safety.js)
+  healthSensorChecks(C, 'loc');
+  if (P.loc === 'truth') C('loc', 'Estimator', true, 'idle', 'ground truth: the pose is known');
+  else {
+    C('loc', 'Lost', st === 'LOST' || (sp != null && sp > 1), 'bad', `lost: position σ ${sp != null ? sp.toFixed(1) : '?'} m`);
+    C(
+      'loc',
+      'Consistency',
+      nees != null && nees > 9,
+      'warn',
+      `overconfident: NEES ${nees != null ? nees.toFixed(1) : '—'} (3 is consistent)`
+    );
+    if (P.loc === 'pf')
       C(
         'loc',
-        'Consistency',
-        nees != null && nees > 9,
+        'Particles',
+        neff != null && neff < 0.15 * N,
         'warn',
-        `overconfident: NEES ${nees != null ? nees.toFixed(1) : '—'} (3 is consistent)`
+        `particles degenerate: N_eff ${neff != null ? neff.toFixed(0) : '—'} of ${N} (2 s mean)`
       );
-      if (P.loc === 'pf')
-        C(
-          'loc',
-          'Particles',
-          neff != null && neff < 0.15 * N,
-          'warn',
-          `particles degenerate: N_eff ${neff != null ? neff.toFixed(0) : '—'} of ${N} (2 s mean)`
-        );
-      if (usesB && sensorOn(sensorByKey('beacons')))
-        C(
-          'loc',
-          'Beacon readings',
-          silent > 3 && drive,
-          beaconUse() ? 'ok' : 'warn',
-          beaconUse()
-            ? `no beacon readings for ${silent.toFixed(0)} s; lidar against the map holds it (σ ${sp != null ? sp.toFixed(2) : '—'} m)`
-            : `no beacon readings for ${silent.toFixed(1)} s`
-        );
+    if (usesB && sensorOn(sensorByKey('beacons')))
       C(
         'loc',
-        'Estimator',
-        true,
-        'ok',
-        P.loc === 'dr'
-          ? `dead reckoning${sp != null ? `: σ ${sp.toFixed(2)} m and growing` : ''}`
-          : `σ ${sp != null ? sp.toFixed(2) : '—'} m${nees != null ? ` · NEES ${nees.toFixed(1)}` : ''}${neff != null && P.loc === 'pf' ? ` · N_eff ${neff.toFixed(0)}` : ''}`
+        'Beacon readings',
+        silent > 3 && drive,
+        beaconUse() ? 'ok' : 'warn',
+        beaconUse()
+          ? `no beacon readings for ${silent.toFixed(0)} s; lidar against the map holds it (σ ${sp != null ? sp.toFixed(2) : '—'} m)`
+          : `no beacon readings for ${silent.toFixed(1)} s`
       );
-    }
+    C(
+      'loc',
+      'Estimator',
+      true,
+      'ok',
+      P.loc === 'dr'
+        ? `dead reckoning${sp != null ? `: σ ${sp.toFixed(2)} m and growing` : ''}`
+        : `σ ${sp != null ? sp.toFixed(2) : '—'} m${nees != null ? ` · NEES ${nees.toFixed(1)}` : ''}${neff != null && P.loc === 'pf' ? ` · N_eff ${neff.toFixed(0)}` : ''}`
+    );
   }
   // the sensors switched off, listed last so that it never stands in for the estimator's own line
   C(
@@ -12357,133 +12473,137 @@ function healthNow(f) {
       .map(s => s.label)
       .join(', ')}`
   );
-  // perception
-  {
-    const hits = f ? (f.scan ? f.scan.length / 2 : 0) : S.scanPts.length,
-      tr = V.agents ? V.agents.tracks : [],
-      cf = tr.filter(t => t.conf).length,
-      people = V.peds.filter(p => !p.car).length;
-    let gap = Infinity;
-    for (const p of V.peds) gap = Math.min(gap, hyp(r.x - p.x, r.y - p.y) - (p.r || 0.3) - RR);
-    C('per', 'Person contact', r.pedContact, 'bad', 'contact with a person');
-    healthSensorChecks(C, 'per');
-    learnHealth(C, 'per', f); // a learned block reading inputs unlike its training data (core/learnmon.js)
-    if (P.lidar) C('per', 'Lidar returns', V.t > 0.5 && hits === 0, 'warn', 'no lidar returns');
-    if (agOn())
-      C(
-        'per',
-        'Phantom tracks',
-        cf > people + 1,
-        'warn',
-        `${cf} confirmed tracks for ${people} ${people === 1 ? 'person' : 'people'}: phantom tracks`
-      );
-    if (people) C('per', 'Person nearby', gap < 0.3 && drive, 'warn', `a person ${Math.max(0, gap).toFixed(2)} m away`);
-    if (!P.lidar)
-      C(
-        'per',
-        'Sensing',
-        true,
-        'idle',
-        `lidar off${agOn() ? ` · ${cf} track${cf === 1 ? '' : 's'}` : ''}${P.per === 'mapping' ? ' · the map no longer grows' : ''}`
-      );
-    else if (people && !agOn()) C('per', 'Tracking', true, 'idle', `${hits} lidar hits · people not tracked (agent tracking off)`);
-    else
-      C(
-        'per',
-        'Sensing',
-        true,
-        'ok',
-        `${hits} lidar hits${agOn() ? ` · ${cf} track${cf === 1 ? '' : 's'}` : ''}${P.per === 'mapping' ? ' · mapping' : ''}`
-      );
-  }
-  // mission and plan
-  {
-    const ps = S.planStats,
-      skipped = f ? f.done.filter(d => d[1]).length : WPS.filter(w => w.skipped).length,
-      n = f ? f.done.length : WPS.length;
-    C('plan', 'Path', st === 'NO_PATH', 'bad', `no path to the next goal${F.fails ? ` (attempt ${F.fails} of 3)` : ''}`);
-    healthSensorChecks(C, 'plan');
-    learnHealth(C, 'plan', f);
-    if (P.oddMon)
-      C('plan', 'Operating domain', !f && S.odd && S.odd.out, 'warn', `outside the operating domain: ${S.odd ? S.odd.why : ''}`);
-    C('plan', 'Goals', st === 'IDLE' && !n, 'idle', 'no goals: tap the map to add some');
-    C('plan', 'Goals skipped', skipped > 0, 'warn', `${skipped} goal${skipped === 1 ? '' : 's'} skipped`);
-    C('plan', 'Plan time', ps && ps.ms > 250 && !f, 'warn', ps ? `last plan took ${ps.ms.toFixed(0)} ms (${ps.name})` : '');
+}
+// perception: person contact, the sensors, learned blocks, lidar returns, phantom tracks, a person nearby, and the
+// status line
+function healthPer(C, V, f, r, drive) {
+  const hits = f ? (f.scan ? f.scan.length / 2 : 0) : S.scanPts.length,
+    tr = V.agents ? V.agents.tracks : [],
+    cf = tr.filter(t => t.conf).length,
+    people = V.peds.filter(p => !p.car).length;
+  let gap = Infinity;
+  for (const p of V.peds) gap = Math.min(gap, hyp(r.x - p.x, r.y - p.y) - (p.r || 0.3) - RR);
+  C('per', 'Person contact', r.pedContact, 'bad', 'contact with a person');
+  healthSensorChecks(C, 'per');
+  learnHealth(C, 'per', f); // a learned block reading inputs unlike its training data (core/learnmon.js)
+  if (P.lidar) C('per', 'Lidar returns', V.t > 0.5 && hits === 0, 'warn', 'no lidar returns');
+  if (agOn())
     C(
-      'plan',
-      'Mission',
-      true,
-      st === 'DONE' ? 'ok' : st === 'IDLE' ? 'idle' : 'ok',
-      st === 'DONE'
-        ? 'all goals reached'
-        : st === 'IDLE'
-          ? 'ready: press Run'
-          : ps
-            ? `${ps.name} · ${ps.len.toFixed(1)} m · ${ps.ms.toFixed(0)} ms`
-            : st.toLowerCase()
-    );
-  }
-  // control
-  {
-    const D = S.plot,
-      tE = V.t,
-      win = D.filter(d => d.t > tE - 2 && d.t <= tE + 1e-6),
-      lim = isCar() ? 0.97 * P.steerMaxDeg : 0.97 * P.wmax,
-      sat = win.length ? win.filter(d => d.ta != null && Math.abs(d.ta) >= lim).length / win.length : 0,
-      last = win.length ? win[win.length - 1] : null,
-      cte = last && last.cte != null ? Math.abs(last.cte) : null,
-      mms = sig ? sig.mpcMs : S.mpcStats && P.ctl === 'mpc' ? S.mpcStats.ms : null;
-    const dq = !isDyn() ? null : f ? sig.dyn : dynSig(r),
-      ayF = dq && dq.mug > 0 ? Math.abs(dq.ay) / dq.mug : 0;
-    C('ctl', 'Obstacle contact', r.contact, 'bad', 'contact with an obstacle');
-    healthSensorChecks(C, 'ctl');
-    C('ctl', 'Emergency brake', P.radBrake && !radarOn(), 'warn', 'the radar emergency brake is on, but the radar is off (Sensors)');
-    if (isDyn())
-      C(
-        'ctl',
-        'Grip',
-        drive && ayF > 0.8,
-        'warn',
-        dq
-          ? `near the grip limit: a_y ${Math.abs(dq.ay).toFixed(2)} m/s², ${(100 * ayF).toFixed(0)} % of μg (${dq.mug.toFixed(2)} m/s²)`
-          : ''
-      );
-    C(
-      'ctl',
-      'Actuator limit',
-      drive && sat > 0.5,
+      'per',
+      'Phantom tracks',
+      cf > people + 1,
       'warn',
-      `${isCar() ? 'steering' : 'turn rate'} at its limit ${(sat * 100).toFixed(0)} % of the last 2 s`
+      `${cf} confirmed tracks for ${people} ${people === 1 ? 'person' : 'people'}: phantom tracks`
     );
-    if (P.ctl === 'mpc') {
-      C(
-        'ctl',
-        'MPC budget',
-        mms != null && P.mpcBudget > 0 && mms >= 0.85 * P.mpcBudget,
-        'warn',
-        `MPC at its ${P.mpcBudget} ms budget (${mms != null ? mms.toFixed(1) : '—'} ms)`
-      );
-      C(
-        'ctl',
-        'MPC constraints',
-        !f && S.mpcStats && S.mpcStats.viol > 0.05,
-        'warn',
-        S.mpcStats ? `MPC constraints violated by ${S.mpcStats.viol.toFixed(2)}` : ''
-      );
-    }
-    C('ctl', 'On the path', drive && cte != null && cte > 0.5, 'warn', `${cte != null ? cte.toFixed(2) : '—'} m off the path`);
+  if (people) C('per', 'Person nearby', gap < 0.3 && drive, 'warn', `a person ${Math.max(0, gap).toFixed(2)} m away`);
+  if (!P.lidar)
+    C(
+      'per',
+      'Sensing',
+      true,
+      'idle',
+      `lidar off${agOn() ? ` · ${cf} track${cf === 1 ? '' : 's'}` : ''}${P.per === 'mapping' ? ' · the map no longer grows' : ''}`
+    );
+  else if (people && !agOn()) C('per', 'Tracking', true, 'idle', `${hits} lidar hits · people not tracked (agent tracking off)`);
+  else
+    C(
+      'per',
+      'Sensing',
+      true,
+      'ok',
+      `${hits} lidar hits${agOn() ? ` · ${cf} track${cf === 1 ? '' : 's'}` : ''}${P.per === 'mapping' ? ' · mapping' : ''}`
+    );
+}
+// mission and plan: no path, the sensors, learned blocks, the operating domain, goals, skipped goals, plan time, and
+// the mission line
+function healthPlan(C, F, f, st) {
+  const ps = S.planStats,
+    skipped = f ? f.done.filter(d => d[1]).length : WPS.filter(w => w.skipped).length,
+    n = f ? f.done.length : WPS.length;
+  C('plan', 'Path', st === 'NO_PATH', 'bad', `no path to the next goal${F.fails ? ` (attempt ${F.fails} of 3)` : ''}`);
+  healthSensorChecks(C, 'plan');
+  learnHealth(C, 'plan', f);
+  if (P.oddMon) C('plan', 'Operating domain', !f && S.odd && S.odd.out, 'warn', `outside the operating domain: ${S.odd ? S.odd.why : ''}`);
+  C('plan', 'Goals', st === 'IDLE' && !n, 'idle', 'no goals: tap the map to add some');
+  C('plan', 'Goals skipped', skipped > 0, 'warn', `${skipped} goal${skipped === 1 ? '' : 's'} skipped`);
+  C('plan', 'Plan time', ps && ps.ms > 250 && !f, 'warn', ps ? `last plan took ${ps.ms.toFixed(0)} ms (${ps.name})` : '');
+  C(
+    'plan',
+    'Mission',
+    true,
+    st === 'DONE' ? 'ok' : st === 'IDLE' ? 'idle' : 'ok',
+    st === 'DONE'
+      ? 'all goals reached'
+      : st === 'IDLE'
+        ? 'ready: press Run'
+        : ps
+          ? `${ps.name} · ${ps.len.toFixed(1)} m · ${ps.ms.toFixed(0)} ms`
+          : st.toLowerCase()
+  );
+}
+// control: obstacle contact, the sensors, the radar brake, grip, actuator limit, the MPC's budget and constraints,
+// cross-track error, and the driving line
+function healthCtl(C, V, f, sig, r, st, drive) {
+  const D = S.plot,
+    tE = V.t,
+    win = D.filter(d => d.t > tE - 2 && d.t <= tE + 1e-6),
+    lim = isCar() ? 0.97 * P.steerMaxDeg : 0.97 * P.wmax,
+    sat = win.length ? win.filter(d => d.ta != null && Math.abs(d.ta) >= lim).length / win.length : 0,
+    last = win.length ? win[win.length - 1] : null,
+    cte = last && last.cte != null ? Math.abs(last.cte) : null,
+    mms = sig ? sig.mpcMs : S.mpcStats && P.ctl === 'mpc' ? S.mpcStats.ms : null;
+  const dq = !isDyn() ? null : f ? sig.dyn : dynSig(r),
+    ayF = dq && dq.mug > 0 ? Math.abs(dq.ay) / dq.mug : 0;
+  C('ctl', 'Obstacle contact', r.contact, 'bad', 'contact with an obstacle');
+  healthSensorChecks(C, 'ctl');
+  C('ctl', 'Emergency brake', P.radBrake && !radarOn(), 'warn', 'the radar emergency brake is on, but the radar is off (Sensors)');
+  if (isDyn())
     C(
       'ctl',
-      'Driving',
-      true,
-      drive ? 'ok' : 'idle',
-      !drive
-        ? st === 'DONE'
-          ? 'stopped: mission complete'
-          : 'not driving'
-        : `cross-track ${cte != null ? cte.toFixed(2) : '—'} m${mms != null ? ` · MPC ${mms.toFixed(1)} ms` : ''}`
+      'Grip',
+      drive && ayF > 0.8,
+      'warn',
+      dq ? `near the grip limit: a_y ${Math.abs(dq.ay).toFixed(2)} m/s², ${(100 * ayF).toFixed(0)} % of μg (${dq.mug.toFixed(2)} m/s²)` : ''
+    );
+  C(
+    'ctl',
+    'Actuator limit',
+    drive && sat > 0.5,
+    'warn',
+    `${isCar() ? 'steering' : 'turn rate'} at its limit ${(sat * 100).toFixed(0)} % of the last 2 s`
+  );
+  if (P.ctl === 'mpc') {
+    C(
+      'ctl',
+      'MPC budget',
+      mms != null && P.mpcBudget > 0 && mms >= 0.85 * P.mpcBudget,
+      'warn',
+      `MPC at its ${P.mpcBudget} ms budget (${mms != null ? mms.toFixed(1) : '—'} ms)`
+    );
+    C(
+      'ctl',
+      'MPC constraints',
+      !f && S.mpcStats && S.mpcStats.viol > 0.05,
+      'warn',
+      S.mpcStats ? `MPC constraints violated by ${S.mpcStats.viol.toFixed(2)}` : ''
     );
   }
+  C('ctl', 'On the path', drive && cte != null && cte > 0.5, 'warn', `${cte != null ? cte.toFixed(2) : '—'} m off the path`);
+  C(
+    'ctl',
+    'Driving',
+    true,
+    drive ? 'ok' : 'idle',
+    !drive
+      ? st === 'DONE'
+        ? 'stopped: mission complete'
+        : 'not driving'
+      : `cross-track ${cte != null ? cte.toFixed(2) : '—'} m${mms != null ? ` · MPC ${mms.toFixed(1)} ms` : ''}`
+  );
+}
+// H.all = all; H[k] = [level, reason] of the worst check of subsystem k that holds (ties: the first listed), or of its
+// last check (the status line) when none does
+function healthWorst(all) {
   const H = {all};
   for (const k of Object.keys(all)) {
     const on = all[k].filter(c => c.on).sort((a, b) => H_RANK[b.lvl] - H_RANK[a.lvl]);
@@ -12510,6 +12630,8 @@ function neffAvg(t) {
   return n ? a / n : S.pf ? S.pf.neff : null;
 }
 
+// The checks for the sensors switched off, as they bear on subsystem k (loc, per, plan or ctl): blind, odometry,
+// beacons, lidar and GNSS for the estimator, the lidar for perception, planning and control. C as in healthNow.
 function healthSensorChecks(C, k) {
   const off = sensorsOff().map(s => s.key),
     est = segName(P.loc),

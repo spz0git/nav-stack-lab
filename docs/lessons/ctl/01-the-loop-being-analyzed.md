@@ -12,7 +12,7 @@ $$\begin{aligned} \dot\theta_e &= g\,u && u = \omega,\ g = 1 \ \text{(diff-drive
 cfg: {"level":0,"set":{"ctl":"pp"}}
 Setup: L1 defaults: the diff-drive robot at 0.8 m/s with pure pursuit (lookahead $0.5 + 0.5\,v = 0.9$ m). Opens the Analyze view on the lateral loop.
 See: Gains read from the code: $K_e = 1.98$, $K_\theta = 1.78$ (chapter 5 §2 predicts $2v/L_d^2 = 1.98$ and $2v/L_d = 1.78$). Crossover 1.95 rad/s, phase margin 62.7°, gain margin 31 dB, delay margin 0.56 s, $M_s = 1.05$, dominant poles with $\zeta = 0.71$ and 4.3 % predicted overshoot. The Bode plot shows the −40 dB/decade slope of the two integrators bending to −20 at the controller's zero.
-Shows: This is a comfortable loop: half a second of delay budget, almost no disturbance amplification, critically-damped-ish poles. Every number here will move in the lessons that follow, and the first thing to learn is which slider moves which: the lookahead sets the crossover, the vehicle and its delays set what the margins cost.
+Shows: This is a comfortable loop: half a second of delay budget, almost no disturbance amplification, and poles damped at $\zeta = 0.71$, a 4.3 % overshoot. Every number here will move in the lessons that follow, and the first thing to learn is which slider moves which: the lookahead sets the crossover, the vehicle and its delays set what the margins cost.
 Predict: How much extra delay will this loop absorb before it goes unstable?
 - About one 50 ms tick
 - About half a second

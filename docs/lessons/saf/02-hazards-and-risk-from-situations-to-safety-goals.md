@@ -12,7 +12,12 @@ $$v_{rel} = \lVert \mathbf v_r - \mathbf v_p \rVert \qquad E_s = \frac{T_s}{T_{o
 ## Try: Ignore the people
 cfg: {"sim":true,"level":4,"set":{"spd":"none"},"tab":"ctl"}
 Setup: L5, the busy floor, with the trackers ignoring the people: the robot drives its path at cruise speed through scripted people who never step aside.
-See: Three contacts, at 51, 54 and 79 s, at 1.36, 1.40 and 1.60 m/s: three strikes. A person is within 2 m for 18.5 of the 106 s. Seeds 2 to 5 give the same three strikes at the same speeds, because scripted people and an unreacting robot meet the same way every time.
+See: A person is within 2 m for 18.5 of the 106 s. The contacts:
+| Run | Contacts with a person | Speeds (m/s) |
+|---|---|---|
+| this run | 3, at 51, 54 and 79 s | 1.36, 1.40 and 1.60 |
+| seeds 2 to 5 | the same three | the same |
+Look at the speeds: three strikes, on every seed, because scripted people and an unreacting robot meet the same way every time.
 Shows: The worst row of the hazard log, rated. The relative speed is the robot's cruise and the person's walk added, since they meet head on or at an angle: the severity is set by the speeds the domain allows, not by luck. Exposure is low, 17 % of the time, because a robot that never waits passes people quickly.
 Predict: The robot ignores the people, and the people ignore the robot. At what relative speed do the contacts happen?
 - Above 1 m/s: strikes, the robot's speed and the person's together
@@ -23,7 +28,12 @@ Answer: 0
 ## Try: People who step aside
 cfg: {"sim":true,"level":4,"set":{"spd":"none","people":"reactive"},"tab":"ctl"}
 Setup: The same robot, still ignoring the people, but the people now react: they steer round the robot with social forces.
-See: Two contacts, at 55 and 80 s, at 0.61 and 0.87 m/s: two bumps, no strike. On seeds 2 to 5, two or three contacts, every one a bump between 0.56 and 0.91 m/s.
+See: The contacts:
+| Run | Contacts with a person | Speeds (m/s) |
+|---|---|---|
+| this run | 2, at 55 and 80 s | 0.61 and 0.87 |
+| seeds 2 to 5 | two or three | 0.56 to 0.91 |
+Look at the speeds: every contact is a bump, and none is a strike.
 Shows: Controllability, measured: the people avert some of the harm. Not by avoiding the robot entirely, since it drives straight at them, but by turning a head-on strike into a glancing bump. A hazard analysis that takes credit for this assumes every person is looking and able to step aside; a person carrying a box is not. That is why analyses of driverless systems usually take none.
 Predict: Same robot, but the people now step aside. What changes?
 - The contacts are slower: bumps instead of strikes
@@ -34,7 +44,12 @@ Answer: 0
 ## Try: The speed planner
 cfg: {"sim":true,"level":4,"tab":"ctl"}
 Setup: L5 as it is: the speed planner slows the robot along its path for the tracked people, and the people are scripted again.
-See: One contact, at 51.6 s and 0.73 m/s, a bump. A person is within 2 m for 33.4 of the 121 s. On seeds 2 to 5, one contact on every run, between 0.71 and 1.12 m/s.
+See: The contacts:
+| Run | Contacts with a person | Speeds (m/s) |
+|---|---|---|
+| this run | 1, at 51.6 s, a bump | 0.73 |
+| seeds 2 to 5 | 1 on every run | 0.71 to 1.12 |
+Now look at the exposure: a person is within 2 m for 33.4 of the 121 s.
 Shows: The design lowers the severity, from three strikes to one bump, and raises the exposure, from 17 % to 28 %: a robot that waits for people spends more time near them. Exposure is not a fact about the floor; it depends on the robot's own behaviour, which is why the lab measures it rather than assuming it. The one remaining contact, the same on every seed, is the subject of lesson 3.
 Predict: With the speed planner, how long is a person within 2 m of the robot, compared with the 18.5 s when it ignored them?
 - Longer: it slows and waits near people
@@ -56,7 +71,12 @@ Answer: 0
 ## Try: Reversing in the parking lot
 cfg: {"sim":true,"level":5,"tab":"ctl"}
 Setup: L6, the car parking in four bays, with people crossing the lanes and pausing at the ends of their walks. Another operational situation: reversing, where the car's rear is its front.
-See: No contact; the closest approach is 0.32 m. The car reverses for 31 of the 148 s and has a person within 2 m for 58 s. On seeds 2 to 5 it reverses for 30 to 39 s, and one run of the four bumps a person at 0.43 m/s.
+See: The car has a person within 2 m for 58 s of this run.
+| Run | Reversing (s) | Contacts with a person |
+|---|---|---|
+| this run | 31 of 148 | none (closest 0.32 m) |
+| seeds 2 to 5 | 30 to 39 | one bump, 0.43 m/s |
+Look at the last column: one run of the four other seeds bumps a person, and no run has a strike.
 Shows: A situation with high exposure (a fifth of the time in reverse, two fifths near a person) and, here, low severity: slow manoeuvres keep any contact to a bump. The rating is per situation, which is why the hazard log lists situations, not just hazards.
 
 ## Think about

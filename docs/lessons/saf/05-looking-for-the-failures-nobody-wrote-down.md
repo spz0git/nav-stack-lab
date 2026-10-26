@@ -12,7 +12,13 @@ $$m = \begin{cases} -\max_c v_{rel,c} & \text{a contact} \\ \min(g_{person},\, g
 ## Try: Search the busy floor's domain
 cfg: {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":"ODD-1","budget":40,"rounds":2,"seed":1,"run":true}}
 Setup: ODD-1: generated warehouses of 24 × 16 m with aisles of 2 to 3.2 m and up to four scripted people, clear air, the busy floor's settings. Twenty runs at random, then two rounds of ten near the worst.
-See: Eight of the 20 random runs have a contact, two of them a strike. Ten of the 20 refined runs have one, seven of them a strike; the worst margin is −1.34, a strike at 1.34 m/s. At search seeds 2 and 3 the random runs have a contact in 9 and 8 of 20, the refined ones in 14 and 12.
+See: Runs with a contact, of 20 in each half:
+| Search seed | Random runs | Refined runs |
+|---|---|---|
+| 1 (this search) | 8, two of them a strike | 10, seven of them a strike |
+| 2 | 9 | 14 |
+| 3 | 8 | 12 |
+Compare the columns: the refined half finds more on every search seed. The worst margin is −1.34, a strike at 1.34 m/s.
 Shows: Inside its own domain the stack touches someone in about two runs in five: lesson 1's one world was not typical. And the refinement earns its keep: on the same budget it turns up more failures than sampling at random, and at search seeds 1 and 3 more strikes too, because it spends its runs where the failures are.
 Predict: Twenty runs at random, then twenty near the worst. Which half has more runs with a contact?
 - The refined half
@@ -34,7 +40,13 @@ Answer: 0
 ## Try: A wider domain: people who wait for the robot
 cfg: {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":{"name":"ODD-1 with people who wait","family":"warehouse","like":"L5","w":24,"h":16,"ranges":{"aisle":[2,3.2],"people":[0,4],"stepout":[0,3]},"weather":["clear"],"people":["scripted"]},"budget":40,"rounds":2,"seed":1,"run":true}}
 Setup: The same search with up to three people who stand still until the robot comes within 3 m of their route's middle, then walk briskly: people who step out of a doorway or from behind a rack as the robot arrives, which ODD-1 never described.
-See: Fourteen of the 20 random runs have a contact, eight of them a strike, against eight and two without them; the worst margin falls to −1.85. At search seeds 2 and 3, 15 and 11 random runs of 20 have a contact, and the worst margin is below −1.7 on all three.
+See: Without the people who wait, eight of the 20 random runs had a contact, two of them a strike. With them:
+| Search seed | Random runs with a contact, of 20 | Worst margin |
+|---|---|---|
+| 1 (this search) | 14, eight of them a strike | −1.85 |
+| 2 | 15 | below −1.7 |
+| 3 | 11 | below −1.7 |
+Look at the worst margin: below −1.7 on all three search seeds.
 Shows: An element nobody wrote into the domain, found by widening the sheet and searching: the unknown-unsafe made known. Whether it belongs inside the domain is a decision for the safety case; the search's job was to show what it costs.
 Predict: Add people who wait for the robot. How many of the 20 random runs have a contact, against eight without them?
 - More
@@ -45,7 +57,13 @@ Answer: 0
 ## Try: The same domain with the safety stop on
 cfg: {"sim":true,"level":4,"set":{"guard":true},"tab":"saf","hold":true,"saf":{"sheet":"ODD-1","budget":40,"rounds":2,"seed":1,"run":true}}
 Setup: ODD-1 again, search seed 1, with the lidar safety stop on (it is in the settings the search adds to every run: the note at the top of the tab lists them). The random half is the same 20 scenarios as the first experiment.
-See: Six of the 20 random runs have a contact instead of eight. Run by run, six scenarios are better than without the stop and two are worse. The refinement still finds contacts: 13 of its 20 runs. At search seeds 2 and 3 the random runs with a contact go from 9 to 6 and from 8 to 5.
+See: Random runs with a contact, of 20:
+| Search seed | Without the stop | With the stop |
+|---|---|---|
+| 1 (this search) | 8 | 6 |
+| 2 | 9 | 6 |
+| 3 | 8 | 5 |
+Fewer on every search seed, but not run by run: at search seed 1, six scenarios are better than without the stop and two are worse. The refinement still finds contacts: 13 of its 20 runs.
 Shows: A mitigation judged against a set, not a story: it helps on most scenarios and hurts on some, which only shows when every scenario is rerun. That is what a scenario set is for, and why the change that fixed the motivating case is rerun against all of them before it is accepted.
 Predict: The same 20 random scenarios with the safety stop on. Runs with a contact?
 - Fewer

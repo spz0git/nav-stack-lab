@@ -12,7 +12,12 @@ $$s = \sqrt{\frac1m \sum_{i=1}^{m} \min\!\Bigl(10, \frac{|x_i - \mu_i|}{\sigma_i
 ## Try: The learned detector on the floor it was trained on
 cfg: {"sim":true,"level":4,"set":{"agents":"learned"},"tab":"per","layers":{"agents":true},"panes":[["oodDet"]]}
 Setup: L5 with the learned people detector in place of the rule. The busy floor is where most of its training scans came from (other seeds), so this is its home ground.
-See: It finds 96 % of the people the scan hits: all of them under 2.5 m, 96 % between 2.5 and 5 m, 90 % farther; 0.03 false detections per scan. The score stays near 1, 1 % of the scans outside, and no light mentions it. The rule finds 100 % on every slice. On seeds 2 to 5 the learned detector finds 85 to 91 % of the far people and all of the near ones.
+See: It finds 96 % of the people the scan hits, with 0.03 false detections per scan. By distance:
+| People found | Under 2.5 m | 2.5 to 5 m | Farther |
+|---|---|---|---|
+| learned detector | all | 96 % | 90 % |
+| rule | 100 % | 100 % | 100 % |
+Look at the last column: on seeds 2 to 5 the learned detector finds 85 to 91 % of the far people, and all of the near ones. The score stays near 1, 1 % of the scans outside, and no light mentions it.
 Shows: One number would have said 96 %, close enough to the rule. The slice says where the 4 % goes: people far away, whom a scan hits with two or three beams, too few for the shape the network learned. If a far person matters (a fast robot needs to see them early), the requirement is on that slice, and so is the data that would meet it.
 Predict: Which slice does the learned detector find fewest people in?
 - Farther than 5 m
@@ -29,7 +34,12 @@ Shows: The detector was trained on three map conditions in turn, one of them a m
 ## Try: Fog: outside the data
 cfg: {"sim":true,"level":4,"set":{"agents":"learned","weather":"fog"},"tab":"per","layers":{"agents":true,"lidar":true},"panes":[["oodDet"]]}
 Setup: The same detector in fog. There was no fog in its training data: the returns fade beyond about 4 m, one beam in seven is lost, and some beams return from the fog itself.
-See: The Perceive light turns amber at 0.5 s, "Out of distribution (detector)", and stays: 96 % of the scans score above the threshold, at about 2.6 against 1.91. The detector still finds 92 % of the people it can see, but it makes 7 false detections per scan, the speed planner yields to them, and the mission takes 187 s instead of 120. On seeds 2 to 5 the light comes on at 0.5 s on every run, with 7 false detections per scan and missions of 190 to 234 s.
+See: The Perceive light turns amber at 0.5 s, "Out of distribution (detector)", and stays: 96 % of the scans score above the threshold, at about 2.6 against 1.91. The detector still finds 92 % of the people it can see, but the speed planner yields to its false detections. The mission took 120 s in clear air.
+| Run | Light on at (s) | False detections per scan | Mission (s) |
+|---|---|---|---|
+| this run | 0.5 | 7 | 187 |
+| seeds 2 to 5 | 0.5 on every run | 7 | 190 to 234 |
+Look at the first column: the monitor speaks within a second on every seed.
 Shows: Lesson 3 found that no light watched the fog. Here one does, and not because anyone wrote a rule about fog: the scans no longer look like the ones the detector was trained on, and the monitor says so in half a second. What it cannot say is what is wrong, or whether the block's answers are still good; here recall held and the false detections did not.
 Predict: Fog, which the detector never saw in training. When does a health light say the input is unfamiliar?
 - Within a second
@@ -40,7 +50,13 @@ Answer: 0
 ## Try: Rain: the grey zone
 cfg: {"sim":true,"level":4,"set":{"agents":"learned","weather":"rain"},"tab":"per","layers":{"agents":true,"lidar":true},"panes":[["oodDet"]]}
 Setup: Rain instead: the lidar fades beyond about 6 m, loses one beam in sixteen, and now and then returns from a drop.
-See: 13 % of the scans score outside. The light comes on for the first time at 107.5 s, when a run of outside scans lasts long enough; 2.7 false detections per scan, 94 % of the people found. On seeds 2 to 5, 10 to 12 % outside and the light first at 109.5 to 138.5 s; on seed 1 never.
+See: The light comes on when a run of outside scans lasts long enough. In this run the detector makes 2.7 false detections per scan and finds 94 % of the people.
+| Run | Scans outside (%) | Light first on at (s) |
+|---|---|---|
+| this run | 13 | 107.5 |
+| seeds 2 to 5 | 10 to 12 | 109.5 to 138.5 |
+| seed 1 | — | never |
+Look at the last column: late on every seed, and on one not at all.
 Shows: A monitor needs a threshold, and between clearly inside and clearly outside there is a grey zone where any threshold is wrong some of the time: here the rain is a real change (false detections up from 0.03 to 2.7 per scan) that the monitor reports late, and on one seed of six not at all. Raising the threshold makes it quieter in rain and slower in fog; lowering it, the reverse.
 Predict: Rain changes the scans less than fog. What does the light do?
 - Comes on late, and not on every seed
@@ -51,7 +67,14 @@ Answer: 0
 ## Try: The learned predictor, by slice
 cfg: {"sim":true,"level":4,"set":{"agPred":"learned"},"tab":"per","layers":{"agents":true}}
 Setup: L5 with the learned people predictor. Both predictors are scored on every prediction whichever one the planner uses; the Metrics list splits their error at 2 s into people who walk on as they were and people who change course (turn by more than 30°, stop or start) before the 2 s are up.
-See: The learned predictor is 0.28 m off on the steady walkers and 0.78 m on those who change course; constant velocity, 0.36 and 1.61 m. Only 54 of 949 predictions, 6 %, are of people changing course. On seeds 2 to 5: steady 0.20 to 0.25 m against 0.33 to 0.37, changing 0.66 to 0.80 m against 1.38 to 1.67, the changing slice 6 to 8 % of the predictions.
+See: The error at 2 s, by slice:
+| Predictor | Steady walkers (m) | People who change course (m) |
+|---|---|---|
+| learned, this run | 0.28 | 0.78 |
+| constant velocity, this run | 0.36 | 1.61 |
+| learned, seeds 2 to 5 | 0.20 to 0.25 | 0.66 to 0.80 |
+| constant velocity, seeds 2 to 5 | 0.33 to 0.37 | 1.38 to 1.67 |
+Now look at how rare the second column is: only 54 of 949 predictions, 6 %, are of people changing course, and 6 to 8 % on seeds 2 to 5.
 Shows: The learned predictor wins on both slices, and the gap is widest exactly where the hazard is: the person turning back at the end of their walk (lesson 3). But that slice is a twentieth of the data, so the average error barely shows how much better the network is there, or how much better it would have to be; a requirement written on the average would never look at the slice that matters.
 Predict: Where is the learned predictor's advantage over constant velocity largest, in metres?
 - On the people who change course
@@ -62,7 +85,15 @@ Answer: 0
 ## Try: The policy among people
 cfg: {"sim":true,"level":4,"set":{"plan":"policy"},"tab":"plan","layers":{"agents":true},"panes":[["oodPol"]]}
 Setup: The busy floor driven by the end-to-end policy, which was trained on the four floors without people. Its description for the monitor is its scan (the nearest return in each of 12 sectors, the mean range, the shares that return and return close) and its goal and motion.
-See: The score stays below 1 almost throughout, 0.4 % of the inputs outside, and the Plan light never mentions it. The robot touches people four times (the classical stack, once). On seeds 2 to 5 the share outside is 0.4 to 0.5 % on every run, and the policy has as many contacts as the classical stack or more: 2, 4, 1 and 1 against 1 each.
+See: The score stays below 1 almost throughout, 0.4 % of the inputs outside, and the Plan light never mentions it; on seeds 2 to 5 the share outside is 0.4 to 0.5 % on every run. Contacts with people:
+| Seed | The policy | The classical stack |
+|---|---|---|
+| this run | 4 | 1 |
+| 2 | 2 | 1 |
+| 3 | 4 | 1 |
+| 4 | 1 | 1 |
+| 5 | 1 | 1 |
+Read down the columns: the policy has as many contacts as the classical stack or more, on every seed.
 Shows: The people are the one thing that is new to the policy, and its monitor cannot see them: a person is a few beams among 120, and the sector minima of an aisle with a person in it look like the aisles it trained in. An out-of-distribution score is only as good as its description of the input; a quiet monitor is evidence about what it measures, and nothing else.
 Predict: The policy never saw a person in training. What share of its inputs does its monitor flag as outside?
 - Under 1 %: the scans look like its training aisles

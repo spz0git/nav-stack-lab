@@ -34,7 +34,12 @@ Answer: 0
 ## Try: Outside: eight people
 cfg: {"sim":true,"level":{"gen":"warehouse","seed":2,"like":"L5","aisle":2,"people":8},"tab":"mis"}
 Setup: The 2 m aisles again, now with eight people, twice the domain's limit.
-See: Three person contacts, at 25, 80 and 96 s, one of them a strike at 1.41 m/s, and one rack contact; the robot is closer than 0.3 m to a person for 8.6 s against 2.5 s with four, and within 2 m of one for 45 s against 21.5. The goals take 124 s.
+See: Three person contacts, at 25, 80 and 96 s, one of them a strike at 1.41 m/s, and one rack contact. The goals take 124 s. Time near a person, against the run with four:
+| People | Closer than 0.3 m to a person (s) | Within 2 m of one (s) |
+|---|---|---|
+| four | 2.5 | 21.5 |
+| eight | 8.6 | 45 |
+Look at the first column: twice the people, more than three times as long within 0.3 m.
 Shows: Crowding is a boundary too, and its cost grows faster than the count: each extra person is another encounter, and each encounter in an aisle leaves the speed planner fewer gaps to wait for. On run seeds 1 to 5 the eight-person world has two to eight contacts against one or two with four people.
 Predict: Double the people to eight, same world, same seed. How many person contacts compared with the four-person run?
 - More

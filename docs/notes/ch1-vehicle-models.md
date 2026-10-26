@@ -64,7 +64,7 @@ $$
 \alpha_f = \delta - \frac{v_y + l_f r}{v_x}, \qquad \alpha_r = -\frac{v_y - l_r r}{v_x}, \qquad F_{yf} = C_f\,\alpha_f, \quad F_{yr} = C_r\,\alpha_r
 $$
 
-(small angles throughout). Substitute and collect: a linear state-space model whose matrices depend on the speed,
+(small angles throughout; the simulator and the MPC of chapter 7 write $\tan\delta$ for δ, the same to first order, so that with no slip the car turns at the kinematic $v\tan\delta/L$). Substitute and collect: a linear state-space model whose matrices depend on the speed,
 
 $$
 \begin{bmatrix} \dot v_y \\ \dot r \end{bmatrix} =

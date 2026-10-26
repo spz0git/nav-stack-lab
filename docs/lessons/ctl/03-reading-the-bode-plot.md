@@ -29,8 +29,8 @@ Predict: Raising $k_e$ from 2 to 12 with $k_\theta$ fixed: what happens to the p
 Answer: 2
 
 ## Try: Measure L(jω) in the simulator
-cfg: {"test":"inj","injAmp":"small"}
-Setup: Injects a small sinusoid at the actuator at nine frequencies, one at a time, in the full simulator, and measures the loop's response at each. It measures the loop as it is set now: after the previous button, rear-wheel feedback with $k_e = 12$.
+cfg: {"level":0,"set":{"ctl":"rwf","rwKe":12,"rwKth":3},"test":"inj","injAmp":"small"}
+Setup: Injects a small sinusoid at the actuator at nine frequencies, one at a time, in the full simulator, and measures the loop's response at each. It measures the loop of the previous button: rear-wheel feedback with $k_e = 12$ and $k_\theta = 3$.
 See: Nine measured points land on the model's magnitude and phase curves, within about 0.1 dB and 1° at the lower frequencies and scattering a little at the top, where the response is small and one tick is a large fraction of a period.
 Shows: The model is not an approximation someone chose; it is what the simulator does, measured. This is also how a real vehicle's loop is identified: inject, measure, fit. If the points left the curves, the model would be missing something, which the latency and lag lessons arrange on purpose.
 Predict: Where will the nine measured points land relative to the model curves?

@@ -21,7 +21,7 @@ Answer: 1
 
 ## Try: Same loop on the car
 cfg: {"level":5,"set":{"ctl":"pp"}}
-Setup: L6, the car at 0.6 m/s with pure pursuit; the steering angle is the command and the plant gain is $v_0/L = 1.0$.
+Setup: L6, the car at 0.6 m/s with pure pursuit and the level's shorter lookahead ($0.4 + 0.3\,v = 0.58$ m); the steering angle is the command and the plant gain is $v_0/L = 1.0$.
 See: Nearly the same picture: crossover 2.27 rad/s, phase margin 62.3°, delay margin 0.48 s, $\zeta = 0.71$. The steady error to a bias is different, 0.28 against 0.51 per unit of bias, because the car's command is an angle and the diff-drive's a rate.
 Shows: The loop does not care much which vehicle closes it, as long as the model is the two integrators. What the vehicle changes is the plant gain (speed over wheelbase for the car), the actuator (an angle with a rate limit instead of a turn rate), and, in chapter 1, where the model stops being true: at speeds where the tyres, not the geometry, decide the turn.
 Predict: Switching from the diff-drive to the car with the same pure pursuit: what happens to crossover and damping?

@@ -73,7 +73,7 @@ Answer: 0
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","gyro":true,"gyroBias":0.5},"tab":"loc","plot":"pos"}
 Setup: The EKF with its beacons, the gyro on with the 0.5°/s bias and no zero-velocity update. Localize tab and the Position error plot.
 See: The pose error stays small, 0.02 to 0.4 m (0.57 m at worst), and all five goals are reached: the beacons keep catching the heading. But NEES sits between 200 and 570 for the whole run and the error is inside the 2σ band only a fifth of the time. The filter claims centimetres while its heading is 2 to 6° off between fixes.
-Shows: The same signature as the wheel bias in lesson 2, two orders of magnitude stronger, because the filter was told the turn rate is now ten times more precise. A real stack either estimates the gyro bias as a fourth state, so that the beacons can correct it, or calibrates it at every stop. Inflating the assumed noise would hide the symptom; neither of the two fixes needs the beacons to be frequent.
+Shows: The same signature as the wheel bias in lesson 2, two orders of magnitude stronger, because the filter was told the turn rate is now twenty times more precise. A real stack either estimates the gyro bias as a fourth state, so that the beacons can correct it, or calibrates it at every stop. Inflating the assumed noise would hide the symptom; neither of the two fixes needs the beacons to be frequent.
 Predict: Give the biased gyro to the EKF with the beacons on (no zero-velocity update). What does NEES say?
 - About 3: the beacons correct the bias as fast as it accumulates
 - Hundreds: the pose is fine but the filter is badly overconfident

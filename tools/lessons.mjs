@@ -12,7 +12,7 @@
 //     example: <slot>/<id>     the slot example "Edit and run" loads (src/examples/<slot>/<nn>-<id>.js)
 //     Note: …                  what to look at, what to change
 //   ## Think about           "Q: …" and "A: …" pairs
-//   ## Check yourself        Q: … / Answer: <number> / Tolerance: <number> / Unit: … / How: …
+//   ## Check yourself        Q: … / Answer: <number> / Tolerance: <number> (optional, 0 = exact) / Unit: … / How: …
 // Math is TeX, as in the companion notes: $ … $ inline, $$ … $$ display (in the body it may span lines; in a one-line
 // field it stays on that line). The build turns it into MathML (tools/tex.mjs); the page never sees the TeX.
 // The output has the same shape as the objects the JS files used to hold: {t, b, tries:[[label, cfg, {setup, see,
@@ -116,7 +116,9 @@ export function parseLesson(md, file) {
         else if (k === 'Unit') c.unit = v;
         else if (k === 'How') c.how = v;
       }
-      L.check = {q: c.q, a: c.a, tol: c.tol, unit: c.unit || '', how: c.how};
+      // no Tolerance line: the answer must match exactly (an undefined tol would reject every answer)
+      if (!isFinite(c.a)) console.warn(`WARNING ${file}: Check yourself has no numeric Answer`);
+      L.check = {q: c.q, a: c.a, tol: isFinite(c.tol) ? c.tol : 0, unit: c.unit || '', how: c.how};
     } else throw new Error(`${file}: unknown section "${sec}"`);
   }
   if (/class="eq"/.test(L.b)) throw new Error(`${file}: a <div class="eq"> block: write the formula in TeX ($$ … $$)`);

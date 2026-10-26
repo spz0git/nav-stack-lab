@@ -7,7 +7,7 @@ title: GNSS: the noise is not white
 $$z_k = p_k + b_k + w_k, \qquad b_{k+1} = e^{-\Delta t/\tau}\, b_k + \sigma_b\sqrt{1 - e^{-2\Delta t/\tau}}\;\eta_k$$
 <p>Consecutive fixes at 2 Hz share their bias with correlation $e^{-0.5/60} = 0.992$. Over a minute, 120 fixes hold only about one independent sample of the bias, so their average is still about 0.9 m off, while a filter that takes them as white claims</p>
 $$\sigma_{\bar z} = \frac{\sigma_{rep}}{\sqrt N} = \frac{1.04}{\sqrt{120}} \approx 0.095 \text{ m}.$$
-<p>With the bias in the state, $x_a = (x, y, \theta, b_x, b_y)$, the fix is $z = p + b + w$, so $H = [I_2\;\; 0\;\; I_2]$ and $R = \sigma_w^2 I_2$; the bias is predicted as a random walk, $b_{k+1} = b_k + n_k$ with variance $q\,\Delta t$ per step, $q = 2\sigma_b^2/\tau$.</p>
+<p>With the bias in the state, $x_a = (x, y, \theta, b_x, b_y)$, the fix is $z = p + b + w$, so $H = [I_2\;\; 0\;\; I_2]$ and $Q = \sigma_w^2 I_2$; the bias is predicted as a random walk, $b_{k+1} = b_k + n_k$ with variance $q\,\Delta t$ per step, $q = 2\sigma_b^2/\tau$.</p>
 <p><b>Where it comes from.</b> The 0.095 m is the variance of an average of $N$ independent readings; the 0.9 m comes from summing the bias's correlation over every pair of fixes, which for a span much shorter than $\tau$ does not average down at all. The random walk's $q$ matches the Gauss–Markov process's variance growth over short times. <a class="chref" href="#notes=ch2/12-gnss-when-the-noise-is-not-white">Derivation: chapter 2 §12</a></p>
 <p><b>What the lab does.</b> The Sensors tab switches GNSS on (it is off by default) and the beacons off, so the fixes are the only position source; its GNSS section has the rate, the noise, the bias and its time constant, multipath, outages and, for the EKF, the bias in the state. Fixes are drawn on the map: a filled dot when the filter fused it, a cross when the gate rejected it, the newest with a dashed ring at the 2σ the receiver reports. The experiments run on the parking lot (L6), the car at 0.6 m/s with the odometry noise of L3 (×1, no calibration bias), lapping an 18 × 10 m rectangle on the lot's empty floor so that only the error is there to see; the multipath experiment drives the lane beside the parked cars. The plot shows the position error and its 2σ band, with NEES in a second pane. All numbers below are at seed 7 over 120 s, checked at seeds 3 and 11.</p>
 
@@ -41,7 +41,7 @@ Answer: 1
 
 ## Try: The bias in the state
 cfg: {"sim":true,"level":5,"set":{"loc":"ekf","bOff":"all","gnss":true,"gnssAug":true,"odoK":1,"map":"empty","misLoop":true,"vehicles":false},"goals":[[3,13],[21,13],[21,3],[3,3]],"tab":"sen","plot":"pos","panes":[["nees"]]}
-Setup: The same run with Localize → Estimate the GNSS bias in the EKF ticked: two more states, a random walk each, and $R$ only the white 0.3 m. The GNSS line in the Sensors tab shows the estimated bias against the receiver's true one.
+Setup: The same run with Localize → Estimate the GNSS bias in the EKF ticked: two more states, a random walk each, and $Q$ only the white 0.3 m. The GNSS line in the Sensors tab shows the estimated bias against the receiver's true one.
 See: NEES stays under 2 for the whole run (1.9 at most) and the error stays inside the band; the error is 0.1 to 0.7 m for the first 80 s and 1.1 m at worst, pose RMS 0.56 m against 1.64 m. The band widens instead of shrinking: σ 0.31 m at 10 s, 0.84 m at 40 s, 1.46 m at 120 s. The bias estimate follows the true one: at 70 s (−0.29, −2.47) m against (−0.25, −2.45) m.
 Shows: Modelling the error's structure makes the filter honest. Its band widens because the fixes see only position plus bias, and the filter says so: what holds the two apart is the known start and the odometry, and both fade. Honest is guaranteed, more accurate is not: at seed 11 the error falls from 1.36 to 0.73 m RMS, at seed 3 it grows from 1.38 to 1.55 m, inside a band that has grown with it. NEES stays in the band at every seed (8.6 at most, at seed 3).
 Predict: Now put the bias in the EKF's state. What do NEES and the 2σ band do?
@@ -77,7 +77,7 @@ snippet: ekf-gnss
 focus: Pa = aug
 focus: hx = aug
 focus: R = aug
-Note: One function serves both filters. Without the bias the state is the pose and H picks x and y; with it the state grows by two, the predicted fix is the position plus the estimated bias, and H has a second identity block, so the gain splits each innovation between "the car is elsewhere" and "the receiver is off" by their covariances. R shrinks to the white part, since the bias's variance now lives in the state. The rest is the Joseph-form update of every other lesson.
+Note: One function serves both filters. Without the bias the state is the pose and H picks x and y; with it the state grows by two, the predicted fix is the position plus the estimated bias, and H has a second identity block, so the gain splits each innovation between "the car is elsewhere" and "the receiver is off" by their covariances. The code's R is the measurement noise, $Q$ in the lessons; it shrinks to the white part, since the bias's variance now lives in the state. The rest is the Joseph-form update of every other lesson.
 
 ## Think about
 Q: The receiver reports σ = 1.04 m, and a single fix in the open really is off by about that much. In what sense is the reported σ wrong?

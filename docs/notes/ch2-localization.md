@@ -5,7 +5,7 @@ summary: The derivations behind the Localization lessons: the motion and measure
 
 # Localization: the estimators derived
 
-The Localization lessons give the formulas and show what they do. This chapter shows where they come from. It follows the lessons in order: the motion model and how uncertainty moves through it (lesson 1), the Kalman update and the consistency test (lesson 2), the gate (lesson 3), the particle filter (lesson 4) and EKF-SLAM (lesson 5). The numbers are those of the lab, and the ones in blue follow your current settings: the robot is on **{{live:loc}}** with odometry noise ×{{live:odoK}} and calibration bias ×{{live:odoB}}, and at the cruise speed $v_0$ = {{live:v0}} m/s one tick of odometry carries $\sigma_v$ = {{live:sigv}} m/s and $\sigma_\omega$ = {{live:sigw}} rad/s.
+The Localization lessons give the formulas and show what they do. This chapter shows where they come from. It follows the lessons in order: the motion model and how uncertainty moves through it (lesson 1), the Kalman update and the consistency test (lesson 2), the gate (lesson 3), the particle filter (lesson 4) and EKF-SLAM (lesson 5), then the sensors and the second SLAM of lessons 6 to 9: a gyro in the motion model (§9), scan matching (§10), pose-graph SLAM (§11) and GNSS (§12). The numbers are those of the lab, and the ones in blue follow your current settings: the robot is on **{{live:loc}}** with odometry noise ×{{live:odoK}} and calibration bias ×{{live:odoB}}, and at the cruise speed $v_0$ = {{live:v0}} m/s one tick of odometry carries $\sigma_v$ = {{live:sigv}} m/s and $\sigma_\omega$ = {{live:sigw}} rad/s.
 
 ## 1. One problem, three estimators
 
@@ -17,7 +17,7 @@ $$
 bel(x_t) = \eta\, p(z_t \mid x_t)\, \overline{bel}(x_t)
 $$
 
-The first line is prediction: push the old belief through the motion model. The second is correction: multiply by the likelihood of the reading and renormalize ($\eta$ is the normalizer). Nothing in this lab does anything else. The three estimators differ only in how they represent $bel$:
+The first line is prediction: push the old belief through the motion model. The second is correction: multiply by the likelihood of the reading and renormalize ($\eta$ is the normalizer). Nothing in this lab does anything else, except pose-graph SLAM (§11), which keeps the whole path and solves for it at once instead of filtering. The three estimators differ only in how they represent $bel$:
 
 | Estimator | Belief represented as | Prediction | Correction |
 | --- | --- | --- | --- |
@@ -235,7 +235,7 @@ $$
 \theta_{err}(t) = b\,t, \qquad e_\perp(t) \approx \int_0^t v\,\theta_{err}\,\mathrm d\tau = \tfrac12\, v\, b\, t^2.
 $$
 
-At $0.5°/\mathrm s$ and 0.8 m/s that is $30°$ and 7.9 m after a minute of straight driving. Meanwhile $\Sigma$ grows only by the noise term, so the filter is overconfident by the ratio of the two, which is why NEES explodes in the lesson. On a real MEMS gyro the bias is a few tenths of a degree per second and moves with temperature; this is the dominant error of every IMU-based dead reckoning, not the noise.
+At $0.5°/\mathrm s$ and 0.8 m/s that is $30°$ and 12.6 m after a minute of straight driving. Meanwhile $\Sigma$ grows only by the noise term, so the filter is overconfident by the ratio of the two, which is why NEES explodes in the lesson. On a real MEMS gyro the bias is a few tenths of a degree per second and moves with temperature; this is the dominant error of every IMU-based dead reckoning, not the noise.
 
 **The zero-velocity update.** While the robot stands still the true yaw rate is exactly zero, so every reading is $b + n$ and their mean is an estimate of $b$ with standard deviation $\sigma_g / \sqrt N$ over $N$ readings. The lab uses an exponential average,
 
@@ -247,7 +247,7 @@ which settles in the 2 s hold at the start of a run (40 readings; the remaining 
 
 ## 10. Scan matching: the lidar as a position sensor
 
-**The cost.** With a prior map, its distance field $d(\cdot)$ gives every point in the world its distance to the nearest wall (the same transform the costmap uses, chapter 3 §2). A scan is a set of hits $p_i$ in the body frame; placed in the world at a pose $\xi = (x, y, \theta)$ they land at $T_\xi p_i = R(\theta)\,p_i + (x, y)$. If $\xi$ is right the hits lie on walls and $d(T_\xi p_i) = 0$; if it is wrong they lie beside them. Scan matching minimizes
+**The cost.** With a prior map, its distance field $d(\cdot)$ gives every point in the world its distance to the nearest wall (the same transform the costmap uses, chapter 3 §3). A scan is a set of hits $p_i$ in the body frame; placed in the world at a pose $\xi = (x, y, \theta)$ they land at $T_\xi p_i = R(\theta)\,p_i + (x, y)$. If $\xi$ is right the hits lie on walls and $d(T_\xi p_i) = 0$; if it is wrong they lie beside them. Scan matching minimizes
 $$
 F(\xi) = \sum_i d(T_\xi p_i)^2
 $$
@@ -327,7 +327,7 @@ with $\partial R^\top/\partial\theta = \begin{bmatrix} -s & c \\ -c & -s\end{bma
 
 ## 12. GNSS: when the noise is not white
 
-Every update so far assumed that the measurement noise is **white**: each reading's error is drawn fresh, independent of the last one, $\mathrm E[v_k v_j^{\mathsf T}] = R\,\delta_{kj}$. That assumption is what lets the filter treat ten readings as ten times the evidence. A GNSS receiver breaks it. Most of its error comes from the atmosphere, the satellite orbits and clocks, and the reflections around the antenna, and all of these change over tens of seconds to minutes, not between one fix and the next.
+Every update so far assumed that the measurement noise is **white**: each reading's error is drawn fresh, independent of the last one, $\mathrm E[v_k v_j^{\mathsf T}] = Q\,\delta_{kj}$. That assumption is what lets the filter treat ten readings as ten times the evidence. A GNSS receiver breaks it. Most of its error comes from the atmosphere, the satellite orbits and clocks, and the reflections around the antenna, and all of these change over tens of seconds to minutes, not between one fix and the next.
 
 **The lab's receiver.** A fix at $t_k$ is the true position plus two errors per axis:
 
@@ -347,7 +347,7 @@ $$
 
 In continuous time it is $\dot b = -b/\tau + n(t)$ with white $n$ of spectral density $2\sigma_b^2/\tau$: a random walk that is pulled back toward zero with time constant $\tau$. The settings here are $\sigma_w$ = {{live:gnssSig}} m, $\sigma_b$ = {{live:gnssBias}} m and $\tau$ = {{live:gnssTau}} s at {{live:gnssHz}} fixes per second, so two consecutive fixes share their bias with correlation $\phi$ = {{live:gnssPhi}}. The receiver reports $\sigma_{rep} = \sqrt{\sigma_w^2 + \sigma_b^2}$ = {{live:gnssRep}} m per axis: the true spread of one fix in the open, and nothing about the correlation.
 
-**What the plain filter does with it.** Take the fixes as white with $R = \sigma_{rep}^2 I$ (the update of §4 with $H = [I_2\; 0]$, the fix measuring $x$ and $y$ directly). Standing still for $N$ fixes, the filter's position variance falls as $\sigma_{rep}^2/N$, the variance of an average of independent readings. The average of the actual errors has variance
+**What the plain filter does with it.** Take the fixes as white with $Q = \sigma_{rep}^2 I$ (the update of §4 with $H = [I_2\; 0]$, the fix measuring $x$ and $y$ directly). Standing still for $N$ fixes, the filter's position variance falls as $\sigma_{rep}^2/N$, the variance of an average of independent readings. The average of the actual errors has variance
 
 $$
 \mathrm{Var}\Big(\tfrac1N \sum_k (b_k + w_k)\Big) = \frac{\sigma_w^2}{N} + \frac{\sigma_b^2}{N^2}\sum_{i,j} \phi^{|i-j|}, \qquad \sum_{i,j}\phi^{|i-j|} = N + 2\sum_{m=1}^{N-1}(N-m)\,\phi^m .
@@ -358,17 +358,17 @@ For $N\Delta t \ll \tau$ the double sum is about $N^2$ and the bias term does no
 **The fix: put the bias in the state.** If the error has structure, model it. Augment the state with the bias, $x_a = (x, y, \theta, b_x, b_y)$, and let the filter estimate it:
 
 $$
-F_a = \begin{bmatrix} G & 0 \\ 0 & I_2 \end{bmatrix}, \qquad Q_a = \begin{bmatrix} V M V^{\mathsf T} & 0 \\ 0 & q\,\Delta t\, I_2 \end{bmatrix}
+F_a = \begin{bmatrix} G & 0 \\ 0 & I_2 \end{bmatrix}, \qquad R_a = \begin{bmatrix} V M V^{\mathsf T} & 0 \\ 0 & q\,\Delta t\, I_2 \end{bmatrix}
 $$
 
 $$
-H_a = \begin{bmatrix} I_2 & 0 & I_2 \end{bmatrix}, \qquad R = \sigma_w^2 I_2 .
+H_a = \begin{bmatrix} I_2 & 0 & I_2 \end{bmatrix}, \qquad Q = \sigma_w^2 I_2 .
 $$
 
-The bias is modelled as a random walk with $q = 2\sigma_b^2/\tau$ = {{live:gnssQ}} m²/s, which matches the Gauss–Markov process over short times ($\mathrm{Var}(b_{t+\Delta} - b_t) = 2\sigma_b^2(1 - e^{-\Delta/\tau}) \approx 2\sigma_b^2 \Delta/\tau$) and is more cautious over long ones. $R$ is now only the white part: the reported $\sigma_{rep}^2$ less the $\sigma_b^2$ the state carries. With the covariance in blocks, $P_a = \begin{bmatrix} P & C \\ C^{\mathsf T} & B\end{bmatrix}$, $C$ the 3×2 cross-covariance of pose and bias, the update is the §4 update with
+The bias is modelled as a random walk with $q = 2\sigma_b^2/\tau$ = {{live:gnssQ}} m²/s, which matches the Gauss–Markov process over short times ($\mathrm{Var}(b_{t+\Delta} - b_t) = 2\sigma_b^2(1 - e^{-\Delta/\tau}) \approx 2\sigma_b^2 \Delta/\tau$) and is more cautious over long ones. $Q$ is now only the white part: the reported $\sigma_{rep}^2$ less the $\sigma_b^2$ the state carries. With the covariance in blocks, $P_a = \begin{bmatrix} P & C \\ C^{\mathsf T} & B\end{bmatrix}$, $C$ the 3×2 cross-covariance of pose and bias, the update is the §4 update with
 
 $$
-\nu = z - (\hat p + \hat b), \qquad S = P_{pp} + C_p + C_p^{\mathsf T} + B + R
+\nu = z - (\hat p + \hat b), \qquad S = P_{pp} + C_p + C_p^{\mathsf T} + B + Q
 $$
 
 $$

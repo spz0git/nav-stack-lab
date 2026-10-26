@@ -14,6 +14,12 @@ function refreshAll() {
   renderBeaconSensor();
   renderInfoLines();
 }
+// An error nothing else caught (a tick of the core, a promise, a handler) goes to the event log as an error, once per
+// message in a run's log, so that a failure does not leave the robot standing still with nothing said.
+function reportError(what, e) {
+  const line = `${what}: ${(e && e.message) || String(e)}`;
+  if (S && !S.log.some(l => l.msg === line)) logE(line, 'bad');
+}
 let lastTs = 0,
   acc = 0,
   frame = 0;
@@ -25,7 +31,10 @@ function loop(ts) {
     const n = Math.min(40, Math.floor(acc / DT));
     if (n > 0) {
       acc -= n * DT;
-      advance(n);
+      advance(n).catch(e => {
+        running = false; // a tick that throws would throw again on the next frame
+        reportError('The run stopped on an error', e);
+      });
     }
   } else if (!running) acc = 0;
   replayTick(dt);

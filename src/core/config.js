@@ -69,7 +69,7 @@ function schedTick() {
           .join(', ')}`,
         'warn'
       );
-      for (const [k, v] of Object.entries(e.set)) setParam(k, v, true);
+      for (const [k, v] of Object.entries(e.set)) setParam(k, v, false); // as a released slider: with every effect
     }
   }
 }
@@ -79,12 +79,21 @@ function loadLevel(i) {
   setWorld(...levelSize(LV));
   // every setting goes back to the level's, except the seed and the trained models picked in Perceive and Plan, so that
   // a model trained in the page can be tried on every level (Agent tracking / Planner still follow the level)
-  Object.assign(P, DEFAULTS, {seed: P.seed, detModel: P.detModel, polModel: P.polModel, predModel: P.predModel}, LV.cfg);
+  // the level's settings pass the same check as a setup link's (paramError): one that fails is left out and logged
+  const cfg = {},
+    warn = [...(LV.warn || [])];
+  for (const [k, v] of Object.entries(LV.cfg)) {
+    const why = paramError(k, v);
+    if (why) warn.push(why);
+    else cfg[k] = v;
+  }
+  Object.assign(P, DEFAULTS, {seed: P.seed, detModel: P.detModel, polModel: P.polModel, predModel: P.predModel}, cfg);
   applyMap();
   LAYERS.cost = !!(LV.layers && LV.layers.cost);
   WPS = LV.wps.map(w => ({x: w[0], y: w[1], th: w.length > 2 ? w[2] : null, done: false}));
   running = false;
   reset();
+  for (const w of warn) logE(`Ignored the level's setting: ${w}`, 'warn');
   UI.levelChanged();
   UI.invalidate();
 }
@@ -397,8 +406,19 @@ const PARAM_EFFECTS = [
 ];
 // the keys whose effect runs even when the value did not change (a slider released on its old value still rebuilds)
 const PARAM_ALWAYS = ['infl', 'eps', 'rrtIt', 'wheelbase', 'steerMaxDeg', 'revPen', 'gearPen', 'planPct'];
-// Set one parameter: `veh` fans out to model and carPhys; a choice parameter must be one of its values and a numeric one
-// a finite number (a mistyped setup link or Try cfg is ignored with a log line); then the effects table runs.
+// What is wrong with the value v for the parameter k, or null: a choice parameter must be one of its values, a numeric
+// one a finite number within its range (PARAM_RANGE), the fault schedule well formed. setParam and a level's settings
+// (levels.js) both check with it.
+function paramError(k, v) {
+  if (PARAM_OPTS[k] && !PARAM_OPTS[k].includes(v)) return `${k} has no value "${v}" (one of ${PARAM_OPTS[k].join(', ')})`;
+  if (typeof DEFAULTS[k] === 'number' && !(typeof v === 'number' && isFinite(v))) return `${k} needs a number, not "${v}"`;
+  const R = PARAM_RANGE[k];
+  if (R && (v < R[0] || v > R[1])) return `${k} must be from ${R[0]} to ${R[1]}, not ${v}`;
+  if (k === 'sched' && schedError(v)) return `the fault schedule needs ${schedError(v)}`;
+  return null;
+}
+// Set one parameter: `veh` fans out to model and carPhys; a value paramError rejects (a mistyped setup link or Try cfg,
+// a number out of range) is ignored with a log line and the old value kept; then the effects table runs.
 function setParam(k, v, live) {
   if (k === 'veh') {
     const m = v === 'diff' ? 'diff' : 'car';
@@ -406,16 +426,9 @@ function setParam(k, v, live) {
     if (m === 'car') setParam('carPhys', v === 'dyn' ? 'dyn' : 'kin', live);
     return;
   }
-  if (PARAM_OPTS[k] && !PARAM_OPTS[k].includes(v)) {
-    logE(`Ignored: ${k} has no value "${v}" (one of ${PARAM_OPTS[k].join(', ')})`, 'warn');
-    return;
-  }
-  if (typeof DEFAULTS[k] === 'number' && !(typeof v === 'number' && isFinite(v))) {
-    logE(`Ignored: ${k} needs a number, not "${v}"`, 'warn');
-    return;
-  }
-  if (k === 'sched' && schedError(v)) {
-    logE(`Ignored: the fault schedule needs ${schedError(v)}`, 'warn');
+  const why = paramError(k, v);
+  if (why) {
+    logE(`Ignored: ${why}`, 'warn');
     return;
   }
   const old = P[k];

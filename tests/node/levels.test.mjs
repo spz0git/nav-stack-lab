@@ -49,6 +49,27 @@ test('the format rejects what it cannot run', () => {
   assert.deepEqual(L.cfg, {loc: 'ekf'}, 'unknown keys and run settings are left out');
 });
 
+test("a level's settings are checked as a link's: a wrong choice or a number out of range is left out and logged", async () => {
+  const j = {...C.levelToJSON(C.LEVELS[1]), settings: {plan: 'foo', loc: 'pf', npart: -5}},
+    L = C.levelFromJSON(j);
+  assert.deepEqual(L.cfg, {loc: 'pf'});
+  assert.ok(
+    L.warn.some(w => w.includes('plan') && w.includes('"foo"')),
+    L.warn.join(' / ')
+  );
+  assert.ok(L.warn.some(w => w.includes('npart') && w.includes('-5')));
+  const s = await core.run({level: j, secs: 3});
+  assert.equal(C.P.plan, 'astar', 'the default');
+  assert.equal(C.P.npart, 400, 'the default');
+  assert.ok(s.dist > 0, 'the robot moves');
+  const log = C.S.log.map(l => l.msg);
+  assert.ok(
+    log.some(m => m.startsWith(`Ignored the level's setting: plan has no value "foo" (one of straight, astar`)),
+    log.join(' / ')
+  );
+  assert.ok(log.some(m => /^Ignored the level's setting: npart must be from \d+ to \d+, not -5$/.test(m)));
+});
+
 test('a generated level is the same for the same spec, and sets the world size', async () => {
   for (const gen of Object.keys(C.GEN_FAMILIES)) {
     const a = C.genLevel({gen, seed: 5, w: 32, h: 20.4}),

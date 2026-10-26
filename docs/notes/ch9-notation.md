@@ -85,12 +85,23 @@ What the lab takes from each, in one line. The inline citations in the lessons p
 - Karaman and Frazzoli, "Sampling-based algorithms for optimal motion planning", *IJRR* 30(7), 2011. RRT* and the rewiring radius.
 - Dolgov, Thrun, Montemerlo and Diebel, "Path planning for autonomous vehicles in unknown semi-structured environments", *IJRR* 29(5), 2010. Hybrid A* with the Reeds–Shepp expansion and the two heuristics.
 - Reeds and Shepp, "Optimal paths for a car that goes both forwards and backwards", *Pacific J. Math.* 145(2), 1990. The 48 path words.
+- Koenig and Likhachev, "D* Lite", *AAAI*, 2002. The incremental replanner of chapter 4 §8: Lifelong Planning A* run from the goal, with the key modifier for a moving start.
+- Yamauchi, "A frontier-based approach for autonomous exploration", *IEEE CIRA*, 1997. Frontiers, the boundary between free and unseen cells, as the robot's own goals (chapter 4 §7).
 - Coulter, "Implementation of the pure pursuit path tracking algorithm", CMU-RI-TR-92-01, 1992. Pure pursuit as the lab runs it.
 - Hoffmann, Montemerlo, Dahlkamp and Thrun, "Autonomous automobile trajectory tracking for off-road driving", *American Control Conference*, 2007. The Stanley law.
+- Samson, "Control of chained systems: application to path following and time-varying point-stabilization of mobile robots", *IEEE Trans. Automatic Control* 40(1), 1995. The rear-wheel feedback law and its Lyapunov argument in chapter 5 §3, which the lab writes in the form of Paden et al.
 - Paden, Čáp, Yong, Yershov and Frazzoli, "A survey of motion planning and control techniques for self-driving urban vehicles", *IEEE Trans. Intelligent Vehicles* 1(1), 2016. The map of planners and trackers chapters 4 and 5 follow.
 - Åström and Murray, *Feedback Systems* (Princeton, 2008; free online). Bode, Nyquist, margins, sensitivity and the delay-margin argument of chapter 6.
 - Rajamani, *Vehicle Dynamics and Control* (Springer, 2nd ed. 2012). The dynamic bicycle model, understeer gradient and characteristic speed of chapter 1.
 - Rawlings, Mayne and Diehl, *Model Predictive Control: Theory, Computation, and Design* (Nob Hill, 2nd ed. 2017). The MPC formulation and terminal-cost reasoning of chapter 7.
 - Bertsekas, *Constrained Optimization and Lagrange Multiplier Methods* (Academic Press, 1982). The augmented Lagrangian the MPC uses for its obstacle and agent constraints.
 - Helbing and Molnár, "Social force model for pedestrian dynamics", *Physical Review E* 51(5), 1995. The reactive pedestrians of L5 and L6.
+- Fiorini and Shiller, "Motion planning in dynamic environments using velocity obstacles", *IJRR* 17(7), 1998. The velocity obstacle: the cone of velocities that lead to a collision with a moving disc (chapter 4 §9).
+- van den Berg, Lin and Manocha, "Reciprocal velocity obstacles for real-time multi-agent navigation", *ICRA*, 2008. Avoidance shared between two parties that both run it.
 - Bresenham, "Algorithm for computer control of a digital plotter", *IBM Systems Journal* 4(1), 1965. The ray traversal of the lidar model and the mapper.
+- Pomerleau, "ALVINN: an autonomous land vehicle in a neural network", *Advances in Neural Information Processing Systems* 1, 1989. Driving from sensor input by imitating a human, the first end-to-end policy.
+- Ross and Bagnell, "Efficient reductions for imitation learning", *AISTATS*, 2010. The compounding-error argument: a cloned policy's cost grows like $T^2\epsilon$.
+- Ross, Gordon and Bagnell, "A reduction of imitation learning and structured prediction to no-regret online learning", *AISTATS*, 2011. DAgger: the policy drives, the expert labels the states it reaches.
+- Laskey, Lee, Fox, Dragan and Goldberg, "DART: noise injection for robust imitation learning", *Conference on Robot Learning*, 2017. Noise on the expert's commands, so that the data covers the states a policy drifts into.
+- Cui, Radosavljevic, Chou, Lin, Nguyen, Huang, Schneider and Djuric, "Multimodal trajectory predictions for autonomous driving using deep convolutional networks", *ICRA*, 2019. Several scored trajectories instead of one, trained on the best: the learned predictor's and the policy's heads.
+- Bishop, "Mixture density networks", Technical report NCRG/94/004, Aston University, 1994. A network that outputs a mixture and is trained by its likelihood: the mixture loss of chapters 3 §10 and 4 §10.

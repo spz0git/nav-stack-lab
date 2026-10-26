@@ -27,7 +27,7 @@ while working and again on `main` after the merge only repeats them.
    each source change so page and commit match. Add a line to `CHANGELOG.md` under `## Unreleased` and, for a
    feature, a section to `docs/roadmap.md`. The page shows the changelog under the version label (What's new), so
    write each entry for someone who uses the page. The repository is the only reference: there are no copies of the
-   roadmap elsewhere to keep in sync. No test gate yet. Open a PR; on every push CI (`.github/workflows/ci.yml`)
+   roadmap elsewhere to keep in sync. The test gate runs once, when the PR is ready to merge (step 3). Open a PR; on every push CI (`.github/workflows/ci.yml`)
    builds, checks that the committed `dist/` equals a fresh build, and runs the Node golden tests.
 2. When the PR is ready to merge, make the release commit on the branch: in `src/version.json` set `version` to the
    artifact version the next publish will create (the previous publish's version + 1), with `date` and a short
@@ -64,7 +64,9 @@ gate, no version and no republish.
 ## The regression baseline
 
 `tests/test.py` prints the L1–L5 summary (goals reached, skipped, contacts, mission time, pose error, NEES) for the
-documented configurations. It has been byte-identical, plan-time milliseconds excluded, since v16; every PR that
+documented configurations. It has been stable, plan-time milliseconds excluded, since v16, except where a change intended
+a new baseline, regenerated with `npm run golden -- --why "…"` (it prints the diff first) and explained by a `golden:` line in the commit
+message, which CI checks (the last on 2026-10-20); every PR that
 touches `core/` compares before and after. The Node golden test (`tests/node/golden.test.mjs`) asserts the same numbers against a committed JSON with tolerances, so CI catches a drift without a
 human reading the printout. When a change intends a new baseline, regenerate the JSON in the same PR (`npm run golden`) and say why.
 

@@ -3,8 +3,8 @@
 A robot navigation simulator that runs in your browser. It is one HTML file: nothing to install, works offline,
 works on a phone.
 
-**Try it:** download [`dist/nav-stack-lab.html`](dist/nav-stack-lab.html) and open it in a browser. (The demo at
-https://spz0git.github.io/nav-stack-lab/ goes live when GitHub Pages is turned on; see `docs/maintaining.md`.)
+**Try it:** download [`dist/nav-stack-lab.html`](dist/nav-stack-lab.html) from the repository and open it in a
+browser. A public demo goes live when GitHub Pages is turned on for the repository (see `docs/maintaining.md`).
 
 ![The busy floor level: a particle filter tracks the robot while the speed planner yields to people](docs/readme/hero.png)
 
@@ -22,7 +22,7 @@ The page has three modes:
   health lights per subsystem, and runs you can keep and compare.
 - **Analyze** linearizes the steering loop and shows you Bode and Nyquist plots, step responses and poles you can
   drag, then checks the linear model against the real simulation.
-- **Learn** has 50 lessons and nine chapters. Each lesson has buttons that set the lab up and run the experiment
+- **Learn** has 54 lessons and nine chapters. Each lesson has buttons that set the lab up and run the experiment
   for you, and shows the code behind what it teaches: the page's own function, with the lesson's lines marked, and an
   "Edit and run" button that puts a plain version of it in the Code tab for you to change. The numbers in the lessons
   come from the simulator, not from a textbook. A learning track has begun: a learned people detector and an
@@ -45,12 +45,13 @@ cd nav-stack-lab
 open dist/nav-stack-lab.html
 ```
 
-You need Node 18 or newer. There are no other dependencies.
+You need Node 18 or newer. The page has no runtime dependencies and the build needs nothing but Node; the lint and
+format checks (`npm run lint`, `npm run fmt:check`) use ESLint and Prettier, which `npm ci` installs.
 
 ## Tests
 
 ```sh
-npm test                    # Node only, about 10 s
+npm test                    # Node only, 69 tests, about 35–55 s (after ./build.sh)
 python3 tests/run_all.py --changed   # the browser tests this change needs (smoke test about 40 s)
 python3 tests/run_all.py             # all twelve browser tests, about 12 min
 ```

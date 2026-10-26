@@ -51,8 +51,12 @@ teaches these four standards and no others (decision 1).
   standard is reproduced, including the ASIL determination table (section 3.2 explains the rule another way).
 - **Cite the edition and clause.** ISO 26262:2018 (parts 1–12), ISO 21448:2022, ISO/PAS 8800:2024 and ANSI/UL 4600
   third edition (2023). A citation reads "ISO 21448, clause 7" or "ISO 26262-3, 6.4.3". The clause numbers in this
-  document were checked against public tables of contents and secondary descriptions, not against licensed copies;
-  every number a lesson cites is confirmed against the licensed text before that lesson is released (section 10).
+  document were checked against public tables of contents and secondary descriptions, not against licensed copies.
+  The lessons were released with them unconfirmed and say so: each carries a sentence that the clause numbers come
+  from public outlines and have not been checked against the texts. The owner's check against the licensed texts
+  (section 10) is pending. A confirmed number loses the caveat in the lessons that cite it (so far one: ISO 26262-2
+  6.4.8, confirmed from the 2018 edition's contents page, in saf/09); a corrected one is changed in the lessons, the
+  chapter and this document together.
 - **Measured, not asserted.** As everywhere in the lab, every number in a lesson's "What you will see" is measured
   headless first, and a Predict's answer holds at other seeds and can be checked by looking at the page.
 - **The lab's own scales are labelled as such.** Where the track needs a scale the standards define for cars (severity,

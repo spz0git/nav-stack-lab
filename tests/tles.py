@@ -26,7 +26,7 @@ async def main():
             if(!raw.length)bad.push('no terms: '+L.t);raw.filter(id=>!A.GLOSS[id]).forEach(id=>bad.push('unknown '+id+': '+L.t));
             const h=A.glossMark(L.b,A.lessonTerms(L));if(tx(h)!==tx(L.b))bad.push('text changed: '+L.t);n+=raw.length;m+=(h.match(/class="term"/g)||[]).length;}
           return {lessons:A.LESSON_GROUPS().reduce((a,G)=>a+G.items.length,0),listed:n,marked:m,bad};}""")
-        print('GLOSSARY',g)
+        print('GLOSSARY',g); errs+=['GLOSSARY '+x for x in g['bad']]
         print('ERR',errs[:5])
         await b.close()
 asyncio.run(main())

@@ -1,5 +1,6 @@
 # Companion notes: every chapter opens from the Learn column, its live values fill, every Try button runs; section deep links
-# and the lessons' derivation links (a.chref) open the right chapter at the right heading and come back to the lesson.
+# and the lessons' derivation links (a.chref) open the right chapter at the right heading and come back to the lesson; on a
+# phone, a deep link does not scroll sideways.
 import asyncio,os,sys
 from playwright.async_api import async_playwright
 from _browser import launch, page_url
@@ -16,7 +17,7 @@ async def main():
         for ch in ids:
             await pg.evaluate(f"window.__an.setUIMode('learn');window.__an.openChapter('{ch}')"); await pg.wait_for_timeout(400)
             live=await pg.evaluate("[...document.querySelectorAll('#learnview .live')].map(e=>e.dataset.k+'='+e.textContent)")
-            bad=[x for x in live if x.endswith('=—') or x.endswith('=…') or x.endswith('=?')]
+            bad=[x for x in live if x.endswith('=—') or x.endswith('=…') or x.endswith('=?')]; errs+=[f'UNFILLED {ch} {x}' for x in bad]
             print(ch,'live',len(live),'unfilled',bad,'math',await pg.evaluate("document.querySelectorAll('#learnview math').length"),'tries',await pg.evaluate("document.querySelectorAll('#learnview button.try').length"))
             if OUT: await pg.screenshot(path=f'{OUT}/{ch}_top.png')
             tries=await pg.evaluate("[...document.querySelectorAll('#learnview button.try')].map(b=>b.textContent)")
@@ -47,7 +48,9 @@ async def main():
         pg2=await b.new_page(viewport={'width':390,'height':844},device_scale_factor=2)
         for h in ['#notes=ch6','#notes=ch2/4-the-kalman-update-derived']:
             await pg2.goto(page_url(h)); await pg2.wait_for_timeout(700)
-            print('deep link',h,'open:',await pg2.evaluate("!!document.querySelector('#learnview article.chapter')"),'scrollW',await pg2.evaluate("document.documentElement.scrollWidth"))
+            sw=await pg2.evaluate("document.documentElement.scrollWidth")
+            print('deep link',h,'open:',await pg2.evaluate("!!document.querySelector('#learnview article.chapter')"),'scrollW',sw)
+            if sw>390: errs.append(f'OVERFLOW {h} scrollW {sw}')   # the phone page scrolls sideways
         if OUT: await pg2.screenshot(path=f'{OUT}/ch_mobile.png')
         print('ERRORS',errs[:5])
         await b.close()

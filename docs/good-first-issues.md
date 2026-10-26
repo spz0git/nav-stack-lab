@@ -42,7 +42,7 @@ reactive.
 **Where:** `src/ui/log.js`.
 **What:** three toggle chips above the log, All · Warnings · Errors, that filter the lines by their class (`warn`,
 `bad`), remembered in `localStorage` with the other layout settings. Foxglove's Log panel is the model.
-**Done when:** the chips filter live and in replay, keyboard operable, `tests/p1test.py` passes.
+**Done when:** the chips filter live and in replay, keyboard operable, `tests/uitest.py` passes (with a check for the chips added to it).
 
 ## 6. Gyro bias as a Vehicle setting for the car with tyre slip (sensor)
 
@@ -64,7 +64,7 @@ odometry calibration bias. One Try in the lessons' control group showing the dri
 **Where:** `src/styles.css`, the `@media (max-width:760px)` block for `.levels`.
 **What:** on a 375 px wide screen the L1–L6 selector stretches to about 380 px tall between the telemetry dock and
 the level brief. Make it a single compact row (two rows of three at most).
-**Done when:** `tests/shots.py phone-first` shows the selector under 60 px tall and `tests/p1test.py`'s phone
+**Done when:** `tests/shots.py phone-first` shows the selector under 60 px tall and `tests/smoke.py`'s phone
 checks pass.
 
 ## 9. A notation page in the Symbols tab (content)

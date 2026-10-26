@@ -42,9 +42,9 @@ while working and again on `main` after the merge only repeats them.
    tab on every level at three widths, Analyze, Learn, a short run) for any change to the page, then the tests of the
    areas touched, from the table `SCOPE` in `tests/run_all.py` (a core change: the L1–L5 regression `test.py` and every
    Try button `p5test.py`, plus the subsystem's own test; a lesson: `tles.py` and `p5test.py`; a chapter: `chtest.py`;
-   a CSS or layout change: the smoke test alone). A change to the build or the test harness runs all eleven (about
-   twelve minutes). `--changed --list` prints the choice and the files behind it. The L1–L5 summary of `test.py` must
-   not change unless the change intends it. If a script fails, fix it and rerun what failed. The full suite runs
+   a CSS or workspace change: the smoke test and `uitest.py`). A change to the build or the test harness runs all
+   twelve (about twelve minutes). `--changed --list` prints the choice and the files behind it. The L1–L5 summary of
+   `test.py` must not change unless the change intends it. If a script fails, fix it and rerun what failed. The full suite runs
    every night on `main` (below), which catches what a scope missed; when it does, fix it first, and widen `SCOPE` so
    the next change like it runs the test.
 4. Merge. Do not run the gate again on `main`: its tree is the branch that was tested. Only if something else landed

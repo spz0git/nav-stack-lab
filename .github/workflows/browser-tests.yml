@@ -1,4 +1,4 @@
-# The full Playwright suite (tests/run_all.py: all eleven browser tests) every night and on demand from the Actions
+# The full Playwright suite (tests/run_all.py: all twelve browser tests) every night and on demand from the Actions
 # tab. A PR runs only the tests its change needs (run_all.py --changed) and CI runs the smoke test on every push; this
 # run catches what a scope missed. It drives the built page in a headless Chromium; about twelve minutes. On a failure
 # the run's log and the screenshots the failing tests left (NAV_LAB_SHOTS, see tests/_browser.py) are uploaded.

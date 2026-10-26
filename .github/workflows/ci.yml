@@ -2,7 +2,7 @@
 # agree with src/version.json (tools/version-check.mjs), the Node golden
 # tests (the L1–L5 regression summary against tests/node/golden.json) pass, golden.json changes only with a commit
 # message line starting `golden:`, and the browser smoke test passes.
-# About three minutes with warm caches (npm, pip and Playwright's Chromium are cached).
+# About three minutes (npm and pip are cached; the browser is the runner's own Chrome).
 name: CI
 on:
   pull_request:
@@ -61,20 +61,28 @@ jobs:
         run: |
           pip install -r tests/requirements.txt
           echo "version=$(python3 -c 'from importlib.metadata import version; print(version("playwright"))')" >> "$GITHUB_OUTPUT"
+      # The runner image ships Google Chrome; the tests take it through NAV_LAB_CHROMIUM (tests/_browser.py), so no
+      # browser download and no apt (playwright install --with-deps hung on apt for a whole job once). The download
+      # and the cache stay as the fallback for an image without Chrome.
+      - name: Find the runner's Chrome
+        id: chrome
+        run: echo "path=$(command -v google-chrome-stable || command -v google-chrome || true)" >> "$GITHUB_OUTPUT"
       - name: Cache Playwright's Chromium
+        if: steps.chrome.outputs.path == ''
         id: pw-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ runner.os }}-${{ steps.pw.outputs.version }}
-      - name: Install Chromium and its system libraries
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: playwright install --with-deps chromium
+      - name: Install Chromium and its system libraries (no Chrome on the runner)
+        if: steps.chrome.outputs.path == '' && steps.pw-cache.outputs.cache-hit != 'true'
+        run: timeout 600 playwright install --with-deps chromium
       - name: Install Chromium's system libraries (the browser came from the cache)
-        if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: playwright install-deps chromium
+        if: steps.chrome.outputs.path == '' && steps.pw-cache.outputs.cache-hit == 'true'
+        run: timeout 600 playwright install-deps chromium
       - name: Browser smoke test
         env:
+          NAV_LAB_CHROMIUM: ${{ steps.chrome.outputs.path }}
           NAV_LAB_SHOTS: ${{ github.workspace }}/test-shots
         run: |
           set -o pipefail

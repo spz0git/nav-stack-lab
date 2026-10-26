@@ -46,9 +46,21 @@ function slotWorker(k, code) {
   try {
     wk = new Worker(url);
   } catch (err) {
+    URL.revokeObjectURL(url);
     return {error: 'Workers are unavailable here: ' + err.message};
   }
   const W_ = {wk, pending: null, dead: false, error: null, slot: k};
+  // the blob URL lives as long as the worker: revoked once, when the worker is stopped (timeout or kill)
+  let revoked = false;
+  const stop = () => {
+    try {
+      wk.terminate();
+    } catch (_) {}
+    if (!revoked) {
+      revoked = true;
+      URL.revokeObjectURL(url);
+    }
+  };
   wk.onmessage = e => {
     const p = W_.pending;
     W_.pending = null;
@@ -76,7 +88,7 @@ function slotWorker(k, code) {
         W_.pending = null;
         W_.dead = true;
         W_.error = `Timed out after ${D.timeout} ms (infinite loop?)`;
-        wk.terminate();
+        stop();
         slotStatus(k, W_.error, 'err');
         res({ok: false, error: W_.error});
       }, D.timeout);
@@ -95,9 +107,7 @@ function slotWorker(k, code) {
       clearTimeout(p.to);
       p.res({ok: false, error: 'replaced by a new load'});
     }
-    try {
-      wk.terminate();
-    } catch (_) {}
+    stop();
   };
   return W_;
 }
@@ -141,7 +151,6 @@ function slotNotLoaded(k) {
     sl.lastErr = 'none';
   }
 }
-const customWorkerOf = k => SLOTS[k].worker;
 // ---- planner slot ----
 function customPlanStart(wp, reason) {
   const F = S.fsm,

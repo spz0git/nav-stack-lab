@@ -1038,7 +1038,7 @@ function levelFromJSON(j, id) {
   const cfg = {},
     warn = [];
   for (const [k, v] of Object.entries(j.settings || {})) {
-    if (!(k in DEFAULTS) || LEVEL_NOSET.includes(k)) continue; // a key this page does not know is left out, not an error
+    if (!Object.hasOwn(DEFAULTS, k) || LEVEL_NOSET.includes(k)) continue; // a key this page does not know is left out, not an error
     if (typeof v !== typeof DEFAULTS[k]) bad(`setting ${k}: a ${typeof DEFAULTS[k]}`);
     if (k === 'sched' && schedError(v)) bad(`setting sched: ${schedError(v)}`);
     const why = paramError(k, v); // a value a setup link could not set either: left out, and said so when it loads
@@ -2334,7 +2334,8 @@ function schedError(v) {
     if (e.act != null && !SCHED_ACTS.includes(e.act)) return `act to be ${SCHED_ACTS.join(' or ')}`;
     if (e.act == null && (!e.set || typeof e.set !== 'object')) return 'set: {setting: value} or an act in each event';
     if (e.set)
-      for (const k of Object.keys(e.set)) if (!(k in DEFAULTS) || k === 'sched' || k === 'seed') return `settings it knows, not ${k}`;
+      for (const k of Object.keys(e.set))
+        if (!Object.hasOwn(DEFAULTS, k) || k === 'sched' || k === 'seed') return `settings it knows, not ${k}`;
   }
   return null;
 }
@@ -2699,9 +2700,10 @@ const PARAM_ALWAYS = ['infl', 'eps', 'rrtIt', 'wheelbase', 'steerMaxDeg', 'revPe
 // one a finite number within its range (PARAM_RANGE), the fault schedule well formed. setParam and a level's settings
 // (levels.js) both check with it.
 function paramError(k, v) {
-  if (PARAM_OPTS[k] && !PARAM_OPTS[k].includes(v)) return `${k} has no value "${v}" (one of ${PARAM_OPTS[k].join(', ')})`;
+  // own keys only: a key such as __proto__ or constructor would otherwise find Object.prototype's members
+  if (Object.hasOwn(PARAM_OPTS, k) && !PARAM_OPTS[k].includes(v)) return `${k} has no value "${v}" (one of ${PARAM_OPTS[k].join(', ')})`;
   if (typeof DEFAULTS[k] === 'number' && !(typeof v === 'number' && isFinite(v))) return `${k} needs a number, not "${v}"`;
-  const R = PARAM_RANGE[k];
+  const R = Object.hasOwn(PARAM_RANGE, k) ? PARAM_RANGE[k] : null;
   if (R && (v < R[0] || v > R[1])) return `${k} must be from ${R[0]} to ${R[1]}, not ${v}`;
   if (k === 'sched' && schedError(v)) return `the fault schedule needs ${schedError(v)}`;
   return null;
@@ -3100,9 +3102,6 @@ function beaconUse() {
     return `${segName(P.loc)} also fuses the GNSS fixes, so it keeps a position (metre-level) without beacons`;
   if (P.loc === 'custom') return 'your localizer gets the beacon readings that remain';
   return null;
-}
-function beaconDown(id) {
-  return beaconsOff().has(id) || !!(S.bDown && S.bDown[id]);
 }
 function beaconOutages() {
   const n = S.beacons.length;
@@ -8393,9 +8392,21 @@ function slotWorker(k, code) {
   try {
     wk = new Worker(url);
   } catch (err) {
+    URL.revokeObjectURL(url);
     return {error: 'Workers are unavailable here: ' + err.message};
   }
   const W_ = {wk, pending: null, dead: false, error: null, slot: k};
+  // the blob URL lives as long as the worker: revoked once, when the worker is stopped (timeout or kill)
+  let revoked = false;
+  const stop = () => {
+    try {
+      wk.terminate();
+    } catch (_) {}
+    if (!revoked) {
+      revoked = true;
+      URL.revokeObjectURL(url);
+    }
+  };
   wk.onmessage = e => {
     const p = W_.pending;
     W_.pending = null;
@@ -8423,7 +8434,7 @@ function slotWorker(k, code) {
         W_.pending = null;
         W_.dead = true;
         W_.error = `Timed out after ${D.timeout} ms (infinite loop?)`;
-        wk.terminate();
+        stop();
         slotStatus(k, W_.error, 'err');
         res({ok: false, error: W_.error});
       }, D.timeout);
@@ -8442,9 +8453,7 @@ function slotWorker(k, code) {
       clearTimeout(p.to);
       p.res({ok: false, error: 'replaced by a new load'});
     }
-    try {
-      wk.terminate();
-    } catch (_) {}
+    stop();
   };
   return W_;
 }
@@ -8488,7 +8497,6 @@ function slotNotLoaded(k) {
     sl.lastErr = 'none';
   }
 }
-const customWorkerOf = k => SLOTS[k].worker;
 // ---- planner slot ----
 function customPlanStart(wp, reason) {
   const F = S.fsm,
@@ -13012,11 +13020,6 @@ function postSense() {
   missionTick();
   agentsTick();
   oddTick(); // the ODD monitor, when on (core/oddmon.js)
-}
-function preControl() {
-  preSense();
-  postSense();
-  agentsPlan();
 }
 function metrics() {
   const r = S.robot,

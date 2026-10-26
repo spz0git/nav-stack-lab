@@ -430,6 +430,21 @@ Owner request: a track that teaches ISO 26262, ISO 21448 (SOTIF), ISO/PAS 8800 a
 - L6 Parking lot — car-like robot: reverse-in bay, nose-in bay, 2.2 m parallel slot.
 - L7 Moose test — the car with tyre slip at 3.5 m/s through a two-box slalom: the kinematic against the tyre-model MPC.
 
+## Audit fixes, Phase B (2026-10-26; branch `claude/hopeful-lovelace-u59hwf`, v68)
+The ten Phase B items of [assessment-2026-10-25.md](assessment-2026-10-25.md), in five commits: CI (the browser smoke test on
+every PR with npm, pip and Chromium cached and Playwright pinned in `tests/requirements.txt`; the nightly uploads its log
+and screenshots on failure; `npm run golden` prints the diff and needs `--why`, and CI fails a changed `golden.json`
+without a `golden:` commit line; `test.py` asserts the golden fields through the page; `tools/version-check.mjs` keeps
+`package.json`, `CITATION.cff` and the issue templates at `src/version.json`'s version, and each release is tagged),
+tests (`tests/uitest.py`, 94 assertions over the workspace, mapped from `src/ui/` and the stylesheet; the six print-only
+scripts removed), page (roving tabindex and arrow keys on the tab rows and the More menu, a focus trap in the search;
+Changed, Runs and View in the phone's settings sheet, the Mission diagram at natural size, the level menu wrapped),
+core (`reset()` declares all 104 run-state fields; the build warns about a model without its out-of-distribution
+reference and `training/README.md` has the `ood-ref` step), and docs and content (README, `src/README.md`, CONTRIBUTING,
+maintaining, the roadmap's next steps and the good-first-issue drafts refreshed; seed caveats, nine glossary terms,
+eleven references, whole-lesson minute estimates, the safety disclaimer aligned). Still open from the audit: Phase C,
+and the 761–960 px layout where Changed, Runs and View have no entry point either.
+
 ## Audit fixes, Phase A (2026-10-26; branch `claude/hopeful-lovelace-u59hwf`)
 The ten Phase A items of [assessment-2026-10-25.md](assessment-2026-10-25.md), in four commits: core (a `PARAM_RANGE` table next to
 `PARAM_OPTS`, one `paramError` check shared by `setParam` and a level's settings, the command queue clamped, the fault

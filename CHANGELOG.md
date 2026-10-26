@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v67 · 2026-10-26
 
 - Fixes from the audit of v66 (the assessment is in the repository under docs). A setup link, a level file or a fault
   schedule can no longer set a value that breaks the run, such as a negative latency (which froze the page), an empty

@@ -234,7 +234,6 @@ const GLOSS = {
     '',
     ['J_x', 'J_z']
   ],
-  Rm: ['<i>R</i>', 'Measurement noise covariance (<i>Q</i> in the EKF lesson).', '', ['R']],
   correlated: [
     'correlated',
     'Errors that move together: if the pose is off, the landmarks placed from it are off the same way.',
@@ -373,7 +372,8 @@ const GLOSS = {
   pxy: ['<i>p</i><sub>x</sub>, <i>p</i><sub>y</sub>', 'Tracked position.', 'm', ['p_x', 'p_y']],
   vxy: ['<i>v</i><sub>x</sub>, <i>v</i><sub>y</sub>', 'Tracked velocity, inferred from position changes.', 'm/s', ['v_x', 'v_y']],
   Fcv: ['<i>F</i>', 'State transition of the constant-velocity model: position grows by velocity × Δ<i>t</i>.', '', ['F']],
-  Qproc: ['<i>Q</i>', 'Process noise covariance: how much the velocity may change unpredictably per step.', '', ['Q']],
+  Rproc: ['<i>R</i>', 'Process noise covariance: how much the velocity may change unpredictably per step.', '', ['R']],
+  Qtrk: ['<i>Q</i>', 'Measurement noise covariance of a detected position, σ<sub>z</sub>² <i>I</i>.', '', ['Q']],
   siga: ['σ<sub>a</sub>', 'Standard deviation of the random acceleration the tracker assumes.', 'm/s²', ['σ_a']],
   pt: ['<i>p</i>(<i>t</i>)', 'Predicted position <i>t</i> seconds ahead.', 'm', ['p(t)']],
   rt: ['<i>r</i>(<i>t</i>)', 'Predicted radius <i>t</i> seconds ahead; it grows to cover prediction error.', 'm', ['r(t)']],
@@ -751,7 +751,7 @@ const GLOSS = {
   dbias: ['<i>d</i>', 'Size of the constant bias, in command units.', '', ['d']],
   Ke1: ['<i>K</i><sub>e</sub>', 'Command per metre of lateral error.', '', ['K_e']],
   pid: ['PID', 'Proportional-integral-derivative controller.', '', ['PID']],
-  Ki: ['<i>K</i><sub>i</sub>', 'Integral gain.', '', ['K_i']],
+  Ki: ['<i>k</i><sub>i</sub>', 'Integral gain.', '', ['k_i']],
   smallsig: ['small signals', 'Errors small enough that the linear model holds.', '', ['small signals']],
   ratelim: ['rate limit', 'The fastest an actuator can change, such as 1.5 rad/s of steering.', '', ['rate limit']],
   injsine: ['injected sine', 'A small sine added to the steering command to measure <i>L</i>(jω) in the simulator.', '', ['injected sine']],
@@ -1401,13 +1401,14 @@ const LESSON_TERMS = {
     'kidnap particle ellipse poserr unlabeled mahal gate d2 nu Sinn chi2 clutter ekf knownids pf inject hyp',
   'Particles: resampling, injection and symmetry':
     'pf motionmodel particle likelihood resample neff lowvar sumP wi Npart amcl wfs wavg inject globalloc mirror unlabeled lidar',
-  'EKF-SLAM: the map is part of the state': 'slam landmark xslam mlm Pslam nlm ppos rr bb Pmm Jxz Rm correlated drift deadreck loopclosure',
+  'EKF-SLAM: the map is part of the state':
+    'slam landmark xslam mlm Pslam nlm ppos rr bb Pmm Jxz Qmeas correlated drift deadreck loopclosure',
   'Log-odds mapping': 'lidar beam grid logodds clamp l lmeas lfh estframe deadreck',
   'Sonar: one number for a whole cone':
     'sonar cone specular deadzone crosstalk arcmodel conelik guard logodds lmeas pf likelihood contacts closest lidar',
   'Costmap: lethal cells and the inflation band': 'costmap disttrans lethal inflation dobs penalty winf edgecost frontier',
   'Tracking people: from lidar hits to tracks':
-    'cluster lidar cvkf track mahal confirm coast xag pxy vxy Fcv Qproc siga d2 pt pag vag t rt rag ggrow groundtruth',
+    'cluster lidar cvkf track mahal confirm coast xag pxy vxy Fcv Rproc Qtrk siga d2 pt pag vag t rt rag ggrow groundtruth',
   'Sensor latency: stale readings, moving prediction': 'latency tick lidar beacon nu Ts v nees ekf pf inject timestamp lagged biased',
   'A learned detector: people from the shape and motion of the hits':
     'conv1d precision recall distshift track cvkf cluster lidar logodds agent icp speedplanner odometry deadreck pf',

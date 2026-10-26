@@ -1232,7 +1232,7 @@ function anStory(R) {
     else if (M.ctl === 'stanley') ctl += ` It steers the front wheels to the path heading plus atan(k·e/v), k = ${fmt(P.stanK, 1)}.`;
   } else if (M.kind === 'pid') {
     const Ld = M.Ld;
-    ctl = `it aims at a point L<sub>d</sub> = ${fmt(Ld)} m ahead on the path: the angle to it is α ≈ −e/L<sub>d</sub> − θₑ, and the command is K<sub>p</sub>α + K<sub>i</sub>∫α + K<sub>d</sub>α̇ with K<sub>p</sub> ${fmt(P.kp, 1)}, K<sub>i</sub> ${fmt(P.ki, 2)}, K<sub>d</sub> ${fmt(P.kd, 2)}. The proportional part alone ${gainWords(M, P.kp / Ld, P.kp)}.`;
+    ctl = `it aims at a point L<sub>d</sub> = ${fmt(Ld)} m ahead on the path: the angle to it is α ≈ −e/L<sub>d</sub> − θₑ, and the command is k<sub>p</sub>α + k<sub>i</sub>∫α + k<sub>d</sub>α̇ with k<sub>p</sub> ${fmt(P.kp, 1)}, k<sub>i</sub> ${fmt(P.ki, 2)}, k<sub>d</sub> ${fmt(P.kd, 2)}. The proportional part alone ${gainWords(M, P.kp / Ld, P.kp)}.`;
   } else {
     const K = M.K,
       f = x => fmt((Math.abs(x) * 180) / Math.PI, 0);
@@ -1391,7 +1391,7 @@ function anTFkin(R) {
     }
       <p>Without the delay the closed loop is s² + ${fmt(a, 2)} s + ${fmt(b, 2)} = 0, so ω<sub>n</sub> = √(g v₀ K<sub>e</sub>) = ${fmt(wn, 2)} rad/s and ζ = g K<sub>θ</sub> / (2ω<sub>n</sub>) = ${fmt(z, 2)}; the exact 20 Hz loop with the delay gives ω<sub>n</sub> ${fmt(R.wn, 2)}, ζ ${fmt(R.zeta, 2)}. Units: s in 1/s, K<sub>e</sub> in ${M.car ? 'rad' : 'rad/s'} per m, K<sub>θ</sub> in ${M.car ? 'rad' : 'rad/s'} per rad.</p>`;
   } else if (M.kind === 'pid')
-    h += `L(s) = C(z) · (g v₀/L<sub>d</sub> + g s) / s² · ${dl}${lag}, with the 20 Hz PID C(z) = K<sub>p</sub> + K<sub>i</sub>T/(1 − z⁻¹) + K<sub>d</sub>(1 − z⁻¹)/T, z = e<sup>sT</sup>, L<sub>d</sub> = ${fmt(M.Ld, 2)} m.</p>`;
+    h += `L(s) = C(z) · (g v₀/L<sub>d</sub> + g s) / s² · ${dl}${lag}, with the 20 Hz PID C(z) = k<sub>p</sub> + k<sub>i</sub>T/(1 − z⁻¹) + k<sub>d</sub>(1 − z⁻¹)/T, z = e<sup>sT</sup>, L<sub>d</sub> = ${fmt(M.Ld, 2)} m.</p>`;
   else
     h += `L(s) = T/(1 − z⁻¹) · 1/(1 − K<sub>u</sub>z⁻¹) · [K<sub>c</sub>z⁻¹ + (K<sub>s</sub>z⁻¹ + (K<sub>e</sub> g v₀ + K<sub>θ</sub> g s)/s² · ${dl})${lag}], with K<sub>e</sub> ${fmt(M.K.e, 2)}, K<sub>θ</sub> ${fmt(M.K.th, 2)}, K<sub>s</sub> ${fmt(M.K.s, 2)}, K<sub>c</sub> ${fmt(M.K.c || 0, 2)}, K<sub>u</sub> ${fmt(M.K.u, 2)} read from the MPC.</p>`;
   return h;
@@ -1466,7 +1466,7 @@ function anWhy(R) {
       h += `<p><b>3. Without the delays</b> ζ ≥ 1: two real poles, no swing. The slower one, s = −ζω<sub>n</sub> + ω<sub>n</sub>√(ζ² − 1) = ${fmt(s1)} 1/s, decides: within 2 % after about ln(50)/|s| = <b>${fmt(Math.log(50) / Math.abs(s1), 1)} s</b> (longer when the two poles are close).</p>`;
     }
   } else if (M.kind === 'pid') {
-    h += `<p><b>2. The controller near the path.</b> PID aims at a point L<sub>d</sub> = ${fmt(M.Ld)} m ahead: α ≈ −e/L<sub>d</sub> − θₑ and u = K<sub>p</sub>α + K<sub>i</sub>∫α dt + K<sub>d</sub>α̇ (K<sub>p</sub> ${fmt(P.kp, 2)}, K<sub>i</sub> ${fmt(P.ki, 2)}, K<sub>d</sub> ${fmt(P.kd, 2)}). The proportional part alone is K<sub>e</sub> = K<sub>p</sub>/L<sub>d</sub> = ${fmt(P.kp / M.Ld)}, K<sub>θ</sub> = K<sub>p</sub> = ${fmt(P.kp)}; the integral adds a third state, so there is no two-pole formula and the numbers below come from the discrete loop directly.</p>`;
+    h += `<p><b>2. The controller near the path.</b> PID aims at a point L<sub>d</sub> = ${fmt(M.Ld)} m ahead: α ≈ −e/L<sub>d</sub> − θₑ and u = k<sub>p</sub>α + k<sub>i</sub>∫α dt + k<sub>d</sub>α̇ (k<sub>p</sub> ${fmt(P.kp, 2)}, k<sub>i</sub> ${fmt(P.ki, 2)}, k<sub>d</sub> ${fmt(P.kd, 2)}). The proportional part alone is K<sub>e</sub> = k<sub>p</sub>/L<sub>d</sub> = ${fmt(P.kp / M.Ld)}, K<sub>θ</sub> = k<sub>p</sub> = ${fmt(P.kp)}; the integral adds a third state, so there is no two-pole formula and the numbers below come from the discrete loop directly.</p>`;
   } else {
     const K = M.K;
     h += `<p><b>2. The controller near the path.</b> Near the path MPC acts on the <i>rate</i> of ${car ? 'steering' : 'turning'}: u̇ = −(K<sub>e</sub>e + K<sub>θ</sub>θₑ + K<sub>s</sub>u) + K<sub>u</sub>u̇<sub>prev</sub>, with K<sub>e</sub> ${fmt(K.e)}, K<sub>θ</sub> ${fmt(K.th)}, K<sub>s</sub> ${fmt(K.s)}, K<sub>u</sub> ${fmt(K.u)} read off the MPC's own code by central differences (the optimization run to convergence). The rate form integrates, which makes the loop third order; the numbers below come from the discrete loop directly. Derivation: <a class="chref" href="#notes=ch7/6-what-the-analyze-view-sees">chapter 7 §6</a></p>`;
@@ -1482,9 +1482,9 @@ function anWhy(R) {
       : M.kind === 'pid'
         ? P.ki
           ? 'The integral keeps growing until α = 0, so e<sub>ss</sub> = 0.'
-          : `Without the integral, K<sub>p</sub>α = d: e<sub>ss</sub> = d·L<sub>d</sub>/K<sub>p</sub> = <b>${fmt(essF * 100, 1)} cm</b>.`
+          : `Without the integral, k<sub>p</sub>α = d: e<sub>ss</sub> = d·L<sub>d</sub>/k<sub>p</sub> = <b>${fmt(essF * 100, 1)} cm</b>.`
         : 'The rate form holds u where u̇ = 0, so the offset depends on how K<sub>s</sub> and K<sub>e</sub> balance; it is read off the simulated response.') +
-    ` The chip reads the end of the simulated bias response: ${fmt(Math.abs(sb.final * d) * 100, 1)} cm. Integral action (PID with K<sub>i</sub> > 0) removes it. ${chLink('5-poles-damping-and-the-shape-of-the-response', 'chapter 6 §5')}</p>`;
+    ` The chip reads the end of the simulated bias response: ${fmt(Math.abs(sb.final * d) * 100, 1)} cm. Integral action (PID with k<sub>i</sub> > 0) removes it. ${chLink('5-poles-damping-and-the-shape-of-the-response', 'chapter 6 §5')}</p>`;
   h += `<p><b>7. Reading a pole.</b> A pole s = −σ ± jω is the motion e<sup>−σt</sup>cos ωt: it shrinks by a factor e every 1/σ seconds (the time constant) and repeats every 2π/ω seconds, which is 2πv₀/ω metres along the path. A pole with σ < 0 (right half) grows instead: it doubles every ln 2 / |σ| seconds.</p>`;
   return h;
 }
@@ -1770,6 +1770,10 @@ function anInvalidate(keepMeas) {
   }
 }
 function setMode(m) {
+  if (m !== AN.mode) {
+    searchPlayStop();
+    legendShow(false);
+  }
   AN.mode = m;
   $('#simview').hidden = m !== 'sim';
   $('#anview').hidden = m !== 'an';

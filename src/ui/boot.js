@@ -6,6 +6,8 @@ UI.refresh = refreshAll;
 UI.invalidate = anInvalidate;
 UI.levelChanged = () => {
   SEL = null;
+  searchPlayStop();
+  legendShow(false);
   if (REPLAY.active) {
     REPLAY.active = false;
     logDirty = true;
@@ -22,6 +24,9 @@ UI.levelChanged = () => {
 UI.mode = () => AN.mode;
 buildTabs();
 loadLevel(0);
+// what nothing else catches goes to the event log (ui/loop.js reportError), from here on: there is a log to write to
+window.addEventListener('unhandledrejection', e => reportError('Error', e.reason));
+window.addEventListener('error', e => reportError('Error', e.error || e.message));
 let linkCfg = null;
 {
   const fail = e => logE('Could not restore the setup from the link: ' + e.message, 'warn'),

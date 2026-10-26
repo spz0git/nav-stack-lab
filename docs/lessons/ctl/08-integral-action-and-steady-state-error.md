@@ -3,7 +3,7 @@ title: Integral action and steady-state error
 
 <p><b>Why this matters.</b> Real actuators are biased: a steering link a degree off centre, one motor a little weaker, a miscalibrated zero. A proportional-derivative loop reacts to such a bias by settling where the controller's output cancels it, which needs a standing error. For a lane-keeping controller that is a vehicle that drives steadily a few centimetres off the centre line, for ever. Integral action removes it, and the price it charges, phase, is the subject of the second half of this lesson. MPC gets the same effect from its structure, with a condition that is easy to miss.</p>
 <p><b>The idea.</b> A constant actuator bias is a step disturbance at the plant input. With only proportional and derivative terms the loop settles where the controller output equals minus the bias, and the error that produces that output is $e_\text{ss} = d/K_e$: larger bias or softer gain, larger standing error. An integrator keeps adding to the command as long as the error is nonzero, so the only equilibrium is zero error. In the frequency domain the integrator is $1/s$: infinite gain at zero frequency (which is what kills the steady error) and −90° of phase at low frequency, which eats margin if the integral gain is large enough to matter near the crossover. The MPC commands a rate and builds each command on its previous one, so it integrates its input and removes a bias it can see.</p>
-$$\begin{aligned} & && e_\text{ss} = d/K_e \quad (K_e\text{: command per metre of lateral error}) \\ &\text{PID tracker:} && u = K_p\,\alpha + K_i \textstyle\int \alpha\,dt + K_d\,\dot\alpha, \quad \alpha\text{: bearing to the carrot}, \quad \textstyle\int\alpha\,dt \text{ clamped to } \pm 1 \ \text{rad·s} \\ &\text{MPC:} && u_k = u_{k-1} + \dot u_k\,\Delta t \quad \text{(it commands a rate, so its command is an integral)} \end{aligned}$$
+$$\begin{aligned} & && e_\text{ss} = d/K_e \quad (K_e\text{: command per metre of lateral error}) \\ &\text{PID tracker:} && u = k_p\,\alpha + k_i \textstyle\int \alpha\,dt + k_d\,\dot\alpha, \quad \alpha\text{: bearing to the carrot}, \quad \textstyle\int\alpha\,dt \text{ clamped to } \pm 1 \ \text{rad·s} \\ &\text{MPC:} && u_k = u_{k-1} + \dot u_k\,\Delta t \quad \text{(it commands a rate, so its command is an integral)} \end{aligned}$$
 <p><b>Where it comes from.</b> At steady state $\dot e = \dot\theta_e = 0$, so the plant input must be zero: controller output + bias = 0, and with output $-K_e e$ that is $e = d/K_e$. With an integrator, a constant nonzero $e$ would make the output grow without bound, so steady state requires $e = 0$. <a class="chref" href="#notes=ch6/5-poles-damping-and-the-shape-of-the-response">The bias response: chapter 6 §5</a> · <a class="chref" href="#notes=ch7/7-why-it-integrates">why the MPC integrates: chapter 7 §7</a> · <a class="chref" href="#notes=ch5/5-pid-on-the-bearing">the PID tracker: chapter 5 §5</a></p>
 <p><b>What the lab does.</b> The response plot switches to the bias case here: the plotted quantity is the lateral error per unit of bias, so a final value of 0.28 means 28 % of the bias-response unit remains. The Vehicle tab has the same bias as a slider for normal runs: a steering misalignment in degrees for the car, a turn-rate offset in rad/s for the diff-drive. The MPC measures the diff-drive's turn rate directly; the car's steering encoder reads the angle before the misaligned link.</p>
 
@@ -29,23 +29,23 @@ Predict: The MPC, with no integral gain tuned, under a turn-rate bias: what resi
 - A slow creep lasting tens of seconds
 Answer: 0
 
-## Try: Car, PID with K_i = 0
+## Try: Car, PID with k_i = 0
 cfg: {"level":5,"set":{"ctl":"pid","kp":2,"ki":0,"kd":0.15},"stepKind":"bias","test":"step"}
 Setup: The car with PID on the bearing, proportional and derivative only, under the same 2° misalignment.
 See: Peak 0.30, settled in 4.3 s at 0.29: the same standing error as rear-wheel feedback, because the proportional gain on the bearing plays the role of $K_e$. Phase margin 72°.
 Shows: PD is PD whatever it is called. The 29 % residual is $d/K_e$ for this controller's effective lateral gain; the only way to remove it without changing the gain is to add a term that keeps acting while the error stands.
-Predict: PID on the bearing with $K_i = 0$ under the same 2° bias: how does its residual compare with rear-wheel feedback?
+Predict: PID on the bearing with $k_i = 0$ under the same 2° bias: how does its residual compare with rear-wheel feedback?
 - Smaller: the bearing already encodes the heading
 - Zero: the derivative term handles it
 - About the same standing error, near 30 %
 Answer: 2
 
-## Try: Car, PID with K_i = 0.4
+## Try: Car, PID with k_i = 0.4
 cfg: {"level":5,"set":{"ctl":"pid","kp":2,"ki":0.4,"kd":0.15},"stepKind":"bias","test":"step"}
-Setup: $K_i$ raised to 0.4.
+Setup: $k_i$ raised to 0.4.
 See: The residual falls to 0.9 %, but the response is now a slow creep: peak 0.235, then a long tail that takes 16 s to settle within 2 %. Phase margin 66°, a few degrees lower, and a slow real pole has appeared near the origin.
 Shows: The integrator removed the offset and added a slow mode: the integral has to wind up to the value that cancels the bias, and at $k_i = 0.4$ that takes a quarter of a minute. A larger $k_i$ winds up faster and costs more phase at crossover; the usual compromise is to make the integral slow (tens of seconds) and accept the creep, or to use the MPC's structural integration, which has no such tail. Integral action only fixes what it can see: the car's steering misalignment is downstream of the steering encoder, so the MPC on the car settles at 0.71 of the bias unit, more than rear-wheel feedback's 0.28, where the diff-drive MPC leaves none.
-Predict: Adding $K_i = 0.4$: what happens to the residual and the settling time?
+Predict: Adding $k_i = 0.4$: what happens to the residual and the settling time?
 - Residual under 1 %, settling stretches to tens of seconds
 - Residual under 1 % at no cost in settling
 - Residual halves; the loop rings from the lost phase

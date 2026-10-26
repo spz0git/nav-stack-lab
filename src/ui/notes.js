@@ -28,7 +28,7 @@ y' &= y - \frac{v}{\omega}\bigl(\cos(\theta + \omega\Delta t) - \cos\theta\bigr)
 $$G = \frac{\partial g}{\partial x} = \begin{bmatrix} 1 & 0 & -v\Delta t\sin\theta \\ 0 & 1 & v\Delta t\cos\theta \\ 0 & 0 & 1 \end{bmatrix}$$
 $$V = \frac{\partial g}{\partial u} = \begin{bmatrix} \Delta t\cos\theta & 0 \\ \Delta t\sin\theta & 0 \\ 0 & \Delta t \end{bmatrix} \qquad M = \operatorname{diag}(\sigma_v^2, \sigma_\omega^2)$$
 <p>$G$ and $V$ are the straight-line Jacobians, also used on arcs; $M$ is the assumed noise × the filter scale.</p>
-<p><b>EKF</b> corrects with each beacon reading $z = [r, \varphi]$ at 5 Hz, using the Joseph-form covariance update.</p>
+<p><b>EKF</b> corrects with each beacon reading $z = [r, b]$ at 5 Hz, using the Joseph-form covariance update.</p>
 $$\hat z = \begin{bmatrix} \sqrt q \\ \operatorname{atan2}(\Delta y, \Delta x) - \theta \end{bmatrix}, \qquad q = \Delta x^2 + \Delta y^2$$
 $$H = \begin{bmatrix} -\Delta x/\sqrt q & -\Delta y/\sqrt q & 0 \\ \Delta y/q & -\Delta x/q & -1 \end{bmatrix}$$
 $$S = H\Sigma H^\top + Q, \qquad K = \Sigma H^\top S^{-1}, \qquad \mu \mathrel{+}= K\,(z - \hat z)$$
@@ -47,7 +47,7 @@ $$\log w_i \mathrel{+}= 0.4 \sum_\text{beams} \log\bigl(0.9\,e^{-d^2/2\sigma^2} 
 $$\begin{aligned}
 &\text{predict:} && \text{pose} \leftarrow g(\text{pose}, u), \quad P_{xx} \leftarrow G P_{xx} G^\top + V M V^\top \\
 &&& P_{xm} \leftarrow G P_{xm}, \quad \text{landmarks unchanged} \\
-&\text{new:} && m = p + r \begin{bmatrix} \cos(\theta + b) \\ \sin(\theta + b) \end{bmatrix}, \quad P_{mm} = J_x P_{xx} J_x^\top + J_z R J_z^\top, \quad P_{mx} = J_x P_{xx} \\
+&\text{new:} && m = p + r \begin{bmatrix} \cos(\theta + b) \\ \sin(\theta + b) \end{bmatrix}, \quad P_{mm} = J_x P_{xx} J_x^\top + J_z Q J_z^\top, \quad P_{mx} = J_x P_{xx} \\
 &&& J_x = \begin{bmatrix} 1 & 0 & -r\sin(\theta + b) \\ 0 & 1 & r\cos(\theta + b) \end{bmatrix} \\
 &&& J_z = \begin{bmatrix} \cos(\theta + b) & -r\sin(\theta + b) \\ \sin(\theta + b) & r\cos(\theta + b) \end{bmatrix} \\
 &\text{update:} && \hat z_j = h(p, \theta, m_j) \text{ as for the EKF}, \quad \frac{\partial h}{\partial m_j} = -\frac{\partial h}{\partial p} \\
@@ -60,7 +60,7 @@ $$l \leftarrow \operatorname{clamp}(l + l_\text{meas}, \pm 4), \qquad l_\text{fr
 <p>A cell is occupied if $l > 0.5$ and unknown if $l \approx 0$. Inverse sensor model: $l_\text{hit}$ on the cell a returned beam ends in, $l_\text{free}$ on every cell before it (a beam at maximum range: $l_\text{free}$ on all of its cells).</p>
 <p><b>Costmap.</b> A two-pass chamfer distance transform gives distance to the nearest occupied cell. Cells closer than 0.4 m (robot radius 0.3 m plus margin) are lethal; a quadratic penalty fades out across the inflation band.</p>
 <p><b>Agent tracking.</b> The lidar tracker takes the hits the static map does not explain (prior map: more than 0.25 m from it; built map: cells that are not persistently occupied) and clusters them over consecutive beams. Clusters wider than 1.2 m are dropped as map error. Hits lie on the near side of a person, so the center is pushed $0.6\,r$ away from the sensor. Each track is a constant-velocity Kalman filter with state $x = [p_x, p_y, v_x, v_y]$ and white acceleration noise:</p>
-$$x' = F x, \quad F = \begin{bmatrix} I & \Delta t\, I \\ 0 & I \end{bmatrix}, \qquad Q = \sigma_a^2 \begin{bmatrix} \tfrac{\Delta t^4}{4} I & \tfrac{\Delta t^3}{2} I \\ \tfrac{\Delta t^3}{2} I & \Delta t^2 I \end{bmatrix}$$
+$$x' = F x, \quad F = \begin{bmatrix} I & \Delta t\, I \\ 0 & I \end{bmatrix}, \qquad R = \sigma_a^2 \begin{bmatrix} \tfrac{\Delta t^4}{4} I & \tfrac{\Delta t^3}{2} I \\ \tfrac{\Delta t^3}{2} I & \Delta t^2 I \end{bmatrix}$$
 $$z = p + \text{noise}\ (\sigma_z = 0.1\text{ m}), \qquad \text{gate: } d^2 = \frac{\lVert z - \hat p \rVert^2}{P_{pp} + \sigma_z^2} < 9.21 \quad (\chi^2_2,\ 99\,\%)$$
 <p>Assignment is greedy nearest-neighbour; a track is confirmed after 3 hits and coasts up to 1 s unseen. Its prediction is $p(t) = p + v\,t$, with radius $r(t) = r + g\,t$.</p>
 <p><b>Ground truth</b> hands over true positions and velocities, which separates prediction error from tracking error. Hits that belong to confirmed tracks are taken out of the static obstacle set the local planners see; the predictions replace them. People do not react to the robot, so this is prediction without interaction.</p>`,
@@ -116,7 +116,7 @@ L &= L_0 + k\,v, & \kappa &= \frac{2\sin\alpha}{L}, & \omega &= v\,\kappa \\
 v &\le \sqrt{a_\text{lat}/|\kappa|}, & v &\le \sqrt{2\,a\,d_\text{goal}}
 \end{aligned}$$
 <p>If $|\omega| > \omega_{\max}$, then $\omega = \pm\omega_{\max}$ and $v = \omega_{\max}/|\kappa|$, which keeps the curvature.</p>
-<p><b>PID heading</b> uses the same carrot: $\omega = K_p e + K_i \int e + K_d \dot e$, with $v = v_\text{cruise} \cos^2 e$. Integral is clamped to ±1 rad·s.</p>
+<p><b>PID heading</b> uses the same carrot: $\omega = k_p e + k_i \int e + k_d \dot e$, with $v = v_\text{cruise} \cos^2 e$. Integral is clamped to ±1 rad·s.</p>
 <p><b>DWA</b> (dynamic window) samples 7 × 15 $(v, \omega)$ pairs reachable within 0.25 s under the acceleration limits, rolls each out over the horizon, rejects those that hit perceived lidar points or cannot brake in time, and scores the rest:</p>
 $$J = w_g\bigl(\lVert \text{end} - \text{carrot} \rVert + 0.3\,|\text{heading err}|\bigr) + \frac{w_o}{\text{clearance}} + w_v\,(v_\text{top} - v)$$
 <p>A rollout holds $(v, \omega)$ for $T$ (1.6 s) in 0.1 s steps of the arc model (the car samples $\delta$, with $\omega = v\tan\delta / L$). It is rejected if its clearance is below 0.05 m or $v > \sqrt{2\,a_{\max} \cdot \text{clearance}}$.</p>

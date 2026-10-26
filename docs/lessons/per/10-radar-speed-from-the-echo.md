@@ -36,10 +36,10 @@ cfg: {"sim":true,"level":4,"set":{"radar":true,"weather":"fog"},"tab":"per","lay
 Setup: Weather set to Fog: the lidar's returns fade beyond about 4 m of its 8, one beam in seven returns nothing, the ranges are noisier, and now and then a beam returns from the fog itself under 2 m out. The tracker uses the lidar only; the radar, unaffected, is drawn.
 See: The amber lidar hits shrink to a ring of about 4 m round the robot, with stray hits in the air inside it. People farther out walk without a track while the radar's diamonds sit on them; the person who comes down the aisle toward the robot at 43 s, 6.6 m ahead, gets a ring only at 4.7 m, more than two seconds later. Over the run, a person in the radar's view, within 8 m and in line of sight, has no confirmed track 12 % of the time (15 % and 12 % at seeds 2 and 3, against 2–3 % in clear air). Stray hits that land near each other in three scans become tracks of nobody, 19 in the run, and the speed planner yields to them 4 times (6 and 3 at seeds 2 and 3). The prediction error at 1 s rises to 0.37 m. Mission complete at 121 s with one contact.
 Shows: Fog takes three things from a lidar: reach, so people are found late; beams, so tracks break and restart with no velocity; and clean air, so the air itself returns hits that a rule built on "hits the map cannot explain" calls people. The robot stops for things that are not there and finds the people who are later than it should.
-Predict: Now put the radar into the tracker, still in fog. Which people get a track?
-- Those in the radar's wedge, out to its reach and in line of sight; to the sides and behind only within about 4 m, as before
-- Everyone within 20 m all round: the radar sees through fog
-- Nobody beyond 4 m: the tracker still needs the lidar to confirm
+Predict: Fog cuts the lidar's reach to about 4 m. With only the lidar in the tracker, which people get a track?
+- Only those within about 4 m; farther out they walk without a ring while the radar's diamonds sit on them
+- Everyone within the lidar's 8 m: the tracker coasts across the gaps
+- Nobody: the fog hides every person
 Answer: 0
 
 ## Try: Fog, lidar + radar
@@ -47,10 +47,10 @@ cfg: {"sim":true,"level":4,"set":{"radar":true,"trkIn":"both","weather":"fog"},"
 Setup: The same fog with Tracker inputs set to Lidar + radar.
 See: Rings come back on the people ahead, out to where the shelves hide them; to the sides and behind, the fog still decides. The person coming down the aisle at 43 s has a ring from 6.3 m. A person in the radar's view goes without a track 4 % of the time (7 % at seed 2; at seed 3 the robot is stuck against a shelf end for a while and it is 19 %). Tracks of nobody drop to 12, and the speed planner yields to them once (twice at seeds 2 and 3). Mission complete at 123 s with one contact, at 53 s. The prediction error at 1 s is not better, 0.39 m: the radar keeps tracks of people far down the aisles that the fogged lidar never had, with positions a 3° bearing makes coarse, and they are scored too.
 Shows: Two sensors that fail differently cover for each other: the radar keeps the people ahead, and cross-sensor confirmation keeps the fog's stray hits from becoming people the robot stops for, since the fog returns no radar echo. Fusion does not make the lidar any better: the tracker still believes its fogged clusters are good to 0.1 m (the turn at 50 s is followed in 0.5 s, not 0.1), because nothing told it the weather changed. Real stacks estimate each sensor's health and reweigh it; here the lesson is that the noise a filter assumes has to follow the conditions.
-Predict: Turn the radar's false detections up to ten per scan, in clear air, with both sensors in the tracker. What do you see?
-- Tracks of nobody, a few at a time, which the speed planner sometimes yields to; but nearly all the false detections never become tracks
-- A track on every false detection: ten new people a scan
-- Nothing: the lidar must confirm every track
+Predict: Now put the radar into the tracker, still in fog. Which people get a track?
+- Those in the radar's wedge, out to its reach and in line of sight; to the sides and behind only within about 4 m, as before
+- Everyone within 20 m all round: the radar sees through fog
+- Nobody beyond 4 m: the tracker still needs the lidar to confirm
 Answer: 0
 
 ## Try: Clutter turned up
@@ -58,10 +58,10 @@ cfg: {"sim":true,"level":4,"set":{"radar":true,"trkIn":"both","radClutter":10},"
 Setup: Clear air, both sensors, and ten false radar detections per scan on average, anywhere in the wedge with random radial velocities.
 See: The wedge fills with diamonds and the metrics' Radar line shows about fifteen detections a scan, ten of them nothing. Rings appear on empty floor, mostly far out where the bearing noise makes the gates wide: 221 tracks of nobody over the run (206 and 203 at seeds 2 and 3), out of about 15 000 false detections. The speed planner yields to them 25 times (22 and 14), and Mission complete comes at 131 s instead of 119 (134 against 127 and 129 against 119 at seeds 2 and 3), with one contact.
 Shows: The gate and the three-hit confirmation do almost all the work: 98.5 % of the false detections never become a track, because a random echo seldom lands inside a gate three scans running. The 1.5 % that do are where cross-sensor confirmation cannot help: far out, beyond the lidar's reach, the radar alone vouches for a track. Nearest-neighbour association has a second weakness that the counts do not show: when a person's own echo is missing for a scan, a false one inside their gate is taken as theirs and pulls the track. Probabilistic data association weighs every echo in the gate instead of trusting the nearest; the lab does not implement it.
-Predict: The moose test (L7): the car drives at 3.5 m/s straight at a box. What closing speed does the radar read on the box?
-- About 3.5 m/s: the box stands still, so the closing speed is the car's own
-- Zero: the box does not move
-- Nothing: a radar only sees moving things
+Predict: Turn the radar's false detections up to ten per scan, in clear air, with both sensors in the tracker. What do you see?
+- Tracks of nobody, a few at a time, which the speed planner sometimes yields to; but nearly all the false detections never become tracks
+- A track on every false detection: ten new people a scan
+- Nothing: the lidar must confirm every track
 Answer: 0
 
 ## Try: The moose test, read by the radar
@@ -69,6 +69,11 @@ cfg: {"sim":true,"level":6,"set":{"radar":true},"tab":"per","layers":{"radar":tr
 Setup: L7 as it loads (the car with tyre slip on the slippery floor, 3.5 m/s, the MPC with its kinematic model, which control lesson 17 shows hitting the first box), with the radar on. Pause at 1.5 s and step.
 See: At 1.55 s the radar's nearest detection ahead is the first box, 3.6 m away, closing at 3.5 m/s: contact in 1.0 s (3.0 m and 0.9 s at seed 2, 3.7 m and 1.0 s at seed 3). The car hits the box at 2.4 s.
 Shows: Range divided by closing speed is the time to contact, and one radar detection gives it without any tracking, map or classification: it is what automatic emergency braking reads. At 1.55 s there was still room: braking at the slippery floor's grip, about 2.5 m/s², stops a car from 3.5 m/s in 2.5 m, less than the 3.6 m left. A controller that steers a car it does not understand into a box is the control group's lesson; the radar's is that a warning a second ahead, from one number per echo, is often enough to stop.
+Predict: The moose test (L7): the car drives at 3.5 m/s straight at a box. What closing speed does the radar read on the box?
+- About 3.5 m/s: the box stands still, so the closing speed is the car's own
+- Zero: the box does not move
+- Nothing: a radar only sees moving things
+Answer: 0
 
 ## Code: radarH and radarTrack, the radar's update
 snippet: radar-update

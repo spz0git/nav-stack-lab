@@ -2622,7 +2622,12 @@ details.see > p {
   color: var(--bad);
 }
 .how-body a.chref {
-  display: inline-block;
+  /* inline, so a long one wraps; each line keeps the chip's border and padding */
+  display: inline;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  overflow-wrap: anywhere;
+  line-height: 1.9;
   font-family: var(--f-mono);
   font-size: var(--fs-small);
   color: var(--accent);
@@ -2631,7 +2636,6 @@ details.see > p {
   border-radius: 999px;
   padding: 1px 9px;
   margin-left: 2px;
-  white-space: nowrap;
   vertical-align: baseline;
 }
 .how-body a.chref:hover {

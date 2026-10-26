@@ -114,7 +114,7 @@ function applyCmd(c) {
   // the zero-velocity update needs the robot still: with it on, the first 2 s of a run are a calibration hold
   if (P.gyro && P.zupt && S.t < 2) c = {v: 0, w: 0, steer: 0};
   S.cmdIssued = c;
-  const n = Math.round(P.latency / DT);
+  const n = Math.max(0, Math.round(P.latency / DT)); // never negative: a queue that cannot shrink below n hangs the loop
   if (!n) {
     S.cmd = c;
     S.cmdQ = [];

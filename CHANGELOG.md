@@ -4,6 +4,32 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v67 · 2026-10-26
+
+- Fixes from the audit of v66 (the assessment is in the repository under docs). A setup link, a level file or a fault
+  schedule can no longer set a value that breaks the run, such as a negative latency (which froze the page), an empty
+  MPC horizon, a car with no mass or millions of particles: the value is ignored and the event log says which one and
+  why. A level whose settings name something the page does not have loads with that setting left out, and the log
+  names it. If the simulation hits an internal error, the run pauses and the error appears in the event log instead of
+  the robot standing still with nothing said.
+- A fault schedule's change now takes full effect at its moment: a new inflation radius rebuilds the costmap and
+  replans, a planner or vehicle change replans, as moving the slider does.
+- Leaving a planning lesson's search playback for another lesson, Analyze or another level stops the playback; on a
+  phone it filled the console with errors. The "Where it comes from" links in lessons wrap, so they are no longer cut
+  off at the panel edge or make a phone page scroll sideways. The map key (?) closes with Escape and when you switch
+  mode or level.
+- The self-checks of the learned detector and learned predictor lessons accept the right answer; before, no answer
+  could complete them.
+- The noise letters are the same everywhere: Q for measurement noise, R for noise added to the state, M for odometry
+  noise, in the GNSS chapter and lesson, the How it works panels and the glossary; the notation chapter's table says
+  where other books swap them. The PID gains are written k_p, k_i, k_d throughout.
+- Corrected numbers and links in the chapters: the gyro-bias drift after a minute (12.6 m), two chapter links that
+  pointed one section off, figures that disagreed with their lesson, and introductions that now cover every section.
+  In the radar lesson each "Before you press" question sits under the experiment it asks about; the dead-reckoning
+  question asks about ten minutes of driving, where its answer holds at every seed; the Bode-plot measurement sets up
+  its own loop; the first control lesson states the lookahead its crossover was read at; the safety-hours lesson says
+  why its two 95 % bounds differ.
+
 ## v66 · 2026-10-24
 
 - Safety, the last lesson, *The safety argument: claims, evidence, and what breaks it*: the busy floor's safety case

@@ -136,7 +136,7 @@ const NOMEN = [
       [`${I('k')}<sub>θ</sub>, ${I('k')}<sub>e</sub>`, 'Rear-wheel feedback heading and lateral gains', '1/m, 1/m²'],
       [I('k'), 'In Stanley: cross-track gain', ''],
       [`${I('e')}<sub>front</sub>`, 'Stanley cross-track error of the front axle', 'm'],
-      [`${I('K')}<sub>p</sub>, ${I('K')}<sub>i</sub>, ${I('K')}<sub>d</sub>`, 'PID gains on the heading error', ''],
+      [`${I('k')}<sub>p</sub>, ${I('k')}<sub>i</sub>, ${I('k')}<sub>d</sub>`, 'PID gains on the heading error', ''],
       [`${I('w')}<sub>g</sub>, ${I('w')}<sub>o</sub>, ${I('w')}<sub>v</sub>`, 'DWA weights on goal progress, clearance and speed', ''],
       [I('J'), 'Cost being minimized (DWA score, MPC objective)', '']
     ]

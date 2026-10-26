@@ -14,7 +14,8 @@
                at once) | 'pause' (waits `wait` s at each end), trigger (optional): {near: [x, y], r} (the person stands
                still where the route starts until the robot comes within r m of near, then walks)}, …],
       cars: [{loop: [[x, y], …], speed, phase}, …] (optional: the parking lot's moving car),
-      settings: {key: value} (the level's own setup: keys of DEFAULTS in core/params.js),
+      settings: {key: value} (the level's own setup: keys of DEFAULTS in core/params.js; a value setParam would refuse,
+                a choice it does not have or a number out of range, is left out with a warning in the event log),
       layers: {cost: true} (optional: map layers the level shows),
       gen: the generator spec it was made from (optional; informational)}
    The runtime level (what LV holds) keeps the old field names: shapes as {t, x, y, …}, peds, wps, cfg.
@@ -151,12 +152,15 @@ function levelFromJSON(j, id) {
     s0: clamp(num(c.phase || 0, 'car phase'), 0, 1)
   }));
   if (cars.some(c => c.loop.length < 2)) bad('a car loop needs two points or more');
-  const cfg = {};
+  const cfg = {},
+    warn = [];
   for (const [k, v] of Object.entries(j.settings || {})) {
     if (!(k in DEFAULTS) || LEVEL_NOSET.includes(k)) continue; // a key this page does not know is left out, not an error
     if (typeof v !== typeof DEFAULTS[k]) bad(`setting ${k}: a ${typeof DEFAULTS[k]}`);
     if (k === 'sched' && schedError(v)) bad(`setting sched: ${schedError(v)}`);
-    cfg[k] = v;
+    const why = paramError(k, v); // a value a setup link could not set either: left out, and said so when it loads
+    if (why) warn.push(why);
+    else cfg[k] = v;
   }
   const L = {
     id: id || 'C',
@@ -174,6 +178,7 @@ function levelFromJSON(j, id) {
     layers: {cost: !!(j.layers && j.layers.cost)}
   };
   if (cars.length) L.cars = cars;
+  if (warn.length) L.warn = warn;
   if (j.gen && typeof j.gen === 'object') L.gen = {...j.gen};
   return L;
 }

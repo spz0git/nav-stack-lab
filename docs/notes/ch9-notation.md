@@ -32,7 +32,9 @@ A letter is reused when the two meanings never meet in one formula. These are th
 | $\alpha$ | a tyre slip angle $\alpha_f$, $\alpha_r$ (chapter 1) | the angular-acceleration limit of the unicycle (Vehicle tab); a particle's injection fraction (chapter 2) |
 | $\sigma$ | a standard deviation | the steering or turn-rate state in the MPC's $u = [a, \dot s]$ is written $s$, not $\sigma$ |
 | $T$ | the control tick | the complementary sensitivity $T(s) = L/(1+L)$ (chapter 6); the prediction horizon $T_p$ of the speed planner |
-| $Q$ | measurement noise (chapter 2) | the MPC's state-error weights $Q_{lat}, Q_{lon}, \dots$ (chapter 7) |
+| $Q$ | measurement noise (chapters 2, 3) | the MPC's state-error weights $Q_{lat}, Q_{lon}, \dots$ (chapter 7) and LQR's state weight (chapter 6 §8); in many Kalman-filter texts, the process noise |
+| $R$ | process noise added to the state (chapter 2 §12, chapter 3 §5) | the MPC's input weights $R_a, R_s, R_d$ (chapter 7) and LQR's input weight (chapter 6 §8); a rotation $R(\theta)$ (chapter 2 §10); in many Kalman-filter texts, the measurement noise |
+| $M$ | odometry noise (chapter 2) | the cross-covariance of ICP's point pairs (chapter 2 §11) |
 | $S$ | the innovation covariance $H \Sigma H^{\mathsf T} + Q$ (chapter 2) | the sensitivity $S(s) = 1/(1+L)$ (chapter 6) |
 
 ## 3. The symbols by area
@@ -64,7 +66,7 @@ A letter is reused when the two meanings never meet in one formula. These are th
 | $e, \theta_e$ | lateral and heading error in path coordinates | m, rad |
 | $K_e, K_\theta$ | the tracker's gains on $e$ and $\theta_e$ as the analysis reads them | 1/(m·s), 1/s |
 | $L_d = L_0 + k v$ | pure pursuit's lookahead | m |
-| $k_e, k_\theta$ | rear-wheel feedback's gains | — |
+| $k_e, k_\theta$ | rear-wheel feedback's gains | 1/m², 1/m |
 | $k_p, k_i, k_d$ | PID gains | — |
 | $L(s), S(s), T(s)$ | open loop, sensitivity, complementary sensitivity | — |
 | $\omega_c$, PM, GM, DM, $M_s$ | crossover, phase margin, gain margin, delay margin PM/$\omega_c$, peak sensitivity | rad/s, °, dB, s, — |

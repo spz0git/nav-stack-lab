@@ -23,7 +23,7 @@ $$
 v = \min\!\Big(v_{\text{cruise}},\ v_{\max},\ \sqrt{a_{\text{lat}} / \kappa_{\text{peak}}},\ \sqrt{2\,a\,(d_{\text{goal}} - d_0)}\Big)
 $$
 
-The third term caps the lateral acceleration $v^2\kappa$ at {{live:alat}} m/s² using the largest curvature over the next 0.8 m of path, which is the lab's stand-in for tyre grip (chapter 1 §5 says why that is the right quantity); the fourth is a braking ramp into the goal with deceleration $a$. The speed "loop" is therefore open: what the Speed plot shows is the actuator chain following the profile, latency, then lag, then the acceleration limit, which is the subject of the speed-loop lesson. MPC is the exception, because its model has speed as a state and its cost penalizes speed error, so it closes a loop through its acceleration input.
+The third term caps the lateral acceleration $v^2\kappa$ at {{live:alat}} m/s² using the largest curvature over the next 0.8 m of path, which is the lab's stand-in for tyre grip (chapter 1 §6 says why that is the right quantity); the fourth is a braking ramp into the goal with deceleration $a$. The speed "loop" is therefore open: what the Speed plot shows is the actuator chain following the profile, latency, then lag, then the acceleration limit, which is the subject of the speed-loop lesson. MPC is the exception, because its model has speed as a state and its cost penalizes speed error, so it closes a loop through its acceleration input.
 
 ## 2. Pure pursuit
 
@@ -131,4 +131,4 @@ On a circle of radius $R$ the robot must hold a steady turn rate $v/R$, and each
 
 ## 8. What to carry into the next chapters
 
-Every tracker here reduces, near the path, to two gains on $e$ and $\theta_e$, and that is what chapter 6 works with: the gains become an open-loop transfer function, the clock in the loop adds delay, and the margins and poles follow. The two things that do not reduce to gains are the limits, the steering lock and rate, the turn-rate cap, the lateral-acceleration cap, and chapter 1 §5 is where those come from in the vehicle. Chapter 7 then replaces the law with an optimization and asks what, if anything, that changes.
+Every tracker here reduces, near the path, to two gains on $e$ and $\theta_e$, and that is what chapter 6 works with: the gains become an open-loop transfer function, the clock in the loop adds delay, and the margins and poles follow. The two things that do not reduce to gains are the limits, the steering lock and rate, the turn-rate cap, the lateral-acceleration cap, and chapter 1 §6 is where those come from in the vehicle. Chapter 7 then replaces the law with an optimization and asks what, if anything, that changes.

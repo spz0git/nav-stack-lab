@@ -62,7 +62,8 @@
 - The tests (`python3 tests/run_all.py --changed` picks the ones a change needs; see Publishing rules): `./build.sh`, then
   from `tests/`: `python3 smoke.py` (every tab on every level at three widths, Analyze, Learn, a short run; the tab row
   hides nothing; ERRORS must be []), `python3 test.py` (L1–L5 regression summary must not change unless
-  intended), `python3 p5test.py` (all Try buttons, ERRORS must be []), `python3 tles.py` (lessons), `python3 chtest.py` (companion notes),
+  intended), `python3 p5test.py` (all Try buttons, each on its level in a known mission state; ERRORS must be []),
+  `python3 tles.py` (lessons and their glossary terms; ERR must be []), `python3 chtest.py` (companion notes),
   `python3 dyntest.py` (the car with tyre slip against chapter 1's theory, Analyze against the simulator; FAILS must be []),
   `python3 extest.py` (every slot example against its built-in; FAILS must be []), `python3 trtest.py` (the Train tab: collect,
   train, save, use; ERRORS must be []), `python3 lvtest.py` (custom and generated levels: menu, links, import and export,

@@ -179,6 +179,19 @@ const PARAM_OPTS = {
   weather: ['clear', 'rain', 'fog'],
   oddResp: ['crawl', 'stop']
 };
+// The range [min, max] a numeric parameter must lie in; setParam ignores a value outside it as it does a wrong choice.
+// The sliders (ui/schema.js) stay inside these; the bounds are wider, for a setup link, a level or a fault schedule,
+// and keep out only the values that hang or break the run (a negative latency, an empty horizon, no mass).
+const PARAM_RANGE = {
+  latency: [0, 2],
+  sensLat: [0, 2],
+  npart: [10, 10000],
+  mpcNp: [3, 100],
+  mpcDt: [0.02, 1],
+  mass: [1, 1000],
+  Iz: [0.05, 100],
+  wheelbase: [0.3, 3]
+};
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
 const vehOf = (m, c) => (m !== 'car' ? 'diff' : c === 'dyn' ? 'dyn' : 'car');

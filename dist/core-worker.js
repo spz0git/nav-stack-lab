@@ -805,7 +805,7 @@ const LEVELS = [
     adds: "Speed. The car with tyre slip, on the slippery floor, enters a two-lane road at 3.5 m/s, above its characteristic speed of 2.6 m/s. A box blocks the right lane, a second one the left lane 7 m on: swerve left, then back (a slalom like the moose test). The map is known and the plan is fixed; what decides the run is whether the controller's model knows the tyres. The MPC starts with the kinematic model.",
     tries: [
       {
-        t: '<b>Control:</b> the kinematic MPC drives into the first box. It starts the swerve at 1.35 s and steers up to 15°, expecting <i>v</i> tan δ / <i>L</i> of yaw rate, and gets about a third of it: 0.67 m right of its path at 2.4 s, it hits the box. Tick Tyre model in the prediction: the MPC knows the car turns at 40 % of what its wheels point, so it starts at 0.8 s, steers up to 21°, and passes both boxes, 0.40 m off the path at worst. The plots show the yaw rate <i>r</i> against <i>v</i> tan δ / <i>L</i>, and the cross-track error.',
+        t: '<b>Control:</b> the kinematic MPC drives into the first box. It starts the swerve at 1.35 s and steers up to 15°, expecting <i>v</i> tan δ / <i>L</i> of yaw rate, and gets about a third of it: 0.67 m right of its path at 2.4 s, it hits the box. Tick Tyre model in the prediction: the MPC knows the car turns at 40 % of what its wheels point, so it starts at 0.85 s, steers up to 21°, and passes both boxes, 0.40 m off the path at worst. The plots show the yaw rate <i>r</i> against <i>v</i> tan δ / <i>L</i>, and the cross-track error.',
         b: [
           ['Kinematic MPC', {layers: {slip: true}, tab: 'ctl', panes: [['yawr', 'yawk'], ['cte']]}],
           ['Tyre model in the MPC', {set: {mpcDyn: true}, layers: {slip: true}, tab: 'ctl', panes: [['yawr', 'yawk'], ['cte']]}]
@@ -897,7 +897,8 @@ const LEVELS = [
                at once) | 'pause' (waits `wait` s at each end), trigger (optional): {near: [x, y], r} (the person stands
                still where the route starts until the robot comes within r m of near, then walks)}, …],
       cars: [{loop: [[x, y], …], speed, phase}, …] (optional: the parking lot's moving car),
-      settings: {key: value} (the level's own setup: keys of DEFAULTS in core/params.js),
+      settings: {key: value} (the level's own setup: keys of DEFAULTS in core/params.js; a value setParam would refuse,
+                a choice it does not have or a number out of range, is left out with a warning in the event log),
       layers: {cost: true} (optional: map layers the level shows),
       gen: the generator spec it was made from (optional; informational)}
    The runtime level (what LV holds) keeps the old field names: shapes as {t, x, y, …}, peds, wps, cfg.
@@ -1034,12 +1035,15 @@ function levelFromJSON(j, id) {
     s0: clamp(num(c.phase || 0, 'car phase'), 0, 1)
   }));
   if (cars.some(c => c.loop.length < 2)) bad('a car loop needs two points or more');
-  const cfg = {};
+  const cfg = {},
+    warn = [];
   for (const [k, v] of Object.entries(j.settings || {})) {
     if (!(k in DEFAULTS) || LEVEL_NOSET.includes(k)) continue; // a key this page does not know is left out, not an error
     if (typeof v !== typeof DEFAULTS[k]) bad(`setting ${k}: a ${typeof DEFAULTS[k]}`);
     if (k === 'sched' && schedError(v)) bad(`setting sched: ${schedError(v)}`);
-    cfg[k] = v;
+    const why = paramError(k, v); // a value a setup link could not set either: left out, and said so when it loads
+    if (why) warn.push(why);
+    else cfg[k] = v;
   }
   const L = {
     id: id || 'C',
@@ -1057,6 +1061,7 @@ function levelFromJSON(j, id) {
     layers: {cost: !!(j.layers && j.layers.cost)}
   };
   if (cars.length) L.cars = cars;
+  if (warn.length) L.warn = warn;
   if (j.gen && typeof j.gen === 'object') L.gen = {...j.gen};
   return L;
 }
@@ -1737,6 +1742,19 @@ const PARAM_OPTS = {
   weather: ['clear', 'rain', 'fog'],
   oddResp: ['crawl', 'stop']
 };
+// The range [min, max] a numeric parameter must lie in; setParam ignores a value outside it as it does a wrong choice.
+// The sliders (ui/schema.js) stay inside these; the bounds are wider, for a setup link, a level or a fault schedule,
+// and keep out only the values that hang or break the run (a negative latency, an empty horizon, no mass).
+const PARAM_RANGE = {
+  latency: [0, 2],
+  sensLat: [0, 2],
+  npart: [10, 10000],
+  mpcNp: [3, 100],
+  mpcDt: [0.02, 1],
+  mass: [1, 1000],
+  Iz: [0.05, 100],
+  wheelbase: [0.3, 3]
+};
 
 // The Vehicle tab's one row (unicycle · car, kinematic · car, dynamic) is a view over model and carPhys, not a parameter of its own
 const vehOf = (m, c) => (m !== 'car' ? 'diff' : c === 'dyn' ? 'dyn' : 'car');
@@ -2273,7 +2291,7 @@ function schedTick() {
           .join(', ')}`,
         'warn'
       );
-      for (const [k, v] of Object.entries(e.set)) setParam(k, v, true);
+      for (const [k, v] of Object.entries(e.set)) setParam(k, v, false); // as a released slider: with every effect
     }
   }
 }
@@ -2283,12 +2301,21 @@ function loadLevel(i) {
   setWorld(...levelSize(LV));
   // every setting goes back to the level's, except the seed and the trained models picked in Perceive and Plan, so that
   // a model trained in the page can be tried on every level (Agent tracking / Planner still follow the level)
-  Object.assign(P, DEFAULTS, {seed: P.seed, detModel: P.detModel, polModel: P.polModel, predModel: P.predModel}, LV.cfg);
+  // the level's settings pass the same check as a setup link's (paramError): one that fails is left out and logged
+  const cfg = {},
+    warn = [...(LV.warn || [])];
+  for (const [k, v] of Object.entries(LV.cfg)) {
+    const why = paramError(k, v);
+    if (why) warn.push(why);
+    else cfg[k] = v;
+  }
+  Object.assign(P, DEFAULTS, {seed: P.seed, detModel: P.detModel, polModel: P.polModel, predModel: P.predModel}, cfg);
   applyMap();
   LAYERS.cost = !!(LV.layers && LV.layers.cost);
   WPS = LV.wps.map(w => ({x: w[0], y: w[1], th: w.length > 2 ? w[2] : null, done: false}));
   running = false;
   reset();
+  for (const w of warn) logE(`Ignored the level's setting: ${w}`, 'warn');
   UI.levelChanged();
   UI.invalidate();
 }
@@ -2601,8 +2628,19 @@ const PARAM_EFFECTS = [
 ];
 // the keys whose effect runs even when the value did not change (a slider released on its old value still rebuilds)
 const PARAM_ALWAYS = ['infl', 'eps', 'rrtIt', 'wheelbase', 'steerMaxDeg', 'revPen', 'gearPen', 'planPct'];
-// Set one parameter: `veh` fans out to model and carPhys; a choice parameter must be one of its values and a numeric one
-// a finite number (a mistyped setup link or Try cfg is ignored with a log line); then the effects table runs.
+// What is wrong with the value v for the parameter k, or null: a choice parameter must be one of its values, a numeric
+// one a finite number within its range (PARAM_RANGE), the fault schedule well formed. setParam and a level's settings
+// (levels.js) both check with it.
+function paramError(k, v) {
+  if (PARAM_OPTS[k] && !PARAM_OPTS[k].includes(v)) return `${k} has no value "${v}" (one of ${PARAM_OPTS[k].join(', ')})`;
+  if (typeof DEFAULTS[k] === 'number' && !(typeof v === 'number' && isFinite(v))) return `${k} needs a number, not "${v}"`;
+  const R = PARAM_RANGE[k];
+  if (R && (v < R[0] || v > R[1])) return `${k} must be from ${R[0]} to ${R[1]}, not ${v}`;
+  if (k === 'sched' && schedError(v)) return `the fault schedule needs ${schedError(v)}`;
+  return null;
+}
+// Set one parameter: `veh` fans out to model and carPhys; a value paramError rejects (a mistyped setup link or Try cfg,
+// a number out of range) is ignored with a log line and the old value kept; then the effects table runs.
 function setParam(k, v, live) {
   if (k === 'veh') {
     const m = v === 'diff' ? 'diff' : 'car';
@@ -2610,16 +2648,9 @@ function setParam(k, v, live) {
     if (m === 'car') setParam('carPhys', v === 'dyn' ? 'dyn' : 'kin', live);
     return;
   }
-  if (PARAM_OPTS[k] && !PARAM_OPTS[k].includes(v)) {
-    logE(`Ignored: ${k} has no value "${v}" (one of ${PARAM_OPTS[k].join(', ')})`, 'warn');
-    return;
-  }
-  if (typeof DEFAULTS[k] === 'number' && !(typeof v === 'number' && isFinite(v))) {
-    logE(`Ignored: ${k} needs a number, not "${v}"`, 'warn');
-    return;
-  }
-  if (k === 'sched' && schedError(v)) {
-    logE(`Ignored: the fault schedule needs ${schedError(v)}`, 'warn');
+  const why = paramError(k, v);
+  if (why) {
+    logE(`Ignored: ${why}`, 'warn');
     return;
   }
   const old = P[k];
@@ -13003,7 +13034,7 @@ function applyCmd(c) {
   // the zero-velocity update needs the robot still: with it on, the first 2 s of a run are a calibration hold
   if (P.gyro && P.zupt && S.t < 2) c = {v: 0, w: 0, steer: 0};
   S.cmdIssued = c;
-  const n = Math.round(P.latency / DT);
+  const n = Math.max(0, Math.round(P.latency / DT)); // never negative: a queue that cannot shrink below n hangs the loop
   if (!n) {
     S.cmd = c;
     S.cmdQ = [];

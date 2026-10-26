@@ -52,7 +52,7 @@ Answer: 1
 snippet: slam-add
 focus: const Jx = [1, 0, -r * Math.sin(a), 0, 1, r * Math.cos(a)], … Jz = [Math.cos(a), -r * Math.sin(a), Math.sin(a), r * Math.cos(a)];
 focus: // P_mx = Jx P_xx ; P_mm = Jx P_xx Jxᵀ + Jz R Jzᵀ ; P_m,others = Jx P_x,others … Pn[(n0 + i) * n + n0 + j] = s;
-Note: The two Jacobians of the inverse observation and the four blocks of the grown covariance: a new landmark is born correlated with the pose that saw it, which is what makes loop closure work later. No slot runs SLAM; the localizer slot could, with the landmarks kept in mem.
+Note: The two Jacobians of the inverse observation and the four blocks of the grown covariance: a new landmark is born correlated with the pose that saw it, which is what makes loop closure work later. No slot runs SLAM; the localizer slot could, with the landmarks kept in mem. The code calls the reading's noise R; it is the lesson's $Q$.
 
 ## Think about
 Q: Why does SLAM's absolute error never reach zero even when every loop is closed?

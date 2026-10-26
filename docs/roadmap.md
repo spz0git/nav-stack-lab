@@ -430,6 +430,21 @@ Owner request: a track that teaches ISO 26262, ISO 21448 (SOTIF), ISO/PAS 8800 a
 - L6 Parking lot — car-like robot: reverse-in bay, nose-in bay, 2.2 m parallel slot.
 - L7 Moose test — the car with tyre slip at 3.5 m/s through a two-box slalom: the kinematic against the tyre-model MPC.
 
+## Audit fixes, Phase C (2026-10-26; branch `claude/hopeful-lovelace-u59hwf`, v69)
+Items 1–5 of Phase C of [assessment-2026-10-25.md](assessment-2026-10-25.md), in six commits: the six functions over 200 lines
+split along their stages (`RS`, `hybridAstar`, `missionTick`, `ctlMPC`, `healthNow`, `stPlan`; the core now has no
+function over 200 lines and twelve over 100, from 18), with 48 headless missions over every planner, vehicle, sensor and
+SLAM option identical before and after; one track lifecycle (`agLifecycle`) for the lidar and the fused tracker with
+`tests/node/tracker.test.mjs` pinning their statistics; tests for `analysis/num.js`; the dead code gone, the slot
+worker's blob URL revoked, prototype keys refused everywhere; the page 4.7 → 3.8 MB (the worker's source cut from the
+page's own script at runtime, checked at build time against `dist/core-worker.js`; the policy's weights inlined as
+whole thousandths, bit-identical); the lessons' run logs as tables (`tools/lessons.mjs` grew a pipe-table construct)
+and chapters 3, 4 and 6 in shorter sentences; the event log announced, reduced motion honoured, the tab row stable,
+Changed/Runs/View at mid widths. ESLint gained `no-redeclare` after a duplicate function name in one file slipped past
+the cross-module check. The one open-set loop for the five grid searches was not attempted (a judgement call: five
+searches with different state, little shared beyond the heap). Item 6, the live simulation in a worker, remains its own
+phase (about a week; the error handling and the declared run state it needs are in now).
+
 ## Audit fixes, Phase B (2026-10-26; branch `claude/hopeful-lovelace-u59hwf`, v68)
 The ten Phase B items of [assessment-2026-10-25.md](assessment-2026-10-25.md), in five commits: CI (the browser smoke test on
 every PR with npm, pip and Chromium cached and Playwright pinned in `tests/requirements.txt`; the nightly uploads its log

@@ -55,7 +55,14 @@ export default [
   {
     files: ['build.mjs', 'tools/*.mjs', 'tests/node/*.mjs', 'eslint.config.mjs'],
     languageOptions: {ecmaVersion: 'latest', sourceType: 'module', globals: {...globalsPkg.node}},
-    rules: {'no-undef': 'error', 'no-dupe-keys': 'error', 'no-unreachable': 'error', 'no-const-assign': 'error'}
+    rules: {
+      'no-undef': 'error',
+      'no-dupe-keys': 'error',
+      'no-unreachable': 'error',
+      'no-const-assign': 'error',
+      'no-redeclare': 'error',
+      'no-func-assign': 'error'
+    }
   }
 ];
 console.error(`eslint: ${sharedCount} shared names from ${files.length} modules`);

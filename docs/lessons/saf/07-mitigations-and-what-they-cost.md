@@ -23,7 +23,12 @@ Answer: 0
 ## Try: Fog, with the radar emergency brake
 cfg: {"sim":true,"level":4,"set":{"weather":"fog","radar":true,"radBrake":true},"tab":"ctl","layers":{"agents":true,"radar":true}}
 Setup: The same fog, the radar on, and the emergency brake: the radar barely notices the fog, and the brake reads it alone, without the lidar's tracks.
-See: No contact at all. The brake stops the robot 11 times, 7.3 s in all, and the mission takes 125 s instead of 121. Of the 11 stops, 6 were for a person, 4 for clutter and 1 for a rack. On seeds 2 to 5 no run has a strike; what remains is one bump on two of the runs, and people walking into the stopped robot on three; 5 to 10 stops a run, about two in five of them for clutter.
+See: No contact at all; the mission takes 125 s instead of 121. The brake stops the robot for 7.3 s in all, and of its 11 stops 6 were for a person, 4 for clutter and 1 for a rack.
+| Run | Brake stops | Of them for clutter | Strikes |
+|---|---|---|---|
+| this run | 11 | 4 | none |
+| seeds 2 to 5 | 5 to 10 a run | about two in five | none |
+Look at the last column: no strike on any seed. What remains on seeds 2 to 5 is one bump on two of the runs, and people walking into the stopped robot on three.
 Shows: A mitigation that removes the strikes because it reads a sensor the triggering condition does not reach: the fog blinds the lidar and not the radar. Its price is time stopped and stops for nothing, and a new kind of contact: a robot that stops in a person's path is walked into. The severity falls; the contacts do not all go away.
 Predict: The radar brake in fog, on six seeds. Strikes?
 - None on any seed
@@ -45,7 +50,12 @@ Answer: 0
 ## Try: The radar brake in clear air
 cfg: {"sim":true,"level":4,"set":{"radar":true,"radBrake":true},"tab":"ctl","layers":{"agents":true,"radar":true}}
 Setup: The brake on the busy floor in clear air, where lesson 3's person turns back at 51 s.
-See: The brake stops 6 times, 3 of them for clutter; at 52.1 s the person walks into the stopped robot instead of being bumped at 51.6 s. On seeds 2 to 5 the bump at 51 s stays on every run, at 0.35 to 0.88 m/s, and the brake stops 3 to 9 times, two to six of them for clutter.
+See: At 52.1 s the person walks into the stopped robot instead of being bumped at 51.6 s.
+| Run | Brake stops | Of them for clutter | The contact at 51 s |
+|---|---|---|---|
+| this run | 6 | 3 | walked into, at 52.1 s |
+| seeds 2 to 5 | 3 to 9 | two to six | a bump, 0.35 to 0.88 m/s |
+Look at the last column: in clear air the brake moves the contact on this run but does not remove it on the others.
 Shows: Outside the condition it was added for, the brake mostly costs: it stops for clutter and does not prevent the one contact clear air has. A mitigation switched on everywhere pays its price everywhere; switched on where a monitor sees fog (lesson 6), it would pay only there.
 Predict: In clear air, does the radar brake remove the contact at 51 s on most seeds?
 - No: the contact stays, and the brake stops for clutter

@@ -12,7 +12,13 @@ $$\lambda < \frac{-\ln 0.05}{T} \approx \frac{3}{T},$$
 ## Try: The busy floor's domain, per hour
 cfg: {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":"ODD-1","budget":40,"rounds":0,"seed":1,"run":true}}
 Setup: ODD-1, 40 worlds at random: generated warehouses with aisles of 2 to 3.2 m and up to four scripted people, the busy floor's settings, each run to Mission complete.
-See: 1.27 hours of operation and 18 contacts with a person: 14 per hour, the 95 % interval 8.4 to 22. Eleven were strikes: 8.6 per hour, 4.3 to 15. At search seeds 2 and 3, 14.6 (8.9 to 22.5) and 9.7 (5.0 to 16.9) contacts per hour.
+See: 1.27 hours of operation and 18 contacts with a person, eleven of them strikes. Per hour, with the 95 % interval:
+| Search seed | Contacts per hour | Strikes per hour |
+|---|---|---|
+| 1 (this search) | 14 (8.4 to 22) | 8.6 (4.3 to 15) |
+| 2 | 14.6 (8.9 to 22.5) | — |
+| 3 | 9.7 (5.0 to 16.9) | — |
+Look at the intervals: they overlap, and even the lowest bottom is 5.0 contacts an hour.
 Shows: A contact every four minutes of work, give or take a factor of two. The interval is wide, but it does not matter here: even its bottom is four orders of magnitude from a rate anyone would accept, and no amount of testing changes that. The stack, not the statistics, is the problem.
 Predict: How many contacts with a person per hour of operation does ODD-1 have?
 - About ten or more: one every few minutes
@@ -23,7 +29,13 @@ Answer: 0
 ## Try: People who react: nothing left to count
 cfg: {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":{"name":"ODD-1, people who react","family":"warehouse","like":"L5","w":24,"h":16,"ranges":{"aisle":[2,3.2],"people":[0,4],"stepout":[0,0]},"weather":["clear"],"people":["reactive"]},"budget":40,"rounds":0,"seed":1,"run":true}}
 Setup: The same domain with people who react to the robot (the social-force model lesson 2 used for controllability).
-See: No strike in 1.26 hours; the table's two-sided 95 % interval runs from 0 to 2.9 per hour. Five contacts with the robot moving, 4.0 per hour. At search seeds 2 and 3 there is no contact with the robot moving at all, in 1.34 and 1.24 hours. A claim of fewer than one contact per 1 000 hours would need about 3 000 hours without one: some 2 400 searches like this.
+See: No strike in 1.26 hours.
+| Search seed | Hours of operation | Contacts with the robot moving |
+|---|---|---|
+| 1 (this search) | 1.26 | 5, 4.0 per hour |
+| 2 | 1.34 | none |
+| 3 | 1.24 | none |
+For this search the table's two-sided 95 % interval on strikes runs from 0 to 2.9 per hour. A claim of fewer than one contact per 1 000 hours would need about 3 000 hours without one: some 2 400 searches like this.
 Shows: Silence is evidence, but weak: no strike in 1.26 hours says only that the strike rate is below 3 / 1.26 ≈ 2.4 per hour with 95 % confidence. That bound is one-sided, all 5 % above it; the table's 2.9 (3.69 / 1.26) is the top of a two-sided interval, which puts only 2.5 % above its top and so reaches higher. The number that matters is the hours, not the runs: a target rate fixes the testing it needs, and for real targets that is far more than any test track gives. That is why the standards lean on searches for the scenarios that matter and on arguments about why the rest are covered, not on driving until the count is large enough.
 Predict: No strike in 1.26 hours of operation. What can you claim at 95 %?
 - Fewer than about 2.4 strikes per hour
@@ -34,7 +46,13 @@ Answer: 0
 ## Try: Importance sampling, and its price
 cfg: {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":{"name":"ODD-1, people who react","family":"warehouse","like":"L5","w":24,"h":16,"ranges":{"aisle":[2,3.2],"people":[0,4],"stepout":[0,0]},"weather":["clear"],"people":["reactive"]},"budget":40,"rounds":0,"seed":1,"imp":true,"run":true}}
 Setup: The same search with importance sampling: the worlds drawn with more people, where a strike is likelier, each run weighted by how much likelier the domain's own even mix would have drawn it.
-See: Still no strike, and the two-sided interval's top is now 3.75 per hour instead of 2.9: wider. Three contacts with the robot moving, weighted to 1.7 per hour, 0 to 4.5. At search seeds 2 and 3 the same: no strike, and a top of 4.86 and 3.76 per hour against 2.76 and 2.97 without.
+See: Still no strike, on any search seed. Three contacts with the robot moving, weighted to 1.7 per hour, 0 to 4.5. The top of the two-sided interval on strikes:
+| Search seed | With importance sampling (per hour) | Without (per hour) |
+|---|---|---|
+| 1 (this search) | 3.75 | 2.9 |
+| 2 | 4.86 | 2.76 |
+| 3 | 3.76 | 2.97 |
+Compare the columns: the interval is wider with importance sampling on every search seed.
 Shows: Importance sampling pays when the worlds it oversamples are where the events happen and they do happen there; then each event, down-weighted, pins the rate with fewer runs. Here the people-dense worlds held no strike either, and the weights spent part of the budget: a few heavily weighted runs with few people count for many hours each, so the sample is worth fewer effective hours than it ran. The trick needs a good guess of where the danger is, which is what the search of lesson 5 is for.
 Predict: The same budget drawn where strikes should be likelier, and still none. Is the bound on the strike rate tighter than without?
 - No, wider: the weights cost effective hours
@@ -45,7 +63,14 @@ Answer: 0
 ## Try: Which measure warns before the harm
 cfg: {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":"ODD-1","budget":40,"rounds":0,"seed":2,"run":true}}
 Setup: ODD-1 at search seed 2. The Leading indicators table ranks each measure per hour, run by run, against the runs' contacts per hour.
-See: Seconds under 0.3 m of a person first, ρ 0.86; seconds with a time to contact under 1 s, 0.81; the closest approach, 0.77; seconds with a person within 2 m last, 0.60. In every search measured that had contacts to rank against (ODD-1 at three search seeds, with and without importance sampling, with people who react, with narrow aisles) a measure of how close the robot came ranks first, and the time with a person within 2 m ranks last.
+See: The ranking, first to last:
+| Measure | ρ |
+|---|---|
+| seconds under 0.3 m of a person | 0.86 |
+| seconds with a time to contact under 1 s | 0.81 |
+| the closest approach | 0.77 |
+| seconds with a person within 2 m | 0.60 |
+The order holds at both ends in every search measured that had contacts to rank against: a measure of how close the robot came ranks first, and the time with a person within 2 m ranks last. Those searches are ODD-1 at three search seeds, with and without importance sampling, with people who react and with narrow aisles.
 Shows: A leading indicator has to track the harm, not the exposure to it. Time near people measures how much of the work happens among them, which every warehouse robot has; time very close to them, or about to meet them, measures how the robot handles it. The first is a reason to look; the second is the indicator a safety case watches in operation, with a threshold that says when its claims are in trouble before anyone is hurt.
 Predict: Which of the four measures ranks last against the contacts?
 - Seconds with a person within 2 m

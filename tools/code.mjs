@@ -41,6 +41,48 @@ export function buildModels(dir = 'src/models') {
     out[f.replace(/\.json$/, '')] = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
   return out;
 }
+// The models as source text, for the MODELS literal in core/models-data.js (in the page and the worker). A model whose
+// layers' numbers are all exact thousandths (the policy, saved at three decimals) carries them as integers, -46 for
+// -0.046, and a short decoder divides them by 1000 when the script starts: k / 1000 is the double nearest to the
+// decimal, the very number JSON.parse gives for "-0.046", so the weights are bit for bit the file's (checked here) in
+// about 55 % of the characters. The other models are inlined as they are.
+const layerArrays = M => (Array.isArray(M && M.layers) ? M.layers.flatMap(L => Object.values(L).filter(v => Array.isArray(v))) : []);
+const milliExact = M => {
+  const arrs = layerArrays(M);
+  return arrs.length > 0 && arrs.every(a => a.every(x => typeof x === 'number' && Object.is(Math.round(x * 1000) / 1000, x)));
+};
+export function modelsSource(models) {
+  const enc = {},
+    names = [];
+  for (const [name, M] of Object.entries(models)) {
+    if (!milliExact(M)) {
+      enc[name] = M;
+      continue;
+    }
+    names.push(name);
+    const ints = L => Object.fromEntries(Object.entries(L).map(([k, v]) => [k, Array.isArray(v) ? v.map(x => Math.round(x * 1000)) : v]));
+    enc[name] = {...M, layers: M.layers.map(ints)};
+  }
+  const json = JSON.stringify(enc);
+  if (!names.length) return json;
+  const src =
+    `(m => {\n  // ${names.join(', ')}: weights in thousandths (tools/code.mjs, modelsSource)\n` +
+    `  for (const n of ${JSON.stringify(names)}) for (const L of m[n].layers) for (const k in L) if (Array.isArray(L[k])) L[k] = L[k].map(x => x / 1000);\n` +
+    `  return m;\n})(${json})`;
+  // decoding must give back the very same model, every number bit for bit
+  const dec = new Function(`return ${src};`)();
+  for (const n of names) {
+    const a = layerArrays(models[n]),
+      b = layerArrays(dec[n]);
+    if (
+      a.length !== b.length ||
+      a.some((x, i) => x.length !== b[i].length || x.some((v, j) => !Object.is(v, b[i][j]))) ||
+      JSON.stringify(dec[n]) !== JSON.stringify(models[n])
+    )
+      throw new Error(`BUILD FAILED: model "${n}" does not decode to its own weights (tools/code.mjs, modelsSource)`);
+  }
+  return src;
+}
 // The models whose `ref` (the out-of-distribution reference core/learnmon.js scores inputs against) is missing or
 // malformed, one message each. A trainer (training/<block>/train.py) writes its model without one; tools/ood-ref.mjs
 // adds it by replaying the training runs on the built core, so the build only warns: the model has to be built before

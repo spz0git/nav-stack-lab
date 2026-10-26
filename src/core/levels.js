@@ -155,7 +155,7 @@ function levelFromJSON(j, id) {
   const cfg = {},
     warn = [];
   for (const [k, v] of Object.entries(j.settings || {})) {
-    if (!(k in DEFAULTS) || LEVEL_NOSET.includes(k)) continue; // a key this page does not know is left out, not an error
+    if (!Object.hasOwn(DEFAULTS, k) || LEVEL_NOSET.includes(k)) continue; // a key this page does not know is left out, not an error
     if (typeof v !== typeof DEFAULTS[k]) bad(`setting ${k}: a ${typeof DEFAULTS[k]}`);
     if (k === 'sched' && schedError(v)) bad(`setting sched: ${schedError(v)}`);
     const why = paramError(k, v); // a value a setup link could not set either: left out, and said so when it loads

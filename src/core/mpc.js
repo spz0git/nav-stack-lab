@@ -265,23 +265,7 @@ function ctlMPC() {
   const LC = S.mpcCmd && S.mpcCmd.tick === S.tick - 1 ? S.mpcCmd : {v: S.odo.v, steer: S.robot.d, w: S.odo.w};
   if (M.lag) x0.push(LC.v || 0, car ? LC.steer || 0 : LC.w || 0);
   if (M.dyn) x0.push(S.robot.vy || 0, S.robot.r || 0); // v_y and r as a gyro and a sideslip estimator would give them (here: the true values)
-  // reference states (θ unwrapped next to the robot) and the inputs that would produce them
-  const Xr = [],
-    Ur = [];
-  let thp = x0[2];
-  for (let k = 0; k <= Np; k++) {
-    const th = thp + wrap(ref[k].th - thp);
-    thp = th;
-    const sr = car ? dir * Math.atan(P.wheelbase * ref[k].kap) : ref[k].v * ref[k].kap;
-    const xr = [ref[k].x, ref[k].y, th, ref[k].v, sr];
-    if (M.lag) xr.push(xr[3], xr[4]);
-    if (M.dyn) {
-      const rr = (ref[k].v * Math.tan(sr)) / P.wheelbase;
-      xr.push(dynGeom().lr * rr, rr);
-    } // no slip on the reference
-    Xr.push(xr);
-  }
-  for (let k = 0; k < Np; k++) Ur.push([(Xr[k + 1][3] - Xr[k][3]) / dt, (Xr[k + 1][4] - Xr[k][4]) / dt]);
+  const {Xr, Ur} = mpcRefStates(M, ref, dir, x0, Np, dt);
   // bounds and constraints
   const aMax = P.accel ? P.amax : 3,
     rMax = car ? P.steerRate : P.accel ? P.alpha : 8;
@@ -312,7 +296,83 @@ function ctlMPC() {
   const ABr = ltv ? mpcLinearize(M, Xr, Ur, Np, dt) : null;
   const rollout = U => mpcRollout(U, x0, M, ltv, Np, dt, uk, ABr, Xr, Ur, n);
   const cons = mpcConstraintFn(dir, vMax, sMax, obs, offs, pts, rc, agM, agCons, brk);
-  // residuals of step k (1..Np) as [r, grad over state]; inputs handled separately
+  const Q = {n, Np, Nc, nU, nc, rho, ref, Xr, W, uk, cons, rollout};
+  const {stateRes, inRes, cost} = mpcResiduals(Q);
+  Q.stateRes = stateRes;
+  Q.inRes = inRes;
+  Q.cost = cost;
+  let X = rollout(U),
+    J = cost(X, U),
+    it = 0;
+  const iters = ltv ? 2 : Math.round(P.mpcIt);
+  for (; it < iters; it++) {
+    if (P.mpcBudget > 0 && performance.now() - t0 > P.mpcBudget) break; // real-time budget (0: none, iterate to the end)
+    const AB = ltv ? ABr : X.slice(0, Np).map((x, k) => mpcJac(M, x, uk(U, k), dt));
+    const {H, g} = mpcGaussNewton(Q, AB, X, U);
+    const lo = new Float64Array(nU),
+      hi = new Float64Array(nU);
+    for (let i = 0; i < nU; i++) {
+      lo[i] = ulo(i) - U[i];
+      hi[i] = uhi(i) - U[i];
+    }
+    const dU = boxQP(H, g, lo, hi, nU);
+    const ls = mpcLineSearch(Q, U, J, dU);
+    let acc = false;
+    if (ls) {
+      ({U, X, J} = ls);
+      acc = true;
+    }
+    mpcMultipliers(Q, X);
+    J = cost(X, U);
+    if (!acc) break;
+  }
+  W.U = U;
+  const u0 = uk(U, 0);
+  W.uPrev = u0;
+  let viol = 0;
+  for (let k = 1; k <= Np; k++) for (const [cv] of cons(k, X[k])) viol = Math.max(viol, cv);
+  // what the chosen inputs really do (nonlinear), drawn next to the LTV prediction
+  let Xtrue = X;
+  if (ltv) {
+    Xtrue = [x0.slice()];
+    for (let k = 0; k < Np; k++) Xtrue.push(M.f(Xtrue[k], uk(U, k), dt));
+  }
+  S.ctlViz = {pred: Xtrue.map(x => [x[0], x[1]]), lin: ltv ? X.map(x => [x[0], x[1]]) : null, ref: ref.map(r => [r.x, r.y])};
+  S.mpcStats = {ms: performance.now() - t0, it, J, viol, mode: ltv ? 'LTV' : 'NMPC', Np, Nc};
+  const bv = LC.v || 0,
+    bs = car ? LC.steer || 0 : LC.w || 0,
+    vc = bv + u0[0] * DT,
+    sc = bs + u0[1] * DT; // u = u_prev + u̇·T
+  S.mpcCmd = {v: vc, steer: car ? clamp(sc, -steerMax(), steerMax()) : 0, w: car ? 0 : clamp(sc, -P.wmax, P.wmax), tick: S.tick};
+  return car ? {v: vc, steer: sc} : {v: vc, w: sc};
+}
+// Reference states (θ unwrapped next to the robot's x0) and the inputs that would produce them: {Xr: Np + 1 states,
+// Ur: Np input rates}, from the reference ref along the leg driven in direction dir
+function mpcRefStates(M, ref, dir, x0, Np, dt) {
+  const car = M.car,
+    Xr = [],
+    Ur = [];
+  let thp = x0[2];
+  for (let k = 0; k <= Np; k++) {
+    const th = thp + wrap(ref[k].th - thp);
+    thp = th;
+    const sr = car ? dir * Math.atan(P.wheelbase * ref[k].kap) : ref[k].v * ref[k].kap;
+    const xr = [ref[k].x, ref[k].y, th, ref[k].v, sr];
+    if (M.lag) xr.push(xr[3], xr[4]);
+    if (M.dyn) {
+      const rr = (ref[k].v * Math.tan(sr)) / P.wheelbase;
+      xr.push(dynGeom().lr * rr, rr);
+    } // no slip on the reference
+    Xr.push(xr);
+  }
+  for (let k = 0; k < Np; k++) Ur.push([(Xr[k + 1][3] - Xr[k][3]) / dt, (Xr[k + 1][4] - Xr[k][4]) / dt]);
+  return {Xr, Ur};
+}
+// The least-squares residuals on the problem Q: stateRes(k, x) for step k (1..Np) as [r, grad over state] (tracking
+// in the path frame, heading, speed, and the augmented-Lagrangian constraint terms), inRes(U, k) for the inputs and
+// their changes, and cost(X, U), the sum of their squares.
+function mpcResiduals(Q) {
+  const {Np, Nc, nc, rho, ref, Xr, W, uk, cons} = Q;
   const sq = Math.sqrt,
     lamOf = (k, c) => W.lam[(k - 1) * nc + c];
   const stateRes = (k, x) => {
@@ -357,108 +417,80 @@ function ctlMPC() {
     for (let k = 0; k < Np; k++) for (const [r] of inRes(U, k)) J += r * r;
     return J;
   };
-  let X = rollout(U),
-    J = cost(X, U),
-    it = 0;
-  const iters = ltv ? 2 : Math.round(P.mpcIt);
-  for (; it < iters; it++) {
-    if (P.mpcBudget > 0 && performance.now() - t0 > P.mpcBudget) break; // real-time budget (0: none, iterate to the end)
-    const AB = ltv ? ABr : X.slice(0, Np).map((x, k) => mpcJac(M, x, uk(U, k), dt));
-    // Gauss–Newton: H = JᵀJ, g = Jᵀr, with sensitivities S_k = ∂x_k/∂U (move blocking after Nc)
-    const H = new Float64Array(nU * nU),
-      g = new Float64Array(nU);
-    const addRow = (row, r) => {
-      for (let a = 0; a < nU; a++) {
-        const ra = row[a];
-        if (ra === 0) continue;
-        g[a] += ra * r;
-        for (let b = 0; b < nU; b++) H[a * nU + b] += ra * row[b];
-      }
-    };
-    let Sk = new Float64Array(n * nU);
-    for (let k = 0; k < Np; k++) {
-      const {A, B} = AB[k],
-        j = Math.min(k, Nc - 1),
-        Sn = new Float64Array(n * nU);
-      for (let i = 0; i < n; i++) {
-        for (let c = 0; c < nU; c++) {
-          let s = 0;
-          for (let m = 0; m < n; m++) s += A[i * n + m] * Sk[m * nU + c];
-          Sn[i * nU + c] = s;
-        }
-        Sn[i * nU + 2 * j] += B[i * 2];
-        Sn[i * nU + 2 * j + 1] += B[i * 2 + 1];
-      }
-      Sk = Sn;
-      for (const [r, gr] of stateRes(k + 1, X[k + 1])) {
-        const row = new Float64Array(nU);
-        for (let m = 0; m < 5; m++) {
-          if (gr[m] === 0) continue;
-          for (let c = 0; c < nU; c++) row[c] += gr[m] * Sk[m * nU + c];
-        }
-        addRow(row, r);
-      }
-      const ir = inRes(U, k);
-      for (let q = 0; q < ir.length; q++) {
-        const row = new Float64Array(nU),
-          ch = q % 2,
-          f = q < 2 ? (q ? sq(P.mpcRs) : sq(P.mpcRa)) : sq(P.mpcRd);
-        row[2 * j + ch] = f;
-        if (q >= 2 && k > 0) row[2 * (k - 1) + ch] = -f;
-        addRow(row, ir[q][0]);
-      }
+  return {stateRes, inRes, cost};
+}
+// Gauss–Newton: H = JᵀJ, g = Jᵀr, with sensitivities S_k = ∂x_k/∂U (move blocking after Nc), from the step
+// Jacobians AB along the rollout X of the inputs U; returns {H, g}, H with a small Levenberg damping on its diagonal.
+function mpcGaussNewton(Q, AB, X, U) {
+  const {n, Np, Nc, nU, stateRes, inRes} = Q,
+    sq = Math.sqrt;
+  const H = new Float64Array(nU * nU),
+    g = new Float64Array(nU);
+  const addRow = (row, r) => {
+    for (let a = 0; a < nU; a++) {
+      const ra = row[a];
+      if (ra === 0) continue;
+      g[a] += ra * r;
+      for (let b = 0; b < nU; b++) H[a * nU + b] += ra * row[b];
     }
-    for (let i = 0; i < nU; i++) H[i * nU + i] += 1e-6 + 1e-4 * H[i * nU + i];
-    const lo = new Float64Array(nU),
-      hi = new Float64Array(nU);
-    for (let i = 0; i < nU; i++) {
-      lo[i] = ulo(i) - U[i];
-      hi[i] = uhi(i) - U[i];
-    }
-    const dU = boxQP(H, g, lo, hi, nU);
-    let al = 1,
-      acc = false;
-    while (al >= 0.1) {
-      const Un = U.map((u, i) => u + al * dU[i]),
-        Xn = rollout(Un),
-        Jn = cost(Xn, Un);
-      if (Jn < J) {
-        U = Un;
-        X = Xn;
-        J = Jn;
-        acc = true;
-        break;
+  };
+  let Sk = new Float64Array(n * nU);
+  for (let k = 0; k < Np; k++) {
+    const {A, B} = AB[k],
+      j = Math.min(k, Nc - 1),
+      Sn = new Float64Array(n * nU);
+    for (let i = 0; i < n; i++) {
+      for (let c = 0; c < nU; c++) {
+        let s = 0;
+        for (let m = 0; m < n; m++) s += A[i * n + m] * Sk[m * nU + c];
+        Sn[i * nU + c] = s;
       }
-      al *= 0.5;
+      Sn[i * nU + 2 * j] += B[i * 2];
+      Sn[i * nU + 2 * j + 1] += B[i * 2 + 1];
     }
-    // augmented-Lagrangian multiplier update
-    for (let k = 1; k <= Np; k++)
-      cons(k, X[k]).forEach(([cv], ci) => {
-        const i = (k - 1) * nc + ci;
-        W.lam[i] = Math.max(0, W.lam[i] + rho * cv);
-      });
-    J = cost(X, U);
-    if (!acc) break;
+    Sk = Sn;
+    for (const [r, gr] of stateRes(k + 1, X[k + 1])) {
+      const row = new Float64Array(nU);
+      for (let m = 0; m < 5; m++) {
+        if (gr[m] === 0) continue;
+        for (let c = 0; c < nU; c++) row[c] += gr[m] * Sk[m * nU + c];
+      }
+      addRow(row, r);
+    }
+    const ir = inRes(U, k);
+    for (let q = 0; q < ir.length; q++) {
+      const row = new Float64Array(nU),
+        ch = q % 2,
+        f = q < 2 ? (q ? sq(P.mpcRs) : sq(P.mpcRa)) : sq(P.mpcRd);
+      row[2 * j + ch] = f;
+      if (q >= 2 && k > 0) row[2 * (k - 1) + ch] = -f;
+      addRow(row, ir[q][0]);
+    }
   }
-  W.U = U;
-  const u0 = uk(U, 0);
-  W.uPrev = u0;
-  let viol = 0;
-  for (let k = 1; k <= Np; k++) for (const [cv] of cons(k, X[k])) viol = Math.max(viol, cv);
-  // what the chosen inputs really do (nonlinear), drawn next to the LTV prediction
-  let Xtrue = X;
-  if (ltv) {
-    Xtrue = [x0.slice()];
-    for (let k = 0; k < Np; k++) Xtrue.push(M.f(Xtrue[k], uk(U, k), dt));
+  for (let i = 0; i < nU; i++) H[i * nU + i] += 1e-6 + 1e-4 * H[i * nU + i];
+  return {H, g};
+}
+// Backtracking line search along the step dU from U (cost J): steps 1, ½, ¼, ⅛ until the cost falls; returns the
+// accepted {U, X, J}, or null when none does
+function mpcLineSearch(Q, U, J, dU) {
+  let al = 1;
+  while (al >= 0.1) {
+    const Un = U.map((u, i) => u + al * dU[i]),
+      Xn = Q.rollout(Un),
+      Jn = Q.cost(Xn, Un);
+    if (Jn < J) return {U: Un, X: Xn, J: Jn};
+    al *= 0.5;
   }
-  S.ctlViz = {pred: Xtrue.map(x => [x[0], x[1]]), lin: ltv ? X.map(x => [x[0], x[1]]) : null, ref: ref.map(r => [r.x, r.y])};
-  S.mpcStats = {ms: performance.now() - t0, it, J, viol, mode: ltv ? 'LTV' : 'NMPC', Np, Nc};
-  const bv = LC.v || 0,
-    bs = car ? LC.steer || 0 : LC.w || 0,
-    vc = bv + u0[0] * DT,
-    sc = bs + u0[1] * DT; // u = u_prev + u̇·T
-  S.mpcCmd = {v: vc, steer: car ? clamp(sc, -steerMax(), steerMax()) : 0, w: car ? 0 : clamp(sc, -P.wmax, P.wmax), tick: S.tick};
-  return car ? {v: vc, steer: sc} : {v: vc, w: sc};
+  return null;
+}
+// augmented-Lagrangian multiplier update: λ ← max(0, λ + ρ·c) for every constraint along the rollout X (in Q.W.lam)
+function mpcMultipliers(Q, X) {
+  const {Np, nc, rho, W, cons} = Q;
+  for (let k = 1; k <= Np; k++)
+    cons(k, X[k]).forEach(([cv], ci) => {
+      const i = (k - 1) * nc + ci;
+      W.lam[i] = Math.max(0, W.lam[i] + rho * cv);
+    });
 }
 
 // Predicted agents at each step of the horizon (null when agents are not constrained). The prediction ends at Np·dt, but

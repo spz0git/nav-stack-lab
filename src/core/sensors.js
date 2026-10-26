@@ -56,9 +56,6 @@ function beaconUse() {
   if (P.loc === 'custom') return 'your localizer gets the beacon readings that remain';
   return null;
 }
-function beaconDown(id) {
-  return beaconsOff().has(id) || !!(S.bDown && S.bDown[id]);
-}
 function beaconOutages() {
   const n = S.beacons.length;
   if (!S.bDown) S.bDown = new Array(n).fill(false);

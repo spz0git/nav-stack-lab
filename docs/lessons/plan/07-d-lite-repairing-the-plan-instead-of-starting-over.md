@@ -26,7 +26,12 @@ Answer: 0
 ## Try: D* Lite with a periodic replan
 cfg: {"sim":true,"level":1,"set":{"replan":1,"plan":"dstar"},"tab":"plan"}
 Setup: The same mission with D* Lite.
-See: 78 plans, 24 100 vertex updates, 59 ms in all, the same four goals and paths of the same cost: planned from the same pose, the two costs agree to a ten-thousandth, and where two routes tie D* Lite picks a different one, up to 0.2 m longer (13.2 m against A*'s 13.0 on the second leg). The three fresh searches, one per new goal, cost 2 600, 900 and 13 400 updates; of the seventy periodic replans between them, 65 cost nothing at all and Search effort shows a dash; the other eight cost from 34 to 2 000.
+See: The same four goals and paths of the same cost, for a fraction of the search:
+| Planner | Plans | Search effort | Planning time, in all (ms) |
+|---|---|---|---|
+| A* | 76 | 152 500 expansions | 72 |
+| D* Lite | 78 | 24 100 vertex updates | 59 |
+Look at where the updates go: the three fresh searches, one per new goal, cost 2 600, 900 and 13 400. Of the seventy periodic replans between them, 65 cost nothing at all and Search effort shows a dash; the other eight cost from 34 to 2 000. Planned from the same pose, the two costs agree to a ten-thousandth. Where two routes tie, D* Lite picks a different one, up to 0.2 m longer (13.2 m against A*'s 13.0 on the second leg).
 Shows: What the repair saves: when no cost changed, a replan after the robot moved a metre usually has nothing to repair; the values of the last search still hold, and the path is read off them from the new start. What it costs is also visible: the fresh search for the 26 m goal took 13 400 updates and 28 ms where A* took 8 600 and 4 ms, because settling one cell means recomputing the lookahead of all eight neighbours, each over its eight neighbours, where A* relaxes eight edges.
 Predict: D* Lite with the same replan every second, on a map that never changes. What will Search effort read at the periodic replans?
 - A dash most of the time: no cost changed, so the values of the last search still hold and there is nothing to repair
@@ -48,7 +53,12 @@ Answer: 0
 ## Try: Lidar mapping, D* Lite
 cfg: {"sim":true,"level":3,"set":{"plan":"dstar"},"tab":"plan"}
 Setup: L4 with D* Lite.
-See: Eight plans, 49 700 vertex updates, 85 ms: 3.6 times A*'s expansions and nine times its time, for paths of the same cost (two legs differ by 0.1 m in length, a tie broken the other way). The replan at 13 s repairs 3 860 vertices after 4 379 cells changed; the ones at 4 s and 31 s repair 12 600 and 11 900. The fresh plan for the 20 m goal costs 13 500 updates against A*'s 6 400.
+See: Against the A* run on the same map:
+| Planner | Plans | Search effort | Time, in all (ms) | Replan at 13 s |
+|---|---|---|---|---|
+| A* | 7 | 13 900 expansions | 9 | 60 expansions |
+| D* Lite | 8 | 49 700 updates | 85 | 3 860 repaired |
+D* Lite's replan at 13 s repairs its 3 860 vertices after 4 379 cells changed. Over the run that is 3.6 times A*'s expansions and nine times its time, for paths of the same cost (two legs differ by 0.1 m in length, a tie broken the other way). The replans at 4 s and 31 s repair 12 600 and 11 900, and the fresh plan for the 20 m goal costs 13 500 updates against A*'s 6 400.
 Shows: D* Lite's bargain holds when changes are sparse. Lidar mapping is the opposite: every scan reveals wall cells, each new wall cell moves the inflation band's penalties over a hundred cells around it, and the lab already ignores penalty changes under 0.1 to keep the band's breathing out of it. With thousands of cells changing between plans the repair is a flood with extra bookkeeping. Real stacks that use D* Lite feed it binary occupancy with sparse updates, not an inflated cost field that shifts with every scan.
 Predict: The same run with D* Lite, where every scan of the growing map moves the inflation band around the walls it reveals. What does the "path blocked" replan near 13 s cost, where A* paid a few dozen expansions?
 - A few dozen updates as well: only the new wall matters
@@ -59,7 +69,13 @@ Answer: 1
 ## Try: Agent-blocking replans, D* Lite
 cfg: {"sim":true,"level":4,"set":{"plan":"dstar"},"tab":"plan"}
 Setup: L5 with D* Lite; the speed planner escalates twice to a replan with the people stamped into the costmap.
-See: The two escalations change 1 696 and 1 253 cells and cost 7 400 and 4 400 vertex updates, against 1 700 and 4 600 A* expansions. Over the run: 29 100 updates in 78 ms against A*'s 77 700 expansions in 42 ms, fewer expansions, more time, five goals either way. The paths are within a few tenths of a metre of A*'s until the second escalation, which comes at 102 s instead of 99 s because the two runs have drifted apart by then.
+See: The two escalations and the whole run, against A*:
+| Search | Cells changed | D* Lite vertex updates | A* expansions |
+|---|---|---|---|
+| first escalation | 1 696 | 7 400 | 1 700 |
+| second escalation | 1 253 | 4 400 | 4 600 |
+| the whole run | — | 29 100 in 78 ms | 77 700 in 42 ms |
+Read the last row: fewer expansions, more time, five goals either way. The paths are within a few tenths of a metre of A*'s until the second escalation, which comes at 102 s instead of 99 s because the two runs have drifted apart by then.
 Shows: Fewer expansions and more milliseconds at the same time: each D* Lite update is about eight A* relaxations, so the break-even is roughly an eight-fold saving in expansions, which the periodic replan on a static map reaches and a costmap under constant change does not. The right tool depends on what changes, how often, and how big the grid is.
 Predict: On the busy floor the speed planner twice escalates to an "agent blocking" replan, which stamps the people's predicted positions into the costmap as lethal. What will D* Lite's log line say at those two replans?
 - A few dozen cells changed: only the people's discs were stamped

@@ -258,103 +258,150 @@ function agTrack() {
   if (P.radar && P.trkIn !== 'lidar') return agTrackFused(dt); // with the radar: core/radar.js
   const q = P.agSigA * P.agSigA,
     R = AG_SZ * AG_SZ;
-  for (const t of A.tracks) {
-    t.x += t.vx * dt;
-    t.y += t.vy * dt; // predict: x' = F x,  P' = F P Fᵀ + Q  (per axis; both axes share P)
-    const a = t.pxx + 2 * dt * t.pxv + dt * dt * t.pvv + (q * dt ** 4) / 4,
-      b = t.pxv + dt * t.pvv + (q * dt ** 3) / 2,
-      c = t.pvv + q * dt * dt;
-    t.pxx = a;
-    t.pxv = b;
-    t.pvv = c;
-  }
-  const pairs = [];
-  A.tracks.forEach((t, i) =>
-    A.det.forEach((d, j) => {
+  // the lidar's measurement model on the scalar covariance (both axes share pxx, pxv, pvv)
+  agLifecycle(dt, {
+    lidar: true,
+    predict(t) {
+      t.x += t.vx * dt;
+      t.y += t.vy * dt; // predict: x' = F x,  P' = F P Fᵀ + Q  (per axis; both axes share P)
+      const a = t.pxx + 2 * dt * t.pxv + dt * dt * t.pvv + (q * dt ** 4) / 4,
+        b = t.pxv + dt * t.pvv + (q * dt ** 3) / 2,
+        c = t.pvv + q * dt * dt;
+      t.pxx = a;
+      t.pxv = b;
+      t.pvv = c;
+    },
+    gate: t => d => {
       const m = ((d.x - t.x) ** 2 + (d.y - t.y) ** 2) / (t.pxx + R);
-      if (m < 9.21) pairs.push([m, i, j]);
-    })
-  );
+      return m < 9.21 ? [m] : null;
+    },
+    update(t, d) {
+      const S2 = t.pxx + R,
+        k0 = t.pxx / S2,
+        k1 = t.pxv / S2,
+        nx = d.x - t.x,
+        ny = d.y - t.y;
+      t.x += k0 * nx;
+      t.y += k0 * ny;
+      t.vx += k1 * nx;
+      t.vy += k1 * ny;
+      const pxx = (1 - k0) * t.pxx,
+        pxv = (1 - k0) * t.pxv,
+        pvv = t.pvv - k1 * t.pxv;
+      t.pxx = pxx;
+      t.pxv = pxv;
+      t.pvv = pvv;
+      agWalkCap(t);
+    },
+    icp(t, m) {
+      const vmx = m.x / dt,
+        vmy = m.y / dt,
+        Rv = 0.5 * 0.5,
+        kv = t.pvv / (t.pvv + Rv);
+      t.vx += kv * (vmx - t.vx);
+      t.vy += kv * (vmy - t.vy);
+      t.pvv *= 1 - kv;
+      t.icp = (t.icp || 0) + 1;
+    },
+    cov: () => ({pxx: R, pxv: 0, pvv: 1})
+  });
+}
+// The track lifecycle, shared by the lidar's filter (agTrack) and the fused one (agTrackFused, core/radar.js): predict
+// every track, pair this scan's clusters to tracks, update the paired ones, start tentative tracks from the rest, run
+// the model's own last step, and prune. M, the measurement model: {lidar: whether the clusters update this tick,
+// predict(t), gate(t) → (d → [d², …] | null), update(t, d, gate's result), icp(t, match), cov() → a new track's
+// covariance fields, after()}. Returns nothing; S.agents.tracks is the result.
+function agLifecycle(dt, M) {
+  const A = S.agents;
+  for (const t of A.tracks) M.predict(t);
+  if (M.lidar) {
+    const {taken, used} = agAssoc(A.tracks, A.det, M.gate);
+    for (const [, i, j, g] of taken) {
+      const t = A.tracks[i],
+        d = A.det[j];
+      M.update(t, d, g);
+      t.r = 0.8 * t.r + 0.2 * d.r;
+      // per-target scan matching: the person's hits of this scan aligned to the hits of the last one give the
+      // displacement, a direct velocity measurement that the Kalman filter's velocity state takes with its own gain
+      if (P.agICP && t.pts && d.pts && t.pts.length >= 3 && d.pts.length >= 3) {
+        const cx = t.px,
+          cy = t.py,
+          src = t.pts.map(q => [q[0] - cx, q[1] - cy]),
+          dst = d.pts.map(q => [q[0] - cx, q[1] - cy]),
+          m = icp2d(src, dst, {x: t.vx * dt, y: t.vy * dt, th: 0}, 3); // a person is a handful of hits
+        if (m && m.inl >= 0.6 && m.rms < 0.08) M.icp(t, m);
+      }
+      t.pts = d.pts;
+      t.px = d.x;
+      t.py = d.y;
+      agHit(t);
+    }
+    A.det.forEach((d, j) => {
+      if (!used.has(j))
+        A.tracks.push({
+          id: A.nextId++,
+          x: d.x,
+          y: d.y,
+          vx: 0,
+          vy: 0,
+          r: d.r,
+          ...M.cov(),
+          hits: 1,
+          conf: false,
+          lastUpd: S.t,
+          pts: d.pts,
+          px: d.x,
+          py: d.y
+        });
+    });
+  }
+  if (M.after) M.after();
+  A.tracks = A.tracks.filter(t => S.t - t.lastUpd < (t.conf ? 1.0 : 0.25)); // confirmed tracks coast through 1 s of occlusion
+}
+// Gated greedy nearest-neighbour association: gate(t) returns, for track t, a test of a detection that gives [d², …]
+// inside the gate or null. Returns the pairs taken, nearest first, each track and detection at most once
+// ({taken: [[d², i, j, gate's result]], used: the set of detection indices taken}).
+function agAssoc(tracks, dets, gate) {
+  const pairs = [];
+  tracks.forEach((t, i) => {
+    const g = gate(t);
+    dets.forEach((d, j) => {
+      const r = g(d);
+      if (r) pairs.push([r[0], i, j, r]);
+    });
+  });
   pairs.sort((a, b) => a[0] - b[0]);
   const ut = new Set(),
-    ud = new Set();
-  for (const [, i, j] of pairs) {
-    if (ut.has(i) || ud.has(j)) continue;
-    ut.add(i);
-    ud.add(j);
-    const t = A.tracks[i],
-      d = A.det[j],
-      S2 = t.pxx + R,
-      k0 = t.pxx / S2,
-      k1 = t.pxv / S2,
-      nx = d.x - t.x,
-      ny = d.y - t.y;
-    t.x += k0 * nx;
-    t.y += k0 * ny;
-    t.vx += k1 * nx;
-    t.vy += k1 * ny;
-    const pxx = (1 - k0) * t.pxx,
-      pxv = (1 - k0) * t.pxv,
-      pvv = t.pvv - k1 * t.pxv;
-    t.pxx = pxx;
-    t.pxv = pxv;
-    t.pvv = pvv;
-    const sp = hyp(t.vx, t.vy);
-    if (sp > 2.5) {
-      t.vx *= 2.5 / sp;
-      t.vy *= 2.5 / sp;
-    }
-    t.r = 0.8 * t.r + 0.2 * d.r;
-    // per-target scan matching: the person's hits of this scan aligned to the hits of the last one give the
-    // displacement, a direct velocity measurement that the Kalman filter's velocity state takes with its own gain
-    if (P.agICP && t.pts && d.pts && t.pts.length >= 3 && d.pts.length >= 3) {
-      const cx = t.px,
-        cy = t.py,
-        src = t.pts.map(q => [q[0] - cx, q[1] - cy]),
-        dst = d.pts.map(q => [q[0] - cx, q[1] - cy]),
-        m = icp2d(src, dst, {x: t.vx * dt, y: t.vy * dt, th: 0}, 3); // a person is a handful of hits
-      if (m && m.inl >= 0.6 && m.rms < 0.08) {
-        const vmx = m.x / dt,
-          vmy = m.y / dt,
-          Rv = 0.5 * 0.5,
-          kv = t.pvv / (t.pvv + Rv);
-        t.vx += kv * (vmx - t.vx);
-        t.vy += kv * (vmy - t.vy);
-        t.pvv *= 1 - kv;
-        t.icp = (t.icp || 0) + 1;
-      }
-    }
-    t.pts = d.pts;
-    t.px = d.x;
-    t.py = d.y;
-    t.hits++;
-    t.lastUpd = S.t;
-    if (!t.conf && t.hits >= 3) {
-      t.conf = true;
-      t.t0 = S.t;
-    }
+    used = new Set(),
+    taken = [];
+  for (const p of pairs) {
+    if (ut.has(p[1]) || used.has(p[2])) continue;
+    ut.add(p[1]);
+    used.add(p[2]);
+    taken.push(p);
   }
-  A.det.forEach((d, j) => {
-    if (!ud.has(j))
-      A.tracks.push({
-        id: A.nextId++,
-        x: d.x,
-        y: d.y,
-        vx: 0,
-        vy: 0,
-        r: d.r,
-        pxx: R,
-        pxv: 0,
-        pvv: 1,
-        hits: 1,
-        conf: false,
-        lastUpd: S.t,
-        pts: d.pts,
-        px: d.x,
-        py: d.y
-      });
-  });
-  A.tracks = A.tracks.filter(t => S.t - t.lastUpd < (t.conf ? 1.0 : 0.25)); // confirmed tracks coast through 1 s of occlusion
+  return {taken, used};
+}
+// A track was updated this scan: count the hit and confirm it. With both sensors, a track the radar can see needs one of
+// its hits from the radar (or twice the hits from the lidar alone): a lidar return from fog, or a radar echo from
+// clutter, rarely builds a track the other sensor agrees with.
+function agHit(t) {
+  t.hits++;
+  t.lastUpd = S.t;
+  if (t.conf) return;
+  const vouch = radarOn() && P.trkIn === 'both' && radInView(t) ? (t.rh || 0) >= 1 || t.hits >= 6 : true;
+  if (t.hits >= 3 && vouch) {
+    t.conf = true;
+    t.t0 = S.t;
+  }
+}
+// A person walks: a track's speed is capped at 2.5 m/s
+function agWalkCap(t) {
+  const sp = hyp(t.vx, t.vy);
+  if (sp > 2.5) {
+    t.vx *= 2.5 / sp;
+    t.vy *= 2.5 / sp;
+  }
 }
 // @end
 // Prediction: constant velocity (or frozen), radius inflated with time; or the learned futures (core/predict.js)
@@ -381,7 +428,8 @@ const ST_DT = 0.2,
   ST_DS = 0.1,
   ST_DV = 0.05;
 // The ST speed planner: dynamic programming over (time, distance along the path, speed) against the predicted agents,
-// with a terminal test past the horizon; its speed at 0.2 s caps the tracker.
+// with a terminal test past the horizon; its speed at 0.2 s caps the tracker. The stages below, in order: the speed
+// reference, the occupancy, the search, the free reference, the profile, then yielding and escalation.
 function stPlan() {
   const A = S.agents,
     T = S.track,
@@ -399,7 +447,46 @@ function stPlan() {
   const v0 = clamp(Math.abs(S.odo.v), 0, vtop + 0.3),
     sMax = Math.min(sRem, (vtop + 0.3) * Hh) + 0.3,
     ns = Math.ceil(sMax / ST_DS) + 1;
-  const vref = new Float32Array(ns);
+  const G = {T, pr, dir, Hh, nt, ns, vtop, v0, sMax},
+    vref = stVref(G);
+  const {occ, cc, prox, who, inter, term} = stOccupancy(G, ags);
+  const Aacc = P.accel ? P.amax : 0.8,
+    Bdec = P.accel ? P.amax : 1.5;
+  const vrefAt = s => vref[clamp(Math.round(s / ST_DS), 0, ns - 1)];
+  const {bi, Sv, Vv, Par} = stSearch(G, vrefAt, cc, prox, term, Aacc, Bdec);
+  const free = stFree(G, vrefAt, Aacc, Bdec);
+  const st = {
+    nt,
+    ns,
+    dt: ST_DT,
+    ds: ST_DS,
+    sMax,
+    occ,
+    prox,
+    who,
+    free,
+    prof: null,
+    conflict: false,
+    inter,
+    s0: pr.s,
+    dir,
+    pathId: S.pathId,
+    seg: S.segIdx,
+    t: S.t
+  };
+  if (bi >= 0) stProfile(st, bi, Sv, Vv, Par, v0);
+  A.st = st;
+  if (!stActive()) return;
+  if (!st.prof) A.vlim = Math.max(0, v0 - Bdec * 2 * DT);
+  else if (inter) A.vlim = st.prof[1][2];
+  stYield(st, free);
+  stEscalate(st, v0);
+}
+// Speed reference along the leg: takes the plan's context G ({T, pr, ns, vtop}) and returns v_ref at each ST_DS step
+// ahead (Float32Array of ns), capped by the lateral acceleration on the curvature just ahead and by stopping at the end.
+function stVref(G) {
+  const {T, pr, ns, vtop} = G,
+    vref = new Float32Array(ns);
   for (let j = 0; j < ns; j++) {
     const s = pr.s + j * ST_DS;
     let v = vtop,
@@ -408,6 +495,12 @@ function stPlan() {
     if (kp > 1e-6) v = Math.min(v, Math.sqrt(P.alat / kp));
     vref[j] = Math.min(v, decelCap(T.total - s));
   }
+  return vref;
+}
+// Occupancy of the (t, s) grid: takes G and the predicted agents, returns {occ, cc, prox, who, inter, term} (grids of
+// (nt + 1) × ns, term of ns): which cells are blocked and by whom, their costs, and the terminal cost past the horizon.
+function stOccupancy(G, ags) {
+  const {T, pr, dir, Hh, nt, ns} = G;
   // occ: inside the clearance (1) or touching (2); cc: collision cost of the cell; prox: soft cost just outside the clearance
   const occ = new Uint8Array((nt + 1) * ns),
     cc = new Float32Array((nt + 1) * ns),
@@ -470,8 +563,12 @@ function stPlan() {
         if (best < marg) term[j] = Math.max(term[j], 0.5 * cellCost(b0, best));
       }
     } // growth frozen at the horizon
-  const Aacc = P.accel ? P.amax : 0.8,
-    Bdec = P.accel ? P.amax : 1.5,
+  return {occ, cc, prox, who, inter, term};
+}
+// The search: dynamic programming over (t, s, v) with six accelerations from v0; takes G, v_ref, the cell costs and
+// the terminal cost, returns the cheapest final node bi (-1: none) and the node arrays {Sv, Vv, Par} to backtrack it.
+function stSearch(G, vrefAt, cc, prox, term, Aacc, Bdec) {
+  const {nt, ns, vtop, v0, sMax} = G,
     acts = [-Bdec, -0.5 * Bdec, -0.2 * Bdec, 0, 0.5 * Aacc, Aacc];
   const nv = Math.round((vtop + 0.3) / ST_DV) + 1,
     NSV = ns * nv,
@@ -480,7 +577,6 @@ function stPlan() {
     Sv = new Float32Array(N),
     Vv = new Float32Array(N),
     Par = new Int32Array(N).fill(-1);
-  const vrefAt = s => vref[clamp(Math.round(s / ST_DS), 0, ns - 1)];
   const put = (k, s, v, c, par) => {
     const i = k * NSV + clamp(Math.round(s / ST_DS), 0, ns - 1) * nv + clamp(Math.round(v / ST_DV), 0, nv - 1);
     if (c < C[i]) {
@@ -526,65 +622,53 @@ function stPlan() {
       bi = i;
     }
   }
-  // unconstrained reference: accelerate toward v_ref, ignoring agents
-  const free = [[0, 0]];
-  {
-    let s = 0,
-      v = v0;
-    for (let k = 1; k <= nt; k++) {
-      const vr = vrefAt(s),
-        v2 = v < vr ? Math.min(vr, v + Aacc * ST_DT) : Math.max(vr, v - Bdec * ST_DT);
-      s = Math.min(sMax, s + ((v + v2) / 2) * ST_DT);
-      v = v2;
-      free.push([k * ST_DT, s]);
-    }
+  return {bi, Sv, Vv, Par};
+}
+// Unconstrained reference: accelerate toward v_ref, ignoring agents. Takes G and v_ref, returns [[t, s]] for k = 0…nt.
+function stFree(G, vrefAt, Aacc, Bdec) {
+  const {nt, v0, sMax} = G,
+    free = [[0, 0]];
+  let s = 0,
+    v = v0;
+  for (let k = 1; k <= nt; k++) {
+    const vr = vrefAt(s),
+      v2 = v < vr ? Math.min(vr, v + Aacc * ST_DT) : Math.max(vr, v - Bdec * ST_DT);
+    s = Math.min(sMax, s + ((v + v2) / 2) * ST_DT);
+    v = v2;
+    free.push([k * ST_DT, s]);
   }
-  const st = {
-    nt,
-    ns,
-    dt: ST_DT,
-    ds: ST_DS,
-    sMax,
-    occ,
-    prox,
-    who,
-    free,
-    prof: null,
-    conflict: false,
-    inter,
-    s0: pr.s,
-    dir,
-    pathId: S.pathId,
-    seg: S.segIdx,
-    t: S.t
-  };
-  if (bi >= 0) {
-    const prof = [];
-    let i = bi;
-    for (let k = nt; k >= 1; k--) {
-      prof.push([k * ST_DT, Sv[i], Vv[i]]);
-      i = Par[i];
-    }
-    prof.push([0, 0, v0]);
-    prof.reverse();
-    st.prof = prof;
-    // conflict: even the cheapest profile is predicted to touch an agent
-    for (let k = 1; k <= nt && !st.conflict; k++) {
-      const j2 = clamp(Math.round(prof[k][1] / ST_DS), 0, ns - 1),
-        j1 = Math.min(j2, Math.max(0, Math.ceil(prof[k - 1][1] / ST_DS - 1e-6)));
-      for (let j = j1; j <= j2; j++)
-        if (occ[k * ns + j] === 2) {
-          st.conflict = k * ST_DT;
-          break;
-        }
-    }
+  return free;
+}
+// The profile: backtracks the search from node bi into st.prof ([[t, s, v]] for k = 0…nt) and sets st.conflict to the
+// first time the cheapest profile is still predicted to touch an agent (false: never).
+function stProfile(st, bi, Sv, Vv, Par, v0) {
+  const {nt, ns, occ} = st,
+    prof = [];
+  let i = bi;
+  for (let k = nt; k >= 1; k--) {
+    prof.push([k * ST_DT, Sv[i], Vv[i]]);
+    i = Par[i];
   }
-  A.st = st;
-  if (!stActive()) return;
-  if (!st.prof) A.vlim = Math.max(0, v0 - Bdec * 2 * DT);
-  else if (inter) A.vlim = st.prof[1][2];
-  // yielding message and escalation to the global planner
-  if (st.prof && inter) {
+  prof.push([0, 0, v0]);
+  prof.reverse();
+  st.prof = prof;
+  // conflict: even the cheapest profile is predicted to touch an agent
+  for (let k = 1; k <= nt && !st.conflict; k++) {
+    const j2 = clamp(Math.round(prof[k][1] / ST_DS), 0, ns - 1),
+      j1 = Math.min(j2, Math.max(0, Math.ceil(prof[k - 1][1] / ST_DS - 1e-6)));
+    for (let j = j1; j <= j2; j++)
+      if (occ[k * ns + j] === 2) {
+        st.conflict = k * ST_DT;
+        break;
+      }
+  }
+}
+// Yielding message: when the profile falls 0.5 m behind the free reference, names the agent in its way in the log
+// (once per agent every 6 s). Takes the plan st and the free reference; returns nothing.
+function stYield(st, free) {
+  const A = S.agents,
+    {nt, ns, occ, prox, who} = st;
+  if (st.prof && st.inter) {
     const sEnd = st.prof[nt][1],
       fEnd = free[nt][1];
     if (sEnd < fEnd - 0.5) {
@@ -605,6 +689,12 @@ function stPlan() {
       }
     }
   }
+}
+// Escalation to the global planner: accumulates A.blockT while the plan st is in conflict or waiting at standstill
+// (speed v0), and past the threshold sends the mission back to PLAN. Returns nothing.
+function stEscalate(st, v0) {
+  const A = S.agents,
+    {nt, inter} = st;
   const waiting = st.prof && inter && st.prof[nt][1] < 0.2 && v0 < 0.1;
   A.blockT = st.conflict ? A.blockT + 2 * DT * 10 : waiting ? A.blockT + 2 * DT : 0; // escalate after ≈0.3 s of unavoidable conflict, or ≈4 s of waiting
   if (A.blockT >= 3.9 && P.agPlan && S.t - A.lastAgentPlan > 4) {
@@ -702,6 +792,9 @@ function voHits(ux, uy, ax, ay, vx, vy, R, tau) {
   const t = (dw - Math.sqrt(disc)) / ww;
   return t <= tau ? t : Infinity;
 }
+// The VO speed layer: takes the tracker's command c ({v, w} or {v, steer}) and returns it unchanged when it enters no
+// confirmed person's cone within τ, else the nearest free sampled velocity as a speed and an added turn (stop if none);
+// S.vo keeps the cones and the pick for the map.
 function agVO(c) {
   S.vo = null;
   if (P.spd !== 'vo' || !agOn() || !AG_PATH_CTL.includes(P.ctl) || S.fsm.state !== 'DRIVE' || !S.track) return c;

@@ -5,6 +5,9 @@
 //     cfg: {json}              the Try configuration (tryGo when it has "sim": true, lessonGo otherwise)
 //     Setup: … / See: … / Shows: …    the explanation (optional; all three make an explained Try)
 //     Predict: <question>      then one "- option" line per answer and "Answer: <index>" (0-based)
+//     | a | b |                a pipe table right after Setup, See or Shows (header row, a |---| row, then one row
+//                              per line) joins that field; plain lines after the table continue the same field.
+//                              The field is printed inside a <p>, so the table closes it and opens a new one.
 //   ## Code: <title>         the code behind the lesson (optional, one per lesson): the lines that follow
 //     snippet: <id>            a "// @code <id>" snippet in the source (tools/code.mjs)
 //     focus: <text>            a line of the snippet to mark, by a substring (repeatable); "focus: a … b" marks the
@@ -54,8 +57,28 @@ export function parseLesson(md, file) {
       const label = sec.replace(/^Try:\s*/, ''),
         x = {};
       let cfg = null,
-        predict = null;
+        predict = null,
+        field = null,
+        rows = null;
+      const flush = () => {
+        if (rows) x[field] = (x[field] || '') + runTable(rows, file, label);
+        rows = null;
+      };
       for (const l of items) {
+        if (/^\|/.test(l)) {
+          if (!field) throw new Error(`${file}: Try "${label}": a table must follow Setup, See or Shows`);
+          (rows = rows || []).push(l);
+          continue;
+        }
+        if (rows) {
+          flush();
+          const p = kv(l);
+          if (!/^- /.test(l) && !(p && /^(cfg|Setup|See|Shows|Predict|Answer)$/.test(p[0]))) {
+            x[field] += l;
+            continue;
+          }
+        }
+        field = null;
         if (/^- /.test(l)) {
           if (predict) predict.opts.push(l.slice(2));
           continue;
@@ -64,15 +87,16 @@ export function parseLesson(md, file) {
         if (!p) throw new Error(`${file}: Try "${label}": cannot read "${l.slice(0, 60)}"`);
         const [k, v] = p;
         if (k === 'cfg') cfg = JSON.parse(v);
-        else if (k === 'Setup') x.setup = v;
-        else if (k === 'See') x.see = v;
-        else if (k === 'Shows') x.shows = v;
+        else if (k === 'Setup') x[(field = 'setup')] = v;
+        else if (k === 'See') x[(field = 'see')] = v;
+        else if (k === 'Shows') x[(field = 'shows')] = v;
         else if (k === 'Predict') predict = {q: v, opts: [], a: 0};
         else if (k === 'Answer') {
           if (!predict) throw new Error(`${file}: Answer without Predict`);
           predict.a = +v;
         } else throw new Error(`${file}: Try "${label}": unknown key ${k}`);
       }
+      flush();
       if (!cfg) throw new Error(`${file}: Try "${label}" has no cfg`);
       if (predict) x.predict = predict;
       L.tries.push(Object.keys(x).length ? [label, cfg, x] : [label, cfg]);
@@ -124,6 +148,29 @@ export function parseLesson(md, file) {
   if (/class="eq"/.test(L.b)) throw new Error(`${file}: a <div class="eq"> block: write the formula in TeX ($$ … $$)`);
   texLesson(L, file);
   return {group: meta.group, extra: meta.extra === 'true', L};
+}
+// A run log as a table: the first row is the header, the second the |---| separator, then the rows. It closes the
+// field's paragraph and opens the next, and takes the workspace's numeric table style (.exptab: first column left,
+// the rest right-aligned in tabular figures, scrolling sideways on a phone).
+function runTable(lines, file, label) {
+  const rows = lines.map(l =>
+    l
+      .trim()
+      .replace(/^\||\|$/g, '')
+      .split('|')
+      .map(c => c.trim())
+  );
+  if (rows.length < 3 || !rows[1].every(c => /^:?-+:?$/.test(c)))
+    throw new Error(`${file}: Try "${label}": a table needs a header row, a |---| row and at least one row`);
+  const n = rows[0].length;
+  for (const r of rows)
+    if (r.length !== n) throw new Error(`${file}: Try "${label}": table row "${r.join(' | ')}" has ${r.length} cells, the header ${n}`);
+  const head = `<thead><tr>${rows[0].map(c => `<th>${c}</th>`).join('')}</tr></thead>`,
+    body = `<tbody>${rows
+      .slice(2)
+      .map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`)
+      .join('')}</tbody>`;
+  return `</p><div class="exptab"><table>${head}${body}</table></div><p>`;
 }
 // Every text field of a parsed lesson: TeX → MathML
 function texLesson(L, file) {

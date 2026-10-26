@@ -169,7 +169,12 @@ async def main():
         if bad: fails.append('Nyquist count disagrees with the eigenvalues')
 
         print('== 6. the worker core (Experiments) runs the car with tyre slip as the page does')
-        WK=r'''async ({level,overrides,seed,secs})=>{const src=document.getElementById('core-worker-src').textContent;
+        # the page builds the worker's source from its own script (ui/experiments.js); it must be dist/core-worker.js exactly
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','dist','core-worker.js'),encoding='utf-8') as f: wsrc=f.read()
+        same_src=await pg.evaluate('w=>window.__coreWorkerSource()===w',wsrc)
+        print('  the worker source the page assembles is dist/core-worker.js:',same_src)
+        if not same_src: fails.append('the page assembles a worker source that differs from dist/core-worker.js')
+        WK=r'''async ({level,overrides,seed,secs})=>{const src=window.__coreWorkerSource();
           const w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
           return await new Promise((res,rej)=>{w.onmessage=e=>{if(e.data.done){w.terminate();res(e.data);}};w.onerror=e=>rej(e.message);w.postMessage({cmd:'run',id:1,level,overrides,seed,secs});});}'''
         PG=r'''async ({level,overrides,seed,secs})=>{const N=window.__nav;N.setParam('seed',seed,false);N.loadLevel(level);for(const [k,v] of Object.entries(overrides))N.setParam(k,v,false);

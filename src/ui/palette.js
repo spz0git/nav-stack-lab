@@ -285,7 +285,7 @@ function palRender() {
   const cur = ul.querySelector('[aria-selected="true"]');
   if (cur) cur.scrollIntoView({block: 'nearest'});
   $('#pal-hint').textContent = toks.length
-    ? `${L.length}${L.length === 40 ? '+' : ''} results`
+    ? `${L.length}${L.length === 40 ? '+' : ''} result${L.length === 1 ? '' : 's'}`
     : 'Recent and actions · type to search settings, lessons, chapters, symbols, signals';
 }
 function palRun(it) {

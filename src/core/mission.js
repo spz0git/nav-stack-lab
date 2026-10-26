@@ -494,37 +494,11 @@ const posSigma = () => (S.Pc ? Math.sqrt(Math.max(0, S.Pc[0] + S.Pc[4])) : 0);
 function missionTick() {
   const F = S.fsm;
   if (F.state === 'PLAN') {
-    if (F.planPending) return;
-    if (exploring() && !F.queue.length) {
-      // the first frontier once the first scan is in; an empty map after 3 s, or no frontier left, ends the exploration
-      const waiting = S.t - (F.scanT || 0) < 3;
-      if (!exploreNext(F.scanT != null ? 'start' : 'next', waiting)) {
-        if (!waiting) {
-          F.state = 'DONE';
-          S.track = null;
-          S.plan = null;
-        }
-        return;
-      }
-      F.scanT = null;
-    }
-    doPlan(F.pendingReason || 'initial');
-    F.pendingReason = null;
+    tickPlan(F);
     return;
   }
-  if (F.state === 'NO_PATH') {
-    if (S.t - F.lastPlanT > 2) {
-      F.state = 'PLAN';
-      F.pendingReason = 'retry';
-    }
-    return;
-  }
-  if (F.state === 'LOST') {
-    if (posSigma() < 0.4) {
-      logE(`Relocalized (σ ${posSigma().toFixed(2)} m). Resuming.`, 'ok');
-      F.state = 'PLAN';
-      F.pendingReason = 'relocalized';
-    }
+  if (F.state === 'NO_PATH' || F.state === 'LOST') {
+    tickWaiting(F);
     return;
   }
   if (F.state !== 'DRIVE') return;
@@ -536,13 +510,7 @@ function missionTick() {
   const wp = WPS[F.queue[0]],
     e = S.est;
   if (F.recover) {
-    // backing off (startRecovery): until the clear cell is reached, or 3 s, then a fresh plan from there
-    const end = F.recover.to;
-    if (hyp(end[0] - e.x, end[1] - e.y) < 0.12 || S.t - F.recover.t > 3) {
-      F.recover = null;
-      F.state = 'PLAN';
-      F.pendingReason = 'stuck';
-    }
+    tickRecover(F, e);
     return;
   }
   // heading for the edge of the seen floor (unseenGoalProxy): a fresh plan every second as the map grows
@@ -551,26 +519,78 @@ function missionTick() {
     F.pendingReason = 'periodic';
     return;
   }
-  if (wp.explore && S.t - (F.frontierT || 0) >= 1) {
-    F.frontierT = S.t;
-    if (frontierGone(wp)) {
-      logE(`Frontier at (${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}) seen on the way: next`);
-      wp.done = true;
-      F.queue.shift();
-      F.stuckN = 0;
-      S.ctlState = {I: 0, prev: null};
-      if (exploreMore()) {
-        F.state = 'PLAN';
-        F.pendingReason = 'initial';
-      } else {
+  if (wp.explore && S.t - (F.frontierT || 0) >= 1 && tickFrontier(F, wp)) return;
+  const lastSeg = tickCusp(F, e);
+  if (tickArrive(F, wp, e, lastSeg)) return;
+  if (tickReplan(F, e)) return;
+  tickStuck(F, e);
+}
+// PLAN: in exploration, the next frontier first; then a plan for the pending reason
+function tickPlan(F) {
+  if (F.planPending) return;
+  if (exploring() && !F.queue.length) {
+    // the first frontier once the first scan is in; an empty map after 3 s, or no frontier left, ends the exploration
+    const waiting = S.t - (F.scanT || 0) < 3;
+    if (!exploreNext(F.scanT != null ? 'start' : 'next', waiting)) {
+      if (!waiting) {
         F.state = 'DONE';
         S.track = null;
         S.plan = null;
-        logE(`Exploration complete in ${S.t.toFixed(1)} s`, 'ok');
       }
       return;
     }
+    F.scanT = null;
   }
+  doPlan(F.pendingReason || 'initial');
+  F.pendingReason = null;
+}
+// NO_PATH: a retry 2 s after the last plan; LOST: resume once the position σ is back under 0.4 m
+function tickWaiting(F) {
+  if (F.state === 'NO_PATH') {
+    if (S.t - F.lastPlanT > 2) {
+      F.state = 'PLAN';
+      F.pendingReason = 'retry';
+    }
+    return;
+  }
+  if (posSigma() < 0.4) {
+    logE(`Relocalized (σ ${posSigma().toFixed(2)} m). Resuming.`, 'ok');
+    F.state = 'PLAN';
+    F.pendingReason = 'relocalized';
+  }
+}
+// backing off (startRecovery): until the clear cell is reached, or 3 s, then a fresh plan from there
+function tickRecover(F, e) {
+  const end = F.recover.to;
+  if (hyp(end[0] - e.x, end[1] - e.y) < 0.12 || S.t - F.recover.t > 3) {
+    F.recover = null;
+    F.state = 'PLAN';
+    F.pendingReason = 'stuck';
+  }
+}
+// Exploring, once a second: a frontier goal seen on the way is done; on to the next or the end. True when it was.
+function tickFrontier(F, wp) {
+  F.frontierT = S.t;
+  if (!frontierGone(wp)) return false;
+  logE(`Frontier at (${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}) seen on the way: next`);
+  wp.done = true;
+  F.queue.shift();
+  F.stuckN = 0;
+  S.ctlState = {I: 0, prev: null};
+  if (exploreMore()) {
+    F.state = 'PLAN';
+    F.pendingReason = 'initial';
+  } else {
+    F.state = 'DONE';
+    S.track = null;
+    S.plan = null;
+    logE(`Exploration complete in ${S.t.toFixed(1)} s`, 'ok');
+  }
+  return true;
+}
+// A plan in legs (cusps): the next leg once the estimate is at the end of this one. Returns whether the leg driven is
+// the last.
+function tickCusp(F, e) {
   let lastSeg = !S.plan || S.segIdx >= S.plan.segs.length - 1;
   if (!lastSeg) {
     const pr = project(e.x, e.y, true),
@@ -584,6 +604,11 @@ function missionTick() {
       lastSeg = S.segIdx >= S.plan.segs.length - 1;
     }
   }
+  return lastSeg;
+}
+// Arrival at goal wp: the heading alignment at posed goals, then the goal reached by the estimate and the next goal,
+// lap or the end. True when the tick ends here (aligning, or the goal reached).
+function tickArrive(F, wp, e, lastSeg) {
   // A goal with a heading: the car's pose planners (Hybrid A*, Reeds–Shepp, your code) arrive with it; the unicycle
   // drives to the point and then turns in place (F.align) until the estimate faces the goal heading within ALIGN_TOL.
   // Point planners on the car cannot honour it, so the heading is reported and not waited for.
@@ -605,44 +630,47 @@ function missionTick() {
     F.align = false;
   }
   if (F.align) {
-    if (!headOK) return;
+    if (!headOK) return true;
   }
-  if (lastSeg && headOK && legDone && near) {
-    F.align = false;
-    const te = hyp(S.robot.x - wp.x, S.robot.y - wp.y),
-      he = posed ? Math.abs(deg(wrap(S.robot.th - wp.th))) : 0;
-    logE(
-      `Reached goal ${wpLabel(F.queue[0])} by estimate · true error ${te.toFixed(2)} m${posed ? ` · ${he.toFixed(0)}°` : ''}`,
-      te > 0.5 || he > 20 ? 'warn' : 'ok'
-    );
-    wp.done = true;
-    F.queue.shift();
-    F.stuckN = 0;
-    S.ctlState = {I: 0, prev: null};
-    if (F.queue.length || exploreMore()) {
-      F.state = 'PLAN';
-      F.pendingReason = 'initial';
-    } else if (P.misLoop && !exploring() && missionRepeat(`Lap ${S.lap || 1} complete in ${S.t.toFixed(1)} s`)) {
-      F.pendingReason = 'initial';
-    } else {
-      F.state = 'DONE';
-      S.track = null;
-      S.plan = null;
-      logE(exploring() ? `Exploration complete in ${S.t.toFixed(1)} s` : `Mission complete in ${S.t.toFixed(1)} s`, 'ok');
-    }
-    return;
+  if (!(lastSeg && headOK && legDone && near)) return false;
+  F.align = false;
+  const te = hyp(S.robot.x - wp.x, S.robot.y - wp.y),
+    he = posed ? Math.abs(deg(wrap(S.robot.th - wp.th))) : 0;
+  logE(
+    `Reached goal ${wpLabel(F.queue[0])} by estimate · true error ${te.toFixed(2)} m${posed ? ` · ${he.toFixed(0)}°` : ''}`,
+    te > 0.5 || he > 20 ? 'warn' : 'ok'
+  );
+  wp.done = true;
+  F.queue.shift();
+  F.stuckN = 0;
+  S.ctlState = {I: 0, prev: null};
+  if (F.queue.length || exploreMore()) {
+    F.state = 'PLAN';
+    F.pendingReason = 'initial';
+  } else if (P.misLoop && !exploring() && missionRepeat(`Lap ${S.lap || 1} complete in ${S.t.toFixed(1)} s`)) {
+    F.pendingReason = 'initial';
+  } else {
+    F.state = 'DONE';
+    S.track = null;
+    S.plan = null;
+    logE(exploring() ? `Exploration complete in ${S.t.toFixed(1)} s` : `Mission complete in ${S.t.toFixed(1)} s`, 'ok');
   }
+  return true;
+}
+// The replan triggers while driving: off path, the replan timer, and the path ahead blocked (the car's footprint along
+// a Hybrid A* plan, the costmap along any other). True when one fired (the machine is in PLAN with its reason).
+function tickReplan(F, e) {
   // the estimate is far from the path (kidnapped, relocalized, pushed aside): plan again from where the robot is now
   if (S.t - F.lastPlanT > 0.5 && project(e.x, e.y, true).d > OFFPATH) {
     F.state = 'PLAN';
     F.pendingReason = 'off path';
-    return;
+    return true;
   }
   const per = P.plan === 'policy' ? Math.min(0.5, P.replan || 0.5) : P.replan; // the policy's trajectory is 4 s long: refreshed every half second
   if (per > 0 && S.t - F.lastPlanT >= per) {
     F.state = 'PLAN';
     F.pendingReason = 'periodic';
-    return;
+    return true;
   }
   if (P.plan === 'hybrid' && isCar() && S.t - F.lastBlockT > 0.5) {
     // footprint check of the remaining legs (poses carry heading)
@@ -660,7 +688,7 @@ function missionTick() {
         if (c < 0) {
           F.state = 'PLAN';
           F.pendingReason = 'path blocked';
-          return;
+          return true;
         }
       }
     }
@@ -677,10 +705,14 @@ function missionTick() {
       if (bad) {
         F.state = 'PLAN';
         F.pendingReason = 'path blocked';
-        return;
+        return true;
       }
     }
   }
+  return false;
+}
+// Every 5 s: under 0.15 m of progress is stuck; three times skips the goal, otherwise back off (startRecovery) or replan
+function tickStuck(F, e) {
   if (S.t - F.prog.t > 5) {
     if (hyp(e.x - F.prog.x, e.y - F.prog.y) < 0.15) {
       F.stuckN = (F.stuckN || 0) + 1;

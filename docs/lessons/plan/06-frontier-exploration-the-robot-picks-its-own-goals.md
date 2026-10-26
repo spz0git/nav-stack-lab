@@ -12,7 +12,7 @@ $$\text{score} = \frac{\text{size}}{1 + d}, \qquad d = \text{distance from the e
 ## Try: Explore the building
 cfg: {"sim":true,"level":3,"set":{"mis":"explore"},"tab":"mis"}
 Setup: L4, the unknown building, lidar mapping, no goals of its own: Explore. Mission tab, Frontiers layer on.
-See: The first scan leaves three frontiers, the largest of 1739 cells the whole rim of the visible area, and the robot heads for its middle. By 10 s there are 14 frontiers and 42 % of the floor is seen; 14 frontier goals are set in all, 13 of them dropped before arrival because the way there revealed what was behind them, and only one is actually reached. 100 % of the floor seen in 123 s and 94 m, with no replan and no collision.
+See: The first scan leaves three frontiers, the largest of 1739 cells the whole rim of the visible area, and the robot heads for its middle. By 10 s there are 14 frontiers and 42 % of the floor is seen. Of the 14 frontier goals set in all, 13 are dropped before arrival because the way there revealed what was behind them, and only one is actually reached. 100 % of the floor seen in 123 s and 94 m, with no replan and no collision.
 Shows: The plan-drive-replan loop of the previous lesson with the goals now coming from the map itself. Nearly every goal is abandoned early, which is the point: a frontier goal was never a place to be, only a place from which to see. Watch the amber rim shrink room by room.
 Predict: Let the robot pick its own goals in the unknown building. How many goals will it set itself, and how many of them will it reach?
 - About four, like the level's goals, all of them reached
@@ -56,7 +56,7 @@ Answer: 1
 ## Try: Explore with DWA
 cfg: {"sim":true,"level":3,"set":{"mis":"explore","ctl":"dwa"},"tab":"mis"}
 Setup: Explore with the dynamic window tracker in place of pure pursuit.
-See: DWA gets stuck in doorways and gives up on four frontiers, three where it got stuck and one it could no longer plan to; at 38 s the only frontier left is one it failed, so the mission tries the failed ones once more from where it now stands, and this time the doorway at (10.0, 5.5) works. 100 % of the floor in 187 s, no collision.
+See: DWA gets stuck in doorways and gives up on four frontiers, three where it got stuck and one it could no longer plan to. At 38 s the only frontier left is one it failed, so the mission tries the failed ones once more from where it now stands. This time the doorway at (10.0, 5.5) works. 100 % of the floor in 187 s, no collision.
 Shows: The exploration layer only chooses goals; whether the robot gets there is the planner's and the tracker's problem, and a frontier in a doorway is the hardest kind of goal, a narrow passage with unknown space behind it. The retry pass is a cheap piece of robustness: a goal that failed from across the building is often easy from next door. RRT* fares worse on this level: its paths hug the corners and the robot wedges itself in one, after which no frontier is reachable.
 Predict: Swap pure pursuit for DWA. What changes?
 - Nothing: the goals are the same

@@ -33,7 +33,12 @@ Answer: 0
 ## Try: Fog
 cfg: {"sim":true,"level":4,"set":{"weather":"fog"},"tab":"per","layers":{"agents":true,"lidar":true}}
 Setup: Fog: the lidar reaches 4 m instead of 8, misses some beams, and sees returns from the air itself. Nothing is broken; the lidar is working as a lidar works in fog.
-See: The speed planner yields 10 times against 4 in clear air, to tracks the fog makes of nobody, and the one contact is now a strike at 101 s, 1.45 m/s. No health light mentions the fog at any point. On seeds 2 to 5 the yields go up on every run (9 to 15 against 5 to 8), and the contacts range from one to four.
+See: The speed planner yields to tracks the fog makes of nobody, and this run's one contact is now a strike at 101 s, 1.45 m/s.
+| Run | Yields in fog | Yields in clear air | Contacts with a person |
+|---|---|---|---|
+| this run | 10 | 4 | 1 |
+| seeds 2 to 5 | 9 to 15 | 5 to 8 | one to four |
+Look at the yields: they go up on every run, and no health light mentions the fog at any point.
 Shows: A triggering condition that hits perception twice, as phantom tracks that stop the robot for nothing and as a shorter reach that leaves less time for a real person. The stack has no way to notice it: no light watches how many beams return. A condition the robot cannot detect has to be handled in the domain or the design.
 Predict: Turn the fog on. How many times does the speed planner yield (the "yielding" lines in the event log), compared with clear air?
 - More: it yields to tracks of nobody
@@ -44,7 +49,7 @@ Answer: 0
 ## Try: The particle filter's bad seed
 cfg: {"sim":true,"level":4,"seed":1,"tab":"loc","layers":{"belief":true}}
 Setup: L5 at seed 1 instead of 7: the same floor, the same settings, a different draw of the noise.
-See: The Localize light is red from the start and keeps coming back: the particle cloud spreads out again and again in the repeating warehouse, and each time the lost guard holds the robot until it relocalizes, 63 times, 76 s held in all. The mission takes 249 s instead of 121, the planner reports no path at 43 s, and the robot strikes a person twice at 1.05 m/s, at 122 and 169 s, both times with its estimate right to within 5 cm.
+See: The Localize light is red from the start and keeps coming back: the particle cloud spreads out again and again in the repeating warehouse. Each time the lost guard holds the robot until it relocalizes, 63 times, 76 s held in all. The mission takes 249 s instead of 121, the planner reports no path at 43 s, and the robot strikes a person twice at 1.05 m/s, at 122 and 169 s, both times with its estimate right to within 5 cm.
 Shows: Unlabeled beacons in a symmetric warehouse are the triggering condition; a filter that cannot tell the mirror poses apart is the insufficiency. Unlike the fog, this one the stack notices, and answers with a degraded mode: hold and relocalize. The answer has a price, a mission twice as long, and a side effect: a robot that stops and starts meets the people at different places and times, and two of those meetings end in a strike with the estimate right, so the filter did not cause them; the encounters it set up did.
 Predict: At seed 1 the particle filter keeps losing the robot. Does the stack notice?
 - Yes: the Localize light goes red and the robot holds to relocalize

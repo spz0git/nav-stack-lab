@@ -226,152 +226,228 @@ function rrtstar(sx, sy, gx, gy) {
 // @end
 
 /* RS_BEGIN */
+// Reeds–Shepp helpers in normalized units (turning radius 1): rsMod wraps an angle to [-π, π], rsPol gives the
+// polar form [r, θ] of (x, y).
+const RS_HP = Math.PI / 2;
+function rsMod(x) {
+  let v = x % (2 * Math.PI);
+  if (v < -Math.PI) v += 2 * Math.PI;
+  else if (v > Math.PI) v -= 2 * Math.PI;
+  return v;
+}
+function rsPol(x, y) {
+  return [Math.hypot(x, y), Math.atan2(y, x)];
+}
+// Path families in normalized units (turning radius 1): each takes the goal (x, y, φ) relative to the start and
+// returns [signed segment lengths, segment letters] or null. Signed lengths: negative = reverse.
+function rsLSL(x, y, p) {
+  const [u, t] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (t >= 0 && t <= Math.PI) {
+    const v = rsMod(p - t);
+    if (v >= 0 && v <= Math.PI) return [[t, u, v], 'LSL'];
+  }
+  return null;
+}
+function rsLSR(x, y, p) {
+  let [u1, t1] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  u1 *= u1;
+  if (u1 >= 4) {
+    const u = Math.sqrt(u1 - 4),
+      th = Math.atan2(2, u),
+      t = rsMod(t1 + th),
+      v = rsMod(t - p);
+    if (t >= 0 && v >= 0) return [[t, u, v], 'LSR'];
+  }
+  return null;
+}
+function rsLxRxL(x, y, p) {
+  const [u1, th] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (u1 <= 4) {
+    const A = Math.acos(0.25 * u1),
+      t = rsMod(A + th + RS_HP),
+      u = rsMod(Math.PI - 2 * A),
+      v = rsMod(p - t - u);
+    return [[t, -u, v], 'LRL'];
+  }
+  return null;
+}
+function rsLxRL(x, y, p) {
+  const [u1, th] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (u1 <= 4) {
+    const A = Math.acos(0.25 * u1),
+      t = rsMod(A + th + RS_HP),
+      u = rsMod(Math.PI - 2 * A),
+      v = rsMod(-p + t + u);
+    return [[t, -u, -v], 'LRL'];
+  }
+  return null;
+}
+function rsLRxL(x, y, p) {
+  const [u1, th] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (u1 <= 4 && u1 > 1e-9) {
+    const u = Math.acos(1 - u1 * u1 * 0.125),
+      A = Math.asin(Math.max(-1, Math.min(1, (2 * Math.sin(u)) / u1))),
+      t = rsMod(-A + th + RS_HP),
+      v = rsMod(t - u - p);
+    return [[t, u, -v], 'LRL'];
+  }
+  return null;
+}
+function rsLRxLR(x, y, p) {
+  const [u1, th] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  if (u1 <= 2) {
+    const A = Math.acos((u1 + 2) * 0.25),
+      t = rsMod(th + A + RS_HP),
+      u = rsMod(A),
+      v = rsMod(p - t + 2 * u);
+    if (t >= 0 && u >= 0 && v >= 0) return [[t, u, -u, -v], 'LRLR'];
+  }
+  return null;
+}
+function rsLxRLxR(x, y, p) {
+  const [u1, th] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  const u2 = (20 - u1 * u1) / 16;
+  if (u2 >= 0 && u2 <= 1 && u1 > 1e-9) {
+    const u = Math.acos(u2),
+      A = Math.asin(Math.max(-1, Math.min(1, (2 * Math.sin(u)) / u1))),
+      t = rsMod(th + A + RS_HP),
+      v = rsMod(t - p);
+    if (t >= 0 && v >= 0) return [[t, -u, -u, v], 'LRLR'];
+  }
+  return null;
+}
+function rsLxR90SL(x, y, p) {
+  const [u1, th] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (u1 >= 2) {
+    const q = Math.sqrt(u1 * u1 - 4),
+      u = q - 2,
+      A = Math.atan2(2, q),
+      t = rsMod(th + A + RS_HP),
+      v = rsMod(t - p + RS_HP);
+    if (t >= 0 && v >= 0) return [[t, -RS_HP, -u, -v], 'LRSL'];
+  }
+  return null;
+}
+function rsLSR90xL(x, y, p) {
+  const [u1, th] = rsPol(x - Math.sin(p), y - 1 + Math.cos(p));
+  if (u1 >= 2) {
+    const q = Math.sqrt(u1 * u1 - 4),
+      u = q - 2,
+      A = Math.atan2(q, 2),
+      t = rsMod(th - A + RS_HP),
+      v = rsMod(t - p - RS_HP);
+    if (t >= 0 && v >= 0) return [[t, u, RS_HP, -v], 'LSRL'];
+  }
+  return null;
+}
+function rsLxR90SR(x, y, p) {
+  const [u1, th] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  if (u1 >= 2) {
+    const t = rsMod(th + RS_HP),
+      u = u1 - 2,
+      v = rsMod(p - t - RS_HP);
+    if (t >= 0 && v >= 0) return [[t, -RS_HP, -u, -v], 'LRSR'];
+  }
+  return null;
+}
+function rsLSL90xR(x, y, p) {
+  const [u1, th] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  if (u1 >= 2) {
+    const t = rsMod(th),
+      u = u1 - 2,
+      v = rsMod(p - t - RS_HP);
+    if (t >= 0 && v >= 0) return [[t, u, RS_HP, -v], 'LSLR'];
+  }
+  return null;
+}
+function rsLxR90SL90xR(x, y, p) {
+  const [u1, th] = rsPol(x + Math.sin(p), y - 1 - Math.cos(p));
+  if (u1 >= 4) {
+    const q = Math.sqrt(u1 * u1 - 4),
+      u = q - 4,
+      A = Math.atan2(2, q),
+      t = rsMod(th + A + RS_HP),
+      v = rsMod(t - p);
+    if (t >= 0 && v >= 0) return [[t, -RS_HP, -u, -RS_HP, v], 'LRSLR'];
+  }
+  return null;
+}
+// The pose [x, y, θ] reached by following candidate c ({L, T}) from q0 at turning radius R.
+function rsEndpoint(q0, c, R) {
+  let x = q0[0],
+    y = q0[1],
+    th = q0[2];
+  for (let i = 0; i < c.L.length; i++) {
+    const d = c.L[i],
+      t = c.T[i];
+    if (t === 'S') {
+      x += R * d * Math.cos(th);
+      y += R * d * Math.sin(th);
+    } else if (t === 'L') {
+      const t2 = th + d;
+      x += R * (Math.sin(t2) - Math.sin(th));
+      y += R * (-Math.cos(t2) + Math.cos(th));
+      th = t2;
+    } else {
+      const t2 = th - d;
+      x += R * (-Math.sin(t2) + Math.sin(th));
+      y += R * (Math.cos(t2) - Math.cos(th));
+      th = t2;
+    }
+  }
+  return [x, y, wrap(th)];
+}
+// Sample poses every ds metres along candidate c from q0, split into legs by gear: [{dir, pts: [[x, y, θ]]}].
+function rsSample(q0, c, R, ds) {
+  const segs = [];
+  let x = q0[0],
+    y = q0[1],
+    th = q0[2],
+    cur = null;
+  for (let i = 0; i < c.L.length; i++) {
+    const d = c.L[i],
+      t = c.T[i],
+      dir = d >= 0 ? 1 : -1,
+      len = Math.abs(d) * R;
+    if (len < 1e-6) continue;
+    if (!cur || cur.dir !== dir) {
+      cur = {dir, pts: [[x, y, th]]};
+      segs.push(cur);
+    }
+    const n = Math.max(1, Math.ceil(len / ds)),
+      x0 = x,
+      y0 = y,
+      t0 = th;
+    for (let k = 1; k <= n; k++) {
+      const dk = (d * k) / n;
+      let xx, yy, tt;
+      if (t === 'S') {
+        xx = x0 + R * dk * Math.cos(t0);
+        yy = y0 + R * dk * Math.sin(t0);
+        tt = t0;
+      } else if (t === 'L') {
+        tt = t0 + dk;
+        xx = x0 + R * (Math.sin(tt) - Math.sin(t0));
+        yy = y0 + R * (-Math.cos(tt) + Math.cos(t0));
+      } else {
+        tt = t0 - dk;
+        xx = x0 + R * (-Math.sin(tt) + Math.sin(t0));
+        yy = y0 + R * (Math.cos(tt) - Math.cos(t0));
+      }
+      cur.pts.push([xx, yy, wrap(tt)]);
+    }
+    const l = cur.pts[cur.pts.length - 1];
+    x = l[0];
+    y = l[1];
+    th = l[2];
+  }
+  return segs;
+}
+// Reeds–Shepp shortest paths: solve (every verified candidate, shortest first), length (for the heuristic), sample.
 const RS = (() => {
-  const PI = Math.PI,
-    HP = PI / 2,
-    sin = Math.sin,
+  const sin = Math.sin,
     cos = Math.cos;
-  const M = x => {
-    let v = x % (2 * PI);
-    if (v < -PI) v += 2 * PI;
-    else if (v > PI) v -= 2 * PI;
-    return v;
-  };
-  const pol = (x, y) => [Math.hypot(x, y), Math.atan2(y, x)];
-  // Path families in normalized units (turning radius 1). Signed lengths: negative = reverse.
-  function LSL(x, y, p) {
-    const [u, t] = pol(x - sin(p), y - 1 + cos(p));
-    if (t >= 0 && t <= PI) {
-      const v = M(p - t);
-      if (v >= 0 && v <= PI) return [[t, u, v], 'LSL'];
-    }
-    return null;
-  }
-  function LSR(x, y, p) {
-    let [u1, t1] = pol(x + sin(p), y - 1 - cos(p));
-    u1 *= u1;
-    if (u1 >= 4) {
-      const u = Math.sqrt(u1 - 4),
-        th = Math.atan2(2, u),
-        t = M(t1 + th),
-        v = M(t - p);
-      if (t >= 0 && v >= 0) return [[t, u, v], 'LSR'];
-    }
-    return null;
-  }
-  function LxRxL(x, y, p) {
-    const [u1, th] = pol(x - sin(p), y - 1 + cos(p));
-    if (u1 <= 4) {
-      const A = Math.acos(0.25 * u1),
-        t = M(A + th + HP),
-        u = M(PI - 2 * A),
-        v = M(p - t - u);
-      return [[t, -u, v], 'LRL'];
-    }
-    return null;
-  }
-  function LxRL(x, y, p) {
-    const [u1, th] = pol(x - sin(p), y - 1 + cos(p));
-    if (u1 <= 4) {
-      const A = Math.acos(0.25 * u1),
-        t = M(A + th + HP),
-        u = M(PI - 2 * A),
-        v = M(-p + t + u);
-      return [[t, -u, -v], 'LRL'];
-    }
-    return null;
-  }
-  function LRxL(x, y, p) {
-    const [u1, th] = pol(x - sin(p), y - 1 + cos(p));
-    if (u1 <= 4 && u1 > 1e-9) {
-      const u = Math.acos(1 - u1 * u1 * 0.125),
-        A = Math.asin(Math.max(-1, Math.min(1, (2 * sin(u)) / u1))),
-        t = M(-A + th + HP),
-        v = M(t - u - p);
-      return [[t, u, -v], 'LRL'];
-    }
-    return null;
-  }
-  function LRxLR(x, y, p) {
-    const [u1, th] = pol(x + sin(p), y - 1 - cos(p));
-    if (u1 <= 2) {
-      const A = Math.acos((u1 + 2) * 0.25),
-        t = M(th + A + HP),
-        u = M(A),
-        v = M(p - t + 2 * u);
-      if (t >= 0 && u >= 0 && v >= 0) return [[t, u, -u, -v], 'LRLR'];
-    }
-    return null;
-  }
-  function LxRLxR(x, y, p) {
-    const [u1, th] = pol(x + sin(p), y - 1 - cos(p));
-    const u2 = (20 - u1 * u1) / 16;
-    if (u2 >= 0 && u2 <= 1 && u1 > 1e-9) {
-      const u = Math.acos(u2),
-        A = Math.asin(Math.max(-1, Math.min(1, (2 * sin(u)) / u1))),
-        t = M(th + A + HP),
-        v = M(t - p);
-      if (t >= 0 && v >= 0) return [[t, -u, -u, v], 'LRLR'];
-    }
-    return null;
-  }
-  function LxR90SL(x, y, p) {
-    const [u1, th] = pol(x - sin(p), y - 1 + cos(p));
-    if (u1 >= 2) {
-      const q = Math.sqrt(u1 * u1 - 4),
-        u = q - 2,
-        A = Math.atan2(2, q),
-        t = M(th + A + HP),
-        v = M(t - p + HP);
-      if (t >= 0 && v >= 0) return [[t, -HP, -u, -v], 'LRSL'];
-    }
-    return null;
-  }
-  function LSR90xL(x, y, p) {
-    const [u1, th] = pol(x - sin(p), y - 1 + cos(p));
-    if (u1 >= 2) {
-      const q = Math.sqrt(u1 * u1 - 4),
-        u = q - 2,
-        A = Math.atan2(q, 2),
-        t = M(th - A + HP),
-        v = M(t - p - HP);
-      if (t >= 0 && v >= 0) return [[t, u, HP, -v], 'LSRL'];
-    }
-    return null;
-  }
-  function LxR90SR(x, y, p) {
-    const [u1, th] = pol(x + sin(p), y - 1 - cos(p));
-    if (u1 >= 2) {
-      const t = M(th + HP),
-        u = u1 - 2,
-        v = M(p - t - HP);
-      if (t >= 0 && v >= 0) return [[t, -HP, -u, -v], 'LRSR'];
-    }
-    return null;
-  }
-  function LSL90xR(x, y, p) {
-    const [u1, th] = pol(x + sin(p), y - 1 - cos(p));
-    if (u1 >= 2) {
-      const t = M(th),
-        u = u1 - 2,
-        v = M(p - t - HP);
-      if (t >= 0 && v >= 0) return [[t, u, HP, -v], 'LSLR'];
-    }
-    return null;
-  }
-  function LxR90SL90xR(x, y, p) {
-    const [u1, th] = pol(x + sin(p), y - 1 - cos(p));
-    if (u1 >= 4) {
-      const q = Math.sqrt(u1 * u1 - 4),
-        u = q - 4,
-        A = Math.atan2(2, q),
-        t = M(th + A + HP),
-        v = M(t - p);
-      if (t >= 0 && v >= 0) return [[t, -HP, -u, -HP, v], 'LRSLR'];
-    }
-    return null;
-  }
-  const FAMS = [LSL, LSR, LxRxL, LxRL, LRxL, LRxLR, LxRLxR, LxR90SL, LSR90xL, LxR90SR, LSL90xR, LxR90SL90xR];
+  const FAMS = [rsLSL, rsLSR, rsLxRxL, rsLxRL, rsLRxL, rsLRxLR, rsLxRLxR, rsLxR90SL, rsLSR90xL, rsLxR90SR, rsLSL90xR, rsLxR90SL90xR];
   const flip = s => s.replace(/[LR]/g, c => (c === 'L' ? 'R' : 'L'));
   function cands(x, y, p) {
     const out = [];
@@ -397,32 +473,8 @@ const RS = (() => {
       s = sin(q0[2]);
     return [(c * dx + s * dy) / R, (-s * dx + c * dy) / R, wrap(q1[2] - q0[2])];
   }
-  function endpoint(q0, c, R) {
-    let x = q0[0],
-      y = q0[1],
-      th = q0[2];
-    for (let i = 0; i < c.L.length; i++) {
-      const d = c.L[i],
-        t = c.T[i];
-      if (t === 'S') {
-        x += R * d * cos(th);
-        y += R * d * sin(th);
-      } else if (t === 'L') {
-        const t2 = th + d;
-        x += R * (sin(t2) - sin(th));
-        y += R * (-cos(t2) + cos(th));
-        th = t2;
-      } else {
-        const t2 = th - d;
-        x += R * (-sin(t2) + sin(th));
-        y += R * (cos(t2) - cos(th));
-        th = t2;
-      }
-    }
-    return [x, y, wrap(th)];
-  }
   function valid(q0, q1, c, R) {
-    const e = endpoint(q0, c, R);
+    const e = rsEndpoint(q0, c, R);
     return hyp(e[0] - q1[0], e[1] - q1[1]) < 1e-3 * Math.max(1, R) && Math.abs(wrap(e[2] - q1[2])) < 1e-3;
   }
   // All endpoint-verified candidates, shortest first
@@ -436,51 +488,5 @@ const RS = (() => {
     for (const c of cands(x, y, p)) if (valid(q0, q1, c, R)) return c.len * R;
     return Infinity;
   }
-  // Sample poses every ds metres, split into legs by gear
-  function sample(q0, c, R, ds) {
-    const segs = [];
-    let x = q0[0],
-      y = q0[1],
-      th = q0[2],
-      cur = null;
-    for (let i = 0; i < c.L.length; i++) {
-      const d = c.L[i],
-        t = c.T[i],
-        dir = d >= 0 ? 1 : -1,
-        len = Math.abs(d) * R;
-      if (len < 1e-6) continue;
-      if (!cur || cur.dir !== dir) {
-        cur = {dir, pts: [[x, y, th]]};
-        segs.push(cur);
-      }
-      const n = Math.max(1, Math.ceil(len / ds)),
-        x0 = x,
-        y0 = y,
-        t0 = th;
-      for (let k = 1; k <= n; k++) {
-        const dk = (d * k) / n;
-        let xx, yy, tt;
-        if (t === 'S') {
-          xx = x0 + R * dk * cos(t0);
-          yy = y0 + R * dk * sin(t0);
-          tt = t0;
-        } else if (t === 'L') {
-          tt = t0 + dk;
-          xx = x0 + R * (sin(tt) - sin(t0));
-          yy = y0 + R * (-cos(tt) + cos(t0));
-        } else {
-          tt = t0 - dk;
-          xx = x0 + R * (-sin(tt) + sin(t0));
-          yy = y0 + R * (cos(tt) - cos(t0));
-        }
-        cur.pts.push([xx, yy, wrap(tt)]);
-      }
-      const l = cur.pts[cur.pts.length - 1];
-      x = l[0];
-      y = l[1];
-      th = l[2];
-    }
-    return segs;
-  }
-  return {solve, length, sample, endpoint, cands, norm, valid, NF: FAMS.length};
+  return {solve, length, sample: rsSample, endpoint: rsEndpoint, cands, norm, valid, NF: FAMS.length};
 })();

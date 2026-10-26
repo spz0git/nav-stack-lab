@@ -42,7 +42,7 @@ $$
 \dot e = v\sin\theta_e,\qquad \dot\theta_e = \dot\theta - \kappa_p\,\dot s,\qquad \dot s = \frac{v\cos\theta_e}{1-\kappa_p e}
 $$
 
-On a straight path $\kappa_p = 0$ and the second equation is just $\dot\theta_e = \dot\theta$. Linearize about $e = 0$, $\theta_e = 0$, $v = v_0$ (small angles) and write $u$ for the steering input, $\omega$ for the unicycle or $\delta$ for the bicycle:
+On a straight path $\kappa_p = 0$ and the second equation is just $\dot\theta_e = \dot\theta$. Linearize about $e = 0$, $\theta_e = 0$, $v = v_0$ (small angles). Write $u$ for the steering input, $\omega$ for the unicycle or $\delta$ for the bicycle:
 
 $$
 \dot e = v_0\,\theta_e,\qquad \dot\theta_e = g\,u,\qquad g = 1\ \text{(unicycle)}\ \ \text{or}\ \ g = \frac{v_0}{L}\ \text{(bicycle)}
@@ -56,7 +56,7 @@ $$
 
 The double integrator fixes the shape of every Bode plot in the app before any controller is chosen: −40 dB per decade of magnitude and −180° of phase at every frequency. A controller has to add phase back, which is what the heading term does in the next section.
 
-The operating speed is $v_0 = \min(v_{cruise}, v_{max})$, {{live:v0}} m/s now. The Curve R 4 m and Curve R 2 m buttons in the Analyze view change the operating point to a circle: $\dot\theta_e = \omega - v_0/R$ then carries a constant the controller must cancel, the loop settles on the circle before the gains are read, and the offset chip reports the steady $e$ the settled loop keeps.
+The operating speed is $v_0 = \min(v_{cruise}, v_{max})$, {{live:v0}} m/s now. The Curve R 4 m and Curve R 2 m buttons in the Analyze view change the operating point to a circle. Then $\dot\theta_e = \omega - v_0/R$ carries a constant the controller must cancel. The loop settles on the circle before the gains are read, and the offset chip reports the steady $e$ the settled loop keeps.
 
 ## 2. Pure pursuit is a PD controller in disguise
 
@@ -102,7 +102,7 @@ The app does not use these formulas. `anGains` reads the gains from the controll
 
 ## 3. The open loop L(s), with the clock in it
 
-The loop transfer function the app plots is the PD law times the double integrator, with three delay-like factors that come from running at 20 Hz: a half-sample hold delay, an optional command latency, and an optional first-order actuator lag. The margins depend on these factors more than on anything else.
+The loop transfer function the app plots is the PD law times the double integrator, with three delay-like factors that come from running at 20 Hz. They are a half-sample hold delay, an optional command latency, and an optional first-order actuator lag. The margins depend on these factors more than on anything else.
 
 <svg class="notes-fig" viewBox="0 0 760 276" role="img" aria-label="The linear loop: controller, latency and actuator lag, hold, two integrators">
 <defs><marker id="nf-arrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>
@@ -120,13 +120,13 @@ The loop transfer function the app plots is the PD law times the double integrat
 <text x="397" y="260" text-anchor="middle" font-size="14" fill="var(--muted)">e, read by the controller one tick later</text>
 </svg>
 
-The controller runs every $T$ = 50 ms and its output is held constant until the next tick, so the continuous vehicle sees a staircase. A zero-order hold has the transfer function $(1 - e^{-sT})/(sT)$; up to well past the crossover frequency this behaves like a pure delay of half a sample, which is what the app uses on the frequency plots:
+The controller runs every $T$ = 50 ms and its output is held constant until the next tick, so the continuous vehicle sees a staircase. A zero-order hold has the transfer function $(1 - e^{-sT})/(sT)$. Up to well past the crossover frequency this behaves like a pure delay of half a sample, which is what the app uses on the frequency plots:
 
 $$
 H(s) = \frac{1-e^{-sT}}{sT} \approx e^{-sT/2}
 $$
 
-Two elements run inside the 20 Hz loop as difference equations. The actuator lag in `vehicle.js` is $w_a[k] = w_a[k-1] + a\,(w_c[k] - w_a[k-1])$ with $a = 1 - e^{-T/\tau}$, the discrete-time equivalent of a first-order lag with time constant $\tau$; a latency of $n_L$ samples is a queue of $n_L$ commands. Their transfer functions are rational in $z$, and on the frequency axis a discrete element is evaluated exactly by substituting $z = e^{sT}$, since a delay of one sample is exactly $e^{-sT}$. The app does this rather than approximating the lag by $1/(\tau s + 1)$, so the Bode plot is exact up to the Nyquist frequency $\omega_N = \pi/T$ = 62.8 rad/s, where the plots stop.
+Two elements run inside the 20 Hz loop as difference equations. The actuator lag in `vehicle.js` is $w_a[k] = w_a[k-1] + a\,(w_c[k] - w_a[k-1])$ with $a = 1 - e^{-T/\tau}$, the discrete-time equivalent of a first-order lag with time constant $\tau$. A latency of $n_L$ samples is a queue of $n_L$ commands. Their transfer functions are rational in $z$. On the frequency axis a discrete element is evaluated exactly by substituting $z = e^{sT}$, since a delay of one sample is exactly $e^{-sT}$. The app does this rather than approximating the lag by $1/(\tau s + 1)$, so the Bode plot is exact up to the Nyquist frequency $\omega_N = \pi/T$ = 62.8 rad/s, where the plots stop.
 
 $$
 A(z) = z^{-n_L}\,\frac{a}{1-(1-a)\,z^{-1}},\qquad a = 1-e^{-T/\tau},\qquad z = e^{sT}
@@ -138,11 +138,11 @@ $$
 L(s) = A\!\left(e^{sT}\right)\, e^{-sT/2}\, g\,\frac{K_e v_0 + K_\theta\, s}{s^2}
 $$
 
-This is what `Lparts` in `analysis/model.js` evaluates at $s = j\omega$ for 700 frequencies between 0.01 rad/s and $\omega_N$. The numerator $K_e v_0 + K_\theta s$ has a zero at $s = -K_e v_0/K_\theta = -v_0/L_d$ ({{live:zero}} rad/s now), and that zero is the controller's only source of phase lead: below it the loop is a pure double integrator at −180°, above it the heading term lifts the phase toward −90°, and the delays pull it back down as $\omega$ grows. Where the magnitude crosses 1 in that window decides the phase margin.
+This is what `Lparts` in `analysis/model.js` evaluates at $s = j\omega$ for 700 frequencies between 0.01 rad/s and $\omega_N$. The numerator $K_e v_0 + K_\theta s$ has a zero at $s = -K_e v_0/K_\theta = -v_0/L_d$ ({{live:zero}} rad/s now), and that zero is the controller's only source of phase lead. Below it the loop is a pure double integrator at −180°. Above it the heading term lifts the phase toward −90°, and the delays pull it back down as $\omega$ grows. Where the magnitude crosses 1 in that window decides the phase margin.
 
 [try: Add 0.3 s of latency | {"level":0,"set":{"ctl":"pp","latency":0.3}}] [try: Actuator lag 0.3 s | {"level":0,"set":{"ctl":"pp","lag":0.3}}] [try: Both | {"level":0,"set":{"ctl":"pp","latency":0.2,"lag":0.3}}]
 
-For the time responses and the poles the app does not use $L(s)$ at all. It builds the exact discrete closed loop at the simulation rate (`stepLin`): with the input held over one sample, the double integrator advances by
+For the time responses and the poles the app does not use $L(s)$ at all. It builds the exact discrete closed loop at the simulation rate (`stepLin`). With the input held over one sample, the double integrator advances by
 
 $$
 \theta_e[k+1] = \theta_e[k] + g\,T\,u[k]
@@ -156,35 +156,35 @@ with the lag state, the latency queue and the controller's one-tick-old readings
 
 ## 4. Reading the margins
 
-Every chip in the first row of the Analyze view is a property of $L(j\omega)$ near the point −1: how far the loop is from the gain or the phase that would make $1 + L(j\omega) = 0$ and the closed loop ring forever.
+Every chip in the first row of the Analyze view is a property of $L(j\omega)$ near the point −1. It says how far the loop is from the gain or the phase that would make $1 + L(j\omega) = 0$ and the closed loop ring forever.
 
 The closed loop from a path offset $r$ to the error $e$ is $L/(1+L)$, and the sensitivity $S = 1/(1+L)$ describes how a disturbance at the output is attenuated. Both blow up where $L(j\omega) = -1$, so the distance of the curve $L(j\omega)$ from −1 is the whole story. The chips measure it in four ways.
 
-**Crossover and phase margin.** The crossover frequency $\omega_c$ is where $|L(j\omega_c)| = 1$, and the phase margin is how much phase lag could be added there before the curve passed through −1:
+**Crossover and phase margin.** The crossover frequency $\omega_c$ is where $|L(j\omega_c)| = 1$. The phase margin is how much phase lag could be added there before the curve passed through −1:
 
 $$
 |L(j\omega_c)| = 1,\qquad \text{PM} = 180^\circ + \arg L(j\omega_c)
 $$
 
-For the pure-pursuit loop with only the hold delay, $|L| = \sqrt{(K_e v_0)^2 + (K_\theta\omega)^2}/\omega^2$, so $\omega_c$ solves $\omega^4 - K_\theta^2\omega^2 - (K_e v_0)^2 = 0$: {{live:wc0}} rad/s with your gains. The phase there is −180° from the two integrators, plus the lead of the zero, $\arctan(K_\theta\omega_c/K_e v_0)$ = {{live:lead0}}°, minus the hold delay $\omega_c T/2$ = {{live:holdlag0}}°: PM = {{live:pm0}}°. The Analyze view, which also carries your latency and lag, says $\omega_c$ = {{live:wc}} rad/s and PM = {{live:pm}}°. The app finds $\omega_c$ by interpolating the sampled $|L|$ across 1 on a log scale and takes the smallest margin if the magnitude crosses 1 more than once.
+For the pure-pursuit loop with only the hold delay, $|L| = \sqrt{(K_e v_0)^2 + (K_\theta\omega)^2}/\omega^2$, so $\omega_c$ solves $\omega^4 - K_\theta^2\omega^2 - (K_e v_0)^2 = 0$: {{live:wc0}} rad/s with your gains. The phase there is −180° from the two integrators, plus the lead of the zero, $\arctan(K_\theta\omega_c/K_e v_0)$ = {{live:lead0}}°, minus the hold delay $\omega_c T/2$ = {{live:holdlag0}}°: PM = {{live:pm0}}°. The Analyze view, which also carries your latency and lag, says $\omega_c$ = {{live:wc}} rad/s and PM = {{live:pm}}°. The app finds $\omega_c$ by interpolating the sampled $|L|$ across 1 on a log scale. If the magnitude crosses 1 more than once, it takes the smallest margin.
 
-**Delay margin.** A pure delay $T_d$ subtracts $\omega T_d$ radians of phase at every frequency without changing the magnitude, so the loop reaches −1 when $\omega_c T_d$ equals the phase margin:
+**Delay margin.** A pure delay $T_d$ subtracts $\omega T_d$ radians of phase at every frequency without changing the magnitude. So the loop reaches −1 when $\omega_c T_d$ equals the phase margin:
 
 $$
 T_{d,\max} = \frac{\text{PM (rad)}}{\omega_c}
 $$
 
-{{live:dm}} s with your settings. This is the most useful chip for a robot: it says how much extra latency, in seconds, the loop can absorb before it rings without stopping. Setting Latency in the Vehicle tab to that value and watching the Nyquist curve touch −1 is the experiment lesson 5 of the control-loop group runs.
+{{live:dm}} s with your settings. This is the most useful chip for a robot: it says how much extra latency, in seconds, the loop can absorb before it rings without stopping. Lesson 5 of the control-loop group runs the experiment. It sets Latency in the Vehicle tab to that value, and the Nyquist curve touches −1.
 
 [try: Latency at the delay margin | {"level":0,"set":{"ctl":"pp","latency":0.55}}]
 
-**Gain margin.** The gain margin is the factor by which the loop gain can grow before the magnitude reaches 1 at the frequency $\omega_{180}$ where the phase is −180°:
+**Gain margin.** The gain margin is the factor by which the loop gain can grow before the magnitude reaches 1. It is read at the frequency $\omega_{180}$ where the phase is −180°:
 
 $$
 \arg L(j\omega_{180}) = -180^\circ,\qquad \text{GM} = -20\log_{10}|L(j\omega_{180})|\ \text{dB}
 $$
 
-With only the hold delay, the phase returns to −180° where the lead of the zero equals the delay lag, $\arctan(K_\theta\omega/K_e v_0) = \omega T/2$, which happens near the Nyquist frequency; the view reports GM = {{live:gm}} dB at $\omega_{180}$ = {{live:w180}} rad/s. A margin that large means the gain is not what limits this loop; the delay is. When the app finds the loop unstable (an encirclement, below) it reports a negative gain margin instead, the reduction needed to recover stability.
+With only the hold delay, the phase returns to −180° where the lead of the zero equals the delay lag, $\arctan(K_\theta\omega/K_e v_0) = \omega T/2$, which happens near the Nyquist frequency. The view reports GM = {{live:gm}} dB at $\omega_{180}$ = {{live:w180}} rad/s. A margin that large means the gain is not what limits this loop; the delay is. When the app finds the loop unstable (an encirclement, below) it reports a negative gain margin instead, the reduction needed to recover stability.
 
 **Sensitivity peak** $M_s$. The phase and gain margins each probe one point of the curve. The sensitivity peak probes all of it:
 
@@ -192,21 +192,21 @@ $$
 M_s = \max_\omega \frac{1}{|1 + L(j\omega)|}
 $$
 
-$1/M_s$ is the radius of the largest circle about −1 the Nyquist curve stays outside, drawn on the Nyquist plot. It bounds both classical margins, $\text{GM} \ge M_s/(M_s - 1)$ and $\text{PM} \ge 2\arcsin(1/2M_s)$, and a value under about 1.5 is the usual target for a well-damped loop; $M_s$ = {{live:ms}} now. On the compressed Nyquist plot the app rescales the radius as $\log_2(1 + |L|)$ so the low-frequency part, which runs off to infinity for a double integrator, fits on the page while −1 and the unit circle stay where they are.
+$1/M_s$ is the radius of the largest circle about −1 the Nyquist curve stays outside, drawn on the Nyquist plot. It bounds both classical margins, $\text{GM} \ge M_s/(M_s - 1)$ and $\text{PM} \ge 2\arcsin(1/2M_s)$. A value under about 1.5 is the usual target for a well-damped loop; $M_s$ = {{live:ms}} now. On the compressed Nyquist plot the app rescales the radius as $\log_2(1 + |L|)$. The low-frequency part, which runs off to infinity for a double integrator, then fits on the page, while −1 and the unit circle stay where they are.
 
-**The Nyquist count.** The margins only mean what they say if the closed loop is stable to begin with, and the Nyquist criterion settles that. Let $P$ be the number of open-loop poles in the right half-plane ($P = 0$ here: the two integrators sit on the axis, not in the right half-plane) and $N$ the number of clockwise encirclements of −1 by $L(s)$ as $s$ runs up the imaginary axis and around the right half-plane. The number of unstable closed-loop poles is
+**The Nyquist count.** The margins only mean what they say if the closed loop is stable to begin with, and the Nyquist criterion settles that. Let $P$ be the number of open-loop poles in the right half-plane ($P = 0$ here: the two integrators sit on the axis, not in the right half-plane). Let $N$ be the number of clockwise encirclements of −1 by $L(s)$ as $s$ runs up the imaginary axis and around the right half-plane. The number of unstable closed-loop poles is
 
 $$
 Z = N + P
 $$
 
-The two poles at the origin need an indentation: the app walks $s$ along a small semicircle of radius $10^{-3}$ around the origin into the right half-plane, then up the axis to $10^5$ rad/s, and accumulates the change of $\arg(1 + L)$ along the way (`anFreq`). The lower half of the contour is the mirror image, so the total is twice the upper half plus the arc, and $N$ is that total divided by −2π. The chip prints $N$, $P$ and $Z$; $Z = 0$ means stable, and then the poles of section 5 all sit in the left half-plane. With your settings: {{live:nyq}}.
+The two poles at the origin need an indentation. The app walks $s$ along a small semicircle of radius $10^{-3}$ around the origin into the right half-plane, then up the axis to $10^5$ rad/s, and accumulates the change of $\arg(1 + L)$ along the way (`anFreq`). The lower half of the contour is the mirror image, so the total is twice the upper half plus the arc, and $N$ is that total divided by −2π. The chip prints $N$, $P$ and $Z$; $Z = 0$ means stable, and then the poles of section 5 all sit in the left half-plane. With your settings: {{live:nyq}}.
 
 ## 5. Poles, damping and the shape of the response
 
-The second row of chips comes from the closed-loop poles, a dominant pair at $s$ = {{live:dom}} with your settings, which is $\zeta$ = {{live:zeta}} and $\omega_n$ = {{live:wn}} rad/s, and from running the discrete loop forward in time.
+The second row of chips comes from two sources. One is the closed-loop poles, a dominant pair at $s$ = {{live:dom}} with your settings, which is $\zeta$ = {{live:zeta}} and $\omega_n$ = {{live:wn}} rad/s. The other is the discrete loop, run forward in time.
 
-**From eigenvalues to poles.** The closed-loop matrix $A_{cl}$ of section 3 has one eigenvalue per state: the two vehicle integrators, the actuator state, and one per sample of delay. Each eigenvalue $z_i$ maps to a continuous pole by $s_i = \ln(z_i)/T$, so $|z_i| < 1$ is the same test as $\operatorname{Re} s_i < 0$. The app marks the loop unstable when any $|z_i|$ exceeds 1. The delay states contribute eigenvalues at or near zero (poles far to the left); the dominant pole is the one with the largest real part among those that are not pure delays, and for a complex pair the app reports
+**From eigenvalues to poles.** The closed-loop matrix $A_{cl}$ of section 3 has one eigenvalue per state: the two vehicle integrators, the actuator state, and one per sample of delay. Each eigenvalue $z_i$ maps to a continuous pole by $s_i = \ln(z_i)/T$, so $|z_i| < 1$ is the same test as $\operatorname{Re} s_i < 0$. The app marks the loop unstable when any $|z_i|$ exceeds 1. The delay states contribute eigenvalues at or near zero (poles far to the left). The dominant pole is the one with the largest real part among those that are not pure delays. For a complex pair the app reports
 
 $$
 \omega_n = |s_i|,\qquad \zeta = -\frac{\operatorname{Re} s_i}{\omega_n}
@@ -220,27 +220,27 @@ $$
 e(t) = e^{-\zeta\omega_n t}\Big(\cos\omega_d t + \frac{\zeta}{\sqrt{1-\zeta^2}}\sin\omega_d t\Big),\quad \omega_d = \omega_n\sqrt{1-\zeta^2}
 $$
 
-Its first minimum is at $\omega_d t = \pi$, where $e = -\exp(-\pi\zeta/\sqrt{1-\zeta^2})$: {{live:os0}}% of the initial offset at $\zeta$ = {{live:zeta}}; the app's overshoot chip says {{live:os}}%. The 2% settling time is where $|e|$ last leaves a ±0.02 band; the envelope $e^{-\zeta\omega_n t}$ alone would put it at $4/(\zeta\omega_n)$ = {{live:settle0}} s, and the exact recursion says {{live:settle}} s. Both app numbers are read off the simulated response, not from the formulas, so they stay right for the PID and MPC loops where the second-order picture is only approximate.
+Its first minimum is at $\omega_d t = \pi$, where $e = -\exp(-\pi\zeta/\sqrt{1-\zeta^2})$: {{live:os0}}% of the initial offset at $\zeta$ = {{live:zeta}}; the app's overshoot chip says {{live:os}}%. The 2% settling time is where $|e|$ last leaves a ±0.02 band. The envelope $e^{-\zeta\omega_n t}$ alone would put it at $4/(\zeta\omega_n)$ = {{live:settle0}} s, and the exact recursion says {{live:settle}} s. Both app numbers are read off the simulated response, not from the formulas. So they stay right for the PID and MPC loops, where the second-order picture is only approximate.
 
 [try: Run the step test | {"level":0,"set":{"ctl":"pp"},"test":"step","stepKind":"offset","stepAmp":0.2}]
 
-**Steady error under a bias.** The second time response adds a constant disturbance $b$ at the plant input, one motor slightly weaker than the other for the unicycle (0.1 rad/s of unwanted yaw rate) or a wheel misalignment for the car (2°). In steady state nothing moves, so $\theta_e = 0$ and the controller must hold $u = -K_e e$ against the bias:
+**Steady error under a bias.** The second time response adds a constant disturbance $b$ at the plant input. For the unicycle it is one motor slightly weaker than the other (0.1 rad/s of unwanted yaw rate), for the car a wheel misalignment (2°). In steady state nothing moves, so $\theta_e = 0$ and the controller must hold $u = -K_e e$ against the bias:
 
 $$
 g\,(-K_e\,e_{ss} + b) = 0\quad\Rightarrow\quad e_{ss} = \frac{b}{K_e}
 $$
 
-{{live:ess}} cm for 0.1 rad/s with your $K_e$. Pure pursuit has no integrator, so it drives along with a permanent offset of $b L_d^2/(2v_0)$. On the car the same equation holds with $u$ the steering angle and $b$ a steering misalignment (Analyze uses 2°, $b$ = 0.0349 rad): $g = v_0/L$ cancels, $e_{ss} = b/K_e$ with $K_e$ in radians of steering per metre, which for pure pursuit is $b L_d^2/(2L)$. A longer lookahead makes it worse, quadratically. The PID controller with $k_i > 0$ adds an integrator and removes it; the MPC, whose rate input is itself an integrator, removes it too, which is what the $e_{ss}$ chip shows when you switch controllers.
+{{live:ess}} cm for 0.1 rad/s with your $K_e$. Pure pursuit has no integrator, so it drives along with a permanent offset of $b L_d^2/(2v_0)$. On the car the same equation holds with $u$ the steering angle and $b$ a steering misalignment (Analyze uses 2°, $b$ = 0.0349 rad). Then $g = v_0/L$ cancels, and $e_{ss} = b/K_e$ with $K_e$ in radians of steering per metre, which for pure pursuit is $b L_d^2/(2L)$. A longer lookahead makes it worse, quadratically. The PID controller with $k_i > 0$ adds an integrator and removes it. The MPC, whose rate input is itself an integrator, removes it too, which is what the $e_{ss}$ chip shows when you switch controllers.
 
 [try: Bias response, pure pursuit | {"level":0,"set":{"ctl":"pp"},"test":"step","stepKind":"bias"}] [try: Same with PID, ki = 0.5 | {"level":0,"set":{"ctl":"pid","ki":0.5},"test":"step","stepKind":"bias"}]
 
-**The root locus.** The locus plot answers one question: what happens to the poles if the whole controller is scaled by a factor $k$? The app recomputes the eigenvalues for 49 values of $k$ from 0.06 to 16 (`clMatrix(M, L, k)`) and plots each set in the $s$-plane, so the dots are the paths the poles follow as the gain grows. For the loop with no delay the classical result reads straight off the characteristic equation $s^2 + k g K_\theta s + k g K_e v_0 = 0$:
+**The root locus.** The locus plot answers one question: what happens to the poles if the whole controller is scaled by a factor $k$? The app recomputes the eigenvalues for 49 values of $k$ from 0.06 to 16 (`clMatrix(M, L, k)`) and plots each set in the $s$-plane. The dots are the paths the poles follow as the gain grows. For the loop with no delay the classical result reads straight off the characteristic equation $s^2 + k g K_\theta s + k g K_e v_0 = 0$:
 
 $$
 s = -\frac{k g K_\theta}{2} \pm \sqrt{\Big(\frac{k g K_\theta}{2}\Big)^2 - k g K_e v_0}
 $$
 
-The poles start at the origin ($k \to 0$, the open-loop double integrator), leave it as a complex pair, come back to the real axis at $k = 4K_e v_0/(gK_\theta^2)$ = 2 for pure pursuit and then split: one runs to the zero at $-v_0/L_d$, the other to −∞. With the delays in the model the high-gain branch does not go to −∞; it bends into the right half-plane, which is the shaded region in the app and the reason a lookahead short enough to multiply the gain by ten makes the simulated robot weave.
+The poles start at the origin ($k \to 0$, the open-loop double integrator) and leave it as a complex pair. They come back to the real axis at $k = 4K_e v_0/(gK_\theta^2)$ = 2 for pure pursuit and then split: one runs to the zero at $-v_0/L_d$, the other to −∞. With the delays in the model the high-gain branch does not go to −∞; it bends into the right half-plane. That is the shaded region in the app, and the reason a lookahead short enough to multiply the gain by ten makes the simulated robot weave.
 
 [try: Lookahead 0.3 m, step test | {"level":0,"set":{"ctl":"pp","ppL0":0.3,"ppK":0},"test":"step","stepKind":"offset","stepAmp":0.2}]
 
@@ -282,13 +282,13 @@ The view also checks itself against the full nonlinear simulator. **Run step tes
 
 The linear loop is exact for small errors on a straight path with a known pose. Each of the app's extensions relaxes one of those three conditions, and two controllers fall outside the model altogether.
 
-**Large errors.** The linearization drops $\sin\theta_e \approx \theta_e$, $\ell \approx L_d$ and the saturations: the yaw-rate limit $\omega_{max}$ = 1.8 rad/s, the steering limit 32° and the steering rate 1.5 rad/s. Once a limit is active the loop gain is effectively lower than the model says, which is stabilizing for a loop with good margins and destabilizing for one near a limit cycle: a rate limit adds phase lag of its own. The large-sine injection and the step test are the app's way of showing the difference, and lesson 9 of the control-loop group (linear vs nonlinear) is built on it.
+**Large errors.** The linearization drops $\sin\theta_e \approx \theta_e$, $\ell \approx L_d$ and the saturations: the yaw-rate limit $\omega_{max}$ = 1.8 rad/s, the steering limit 32° and the steering rate 1.5 rad/s. Once a limit is active the loop gain is effectively lower than the model says. That is stabilizing for a loop with good margins and destabilizing for one near a limit cycle: a rate limit adds phase lag of its own. The large-sine injection and the step test are the app's way of showing the difference, and lesson 9 of the control-loop group (linear vs nonlinear) is built on it.
 
-**Curved paths.** On a circle of radius $R$ the plant equation picks up a constant, $\dot\theta_e = g u - v_0/R$, and the controller must supply a steady $u = v_0/(gR)$ just to follow. For a law with no feedforward that steady command comes from a steady error, so the loop settles with the robot off the path by a fixed offset. The app runs the loop to that settled state before reading the gains (`benchSettle`), reads them about the settled point, and reports the offset in the $e_{ss}$ chip. Rear-wheel feedback adds the feedforward term $\kappa_{ref}\cos\theta_e/(1 - \kappa_{ref}e)$ and settles with no offset; pure pursuit measures its lookahead along the path and follows a circle almost exactly; the MPC, which previews the reference, settles with none.
+**Curved paths.** On a circle of radius $R$ the plant equation picks up a constant, $\dot\theta_e = g u - v_0/R$, and the controller must supply a steady $u = v_0/(gR)$ just to follow. For a law with no feedforward that steady command comes from a steady error, so the loop settles with the robot off the path by a fixed offset. The app runs the loop to that settled state before reading the gains (`benchSettle`), reads them about the settled point, and reports the offset in the $e_{ss}$ chip. Rear-wheel feedback adds the feedforward term $\kappa_{ref}\cos\theta_e/(1 - \kappa_{ref}e)$ and settles with no offset. Pure pursuit measures its lookahead along the path and follows a circle almost exactly. The MPC, which previews the reference, settles with none.
 
 [try: PID on a 2 m circle | {"level":0,"set":{"ctl":"pid"},"curveR":2,"test":"step","stepKind":"offset","stepAmp":0.2}]
 
-**The estimator in the loop.** The model assumes the controller sees the true $e$ and $\theta_e$. With an EKF or particle filter in the loop the controller sees an estimate with its own dynamics, and a slow estimator behaves like extra lag. The margin chips do not include it, by design; the **experiments use the estimator** switch runs the step test and the injection with the estimator active so the measured curve can be compared with the model's, and the gap is the estimator's contribution.
+**The estimator in the loop.** The model assumes the controller sees the true $e$ and $\theta_e$. With an EKF or particle filter in the loop the controller sees an estimate with its own dynamics, and a slow estimator behaves like extra lag. The margin chips do not include it, by design. The **experiments use the estimator** switch runs the step test and the injection with the estimator active, so the measured curve can be compared with the model's; the gap is the estimator's contribution.
 
 [try: EKF in the loop, measure L(jω) | {"level":0,"set":{"ctl":"pp","loc":"ekf","odoK":1},"useEst":true,"test":"inj"}]
 
@@ -303,9 +303,9 @@ The linear loop is exact for small errors on a straight path with a known pose. 
 
 [try: Rear-wheel feedback | {"level":0,"set":{"ctl":"rwf"}}] [try: PID | {"level":0,"set":{"ctl":"pid"}}] [try: MPC | {"level":0,"set":{"ctl":"mpc"}}] [try: Car, Stanley | {"level":5,"set":{"ctl":"stanley"}}]
 
-For the MPC the five gains are read by the same central differences as for pure pursuit, applied to a converged solve (25 iterations instead of the 3 the simulator uses per tick), so the view analyses the MPC's local behaviour at the operating point rather than its receding-horizon logic. Chapter 7 derives the MPC itself.
+For the MPC the five gains are read by the same central differences as for pure pursuit, applied to a converged solve (25 iterations instead of the 3 the simulator uses per tick). The view analyses the MPC's local behaviour at the operating point, not its receding-horizon logic. Chapter 7 derives the MPC itself.
 
-**Outside the model.** The DWA samples velocities and scores rollouts; it is not a function of $e$ and $\theta_e$ that a finite difference could linearize, and the Analyze view says so. Code in the controller slot is treated the same way: it runs as a black box in a worker, and the Analyze view does not linearize it, even when it is a static law whose numerical gains would exist.
+**Outside the model.** The DWA samples velocities and scores rollouts. It is not a function of $e$ and $\theta_e$ that a finite difference could linearize, and the Analyze view says so. Code in the controller slot is treated the same way: it runs as a black box in a worker. The Analyze view does not linearize it, even when it is a static law whose numerical gains would exist.
 
 ## 8. Placing the poles on purpose: pole placement and LQR
 
@@ -341,7 +341,7 @@ $$
 K_e = \sqrt{\frac{q_e}{r}}, \qquad K_\theta = \sqrt{\frac{q_\theta}{r} + \frac{2 v_0}{g}\sqrt{\frac{q_e}{r}}} .
 $$
 
-Three things to read off. Only the ratios $q_e/r$ and $q_\theta/r$ matter: scaling the whole cost changes nothing. With $q_\theta = 0$ the damping is fixed at $\zeta = 1/\sqrt 2$ whatever the weights (substitute the gains into the polynomial), the same number pure pursuit is stuck with, which is no coincidence: a double integrator with the cheapest possible control is always critically-damped-ish. And a smaller $r$ (cheaper control) raises $\omega_n$ like $(q_e/r)^{1/4}$, a slow lever, so halving the settling time costs sixteen times the control weight. LQR guarantees a phase margin of at least 60° and an infinite gain margin for the delay-free plant; the delays take some of that back exactly as they do for a placed pair, and the margins §4 computes are the ones to believe.
+Three things to read off. Only the ratios $q_e/r$ and $q_\theta/r$ matter: scaling the whole cost changes nothing. With $q_\theta = 0$ the damping is fixed at $\zeta = 1/\sqrt 2$ whatever the weights (substitute the gains into the polynomial), the same number pure pursuit is stuck with. That is no coincidence: a double integrator with the cheapest possible control always settles on the Butterworth pair, $\zeta = 1/\sqrt 2$, with 4.3 % overshoot. And a smaller $r$ (cheaper control) raises $\omega_n$ like $(q_e/r)^{1/4}$, a slow lever, so halving the settling time costs sixteen times the control weight. LQR guarantees a phase margin of at least 60° and an infinite gain margin for the delay-free plant. The delays take some of that back exactly as they do for a placed pair, and the margins §4 computes are the ones to believe.
 
 What LQR adds over placement is a reason for the pair: a trade between tracking error and steering effort, stated in units you can argue about. What it does not add is any knowledge of the delays, the saturation or the curvature; those are still §4, §5 and §7's business.
 

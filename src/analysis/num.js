@@ -1,4 +1,3 @@
-/* NUM_BEGIN */
 // ---- complex numbers as [re, im] ----
 const Cx = {
   add: (a, b) => [a[0] + b[0], a[1] + b[1]],

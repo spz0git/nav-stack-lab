@@ -657,6 +657,14 @@ dialog:focus-visible {
 }
 /* desktop: the status and the four lights on one row; a light is a dot and a name, the reason in its tooltip */
 @media (min-width: 761px) {
+  /* Changed, Runs and View: in the header wherever the page is not the phone layout (on phones, the sheet's head);
+     View's panel switch hides the panel in the stacked layout too */
+  .bartools {
+    display: flex;
+  }
+  .layout.insp-off > .right {
+    display: none;
+  }
   .statusrow {
     order: 0;
     display: flex;
@@ -1359,6 +1367,15 @@ dialog:focus-visible {
   align-items: center;
   gap: 4px;
   margin-left: auto;
+}
+.tm-sz {
+  display: inline-grid;
+}
+.tm-sz > span {
+  grid-area: 1 / 1;
+}
+.tm-sz > span[aria-hidden] {
+  visibility: hidden;
 }
 @media (min-width: 761px) {
   /* seven numbered tabs and More: a narrow panel wraps them onto a second line rather than hiding More */
@@ -3565,11 +3582,6 @@ details.see > p {
 .tl-x:hover {
   color: var(--bad);
 }
-@media (prefers-reduced-motion: reduce) {
-  * {
-    scroll-behavior: auto;
-  }
-}
 
 .srcdlg {
   width: min(96vw, 980px);
@@ -3876,6 +3888,20 @@ details.see > p {
 .flash {
   animation: flash 1.8s ease-out;
   border-radius: var(--r-ctl);
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto;
+  }
+  /* the highlight shows and goes without fading; the splitter's hover and the experiment progress bar jump */
+  .flash {
+    animation-timing-function: step-end;
+  }
+  .hsplit::after,
+  .vsplit::after,
+  .expbar i {
+    transition: none;
+  }
 }
 /* Changed from defaults (7.5) */
 .chgpanel {
@@ -4463,9 +4489,6 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   }
   .appbar {
     grid-area: bar;
-  }
-  .bartools {
-    display: flex;
   }
   .hsplit,
   .vsplit {

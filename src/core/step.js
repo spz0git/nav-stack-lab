@@ -26,11 +26,6 @@ function postSense() {
   agentsTick();
   oddTick(); // the ODD monitor, when on (core/oddmon.js)
 }
-function preControl() {
-  preSense();
-  postSense();
-  agentsPlan();
-}
 function metrics() {
   const r = S.robot,
     e = S.est;

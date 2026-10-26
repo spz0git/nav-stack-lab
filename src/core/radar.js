@@ -442,23 +442,16 @@ function radarTrack(ve) {
     e = S.est,
     Rm = [RAD.sr ** 2, RAD.sb ** 2, RAD.sv ** 2],
     cand = radCandidates(),
-    pairs = [],
     born0 = A.nextId;
-  A.tracks.forEach((t, i) => {
+  const {taken, used: ud} = agAssoc(A.tracks, cand, t => {
     const h = radarH(t, e, ve[0], ve[1]);
-    cand.forEach((d, j) => {
+    return d => {
       const y = [d.r - h.z[0], wrap(d.b - h.z[1]), d.v - h.z[2]],
         G = kfInnov(t, h.H.slice(0, 2), y.slice(0, 2), Rm.slice(0, 2)); // the gate: range and bearing only
-      if (G && G.d2 < RAD_GATE) pairs.push([G.d2, i, j, h.H, y]);
-    });
+      return G && G.d2 < RAD_GATE ? [G.d2, h.H, y] : null;
+    };
   });
-  pairs.sort((a, b) => a[0] - b[0]);
-  const ut = new Set(),
-    ud = new Set();
-  for (const [, i, j, H, y] of pairs) {
-    if (ut.has(i) || ud.has(j)) continue;
-    ut.add(i);
-    ud.add(j);
+  for (const [, i, , [, H, y]] of taken) {
     const t = A.tracks[i],
       I = kfInnov(t, H, y, Rm);
     if (!I) continue;
@@ -502,113 +495,54 @@ function radarTrack(ve) {
   Object.assign(S.radar, {cand: cand.length, paired: ud.size, born: A.nextId - born0});
 }
 // @end
-// A track was updated this scan: count the hit and confirm it. With both sensors, a track the radar can see needs one of
-// its hits from the radar (or twice the hits from the lidar alone): a lidar return from fog, or a radar echo from
-// clutter, rarely builds a track the other sensor agrees with.
-function agHit(t) {
-  t.hits++;
-  t.lastUpd = S.t;
-  if (t.conf) return;
-  const vouch = radarOn() && P.trkIn === 'both' && radInView(t) ? (t.rh || 0) >= 1 || t.hits >= 6 : true;
-  if (t.hits >= 3 && vouch) {
-    t.conf = true;
-    t.t0 = S.t;
-  }
-}
-// The tracker when the radar is one of its inputs (P.trkIn 'radar' or 'both'): the same predict, gate, pair, birth and
-// coast as agTrack, on the full covariance; the lidar's clusters update position, the radar's detections range,
-// bearing and radial velocity.
+// The tracker when the radar is one of its inputs (P.trkIn 'radar' or 'both'): agTrack's lifecycle (agLifecycle, in
+// core/agents.js) on the full covariance; the lidar's clusters update position, the radar's detections range, bearing
+// and radial velocity (radarTrack, after the clusters).
 function agTrackFused(dt) {
   const A = S.agents,
     q = P.agSigA * P.agSigA,
     R = AG_SZ * AG_SZ,
     e = S.est,
     v = S.radar ? S.radar.ve : S.odo ? S.odo.v : 0,
-    ve = [v * Math.cos(e.th), v * Math.sin(e.th)];
-  for (const t of A.tracks) {
-    kfInitC(t);
-    kfPredict(t, dt, q);
-  }
-  if (P.trkIn === 'both' && S.scanTick === S.tick) {
-    const Hl = [
-        [1, 0, 0, 0],
-        [0, 1, 0, 0]
-      ],
-      pairs = [];
-    A.tracks.forEach((t, i) =>
-      A.det.forEach((d, j) => {
-        const y = [d.x - t.x, d.y - t.y],
-          I = kfInnov(t, Hl, y, [R, R]);
-        if (I && I.d2 < 9.21) pairs.push([I.d2, i, j, y, I]);
-      })
-    );
-    pairs.sort((a, b) => a[0] - b[0]);
-    const ut = new Set(),
-      ud = new Set();
-    for (const [, i, j, y, I] of pairs) {
-      if (ut.has(i) || ud.has(j)) continue;
-      ut.add(i);
-      ud.add(j);
-      const t = A.tracks[i],
-        d = A.det[j];
+    ve = [v * Math.cos(e.th), v * Math.sin(e.th)],
+    Hl = [
+      [1, 0, 0, 0],
+      [0, 1, 0, 0]
+    ],
+    Hv = [
+      [0, 0, 1, 0],
+      [0, 0, 0, 1]
+    ];
+  agLifecycle(dt, {
+    lidar: P.trkIn === 'both' && S.scanTick === S.tick,
+    predict(t) {
+      kfInitC(t);
+      kfPredict(t, dt, q);
+    },
+    gate: t => d => {
+      const y = [d.x - t.x, d.y - t.y],
+        I = kfInnov(t, Hl, y, [R, R]);
+      return I && I.d2 < 9.21 ? [I.d2, y, I] : null;
+    },
+    update(t, d, [, y, I]) {
       kfUpdate(t, Hl, y, [R, R], I);
-      t.r = 0.8 * t.r + 0.2 * d.r;
-      // per-target scan matching, as in agTrack: the displacement of the person's hits is a velocity measurement
-      if (P.agICP && t.pts && d.pts && t.pts.length >= 3 && d.pts.length >= 3) {
-        const cx = t.px,
-          cy = t.py,
-          m = icp2d(
-            t.pts.map(q => [q[0] - cx, q[1] - cy]),
-            d.pts.map(q => [q[0] - cx, q[1] - cy]),
-            {x: t.vx * dt, y: t.vy * dt, th: 0},
-            3
-          );
-        if (m && m.inl >= 0.6 && m.rms < 0.08) {
-          const Hv = [
-              [0, 0, 1, 0],
-              [0, 0, 0, 1]
-            ],
-            yv = [m.x / dt - t.vx, m.y / dt - t.vy],
-            Iv = kfInnov(t, Hv, yv, [0.25, 0.25]);
-          if (Iv) kfUpdate(t, Hv, yv, [0.25, 0.25], Iv);
-        }
+    },
+    // the displacement of the person's hits, a velocity measurement
+    icp(t, m) {
+      const yv = [m.x / dt - t.vx, m.y / dt - t.vy],
+        Iv = kfInnov(t, Hv, yv, [0.25, 0.25]);
+      if (Iv) kfUpdate(t, Hv, yv, [0.25, 0.25], Iv);
+    },
+    cov: () => ({C: [R, 0, 0, 0, 0, R, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], rh: 0}),
+    after() {
+      if (S.radTick === S.tick) radarTrack(ve);
+      for (const t of A.tracks) {
+        agWalkCap(t);
+        // the shared scalars the rest of the page reads (σ of position in the inspector, the scalar tracker if switched back)
+        t.pxx = (t.C[0] + t.C[5]) / 2;
+        t.pxv = (t.C[2] + t.C[7]) / 2;
+        t.pvv = (t.C[10] + t.C[15]) / 2;
       }
-      t.pts = d.pts;
-      t.px = d.x;
-      t.py = d.y;
-      agHit(t);
     }
-    A.det.forEach((d, j) => {
-      if (ud.has(j)) return;
-      A.tracks.push({
-        id: A.nextId++,
-        x: d.x,
-        y: d.y,
-        vx: 0,
-        vy: 0,
-        r: d.r,
-        C: [R, 0, 0, 0, 0, R, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-        hits: 1,
-        rh: 0,
-        conf: false,
-        lastUpd: S.t,
-        pts: d.pts,
-        px: d.x,
-        py: d.y
-      });
-    });
-  }
-  if (S.radTick === S.tick) radarTrack(ve);
-  for (const t of A.tracks) {
-    const sp = hyp(t.vx, t.vy);
-    if (sp > 2.5) {
-      t.vx *= 2.5 / sp;
-      t.vy *= 2.5 / sp;
-    }
-    // the shared scalars the rest of the page reads (σ of position in the inspector, the scalar tracker if switched back)
-    t.pxx = (t.C[0] + t.C[5]) / 2;
-    t.pxv = (t.C[2] + t.C[7]) / 2;
-    t.pvv = (t.C[10] + t.C[15]) / 2;
-  }
-  A.tracks = A.tracks.filter(t => S.t - t.lastUpd < (t.conf ? 1.0 : 0.25));
+  });
 }

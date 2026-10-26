@@ -275,6 +275,17 @@ async def main():
             s=await p2.evaluate(TL)
             check(s['state']=='replay' and s['shown']==4.0 and s['badge'],f'a link with t=4 shows that moment paused: "{s["txt"]}"')
             await p2.close()
+            # bad link values: goals that are not numbers keep the level's goals with a warning; a prototype key is ignored
+            LINKCHK='''()=>{const N=window.__nav,L=N.LEVELS[0];return {lv:N.LV.id,same:JSON.stringify(N.WPS.map(w=>[w.x,w.y]))===JSON.stringify(L.wps.map(w=>[w[0],w[1]])),
+              warn:N.S.log.some(l=>/goals are not numbers/.test(l.msg)),fail:N.S.log.filter(l=>/Could not/.test(l.msg)).map(l=>l.msg),nan:/NaN/.test(document.body.innerText)};}'''
+            p3=await ctx.new_page(); watch(p3); await p3.goto(page_url('#l=L1&seed=7&goals=a,b')); await p3.wait_for_timeout(900)
+            r=await p3.evaluate(LINKCHK)
+            check(r['lv']=='L1' and r['same'] and r['warn'] and not r['nan'] and not r['fail'],f'a link with goals=a,b warns and keeps L1\'s goals: {r}')
+            await p3.close()
+            p3=await ctx.new_page(); watch(p3); await p3.goto(page_url('#l=L1&seed=7&__proto__=1&constructor=2')); await p3.wait_for_timeout(900)
+            r=await p3.evaluate(LINKCHK)
+            check(r['lv']=='L1' and r['same'] and not r['warn'] and not r['fail'],f'a link with __proto__=1 is ignored without an error: {r}')
+            await p3.close()
 
             # ---- dark mode: another background, and readable text
             area('Dark mode')
@@ -290,6 +301,37 @@ async def main():
             for (s,c) in dc: check(c is not None and c>=4.5,f'dark: {s} contrast {c}')
             for (s,c) in lc: check(c is not None and c>=4.5,f'light: {s} contrast {c}')
             await dctx.close()
+
+            # ---- layout: the tool-tab row keeps its height, the header's tools exist at mid widths, the log announces
+            area('Layout')
+            await fresh(pg,'#l=L5')
+            fr=await pg.evaluate("[document.querySelector('#firstrun').textContent, (document.querySelector('#firstrun-min')||{}).textContent]")
+            await pg.click('#tab-learn'); await pg.wait_for_timeout(300)
+            sh=await pg.evaluate("(/about (\\d+) minutes/.exec(document.querySelector('#starthere').textContent)||[])[1]")
+            await pg.click('#mode-sim'); await pg.wait_for_timeout(200)
+            check('L7' in fr[0] and 'six' not in fr[0] and fr[1]==sh,f'the first-run hint names L7 and Start here\'s {sh} minutes ({fr[1]})')
+            PANE="Math.round(document.querySelector('#pane').getBoundingClientRect().top)"
+            for (w,h) in [(1440,900),(1024,768)]:
+                await pg.set_viewport_size({'width':w,'height':h}); await pg.wait_for_timeout(250)
+                await tab(pg,'sen'); tops={'sen':await pg.evaluate(PANE)}
+                for t in ['exp','train','saf','code']:
+                    await pg.click('#tab-more'); await pg.click('#tab-'+t); await pg.wait_for_timeout(100); tops[t]=await pg.evaluate(PANE)
+                check(len(set(tops.values()))==1,f'{w} × {h}: picking a tool tab does not move the pane {tops}')
+            for (w,h) in [(800,600),(900,700)]:
+                await pg.set_viewport_size({'width':w,'height':h}); await pg.wait_for_timeout(250)
+                got=[]
+                for bt,panel in [('tg-chg','chgpanel'),('tg-runs','runpanel'),('tg-view','viewmenu')]:
+                    await pg.click('#'+bt); await pg.wait_for_timeout(120)
+                    got.append(await pg.evaluate(f"!document.getElementById('{panel}').hidden"))
+                    await pg.keyboard.press('Escape'); await pg.wait_for_timeout(80)
+                ov=await pg.evaluate('[document.scrollingElement.scrollWidth,document.scrollingElement.clientWidth]')
+                check(all(got) and ov[0]==ov[1],f'{w} × {h}: Changed, Runs and View each open their panel {got}, no sideways scroll {ov}')
+            await pg.set_viewport_size({'width':1440,'height':900}); await pg.wait_for_timeout(200)
+            await pg.evaluate('window.__nav.kidnapTo([3,3])'); await pg.wait_for_timeout(300)
+            lv=await pg.evaluate("[document.querySelector('#log-live').getAttribute('role'), document.querySelector('#log-live').textContent]")
+            check(lv[0]=='log' and lv[1].startswith('Robot kidnapped'),f'the log\'s live region reads the newest fault: {lv}')
+            await pg.fill('#log-q','kidnap'); await pg.wait_for_timeout(150); await pg.fill('#log-q',''); await pg.wait_for_timeout(150)
+            check(await pg.evaluate("document.querySelector('#log-live').children.length")==1,'searching the log announces nothing more')
         except Exception as e:  # a step that cannot run (an element gone, a timeout) fails its area; the areas after it do not run
             check(False,'stopped: '+(str(e).strip().split(chr(10))[0])[:160])
         area('')

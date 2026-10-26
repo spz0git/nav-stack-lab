@@ -45,7 +45,8 @@ function schedError(v) {
     if (e.act != null && !SCHED_ACTS.includes(e.act)) return `act to be ${SCHED_ACTS.join(' or ')}`;
     if (e.act == null && (!e.set || typeof e.set !== 'object')) return 'set: {setting: value} or an act in each event';
     if (e.set)
-      for (const k of Object.keys(e.set)) if (!(k in DEFAULTS) || k === 'sched' || k === 'seed') return `settings it knows, not ${k}`;
+      for (const k of Object.keys(e.set))
+        if (!Object.hasOwn(DEFAULTS, k) || k === 'sched' || k === 'seed') return `settings it knows, not ${k}`;
   }
   return null;
 }
@@ -410,9 +411,10 @@ const PARAM_ALWAYS = ['infl', 'eps', 'rrtIt', 'wheelbase', 'steerMaxDeg', 'revPe
 // one a finite number within its range (PARAM_RANGE), the fault schedule well formed. setParam and a level's settings
 // (levels.js) both check with it.
 function paramError(k, v) {
-  if (PARAM_OPTS[k] && !PARAM_OPTS[k].includes(v)) return `${k} has no value "${v}" (one of ${PARAM_OPTS[k].join(', ')})`;
+  // own keys only: a key such as __proto__ or constructor would otherwise find Object.prototype's members
+  if (Object.hasOwn(PARAM_OPTS, k) && !PARAM_OPTS[k].includes(v)) return `${k} has no value "${v}" (one of ${PARAM_OPTS[k].join(', ')})`;
   if (typeof DEFAULTS[k] === 'number' && !(typeof v === 'number' && isFinite(v))) return `${k} needs a number, not "${v}"`;
-  const R = PARAM_RANGE[k];
+  const R = Object.hasOwn(PARAM_RANGE, k) ? PARAM_RANGE[k] : null;
   if (R && (v < R[0] || v > R[1])) return `${k} must be from ${R[0]} to ${R[1]}, not ${v}`;
   if (k === 'sched' && schedError(v)) return `the fault schedule needs ${schedError(v)}`;
   return null;

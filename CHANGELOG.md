@@ -4,6 +4,25 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v69 · 2026-10-26
+
+- The page is about 0.9 MB lighter (4.7 → 3.8 MB; 1.41 → 1.20 MB compressed): it no longer carries the simulation
+  core twice, and the end-to-end policy's weights take half the space with exactly the same values.
+- The run logs in a lesson's "What you will see" are small tables now, one row per run or seed with a line saying
+  what to look at: in the dead-reckoning, pose-graph SLAM, learned detector, radar and D* Lite lessons and throughout
+  the safety lessons. Chapters 3 (perception), 4 (planning) and 6 (the tracking loop) read more easily: their long
+  sentences are split, and no claim, number or equation changed.
+- Picking Experiments, Train, Safety or Code no longer makes the settings panel jump: the tab row keeps the same
+  height whichever tab is open. Between phone and desktop widths, and on short desktop windows, the header shows
+  Changed, Runs and View again.
+- Screen readers announce new contacts, faults, warnings and the mission's end from the event log. With "reduce
+  motion" set in your system, highlights appear and disappear without fading, and the splitters and progress bars
+  stop animating.
+- The first-run hint counts the levels correctly (L1 to L7 and your own) and points to Learn's Start here. The search
+  footer says "1 result". The Code tab says what to do when no code is loaded.
+- A setup link whose goals are not numbers keeps the level's goals and says so in the log, instead of planning to a
+  goal at "NaN m"; a link with a name such as `constructor` in it no longer fails as a whole.
+
 ## v68 · 2026-10-26
 
 - Keyboard: the settings tabs are one stop for Tab, and the arrow keys (with Home and End) move between them; Enter

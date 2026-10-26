@@ -459,10 +459,22 @@ async function download(name, text, type) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   return true;
 }
-// the page's copy of the worker source has no built-in weights (build.mjs); they come from this page's MODELS
+// The worker's source is not a second copy in the page: it is the core modules, cut from this page's own script
+// (they come first in it, from the core-worker-src block's data-from module to just before its data-to module), plus
+// worker/main.js, which that block holds. The result is dist/core-worker.js exactly (build.mjs checks it).
+let CORE_WORKER_URL = null;
+function coreWorkerSource() {
+  const blk = document.getElementById('core-worker-src'),
+    app = document.getElementById('app-js').textContent,
+    from = app.indexOf(`/* ---- ${blk.dataset.from} ---- */\n`),
+    to = app.indexOf(`\n/* ---- ${blk.dataset.to} ---- */\n`, from);
+  if (from < 0 || to < 0) throw new Error('the core modules were not found in the page script');
+  return "(()=>{\n'use strict';\n" + app.slice(from, to) + '\n' + blk.textContent + '\n})();';
+}
+window.__coreWorkerSource = coreWorkerSource; // tests/dyntest.py compares it with dist/core-worker.js
 function makeCoreWorker() {
-  const src = document.getElementById('core-worker-src').textContent;
-  return new Worker(URL.createObjectURL(new Blob([`self.__MODELS=${JSON.stringify(MODELS)};\n`, src], {type: 'text/javascript'})));
+  if (!CORE_WORKER_URL) CORE_WORKER_URL = URL.createObjectURL(new Blob([coreWorkerSource()], {type: 'text/javascript'}));
+  return new Worker(CORE_WORKER_URL);
 }
 async function expRun() {
   const pl = paramList(),
@@ -720,7 +732,14 @@ function applyConfig(c) {
   if (c.seed) P.seed = clamp(Math.round(c.seed), 1, 99);
   loadLevel(i);
   for (const [k, v] of Object.entries(c.params || {})) {
-    if (k in DEFAULTS) setParam(k, v, false);
+    if (Object.hasOwn(DEFAULTS, k)) setParam(k, v, false);
+  }
+  // goals from a link or pasted JSON: every one needs finite x and y (and a finite heading or none), else the level's stay
+  const finite = v => typeof v === 'number' && Number.isFinite(v),
+    goalOk = g => Array.isArray(g) && finite(g[0]) && finite(g[1]) && (g[2] == null || finite(g[2]));
+  if (c.goals && !(Array.isArray(c.goals) && c.goals.length && c.goals.every(goalOk))) {
+    logE("The link's goals are not numbers: the level's goals are kept", 'warn');
+    c = {...c, goals: null};
   }
   if (c.goals) {
     WPS = c.goals.map(g => ({x: g[0], y: g[1], th: g[2] == null ? null : g[2], done: false}));
@@ -759,7 +778,7 @@ function configFromHash() {
     else if (k === 'goals') c.goals = val.split(';').map(g => g.split(',').map(x => (x === '' ? null : +x)));
     else if (k === 'mode') c.mode = val;
     else if (k === 't') c.t = +val;
-    else if (k in DEFAULTS) {
+    else if (Object.hasOwn(DEFAULTS, k)) {
       const d = DEFAULTS[k];
       if (typeof d === 'object') {
         try {

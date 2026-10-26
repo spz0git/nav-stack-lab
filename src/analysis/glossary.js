@@ -658,7 +658,12 @@ const GLOSS = {
   bode: ['Bode plot', 'Gain in dB and phase of <i>L</i>(jω) against frequency, on logarithmic axes.', '', ['Bode plot', 'Bode']],
   dB: ['dB', 'Decibels: 20 log<sub>10</sub> of a gain; 0 dB is a gain of 1.', '', ['dB']],
   decade: ['decade', 'A factor of 10 in frequency.', '', ['decade']],
-  zero: ['zero', 'A value of <i>s</i> where the transfer function is 0; it adds phase lead above that frequency.', '', ['zero']],
+  zero: [
+    'zero',
+    "A zero of a transfer function: a value of <i>s</i> where it is 0, a root of its numerator. The trackers' zero at <i>s</i> = −<i>K</i><sub>e</sub><i>v</i><sub>0</sub>/<i>K</i><sub>θ</sub> comes from the heading feedback; above that frequency it adds phase lead.",
+    '',
+    ['zero']
+  ],
   Ke: ['<i>K</i><sub>e</sub>, <i>K</i><sub>θ</sub>', 'Controller gains on lateral error and on heading error.', '', ['K_e', 'K_θ']],
   crossover: ['crossover', 'The frequency ω<sub>c</sub> where |<i>L</i>| = 1.', '', ['crossover']],
   zeta: ['ζ', 'Damping ratio of the dominant closed-loop poles: 1 is critically damped, lower values overshoot more.', '', ['ζ']],
@@ -1363,6 +1368,61 @@ Object.assign(GLOSS, {
     'How much of its job the system still does: time spent moving rather than stopped or slowed, missions finished. What a mitigation usually pays with.',
     '',
     ['availability']
+  ],
+  // terms the lessons use before a chapter defines them
+  frenet: [
+    'Frenet equations',
+    "The motion written in the path's own frame (the Frenet frame): distance along the path, lateral error <i>e</i>, heading error θ<sub>e</sub>. On a straight path ė = <i>v</i> sin θ<sub>e</sub> and θ̇<sub>e</sub> = ω; a curve of curvature κ subtracts the path's own turning from θ̇<sub>e</sub>.",
+    '',
+    ['Frenet equations', 'Frenet equation', 'Frenet frame', 'Frenet']
+  ],
+  inscribed: [
+    'inscribed-angle theorem',
+    "In a circle, the angle a chord subtends at the circumference is half the angle at the centre. It gives pure pursuit's arc through the carrot the curvature 2 sin α / <i>L</i>.",
+    '',
+    ['inscribed-angle theorem', 'inscribed angle theorem']
+  ],
+  argprinc: [
+    'argument principle',
+    "As <i>s</i> goes once round a closed contour, a function's value winds round 0 as many times as it has zeros inside minus poles inside. Applied to 1 + <i>L</i> on the right half plane, it is the Nyquist criterion.",
+    '',
+    ['argument principle']
+  ],
+  descfn: [
+    'describing function',
+    "The gain a nonlinearity shows to a sine of amplitude <i>A</i>: the first harmonic of its output over the input. A saturation's is 1 for small sines and falls as <i>A</i> grows, so a loop that clips acts as a loop with less gain.",
+    '',
+    ['describing function', 'describing-function']
+  ],
+  lyapunov: [
+    'Lyapunov argument',
+    'A proof of convergence without solving the motion: find an energy-like function of the errors (a Lyapunov function) that is positive away from the goal and never grows along the motion, so the errors cannot grow either.',
+    '',
+    ['Lyapunov argument', 'Lyapunov function', 'Lyapunov']
+  ],
+  pade: [
+    'Padé approximation',
+    'A ratio of polynomials that matches a pure delay <i>e</i><sup>−s<i>T</i></sup> at low frequency, for example (1 − s<i>T</i>/2) / (1 + s<i>T</i>/2), so that a delay can enter a design made for rational transfer functions.',
+    '',
+    ['Padé approximation', 'Padé']
+  ],
+  joseph: [
+    'Joseph form',
+    'The covariance update written as (<i>I</i> − <i>KH</i>) Σ (<i>I</i> − <i>KH</i>)<sup>T</sup> + <i>K Q K</i><sup>T</sup> (<i>Q</i> the measurement noise): the same result as (<i>I</i> − <i>KH</i>) Σ for the optimal gain, but it stays symmetric and positive in floating point.',
+    '',
+    ['Joseph form', "Joseph's form", 'Joseph']
+  ],
+  bresenham: [
+    "Bresenham's algorithm",
+    'Walking a straight line through a grid one cell at a time with integer steps only: the cells a beam crosses on its way to its end point.',
+    '',
+    ["Bresenham's algorithm", "Bresenham's walk", 'Bresenham']
+  ],
+  lockin: [
+    'lock-in',
+    'Measuring one frequency in a noisy signal: multiply it by a sine and a cosine at that frequency and average over whole cycles; what is left is the amplitude and phase at that frequency. How the injection test reads <i>L</i>(jω).',
+    '',
+    ['lock-in']
   ]
 });
 const LESSON_TERMS = {
@@ -1385,8 +1445,8 @@ const LESSON_TERMS = {
   'Nothing breaks, and it still fails: triggering conditions':
     'sotif funcins trigcond fourareas fault speedplanner multimodal fog lidar track lostguard mirror unlabeled pf sonar deadzone guard ttcsafe degraded contacts sevclass',
   'GNSS: the noise is not white':
-    'gnss gaussmarkov white bias augstate multipath outage gate d2 chi2 nees band2s overconf consistent ekf Hjac K odometry deadreck kidnap',
-  'Placing the poles on purpose: pole placement and LQR': 'poleplace lqr pole zeta wn Ke kth rwf DM pm overshoot ts plantgain hold',
+    'gnss gaussmarkov white bias augstate multipath outage gate d2 chi2 nees band2s overconf consistent ekf Hjac K odometry deadreck kidnap joseph',
+  'Placing the poles on purpose: pole placement and LQR': 'poleplace lqr pole zeta wn Ke kth rwf DM pm overshoot ts plantgain hold pade',
   'Pose-graph SLAM: the map that closes the loop':
     'posegraph keyframe loopclosure icp scanmatch gaussnewton drift odometry covariance gyro lidar logodds frontier',
   'Scan matching: the lidar as a position sensor':
@@ -1396,14 +1456,14 @@ const LESSON_TERMS = {
   'Dead reckoning drifts, and knows it':
     'deadreck odometry arc v w covariance mu gmot uodo Sigma Gjac Vjac Modo sigx t thetaerr ellipse poserr band2s consistent',
   'The Kalman update, and NEES as a lie detector':
-    'beacon rb ekf nu z zhat kgain Sinn Hjac Qmeas K mu Sigma Iid nees eerr overconf bias assumed',
+    'beacon rb ekf nu z zhat kgain Sinn Hjac Qmeas K mu Sigma Iid nees eerr overconf bias assumed joseph',
   'Gating, and the kidnapped robot':
     'kidnap particle ellipse poserr unlabeled mahal gate d2 nu Sinn chi2 clutter ekf knownids pf inject hyp',
   'Particles: resampling, injection and symmetry':
     'pf motionmodel particle likelihood resample neff lowvar sumP wi Npart amcl wfs wavg inject globalloc mirror unlabeled lidar',
   'EKF-SLAM: the map is part of the state':
     'slam landmark xslam mlm Pslam nlm ppos rr bb Pmm Jxz Qmeas correlated drift deadreck loopclosure',
-  'Log-odds mapping': 'lidar beam grid logodds clamp l lmeas lfh estframe deadreck',
+  'Log-odds mapping': 'lidar beam grid logodds clamp l lmeas lfh estframe deadreck bresenham',
   'Sonar: one number for a whole cone':
     'sonar cone specular deadzone crosstalk arcmodel conelik guard logodds lmeas pf likelihood contacts closest lidar',
   'Costmap: lethal cells and the inflation band': 'costmap disttrans lethal inflation dobs penalty winf edgecost frontier',
@@ -1415,7 +1475,7 @@ const LESSON_TERMS = {
   'A learned predictor: three futures for each person':
     'mlp mixture resp wta multimodal prederr cvkf track speedplanner socialforce contacts closest groundtruth distshift',
   'Radar: speed from the echo':
-    'radar doppler angres ghost egomotion ttc xconfirm fog cvkf track gate chi2 mahal ekf Hjac confirm coast speedplanner moose lidar',
+    'radar doppler angres ghost egomotion ttc xconfirm fog cvkf track gate chi2 mahal ekf Hjac confirm coast speedplanner moose lidar joseph',
   'Velocity obstacles: steering around people in velocity space':
     'vo rvo track cvkf agent speedplanner socialforce contacts closest lidar costmap tracker',
   'People who react': 'socialforce Fsf v0p edir vp tausf sumO Asf rij dpp Bsf ndir contacts closest',
@@ -1430,15 +1490,16 @@ const LESSON_TERMS = {
   'Frontier exploration: the robot picks its own goals':
     'frontier frontiercell floorseen logodds lethal inflation costmap fsm replan estimate',
   'Space-time A*: planning with time as a coordinate': 'sta refspeed horizon ijk kidx t dtst v0r cij pa rrobot speedplanner expansions',
-  'The loop being analyzed': 'tracker v0c integrator the gpl uc wturn delta Lwb ectl derivative opoint findiff hold latency actlag',
-  'Pure pursuit is a PD controller': 'pd carrot Ld alpha the ectl pp curv linearized wturn v0c Ls sL Td wc pm delta Lwb gpl',
-  'Reading the Bode plot': 'bode Ls dB decade zero sL Ke v0c crossover wc pm zeta closedloop Tcl Ssens Ms piT nyqfreq',
-  'Nyquist and the −1 point': 'pole Ls m1 wfreq nyqcrit encircle Nenc Zun Pun Ms Td',
-  'Delay margin: the latency budget': 'pm DT wc DM latency limitcycle steptest',
-  'Poles, damping and the step response': 'pole zdisc sL Tsamp zeta wn overshoot ts rwf v0c kth rootlocus rhp gm',
+  'The loop being analyzed':
+    'tracker v0c integrator the gpl uc wturn delta Lwb ectl derivative opoint findiff hold latency actlag frenet zero',
+  'Pure pursuit is a PD controller': 'pd carrot Ld alpha the ectl pp curv linearized wturn v0c Ls sL Td wc pm delta Lwb gpl inscribed',
+  'Reading the Bode plot': 'bode Ls dB decade zero sL Ke v0c crossover wc pm zeta closedloop Tcl Ssens Ms piT nyqfreq lockin',
+  'Nyquist and the −1 point': 'pole Ls m1 wfreq nyqcrit encircle Nenc Zun Pun Ms Td argprinc',
+  'Delay margin: the latency budget': 'pm DT wc DM latency limitcycle steptest descfn',
+  'Poles, damping and the step response': 'pole zdisc sL Tsamp zeta wn overshoot ts rwf v0c kth rootlocus rhp gm lyapunov',
   'Actuator lag, and what MPC assumes': 'firstorder tau wfreq mpc predmodel actlag pm Ms Kc',
   'Integral action and steady-state error': 'bias stepdist ess dbias Ke1 integrator pid Ki sL mpc',
-  'Linear versus nonlinear': 'smallsig steerrate ratelim injsine',
+  'Linear versus nonlinear': 'smallsig steerrate ratelim injsine descfn lockin',
   'Speed changes the plant: gain scheduling': 'plantgain v0c Lwb v delta the Ld L0 kpp wc rwf curv cruise gainsched pp',
   'The speed loop is open, except for MPC':
     'tracker cruise openloop latency actlag Gs Tlat tau bandwidth rise mpc aacc Kv vref aprev steptest',
@@ -1450,7 +1511,7 @@ const LESSON_TERMS = {
   'The moose test: an MPC that knows the tyres':
     'moose mpc predmodel tyrempc dynbike vch kus understeer yawr yawmode mug sideslip zeta pm Ms overshoot steptest wc cruise alatcap',
   'Curves: does the straight-line analysis hold?':
-    'opoint findiff thdot gpl uc u0 edot v0c the pp rwf curv feedforward stanley pid offset steptest steerrate'
+    'opoint findiff thdot gpl uc u0 edot v0c the pp rwf curv feedforward stanley pid offset steptest steerrate frenet'
 };
 const lessonTerms = L => (LESSON_TERMS[L.t] || '').split(' ').filter(id => GLOSS[id]);
 // Wrap the first occurrence of each listed term in the lesson HTML (prose and the plain-text equations; not inside

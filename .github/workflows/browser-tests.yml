@@ -1,11 +1,14 @@
-# The full Playwright suite (tests/run_all.py: all eleven browser tests) every night and on demand from the Actions
-# tab. A PR runs only the tests its change needs (run_all.py --changed); this run catches what a scope missed. It
-# drives the built page in a headless Chromium; about twelve minutes.
+# The full Playwright suite (tests/run_all.py: all twelve browser tests) every night and on demand from the Actions
+# tab. A PR runs only the tests its change needs (run_all.py --changed) and CI runs the smoke test on every push; this
+# run catches what a scope missed. It drives the built page in a headless Chromium; about twelve minutes. On a failure
+# the run's log and the screenshots the failing tests left (NAV_LAB_SHOTS, see tests/_browser.py) are uploaded.
 name: Browser tests
 on:
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   gate:
     runs-on: ubuntu-latest
@@ -18,11 +21,40 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: tests/requirements.txt
       - name: Build
         run: node build.mjs
-      - name: Install Playwright and Chromium
+      - name: Install Playwright (pinned in tests/requirements.txt)
+        id: pw
         run: |
-          pip install playwright
-          playwright install --with-deps chromium
+          pip install -r tests/requirements.txt
+          echo "version=$(python3 -c 'from importlib.metadata import version; print(version("playwright"))')" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright's Chromium
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - name: Install Chromium and its system libraries
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: playwright install --with-deps chromium
+      - name: Install Chromium's system libraries (the browser came from the cache)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: playwright install-deps chromium
       - name: Run the gate
-        run: python3 tests/run_all.py
+        env:
+          NAV_LAB_SHOTS: ${{ github.workspace }}/test-shots
+        run: |
+          set -o pipefail
+          python3 tests/run_all.py 2>&1 | tee run_all.log
+      - name: Upload the log and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-tests-failure
+          path: |
+            run_all.log
+            test-shots/
+          if-no-files-found: ignore
+          retention-days: 14

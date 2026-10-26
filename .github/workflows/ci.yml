@@ -1,20 +1,28 @@
-# Every pull request and every push to main: the committed dist/ must equal a fresh build, and the Node golden
-# tests (the L1–L5 regression summary against tests/node/golden.json) must pass. About one minute, no browser.
+# Every pull request and every push to main: lint, format, the committed dist/ equals a fresh build, the versions
+# agree with src/version.json (tools/version-check.mjs), the Node golden
+# tests (the L1–L5 regression summary against tests/node/golden.json) pass, golden.json changes only with a commit
+# message line starting `golden:`, and the browser smoke test passes.
+# About three minutes (npm and pip are cached; the browser is the runner's own Chrome).
 name: CI
 on:
   pull_request:
   push:
     branches: [main]
+permissions:
+  contents: read
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the golden guard reads the commit messages of the whole PR or push
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install the dev tools (ESLint)
+          cache: npm
+      - name: Install the dev tools (ESLint, Prettier)
         run: npm ci --ignore-scripts
       - name: Lint (cross-module names, no-undef)
         run: npm run lint
@@ -24,5 +32,68 @@ jobs:
         run: node build.mjs
       - name: The committed dist/ matches the build
         run: git diff --exit-code --stat -- dist/
+      - name: package.json, CITATION.cff and the issue templates carry src/version.json's version
+        run: npm run version:check
       - name: Node golden tests
         run: npm test
+      - name: golden.json changes only with a "golden:" line in a commit message
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "No base commit to compare with (${BASE:-none}: a new branch or a forced push); skipped."; exit 0
+          fi
+          if git diff --quiet "$BASE" HEAD -- tests/node/golden.json; then
+            echo "tests/node/golden.json unchanged since ${BASE:0:12}."; exit 0
+          fi
+          if git log --format=%B "$BASE..HEAD" | grep -q '^golden:'; then
+            echo "tests/node/golden.json changed, explained by:"; git log --format=%B "$BASE..HEAD" | grep '^golden:'; exit 0
+          fi
+          echo "::error file=tests/node/golden.json::golden.json changed since ${BASE:0:12} but no commit message in the range has a line starting with 'golden:' that says why the L1-L5 numbers moved (npm run golden -- --why \"...\" prints the diff)."
+          exit 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: tests/requirements.txt
+      - name: Install Playwright (pinned in tests/requirements.txt)
+        id: pw
+        run: |
+          pip install -r tests/requirements.txt
+          echo "version=$(python3 -c 'from importlib.metadata import version; print(version("playwright"))')" >> "$GITHUB_OUTPUT"
+      # The runner image ships Google Chrome; the tests take it through NAV_LAB_CHROMIUM (tests/_browser.py), so no
+      # browser download and no apt (playwright install --with-deps hung on apt for a whole job once). The download
+      # and the cache stay as the fallback for an image without Chrome.
+      - name: Find the runner's Chrome
+        id: chrome
+        run: echo "path=$(command -v google-chrome-stable || command -v google-chrome || true)" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright's Chromium
+        if: steps.chrome.outputs.path == ''
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - name: Install Chromium and its system libraries (no Chrome on the runner)
+        if: steps.chrome.outputs.path == '' && steps.pw-cache.outputs.cache-hit != 'true'
+        run: timeout 600 playwright install --with-deps chromium
+      - name: Install Chromium's system libraries (the browser came from the cache)
+        if: steps.chrome.outputs.path == '' && steps.pw-cache.outputs.cache-hit == 'true'
+        run: timeout 600 playwright install-deps chromium
+      - name: Browser smoke test
+        env:
+          NAV_LAB_CHROMIUM: ${{ steps.chrome.outputs.path }}
+          NAV_LAB_SHOTS: ${{ github.workspace }}/test-shots
+        run: |
+          set -o pipefail
+          python3 tests/smoke.py 2>&1 | tee smoke.log
+      - name: Upload the log and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure
+          path: |
+            smoke.log
+            test-shots/
+          if-no-files-found: ignore
+          retention-days: 14

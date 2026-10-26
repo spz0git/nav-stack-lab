@@ -1,6 +1,6 @@
 {
   "name": "nav-stack-lab",
-  "version": "36.0.0",
+  "version": "68.0.0",
   "description": "A browser simulator for robot navigation: localization, perception, planning and control, with loop analysis and guided lessons, in one HTML file.",
   "private": true,
   "license": "MIT",
@@ -20,7 +20,8 @@
     "test": "node --test \"tests/node/*.test.mjs\"",
     "test:browser": "python3 tests/run_all.py",
     "test:all": "npm test && npm run test:browser",
-    "golden": "node tests/node/core.mjs --write-golden"
+    "golden": "node tests/node/core.mjs --write-golden",
+    "version:check": "node tools/version-check.mjs"
   },
   "devDependencies": {
     "eslint": "^9.39.5",

@@ -4,6 +4,28 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v68 · 2026-10-26
+
+- Keyboard: the settings tabs are one stop for Tab, and the arrow keys (with Home and End) move between them; Enter
+  and Space keep the focus on the tab. The down arrow opens More and moves through its menu, and Escape returns to
+  More. Space on a button or tab you reached with the keyboard presses it instead of starting the run. In the search
+  box, Tab stays inside while it is open and Escape closes it wherever the focus is.
+- Phones: Changed (with its per-setting reset), Runs and View are in the Settings sheet's header, next to a close
+  button. The Mission tab's state diagram is shown full size and scrolls sideways, so its labels are readable; the
+  level menu shows every floor at once instead of a strip cut off at the edge.
+- Eight lessons (two on the car with tyre slip, the moose test, log-odds mapping, people who react, A*, Hybrid A*
+  and the Kalman update) now say which seed and run their numbers come from, as the others already did.
+- New glossary terms, shown on hover or tap in the lessons that use them: Frenet equations, inscribed-angle theorem,
+  argument principle, describing function, Lyapunov argument, Padé approximation, Joseph form, Bresenham's algorithm
+  and lock-in. The zero of a transfer function is explained from the first control lesson on.
+- Chapter 9's reference list adds the eleven works the lessons cite by name (ALVINN, the two imitation-learning
+  papers behind DAgger, DART, multimodal trajectory prediction, mixture density networks, velocity obstacles and
+  reciprocal velocity obstacles, D* Lite, frontier exploration, and Samson's rear-wheel feedback law).
+- The minutes beside each lesson count all of its text and a minute per experiment, so they say how long a lesson
+  really takes; the first pass in Start here is about 95 minutes with the experiments.
+- The safety lessons give UL 4600's third edition with its year (2023), and the safety-argument lesson says that
+  ISO 26262-2 6.4.8 (the safety case) is confirmed.
+
 ## v67 · 2026-10-26
 
 - Fixes from the audit of v66 (the assessment is in the repository under docs). A setup link, a level file or a fault

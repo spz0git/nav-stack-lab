@@ -41,6 +41,22 @@ export function buildModels(dir = 'src/models') {
     out[f.replace(/\.json$/, '')] = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
   return out;
 }
+// The models whose `ref` (the out-of-distribution reference core/learnmon.js scores inputs against) is missing or
+// malformed, one message each. A trainer (training/<block>/train.py) writes its model without one; tools/ood-ref.mjs
+// adds it by replaying the training runs on the built core, so the build only warns: the model has to be built before
+// its reference can be computed (and the page runs a model without one, unwatched).
+export function modelRefProblems(models) {
+  const out = [];
+  for (const [name, M] of Object.entries(models)) {
+    const R = M && M.ref;
+    if (R && Array.isArray(R.mean) && Array.isArray(R.sd) && R.mean.length === R.sd.length && Number.isFinite(R.thr)) continue;
+    out.push(
+      `src/models/${name}.json has ${R ? 'a malformed' : 'no'} ref (the out-of-distribution reference): ` +
+        `run tools/ood-ref.mjs on this build (node tools/ood-ref.mjs ${name}), then ./build.sh again`
+    );
+  }
+  return out;
+}
 export function buildExamples(dir = 'src/examples') {
   const out = {};
   for (const slot of fs.readdirSync(dir).sort()) {

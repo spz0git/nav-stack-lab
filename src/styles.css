@@ -4673,21 +4673,38 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     grid-template-rows: auto minmax(0, 1fr);
     max-height: 78vh;
   }
+  /* every floor in view: four to a row, the names wrapping (a strip that scrolled sideways hid L4 to L7) */
   .lvl-list {
-    flex-direction: row;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    max-height: 34vh;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
   .lvl-list .lvl {
-    flex: 0 0 auto;
     grid-template-columns: auto;
+    align-content: start;
+    padding: 6px;
+  }
+  .lvl-list .lvl-n {
+    font-size: var(--fs-small);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
   }
   .lvl-list .lvl b {
     grid-row: auto;
   }
   .lvl-list .lvl-d {
     display: none;
+  }
+  /* the Mission state machine at its own size (labels 9 px as on desktop), scrolled sideways */
+  .fsm-wrap {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  .fsm {
+    width: 600px;
+    max-width: none;
   }
   .console,
   .learncol {
@@ -4849,11 +4866,31 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     font-size: var(--fs-read);
     margin-top: 6px;
   }
-  .sheet-head .ibtn {
+  .sheet-head > .ibtn {
     margin-left: auto;
     margin-top: 6px;
     padding: 2px 10px;
     font-size: var(--fs-title);
+  }
+  .sheet-tools {
+    display: flex;
+    gap: 2px;
+    margin: 6px 0 0 auto;
+  }
+  .sheet-tools .ibtn {
+    min-height: 36px;
+    padding: 2px 7px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--ink);
+    font-size: var(--fs-ui);
+    white-space: nowrap;
+  }
+  .sheet-tools .ibtn[aria-expanded='true'] {
+    background: var(--track);
+  }
+  .sheet-tools + .ibtn {
+    margin-left: 0;
   }
   .tele-title {
     flex-wrap: wrap;

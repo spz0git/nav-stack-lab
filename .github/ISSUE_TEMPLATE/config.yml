@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Try the live page first
-    url: https://spz0git.github.io/nav-stack-lab/
-    about: The demo always runs the head of main; check whether the problem is still there.
+  - name: Try the latest page first
+    url: https://github.com/spz0git/nav-stack-lab/blob/main/dist/nav-stack-lab.html
+    about: dist/nav-stack-lab.html on main is the head of main (Download raw file, open it in a browser); check whether the problem is still there. The GitHub Pages demo is off while the repository is private.

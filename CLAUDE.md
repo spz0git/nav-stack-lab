@@ -29,6 +29,8 @@
   - The header shows the version from `src/version.json` (`v25 · 2026-10-14`). In the release commit, set `version` to
     the artifact version the publish will create (the last publish result's version + 1), with the date and a short note;
     the label then matches the artifact's version history (check the publish result's Version against it).
+    CI's `npm run version:check` makes the release commit also update `package.json` (with its lock), `CITATION.cff` and
+    the issue templates' placeholders to match, and after the merge tag it: `git tag vNN <merge commit> && git push origin vNN`.
   - The version label opens What's new, which is `CHANGELOG.md` inlined by the build (`tools/changelog.mjs`; `## Unreleased`
     is left out). Write each entry for someone who uses the page; file names and internals go in the PR, not the log.
     In the release commit, rename `## Unreleased` to `## vNN · date`.
@@ -69,8 +71,10 @@
   train, save, use; ERRORS must be []), `python3 lvtest.py` (custom and generated levels: menu, links, import and export,
   missions on every generator family; ERRORS must be []), `python3 sntest.py` (the Sensors switchboard: each sensor off on
   L3 and L5; FAILS must be []), `python3 saftest.py` (the safety lab's tools: the fault schedule, people who wait for the
-  robot, Tools → Safety's check, search, sets and Open, and the page's search against `tools/search.mjs`; FAILS must be []).
-  `python3 tests/run_all.py` runs all eleven (about twelve minutes).
+  robot, Tools → Safety's check, search, sets and Open, and the page's search against `tools/search.mjs`; FAILS must be []),
+  `python3 uitest.py` (the workspace: replay and loop, Runs, palette, Layers, the hash, keys, dark mode, What's new,
+  plots; FAILS must be []).
+  `python3 tests/run_all.py` runs all twelve (about twelve minutes).
 - Levels are data: the JSON format is in the header of `src/core/levels.js` (built-ins convert to it and back unchanged,
   `tests/node/levels.test.mjs`); the world's size (`W`, `H`, `GW`, `GH`, `NC`) is the level's, set by `setWorld` in
   `loadLevel`, so nothing may assume 24 × 16 m or cache a grid-sized array across levels. Generators are in

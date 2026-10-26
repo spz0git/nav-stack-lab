@@ -347,7 +347,7 @@ document.addEventListener('keydown', e => {
       consoleOpen = true;
       buildTabs();
       renderAllPanes();
-      right.scrollTop = 0;
+      head.parentNode.scrollTop = 0;
     }
   };
   fab.onclick = () => set(!document.body.classList.contains('sheet-open'));
@@ -355,7 +355,14 @@ document.addEventListener('keydown', e => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && document.body.classList.contains('sheet-open')) set(false);
   });
+  // the header's Changed, Runs and View are hidden on phones: there they sit in the sheet's head
+  const tools = document.createElement('span');
+  tools.className = 'sheet-tools';
+  head.insertBefore(tools, $('#sheet-x'));
+  const placeTools = () => ['#tg-chg', '#tg-runs', '#tg-view'].forEach(id => (narrowUI() ? tools : $('#bartools')).appendChild($(id)));
+  placeTools();
   matchMedia('(max-width:760px)').addEventListener('change', e => {
     if (!e.matches) set(false);
+    placeTools();
   });
 }

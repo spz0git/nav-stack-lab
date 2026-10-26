@@ -27,27 +27,31 @@ while working and again on `main` after the merge only repeats them.
    each source change so page and commit match. Add a line to `CHANGELOG.md` under `## Unreleased` and, for a
    feature, a section to `docs/roadmap.md`. The page shows the changelog under the version label (What's new), so
    write each entry for someone who uses the page. The repository is the only reference: there are no copies of the
-   roadmap elsewhere to keep in sync. No test gate yet. Open a PR; on every push CI (`.github/workflows/ci.yml`)
+   roadmap elsewhere to keep in sync. The test gate runs once, when the PR is ready to merge (step 3). Open a PR; on every push CI (`.github/workflows/ci.yml`)
    builds, checks that the committed `dist/` equals a fresh build, and runs the Node golden tests.
 2. When the PR is ready to merge, make the release commit on the branch: in `src/version.json` set `version` to the
    artifact version the next publish will create (the previous publish's version + 1), with `date` and a short
    `note`; rename `## Unreleased` to `## vNN · date` in `CHANGELOG.md`; rebuild and commit. The label in the header
    (`v30 · 2026-10-15`) is the one users quote in bug reports, and this way it matches the artifact's version history.
+   CI runs `npm run version:check`, which compares every other copy of the version with `src/version.json`. So the
+   release commit also sets `package.json` and `package-lock.json` to `NN.0.0`, `CITATION.cff`'s `version` and
+   `date-released`, and the issue templates' `vNN · date` placeholders.
 3. Run the scoped gate, once: `python3 tests/run_all.py --changed`, and check that CI is green on the head (it runs
    `npm run lint`, `npm run fmt:check`, the build check and `npm test`, the Node golden test, on every push). The
    scoped gate reads the files changed since `origin/main` and runs only what they need: `smoke.py` (about 40 s: every
    tab on every level at three widths, Analyze, Learn, a short run) for any change to the page, then the tests of the
    areas touched, from the table `SCOPE` in `tests/run_all.py` (a core change: the L1–L5 regression `test.py` and every
    Try button `p5test.py`, plus the subsystem's own test; a lesson: `tles.py` and `p5test.py`; a chapter: `chtest.py`;
-   a CSS or layout change: the smoke test alone). A change to the build or the test harness runs all eleven (about
-   twelve minutes). `--changed --list` prints the choice and the files behind it. The L1–L5 summary of `test.py` must
-   not change unless the change intends it. If a script fails, fix it and rerun what failed. The full suite runs
+   a CSS or workspace change: the smoke test and `uitest.py`). A change to the build or the test harness runs all
+   twelve (about twelve minutes). `--changed --list` prints the choice and the files behind it. The L1–L5 summary of
+   `test.py` must not change unless the change intends it. If a script fails, fix it and rerun what failed. The full suite runs
    every night on `main` (below), which catches what a scope missed; when it does, fix it first, and widen `SCOPE` so
    the next change like it runs the test.
 4. Merge. Do not run the gate again on `main`: its tree is the branch that was tested. Only if something else landed
    on `main` since, bring the branch up to date first and run the scoped gate there. Pages deploys on its own when it is
    turned on (`PAGES_ENABLED`, above). The full browser suite runs nightly and on demand
    (`.github/workflows/browser-tests.yml`, Actions → Browser tests → Run workflow).
+   Tag the release on the merge commit: `git tag v<NN> <merge commit> && git push origin v<NN>`.
 5. Republish the live artifact from `dist/nav-stack-lab.html` to the URL above with downloads enabled, and check that
    the Version in the publish result equals `src/version.json`. While a PR is open the live artifact is not touched;
    a "preview" is a separate, new artifact of the branch's `dist/`.
@@ -60,7 +64,9 @@ gate, no version and no republish.
 ## The regression baseline
 
 `tests/test.py` prints the L1–L5 summary (goals reached, skipped, contacts, mission time, pose error, NEES) for the
-documented configurations. It has been byte-identical, plan-time milliseconds excluded, since v16; every PR that
+documented configurations. It has been stable, plan-time milliseconds excluded, since v16, except where a change intended
+a new baseline, regenerated with `npm run golden -- --why "…"` (it prints the diff first) and explained by a `golden:` line in the commit
+message, which CI checks (the last on 2026-10-20); every PR that
 touches `core/` compares before and after. The Node golden test (`tests/node/golden.test.mjs`) asserts the same numbers against a committed JSON with tolerances, so CI catches a drift without a
 human reading the printout. When a change intends a new baseline, regenerate the JSON in the same PR (`npm run golden`) and say why.
 

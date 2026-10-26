@@ -98,14 +98,33 @@ const LEARN_PATH = [
   ['ctl:1', 'pure pursuit has one knob, and this is what it turns'],
   ['ctl:2', 'how to read the Bode plot the Analyze view draws']
 ];
-// Minutes to read a lesson's text (the experiments run for one to three minutes each on top)
+// Minutes for a lesson: all its prose read at 170 words a minute (the body, each experiment's setup, what to see, what
+// it shows and its prediction, the code note, Think about and Check yourself; a formula counts as one word), plus a
+// minute per experiment for pressing it and watching the run. Cached per lesson object.
+const LESSON_WPM = 170,
+  TRY_MIN = 1,
+  lessonMinCache = new WeakMap();
 function lessonMinutes(L) {
-  const words = L.b
+  if (lessonMinCache.has(L)) return lessonMinCache.get(L);
+  const parts = [L.b];
+  for (const t of L.tries || []) {
+    const x = t[2] || {};
+    parts.push(x.setup, x.see, x.shows);
+    if (x.predict) parts.push(x.predict.q, ...x.predict.opts);
+  }
+  if (L.code) parts.push(L.code.note);
+  for (const [q, a] of L.q || []) parts.push(q, a);
+  if (L.check) parts.push(L.check.q, L.check.how);
+  const words = parts
+    .filter(Boolean)
+    .join(' ')
     .replace(/<math[\s\S]*?<\/math>/g, ' formula ')
     .replace(/<[^>]+>/g, ' ')
     .split(/\s+/)
     .filter(Boolean).length;
-  return Math.max(3, Math.round(words / 170));
+  const m = Math.max(3, Math.round(words / LESSON_WPM + TRY_MIN * (L.tries || []).length));
+  lessonMinCache.set(L, m);
+  return m;
 }
 function startHereHTML() {
   const steps = LEARN_PATH.map(([id, why], n) => {
@@ -122,7 +141,7 @@ function startHereHTML() {
   return `<details class="starthere" id="starthere" ${LEARN.start ? 'open' : ''}><summary><h3>Start here</h3></summary><div class="sh-body">
 <p><b>Who this is for.</b> Students and engineers who want to see localization, perception, planning and control work together on one robot, change one thing, and watch what happens. The lessons assume vectors and matrices, a little probability (a Gaussian, a variance) and derivatives. The control lessons also use transfer functions and Bode plots; if those are new, chapter 6 builds them in order.</p>
 <p><b>How the pieces fit.</b> A <b>lesson</b> is a short read with experiments: each button sets the lab up and runs it, and the numbers in the text were measured in this simulator. A <b>chapter</b> (the companion notes at the end of this list) derives the formulas a lesson uses; the <i>Derivation</i> links go there and Back returns. The <b>levels</b> L1 to L7 are the floors the robot drives on; each has quick one-click experiments in its own panel under Simulate. The <b>Symbols</b> tab under Reference lists every symbol with its meaning; dotted terms in a lesson show their definition on hover or tap.</p>
-<p><b>A first pass, about ${mins} minutes of reading plus the experiments.</b> Eight lessons that visit every part of the stack once; then go deeper in whichever group interests you.</p>
+<p><b>A first pass, about ${mins} minutes with the experiments.</b> Eight lessons that visit every part of the stack once; then go deeper in whichever group interests you.</p>
 <ol class="path">${steps}</ol>
 <button class="btn small primary" type="button" id="path-start">${pathNextLabel()}</button></div></details>`;
 }

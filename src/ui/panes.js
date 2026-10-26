@@ -264,20 +264,55 @@ document.addEventListener(
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !tabMore.hidden) tabMoreOpen(false);
 });
+// Keyboard (assessment 2026-10-25, UI 3): the row is one tab stop (the selected tab, or More while a tool is open);
+// ← → Home End move along it and select, ↓ on More opens the menu; in the menu ↑ ↓ Home End move, Esc returns to More.
+$('#tabs').addEventListener('keydown', e => {
+  const row = [...$('#tabs').children],
+    i = row.indexOf(e.target);
+  if (i < 0) return;
+  if (e.key === 'ArrowDown' && e.target.id === 'tab-more') {
+    e.preventDefault();
+    tabMoreOpen(true);
+    tabMore.querySelector('.tm-item').focus();
+    return;
+  }
+  const j = {ArrowLeft: i - 1, ArrowRight: i + 1, Home: 0, End: row.length - 1}[e.key];
+  if (j === undefined) return;
+  e.preventDefault();
+  const b = row[(j + row.length) % row.length];
+  if (b.getAttribute('role') === 'tab' && b.getAttribute('aria-selected') !== 'true') b.click();
+  $('#' + b.id).focus();
+});
+tabMore.addEventListener('keydown', e => {
+  const items = [...tabMore.querySelectorAll('.tm-item')],
+    i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape' || e.key === 'Tab') {
+    if (e.key === 'Escape') e.preventDefault();
+    tabMoreOpen(false);
+    $('#tab-more').focus();
+    return;
+  }
+  const j = {ArrowUp: i - 1, ArrowDown: i + 1, Home: 0, End: items.length - 1}[e.key];
+  if (j === undefined) return;
+  e.preventDefault();
+  items[(j + items.length) % items.length].focus();
+});
 function buildTabs() {
   const pipe = TAB_GROUPS[0].tabs,
     more = TAB_GROUPS.slice(1),
     inMore = !pipe.includes(activeTab),
-    cur = TABS.find(t => t.id === activeTab);
+    cur = TABS.find(t => t.id === activeTab),
+    ae = document.activeElement,
+    refocus = tabMore.contains(ae) ? 'tab-more' : $('#tabs').contains(ae) ? ae.id : null; // the row is rebuilt: focus comes back
   $('#tabgroups').innerHTML = '';
   $('#tabs').innerHTML =
     TABS.filter(t => pipe.includes(t.id))
       .map(
         t =>
-          `<button class="tab" role="tab" id="tab-${t.id}"${SYS[t.id] ? ` data-sys="${t.id}"` : ''} aria-selected="${t.id === activeTab}" aria-controls="pane">${t.n ? `<small>${t.n}</small>` : ''}${t.name}</button>`
+          `<button class="tab" role="tab" id="tab-${t.id}"${SYS[t.id] ? ` data-sys="${t.id}"` : ''} aria-selected="${t.id === activeTab}" tabindex="${t.id === activeTab ? 0 : -1}" aria-controls="pane">${t.n ? `<small>${t.n}</small>` : ''}${t.name}</button>`
       )
       .join('') +
-    `<button class="tab tab-more" type="button" id="tab-more" aria-haspopup="menu" aria-expanded="false" aria-selected="${inMore}">${inMore && cur ? cur.name : 'More'}<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    `<button class="tab tab-more" type="button" id="tab-more" aria-haspopup="menu" aria-expanded="false" aria-selected="${inMore}" tabindex="${inMore ? 0 : -1}">${inMore && cur ? cur.name : 'More'}<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
   tabMore.innerHTML = more
     .map(
       g =>
@@ -285,7 +320,7 @@ function buildTabs() {
         TABS.filter(t => g.tabs.includes(t.id))
           .map(
             t =>
-              `<button type="button" role="menuitem" class="tm-item" id="tab-${t.id}" aria-current="${t.id === activeTab}">${t.name}</button>`
+              `<button type="button" role="menuitem" class="tm-item" id="tab-${t.id}" tabindex="-1" aria-current="${t.id === activeTab}">${t.name}</button>`
           )
           .join('')
     )
@@ -300,7 +335,10 @@ function buildTabs() {
         renderAllPanes();
       })
   );
-  $('#tab-more').onclick = () => tabMoreOpen(tabMore.hidden);
+  $('#tab-more').onclick = e => {
+    tabMoreOpen(tabMore.hidden);
+    if (!tabMore.hidden && !e.detail) tabMore.querySelector('.tm-item').focus(); // opened with Enter or Space
+  };
   $('#tabs')
     .querySelectorAll('.tab[role="tab"]')
     .forEach(
@@ -319,6 +357,7 @@ function buildTabs() {
         })
     );
   $('.console').classList.toggle('collapsed', !consoleOpen);
+  if (refocus && $('#' + refocus)) $('#' + refocus).focus({preventScroll: true});
 }
 function renderAllPanes() {
   hashSoon();

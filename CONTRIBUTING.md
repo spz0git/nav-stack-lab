@@ -10,7 +10,8 @@ quotes is measured in the simulator, every formula in a chapter is the one the c
 analysis is checked against the nonlinear simulation. The target reader is a student or an engineer who wants to see
 localization, perception, planning and control interact, change one thing, and watch what happens.
 
-The page has no runtime dependencies and no build-time dependencies beyond Node (the TeX converter is vendored).
+The page has no runtime dependencies and the build needs nothing beyond Node (the TeX converter is vendored); the
+lint and format checks use ESLint and Prettier, which `npm ci` installs as development dependencies.
 Keep it that way: a change that pulls in a framework, a bundler or a CDN will not be accepted.
 
 ## What we take
@@ -33,14 +34,31 @@ Every pull request:
 
 1. Builds: `./build.sh` (Node 18+). Commit the rebuilt `dist/` with the source change; CI checks that the committed
    page equals a fresh build.
-2. Passes the Node tests: `npm test` (10 s): the golden L1–L5 summary and the unit tests of the numerics
-   (`tests/node/numerics.test.mjs`; add a case there when you touch a formula). If your change intends to move the L1–L5 numbers, regenerate the
-   baseline with `npm run golden` in the same PR and say why.
+2. Passes the Node tests: `npm test` (69 tests, about 35–55 s). They run the built core, so run `./build.sh` first
+   (they read `dist/core-worker.js`). The files in `tests/node/`:
+   - `golden.test.mjs`: the L1–L5 regression summary against `golden.json`;
+   - `numerics.test.mjs`: the closed-form numerics, each against a hand-checkable answer (add a case when you touch a
+     formula);
+   - `params.test.mjs`: the parameter boundary, an out-of-range value ignored with a log line, and the fault schedule;
+   - `level.test.mjs`: which settings survive a change of level;
+   - `levels.test.mjs`: levels as data and the world generator, a built-in through the format and back;
+   - `sonar.test.mjs`: the ultrasonic ring, off leaving no trace, on repeatable and enough to localize;
+   - `train.test.mjs`: training in the page, backpropagation against finite differences and a loss that falls;
+   - `learnmon.test.mjs`: the learned blocks' out-of-distribution monitor and the radar emergency brake;
+   - `risk.test.mjs`: the Poisson interval, rates per hour and importance sampling of the failure search;
+   - `argument.test.mjs`: the safety argument's format, its evidence checks and a solution checked on the core.
+
+   `core.mjs` is the harness they share (it loads the core and runs headless missions). If your change intends to move
+   the L1–L5 numbers, regenerate the baseline with `npm run golden -- --why "…"` (it prints the diff and writes only with a reason) in the
+   same PR, and put a line starting `golden:` with the reason in the commit message: CI fails a changed `golden.json`
+   without one.
 3. Passes the browser tests it touches, run once when the PR is ready to merge: `python3 tests/run_all.py --changed`
-   (Playwright's Chromium; `pip install playwright && playwright install chromium` once). It runs the smoke test for
+   (Playwright's Chromium; `pip install -r tests/requirements.txt && playwright install chromium` once). It runs the smoke test for
    any change to the page and the tests of the areas the change touches; `--changed --list` shows which. `test.py`'s
    summary must not change, and every script must report no errors. The full suite (`python3 tests/run_all.py`,
-   about twelve minutes) runs nightly in CI.
+   about twelve minutes) runs nightly in CI. A change in an area no test covers adds its check to the nearest test
+   (or `smoke.py`); a new test, or a new area for an existing one, needs a `SCOPE` entry in `tests/run_all.py`, the
+   table that maps changed paths to the tests they need.
 4. For a UI change: screenshots at 1440 × 900 and 390 × 844, light and dark, in the PR description
    (`tests/shots.py <dir>` makes them).
 
@@ -70,7 +88,7 @@ goes in a template literal tagged `TEX`, which the build turns into MathML (`tex
 - The code is formatted with Prettier at 140 columns (`npm run fmt`; CI checks it with `npm run fmt:check`). The
   one-off reformat commit is listed in `.git-blame-ignore-revs`, so `git blame` skips it once you run
   `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
-- `npm run lint` (after `npm install`) checks every cross-module name: the modules share one scope, so a misspelled
+- `npm run lint` (after `npm ci`) checks every cross-module name: the modules share one scope, so a misspelled
   function from another file is a `ReferenceError` only when that path runs; the lint config collects every
   top-level name of every module and `no-undef` catches it statically. CI runs it on every PR.
 - The maintainer merges, bumps the version label, and republishes the demo; see `docs/maintaining.md`.

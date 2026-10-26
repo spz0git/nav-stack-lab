@@ -430,6 +430,16 @@ Owner request: a track that teaches ISO 26262, ISO 21448 (SOTIF), ISO/PAS 8800 a
 - L6 Parking lot — car-like robot: reverse-in bay, nose-in bay, 2.2 m parallel slot.
 - L7 Moose test — the car with tyre slip at 3.5 m/s through a two-box slalom: the kinematic against the tyre-model MPC.
 
+## Audit fixes, Phase A (2026-10-26; branch `claude/hopeful-lovelace-u59hwf`)
+The ten Phase A items of [assessment-2026-10-25.md](assessment-2026-10-25.md), in four commits: core (a `PARAM_RANGE` table next to
+`PARAM_OPTS`, one `paramError` check shared by `setParam` and a level's settings, the command queue clamped, the fault
+schedule applied with `live = false`, tick errors and unhandled rejections into the event log with the run paused), page
+(the search playback stopped on a lesson, mode or level change and `draw()` returning on a canvas with no size, the
+derivation chips wrapping, the map key closing on Escape and a stage change), content (tolerance defaulting to 0, the
+Q/R/M convention, the chapter numbers, cross-references and Predicts) and tests (`chtest`, `tles` and `p5test` fail on
+what they used to print). Out of range is rejected, not clamped, like a wrong choice; the ranges are wider than the
+sliders so that no lesson cfg or level falls outside them. Phases B and C of the assessment remain.
+
 ## Candidate next steps
 - Audit of v66 (2026-10-25, [assessment-2026-10-25.md](assessment-2026-10-25.md)): the v29 plan is delivered except the live simulation in a worker; Phase A of its plan (parameter ranges in the core, the fault schedule's live flag, level settings validated, tick errors caught, the search playback stopped on a stage change, the two unpassable self-checks, one noise-letter convention, the gate's printing checks made to fail) comes before the next feature track.
 - Sensors: more models in the radar's mould, each taught by its failure modes (a camera with a learned detector and its range ambiguity; ultrasonic for the last metre; corner radars; radar odometry into the EKF); probabilistic data association for the radar tracker; sensor noise that follows the weather.

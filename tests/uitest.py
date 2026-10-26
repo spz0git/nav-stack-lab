@@ -275,6 +275,17 @@ async def main():
             s=await p2.evaluate(TL)
             check(s['state']=='replay' and s['shown']==4.0 and s['badge'],f'a link with t=4 shows that moment paused: "{s["txt"]}"')
             await p2.close()
+            # bad link values: goals that are not numbers keep the level's goals with a warning; a prototype key is ignored
+            LINKCHK='''()=>{const N=window.__nav,L=N.LEVELS[0];return {lv:N.LV.id,same:JSON.stringify(N.WPS.map(w=>[w.x,w.y]))===JSON.stringify(L.wps.map(w=>[w[0],w[1]])),
+              warn:N.S.log.some(l=>/goals are not numbers/.test(l.msg)),fail:N.S.log.filter(l=>/Could not/.test(l.msg)).map(l=>l.msg),nan:/NaN/.test(document.body.innerText)};}'''
+            p3=await ctx.new_page(); watch(p3); await p3.goto(page_url('#l=L1&seed=7&goals=a,b')); await p3.wait_for_timeout(900)
+            r=await p3.evaluate(LINKCHK)
+            check(r['lv']=='L1' and r['same'] and r['warn'] and not r['nan'] and not r['fail'],f'a link with goals=a,b warns and keeps L1\'s goals: {r}')
+            await p3.close()
+            p3=await ctx.new_page(); watch(p3); await p3.goto(page_url('#l=L1&seed=7&__proto__=1&constructor=2')); await p3.wait_for_timeout(900)
+            r=await p3.evaluate(LINKCHK)
+            check(r['lv']=='L1' and r['same'] and not r['warn'] and not r['fail'],f'a link with __proto__=1 is ignored without an error: {r}')
+            await p3.close()
 
             # ---- dark mode: another background, and readable text
             area('Dark mode')

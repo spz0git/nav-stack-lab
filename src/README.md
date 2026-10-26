@@ -110,7 +110,8 @@ src/
     lessons.js          the control lessons, the lesson groups, lessonGo (a control Try)
     glossary.js         the glossary (GLOSS) and each lesson's terms (LESSON_TERMS)
 
-  worker/main.js    headless runner: core/* + this file = dist/core-worker.js, embedded in the page
+  worker/main.js    headless runner: core/* + this file = dist/core-worker.js; the page holds only this file and
+                    cuts core/* from its own script at runtime (ui/experiments.js)
 docs/notes/         the nine companion chapters (markdown + TeX), converted by tools/notes.mjs at build time
 docs/lessons/       the 54 lessons (markdown + TeX) in five groups, read by tools/lessons.mjs at build time
 tests/              Playwright tests, the Node tests, and the measurement scripts the lessons' numbers come from

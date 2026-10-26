@@ -14,7 +14,7 @@ function sourceIndex() {
   if (SRC_INDEX) return SRC_INDEX;
   const idx = {};
   for (const sc of document.querySelectorAll('script')) {
-    if (sc.id === 'core-worker-src') continue;
+    if (sc.id === 'core-worker-src') continue; // worker/main.js only, not a module of the page
     const t = sc.textContent;
     const re = /\/\* ---- ([\w\/.-]+) ---- \*\/\n/g;
     let m,

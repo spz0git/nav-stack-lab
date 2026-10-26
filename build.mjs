@@ -5,7 +5,7 @@ import {execSync} from 'node:child_process';
 import {buildNotes} from './tools/notes.mjs';
 import {buildLessons} from './tools/lessons.mjs';
 import {buildChangelog} from './tools/changelog.mjs';
-import {buildCode, buildExamples, buildModels, modelRefProblems} from './tools/code.mjs';
+import {buildCode, buildExamples, buildModels, modelRefProblems, modelsSource} from './tools/code.mjs';
 import {texSource} from './tools/tex.mjs';
 const src = p => fs.readFileSync(path.join('src', p), 'utf8');
 // a module's TEX`…` literals (the How it works panels, the Analyze derivations): TeX → MathML
@@ -26,10 +26,11 @@ for (const g of Object.keys(lessons))
       if (!(examples[slot] || []).some(e => e.id === id)) throw new Error(`lesson "${L.t}": no example "${L.code.ex}" in src/examples`);
     }
   }
+const modelsJS = modelsSource(models); // the weights as source text, the policy's as integers (tools/code.mjs)
 const inlineData = s =>
   s
     .replace(/\/\*__EXAMPLES__\*\/\s*\{\s*\}/, () => JSON.stringify(examples).replace(/<\/script/g, '<\\/script'))
-    .replace(/\/\*__MODELS__\*\/\s*\{\s*\}/, () => JSON.stringify(models))
+    .replace(/\/\*__MODELS__\*\/\s*\{\s*\}/, () => modelsJS)
     .replace(/\/\*__CODE__\*\/\s*\{\s*\}/, () => JSON.stringify(code).replace(/<\/script/g, '<\\/script'));
 const js = inlineData(manifest.map(f => `/* ---- ${f} ---- */\n` + mod(f)).join('\n'))
   // the placeholders are a comment plus an empty literal, matched loosely so that a formatter cannot break them
@@ -69,10 +70,28 @@ try {
   console.error(String(e.stderr));
   process.exit(1);
 }
-// the page's copy of the worker does not repeat the weights: makeCoreWorker (ui/experiments.js) prepends them from the page's MODELS
-const pageWorker = worker.replace(/\bconst MODELS = \{.*\};\n/, 'const MODELS = self.__MODELS;\n');
-if (pageWorker === worker) throw new Error('BUILD FAILED: MODELS declaration not found in the worker source');
-const page2 = page.replace('/*__WORKER__*/', () => pageWorker.replace(/<\/script/g, '<\\/script'));
+// The page does not carry the worker's source twice: the core modules come first in the page's own script, so the
+// page cuts them from it at runtime (coreWorkerSource, ui/experiments.js) between the first core module's marker and
+// the first other module's; the core-worker-src block holds only worker/main.js and those two module names.
+const coreMods = manifest.filter(f => f.startsWith('core/')),
+  afterCore = manifest[coreMods.length];
+if (manifest.slice(0, coreMods.length).some(f => !f.startsWith('core/')) || !afterCore)
+  throw new Error('BUILD FAILED: the manifest must list every core/ module first, then at least one other module');
+const workerMain = src('worker/main.js');
+if (/<\/script/i.test(workerMain)) throw new Error('BUILD FAILED: worker/main.js contains "</script"');
+const page2 = page
+  .replace('__CORE_FROM__', () => coreMods[0])
+  .replace('__CORE_TO__', () => afterCore)
+  .replace('/*__WORKER__*/', () => workerMain);
+{
+  // what the page will assemble (the same steps as coreWorkerSource) must be dist/core-worker.js, character for character
+  const blk = page2.match(/<script type="text\/plain" id="core-worker-src" data-from="([^"]*)" data-to="([^"]*)">([\s\S]*?)<\/script>/),
+    app = (page2.match(/<script id="app-js">([\s\S]*?)<\/script>/) || [])[1];
+  const from = app ? app.indexOf(`/* ---- ${blk[1]} ---- */\n`) : -1,
+    to = from < 0 ? -1 : app.indexOf(`\n/* ---- ${blk[2]} ---- */\n`, from);
+  if (!blk || from < 0 || to < 0 || "(()=>{\n'use strict';\n" + app.slice(from, to) + '\n' + blk[3] + '\n})();' !== worker)
+    throw new Error('BUILD FAILED: the worker source the page assembles from its own script differs from dist/core-worker.js');
+}
 if (
   !/"id":"ch1"/.test(page2) ||
   !/"t":"Dead reckoning drifts/.test(page2) ||

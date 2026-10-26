@@ -5,6 +5,8 @@
 // seeds 1–8, 150 s; dagger1: the built-in policy driving, noise 0.1, seeds 11–16, 120 s, on the levels without people).
 // The core has changed since the models were trained, so the replayed runs are close to the training runs, not equal.
 //   node tools/ood-ref.mjs detector; node tools/ood-ref.mjs predictor; node tools/ood-ref.mjs policy; then ./build.sh
+// It runs the built core (dist/core-worker.js), so after a training/<block>/train.py: ./build.sh (which warns that the
+// model has no ref), this, ./build.sh again (training/README.md).
 // One block per process, as the collectors run: a run's settings carry over to the next run in the same core.
 import fs from 'node:fs';
 import path from 'node:path';

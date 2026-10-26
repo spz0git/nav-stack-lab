@@ -5,7 +5,7 @@ import {execSync} from 'node:child_process';
 import {buildNotes} from './tools/notes.mjs';
 import {buildLessons} from './tools/lessons.mjs';
 import {buildChangelog} from './tools/changelog.mjs';
-import {buildCode, buildExamples, buildModels} from './tools/code.mjs';
+import {buildCode, buildExamples, buildModels, modelRefProblems} from './tools/code.mjs';
 import {texSource} from './tools/tex.mjs';
 const src = p => fs.readFileSync(path.join('src', p), 'utf8');
 // a module's TEX`…` literals (the How it works panels, the Analyze derivations): TeX → MathML
@@ -92,6 +92,8 @@ try {
   console.error(String(e.stderr));
   process.exit(1);
 }
+// a model without its out-of-distribution reference is a warning, not a failure (tools/code.mjs, modelRefProblems)
+for (const m of modelRefProblems(models)) console.warn('WARNING:', m);
 console.log(
   'BUILD_OK',
   verText,

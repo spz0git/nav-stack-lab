@@ -11,7 +11,8 @@ it and say plainly where it fails; this folder trains it.
   lets the policy drive and labels its states (DAgger). Each call writes a tagged dataset into `training/data/`.
 - Train: `python3 training/policy/train.py` uses every tagged dataset, holds the first one's last run out, reports the
   RMS error per waypoint in metres of the best-scoring candidate and of the best of four, and writes
-  `src/models/policy.json` (119 108 parameters, 746 KB; half a minute on a laptop); rebuild with `./build.sh`. The
+  `src/models/policy.json` (119 108 parameters, 745 KB; half a minute on a laptop); rebuild with `./build.sh`, then
+  add its out-of-distribution reference (`node tools/ood-ref.mjs policy`, then `./build.sh`; see `training/README.md`). The
   loss is the people predictor's mixture likelihood (`--K 4 --sigma 0.05`, in units of 4 m), not least squares: where
   the expert went either way around a shelf end, least squares averages the two routes into one through it. The
   defaults (`--seed 2`) reproduce the shipped model, the best of three training seeds in the lesson's runs; seeds 0

@@ -9,8 +9,8 @@ const C = globalThis.__core;
 test('off by default: no sonar state after a run', async () => {
   assert.equal(C.P.sonar, false);
   await core.run({level: 3, secs: 10});
-  assert.equal(C.S.sonArcs, undefined, 'the ring never fired');
-  assert.equal(C.S.son, undefined);
+  assert.equal(C.S.sonArcs, null, 'the ring never fired');
+  assert.equal(C.S.son, null);
 });
 
 test('on: a sonar-only mapping run is the same twice at one seed', async () => {

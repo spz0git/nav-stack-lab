@@ -7649,7 +7649,74 @@ function reset() {
     minPed: Infinity,
     safe: safeInit(), // contact events, clearances and leading indicators (core/safety.js)
     learn: learnInit(), // the learned blocks' detection and prediction by slice, and how far out of distribution (core/learnmon.js)
-    lap: 1 // the lap of the goal list (Repeat the goals)
+    lap: 1, // the lap of the goal list (Repeat the goals)
+    // The fields below are set by their modules on first use; declared here so a run's whole state is in one place.
+    // step, vehicle: the command after the brake and the ODD monitor, and the halt a stop or a crash requests
+    cmdIssued: null,
+    halt: false,
+    // slots: whether the custom localizer has had its first call
+    locInit: false,
+    // config: the fault schedule's list and the events already fired
+    schedRef: null,
+    schedDone: null,
+    // fidelity: readings in flight (latency), those delivered this tick, the tick of the last lidar delivery
+    sensQ: null,
+    deliv: null,
+    scanTick: null,
+    // sensors: the lidar's dropout stream, beacon visibility, the sonar ring, GNSS
+    rngLd: null,
+    bSeen: null,
+    bWhy: null,
+    son: null,
+    sonArcs: null,
+    sonTick: null,
+    gnss: null,
+    // localization, slam, pgslam: GNSS bias states, scan matching, EKF-SLAM, the pose graph
+    gb: null,
+    sm: null,
+    smLast: null,
+    slam: null,
+    pg: null,
+    // radar: its noise streams, the latest scan, the emergency brake
+    rngR: null,
+    rngX: null,
+    radar: null,
+    radTick: null,
+    radBrake: null,
+    radBrakeLogT: null,
+    // mission: exploration's frontiers and failures, the planners' running totals
+    frontiers: null,
+    exploreFailed: null,
+    exploreRetried: false,
+    planTot: null,
+    // planning, planning-dstar, planning-car, planning-policy: the last search (step-by-step playback), D* Lite's state
+    searchTrace: null,
+    dstar: null,
+    // planning-policy: the learned planner's subgoal, candidates, output and repair counts
+    policySub: null,
+    policyCands: null,
+    policyOut: null,
+    policyPrev: null,
+    policyPrevFor: null,
+    policyAlt: 0,
+    policySnap: 0,
+    policyBad: 0,
+    policyRepair: 0,
+    policyFallback: 0,
+    // mpc: the last command it gave
+    mpcCmd: null,
+    // agents: velocity obstacles
+    vo: null,
+    voLast: 0,
+    voN: 0,
+    voStops: 0,
+    // dispatch: the lidar safety stop
+    guard: null,
+    guardLogT: null,
+    // oddmon: the operating-domain monitor
+    odd: null,
+    // safety: the last tick with beacon readings (health's beacon-silence check)
+    zLastT: 0
   };
   for (const w of WPS) {
     w.done = false;
@@ -20937,7 +21004,74 @@ function reset() {
     minPed: Infinity,
     safe: safeInit(), // contact events, clearances and leading indicators (core/safety.js)
     learn: learnInit(), // the learned blocks' detection and prediction by slice, and how far out of distribution (core/learnmon.js)
-    lap: 1 // the lap of the goal list (Repeat the goals)
+    lap: 1, // the lap of the goal list (Repeat the goals)
+    // The fields below are set by their modules on first use; declared here so a run's whole state is in one place.
+    // step, vehicle: the command after the brake and the ODD monitor, and the halt a stop or a crash requests
+    cmdIssued: null,
+    halt: false,
+    // slots: whether the custom localizer has had its first call
+    locInit: false,
+    // config: the fault schedule's list and the events already fired
+    schedRef: null,
+    schedDone: null,
+    // fidelity: readings in flight (latency), those delivered this tick, the tick of the last lidar delivery
+    sensQ: null,
+    deliv: null,
+    scanTick: null,
+    // sensors: the lidar's dropout stream, beacon visibility, the sonar ring, GNSS
+    rngLd: null,
+    bSeen: null,
+    bWhy: null,
+    son: null,
+    sonArcs: null,
+    sonTick: null,
+    gnss: null,
+    // localization, slam, pgslam: GNSS bias states, scan matching, EKF-SLAM, the pose graph
+    gb: null,
+    sm: null,
+    smLast: null,
+    slam: null,
+    pg: null,
+    // radar: its noise streams, the latest scan, the emergency brake
+    rngR: null,
+    rngX: null,
+    radar: null,
+    radTick: null,
+    radBrake: null,
+    radBrakeLogT: null,
+    // mission: exploration's frontiers and failures, the planners' running totals
+    frontiers: null,
+    exploreFailed: null,
+    exploreRetried: false,
+    planTot: null,
+    // planning, planning-dstar, planning-car, planning-policy: the last search (step-by-step playback), D* Lite's state
+    searchTrace: null,
+    dstar: null,
+    // planning-policy: the learned planner's subgoal, candidates, output and repair counts
+    policySub: null,
+    policyCands: null,
+    policyOut: null,
+    policyPrev: null,
+    policyPrevFor: null,
+    policyAlt: 0,
+    policySnap: 0,
+    policyBad: 0,
+    policyRepair: 0,
+    policyFallback: 0,
+    // mpc: the last command it gave
+    mpcCmd: null,
+    // agents: velocity obstacles
+    vo: null,
+    voLast: 0,
+    voN: 0,
+    voStops: 0,
+    // dispatch: the lidar safety stop
+    guard: null,
+    guardLogT: null,
+    // oddmon: the operating-domain monitor
+    odd: null,
+    // safety: the last tick with beacon readings (health's beacon-silence check)
+    zLastT: 0
   };
   for (const w of WPS) {
     w.done = false;

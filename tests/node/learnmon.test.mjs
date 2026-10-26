@@ -3,7 +3,9 @@
 // worker. `npm test`.
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {loadCore} from './core.mjs';
+import path from 'node:path';
+import {loadCore, ROOT} from './core.mjs';
+import {buildModels, modelRefProblems} from '../../tools/code.mjs';
 const core = loadCore();
 const C = globalThis.__core;
 
@@ -30,6 +32,17 @@ test("every built-in model carries a reference that matches its input's descript
     assert.equal(R.mean.length, d.length, `${b}: the reference has one mean per element`);
     assert.equal(R.sd.length, d.length);
   }
+});
+
+test('the build names a model without its reference and says to run tools/ood-ref.mjs', () => {
+  assert.deepEqual(modelRefProblems(buildModels(path.join(ROOT, 'src', 'models'))), [], 'every model file has its ref');
+  const M = {...C.MODELS.predictor};
+  delete M.ref; // as training/predictor/train.py writes it
+  const msgs = modelRefProblems({mine: M});
+  assert.equal(msgs.length, 1);
+  assert.match(msgs[0], /src\/models\/mine\.json has no ref/);
+  assert.match(msgs[0], /run tools\/ood-ref\.mjs .*\(node tools\/ood-ref\.mjs mine\)/);
+  assert.match(modelRefProblems({mine: {...M, ref: {mean: [0], sd: [], thr: 2}}})[0], /mine\.json has a malformed ref/);
 });
 
 test('in fog the learned detector is outside its data, and its light warns', async () => {

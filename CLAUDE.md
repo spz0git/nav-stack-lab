@@ -29,6 +29,8 @@
   - The header shows the version from `src/version.json` (`v25 · 2026-10-14`). In the release commit, set `version` to
     the artifact version the publish will create (the last publish result's version + 1), with the date and a short note;
     the label then matches the artifact's version history (check the publish result's Version against it).
+    CI's `npm run version:check` makes the release commit also update `package.json` (with its lock), `CITATION.cff` and
+    the issue templates' placeholders to match, and after the merge tag it: `git tag vNN <merge commit> && git push origin vNN`.
   - The version label opens What's new, which is `CHANGELOG.md` inlined by the build (`tools/changelog.mjs`; `## Unreleased`
     is left out). Write each entry for someone who uses the page; file names and internals go in the PR, not the log.
     In the release commit, rename `## Unreleased` to `## vNN · date`.

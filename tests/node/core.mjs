@@ -2,14 +2,17 @@
 // and runs headless missions through the worker's message protocol.
 //   import {loadCore, CASES} from './core.mjs'; const core=loadCore(); const s=await core.run(CASES[0]);
 //   node tests/node/core.mjs                 prints the summary of every golden case
-//   node tests/node/core.mjs --write-golden  rewrites tests/node/golden.json from the current build (say why in the PR)
+//   node tests/node/core.mjs --write-golden --why "reason"
+//       prints each case's difference from the committed tests/node/golden.json and rewrites it from the current
+//       build; without --why it prints the differences and writes nothing (npm run golden -- --why "…"). Commit the
+//       new file with a line starting `golden:` in the commit message (CI checks it) and say why in the PR.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import {fileURLToPath} from 'node:url';
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const CORE_FILE = process.env.NAV_LAB_CORE || path.join(ROOT, 'dist', 'core-worker.js');
-export const GOLDEN_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'golden.json');
+export const GOLDEN_FILE = process.env.NAV_LAB_GOLDEN || path.join(path.dirname(fileURLToPath(import.meta.url)), 'golden.json');
 // The L1–L5 regression cases of tests/test.py: level index, parameter overrides, seconds of simulated time (seed 7).
 export const CASES = [
   {level: 0, overrides: {}, secs: 90},
@@ -106,17 +109,40 @@ export function diffs(got, want) {
   return out;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const core = loadCore(),
+  const argv = process.argv.slice(2),
+    write = argv.includes('--write-golden'),
+    wi = argv.indexOf('--why'),
+    why = wi >= 0 ? (argv[wi + 1] || '').trim() : '',
+    old = fs.existsSync(GOLDEN_FILE) ? JSON.parse(fs.readFileSync(GOLDEN_FILE, 'utf8')) : {},
+    core = loadCore(),
     golden = {},
     t0 = performance.now();
+  let changed = 0;
   for (const c of CASES) {
-    const s = await core.run(c);
-    golden[caseLabel(c)] = pick(s);
-    console.log(caseLabel(c).padEnd(40), JSON.stringify(pick(s)), s.ms + ' ms');
+    const s = await core.run(c),
+      label = caseLabel(c);
+    golden[label] = pick(s);
+    console.log(label.padEnd(40), JSON.stringify(pick(s)), s.ms + ' ms');
+    if (!write) continue;
+    const d = old[label] ? diffs(golden[label], old[label]) : ['new case, not in golden.json'];
+    if (d.length) changed++;
+    console.log('  ' + (d.length ? 'differs from golden.json: ' + d.join('; ') : 'same as golden.json'));
   }
+  const gone = Object.keys(old).filter(k => !golden[k]);
+  for (const k of gone) console.log(`${k.padEnd(40)} in golden.json, no longer a case`);
   console.log(`${CASES.length} cases in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
-  if (process.argv.includes('--write-golden')) {
-    fs.writeFileSync(GOLDEN_FILE, JSON.stringify(golden, null, 1) + '\n');
-    console.log('wrote', GOLDEN_FILE);
+  if (write) {
+    console.log(
+      `${changed} of ${CASES.length} cases differ from the committed golden.json` + (gone.length ? `, ${gone.length} removed` : '')
+    );
+    if (!why) {
+      console.error('not written: say why the numbers move, e.g. npm run golden -- --why "L4 treats unknown as lethal"');
+      process.exitCode = 1;
+    } else {
+      fs.writeFileSync(GOLDEN_FILE, JSON.stringify(golden, null, 1) + '\n');
+      console.log('wrote', GOLDEN_FILE);
+      console.log('why:', why);
+      console.log(`commit it with a message line "golden: ${why}" (CI requires a line starting with golden:)`);
+    }
   }
 }

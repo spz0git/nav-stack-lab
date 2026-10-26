@@ -56,7 +56,7 @@ python3 tests/run_all.py             # all eleven browser tests, about 12 min
 ```
 
 The browser tests need Playwright and a Chromium once:
-`python3 -m venv .venv && source .venv/bin/activate && pip install playwright && playwright install chromium`.
+`python3 -m venv .venv && source .venv/bin/activate && pip install -r tests/requirements.txt && playwright install chromium`.
 What each test checks is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Contributing

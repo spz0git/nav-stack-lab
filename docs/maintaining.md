@@ -33,6 +33,9 @@ while working and again on `main` after the merge only repeats them.
    artifact version the next publish will create (the previous publish's version + 1), with `date` and a short
    `note`; rename `## Unreleased` to `## vNN · date` in `CHANGELOG.md`; rebuild and commit. The label in the header
    (`v30 · 2026-10-15`) is the one users quote in bug reports, and this way it matches the artifact's version history.
+   CI runs `npm run version:check`, which compares every other copy of the version with `src/version.json`. So the
+   release commit also sets `package.json` and `package-lock.json` to `NN.0.0`, `CITATION.cff`'s `version` and
+   `date-released`, and the issue templates' `vNN · date` placeholders.
 3. Run the scoped gate, once: `python3 tests/run_all.py --changed`, and check that CI is green on the head (it runs
    `npm run lint`, `npm run fmt:check`, the build check and `npm test`, the Node golden test, on every push). The
    scoped gate reads the files changed since `origin/main` and runs only what they need: `smoke.py` (about 40 s: every
@@ -48,6 +51,7 @@ while working and again on `main` after the merge only repeats them.
    on `main` since, bring the branch up to date first and run the scoped gate there. Pages deploys on its own when it is
    turned on (`PAGES_ENABLED`, above). The full browser suite runs nightly and on demand
    (`.github/workflows/browser-tests.yml`, Actions → Browser tests → Run workflow).
+   Tag the release on the merge commit: `git tag v<NN> <merge commit> && git push origin v<NN>`.
 5. Republish the live artifact from `dist/nav-stack-lab.html` to the URL above with downloads enabled, and check that
    the Version in the publish result equals `src/version.json`. While a PR is open the live artifact is not touched;
    a "preview" is a separate, new artifact of the branch's `dist/`.

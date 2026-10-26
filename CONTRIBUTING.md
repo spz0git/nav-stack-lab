@@ -35,9 +35,10 @@ Every pull request:
    page equals a fresh build.
 2. Passes the Node tests: `npm test` (10 s): the golden L1–L5 summary and the unit tests of the numerics
    (`tests/node/numerics.test.mjs`; add a case there when you touch a formula). If your change intends to move the L1–L5 numbers, regenerate the
-   baseline with `npm run golden` in the same PR and say why.
+   baseline with `npm run golden -- --why "…"` (it prints the diff and writes only with a reason) in the same PR, and
+   put a line starting `golden:` with the reason in the commit message: CI fails a changed `golden.json` without one.
 3. Passes the browser tests it touches, run once when the PR is ready to merge: `python3 tests/run_all.py --changed`
-   (Playwright's Chromium; `pip install playwright && playwright install chromium` once). It runs the smoke test for
+   (Playwright's Chromium; `pip install -r tests/requirements.txt && playwright install chromium` once). It runs the smoke test for
    any change to the page and the tests of the areas the change touches; `--changed --list` shows which. `test.py`'s
    summary must not change, and every script must report no errors. The full suite (`python3 tests/run_all.py`,
    about twelve minutes) runs nightly in CI.

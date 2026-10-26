@@ -1,4 +1,4 @@
-import asyncio
+import asyncio, sys
 from playwright.async_api import async_playwright
 from _browser import launch, page_url
 # The smoke test (about 30 s): the page loads, every tab of Simulate opens and fills its pane, on every level, at a
@@ -42,4 +42,5 @@ async def main():
             print(name, 'checked')
             await pg.close()
         print('ERRORS', bad); await b.close()
-asyncio.run(main())
+        return bad
+sys.exit(1 if asyncio.run(main()) else 0)

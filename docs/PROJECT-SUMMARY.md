@@ -4,11 +4,11 @@ project: nav-stack-lab
 title: Nav Stack Lab
 kind: code
 source: https://github.com/spz0git/nav-stack-lab
-commit: 7a8b660
+commit: 695cee6
 updated: 2026-10-25
 status: active
-stage: v68 released 2026-10-26 with Phase B of the 2026-10-25 audit; Phase C remains
-next_action: Spy tags v67 (dbc6f59) and v68 (7a8b660) by hand (the session's git proxy refuses tag pushes) and confirms the 33 clause numbers; Claude starts Phase C of docs/assessment-2026-10-25.md or the next feature track, Spy's call
+stage: v69 released 2026-10-26 with Phase C of the 2026-10-25 audit; the audit's plan is done except the live simulation in a worker
+next_action: Spy tags v67 (dbc6f59), v68 (7a8b660) and v69 (695cee6) by hand (the session's git proxy refuses tag pushes), confirms the 33 clause numbers, and picks what comes next: the live simulation in a worker (about a week) or a feature track
 blocked_on: nothing
 confidential: false
 ---
@@ -19,10 +19,10 @@ confidential: false
 A robot navigation simulator and course in one offline HTML file, for students and engineers learning how localization, perception, planning, control and safety standards fit together. The repo is private; the live page is a claude.ai artifact (https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7). GitHub Pages stays off until the repo goes public.
 
 ## Status
-- Released at v68 (2026-10-26): Phase B of the audit; v67 the same day: Phase A. v66 (2026-10-24) completed the safety lab.
-- Audited on 2026-10-25 (docs/assessment-2026-10-25.md): the v29 plan is delivered except the live simulation in a worker; the gate passes. Phases A and B landed as v67 and v68; Phase C (the long functions, the duplicated tracker, numerics tests, page weight, the live simulation in a worker) remains.
+- Released at v69 (2026-10-26): Phase C of the audit; v67 and v68 the same day: Phases A and B. v66 (2026-10-24) completed the safety lab.
+- Audited on 2026-10-25 (docs/assessment-2026-10-25.md): the v29 plan is delivered except the live simulation in a worker; the gate passes. Phases A, B and C landed as v67–v69: no core function over 200 lines, one tracker lifecycle, numerics tests, the page 4.7 → 3.8 MB, lesson run logs as tables. Only the live simulation in a worker remains.
 - Testing: CI runs lint, format, build, the version check, the Node tests and the smoke test on every PR (2 min); the scoped gate adds the area's tests; the full suite of twelve runs nightly, green.
-- Waiting on Spy: the v67 and v68 tags; the 33 clause numbers; public or private; the next track.
+- Waiting on Spy: the v67–v69 tags; the 33 clause numbers; public or private; the next track.
 
 ## Features and scope
 - Three modes: Simulate, Analyze (Bode, Nyquist, poles, LQR) and Learn.
@@ -38,8 +38,7 @@ A robot navigation simulator and course in one offline HTML file, for students a
 Out of scope: runtime dependencies or network access, quoting the safety standards, public hosting while private.
 
 ## Next big items
-1. Phase C of the audit: the long functions split, the duplicated tracker merged, numerics tests, page weight, then the live simulation in a worker — Claude · one PR each.
-2. The 761–960 px layout, where Changed, Runs and View have no entry point either — Claude · a small PR.
-3. Confirm the 33 clause numbers the safety lessons cite, the five the audit flags first — Spy · an hour.
-4. Pick the next track: sensors, environments, or the learning tracks — Spy · a decision.
-5. Go public and turn Pages on — Spy · a decision.
+1. The live simulation in a worker, the audit's last item: a render-only mirror of the state and a message protocol the tests also move to — Claude · about a week, its own phase.
+2. Confirm the 33 clause numbers the safety lessons cite, the five the audit flags first — Spy · an hour.
+3. Pick the next track: sensors, environments, or the learning tracks — Spy · a decision.
+4. Go public and turn Pages on — Spy · a decision.

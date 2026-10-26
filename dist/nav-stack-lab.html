@@ -677,6 +677,14 @@ dialog:focus-visible {
 }
 /* desktop: the status and the four lights on one row; a light is a dot and a name, the reason in its tooltip */
 @media (min-width: 761px) {
+  /* Changed, Runs and View: in the header wherever the page is not the phone layout (on phones, the sheet's head);
+     View's panel switch hides the panel in the stacked layout too */
+  .bartools {
+    display: flex;
+  }
+  .layout.insp-off > .right {
+    display: none;
+  }
   .statusrow {
     order: 0;
     display: flex;
@@ -1379,6 +1387,15 @@ dialog:focus-visible {
   align-items: center;
   gap: 4px;
   margin-left: auto;
+}
+.tm-sz {
+  display: inline-grid;
+}
+.tm-sz > span {
+  grid-area: 1 / 1;
+}
+.tm-sz > span[aria-hidden] {
+  visibility: hidden;
 }
 @media (min-width: 761px) {
   /* seven numbered tabs and More: a narrow panel wraps them onto a second line rather than hiding More */
@@ -3585,11 +3602,6 @@ details.see > p {
 .tl-x:hover {
   color: var(--bad);
 }
-@media (prefers-reduced-motion: reduce) {
-  * {
-    scroll-behavior: auto;
-  }
-}
 
 .srcdlg {
   width: min(96vw, 980px);
@@ -3896,6 +3908,20 @@ details.see > p {
 .flash {
   animation: flash 1.8s ease-out;
   border-radius: var(--r-ctl);
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto;
+  }
+  /* the highlight shows and goes without fading; the splitter's hover and the experiment progress bar jump */
+  .flash {
+    animation-timing-function: step-end;
+  }
+  .hsplit::after,
+  .vsplit::after,
+  .expbar i {
+    transition: none;
+  }
 }
 /* Changed from defaults (7.5) */
 .chgpanel {
@@ -4483,9 +4509,6 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   }
   .appbar {
     grid-area: bar;
-  }
-  .bartools {
-    display: flex;
   }
   .hsplit,
   .vsplit {
@@ -5436,7 +5459,7 @@ article.chapter .notes-table td button.try {
   <main class="layout">
     <header class="appbar" id="appbar">
       <div class="brand top">
-        <h1 title="Tune localization, perception, planning and control on a simulated robot across six levels; analyze the loop; learn with guided lessons. Diff-drive or car-like robot · 24 × 16 m world · 20 Hz">Nav Stack Lab</h1>
+        <h1 title="Tune localization, perception, planning and control on a simulated robot across seven levels and your own; analyze the loop; learn with guided lessons. Diff-drive or car-like robot · 24 × 16 m world · 20 Hz">Nav Stack Lab</h1>
         <button type="button" class="sub ver" id="appver" aria-haspopup="dialog" aria-expanded="false" aria-controls="verpop">v68 · 2026-10-26</button>
       </div>
       <div class="modebar"><div class="seg" id="modesel" role="group" aria-label="Mode"></div></div>
@@ -5465,7 +5488,7 @@ article.chapter .notes-table td button.try {
       </div>
       </div>
       <div class="health" id="health" role="status" aria-label="Subsystem health"></div>
-      <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across six levels. <b>Press Run</b> to start the mission. Tap the map to add goals. The level menu (<b>L1</b> to <b>L7</b>) holds each floor's quick experiments, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
+      <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across seven levels and your own. <b>Press Run</b> to start the mission. Tap the map to add goals. The level menu (<b>L1</b> to <b>L7</b>, and Custom) holds each floor's quick experiments. New here? <b>Start here</b> in <b>Learn</b> is a first pass of eight lessons, about <span id="firstrun-min">95</span> minutes.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
       <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll or pinch to zoom; drag to pan."></canvas>
         <div class="legend" id="legend" hidden>
           <span><i class="disc" style="background:var(--ink)"></i>true pose</span>
@@ -5487,7 +5510,7 @@ article.chapter .notes-table td button.try {
         <div class="tele-grid">
           <div class="plotcol" id="plotcol" data-n="1"><canvas id="plot" aria-label="Time series plot"></canvas></div>
           <div class="tele-side">
-            <div class="tele-log"><div class="logbar"><h3>Event log</h3><input type="search" id="log-q" class="logq" placeholder="Search" aria-label="Search the event log" autocomplete="off"><span class="seg sm" id="log-sev" aria-label="Severity"></span><button type="button" class="ibtn" id="log-order" aria-pressed="false" title="Oldest first">↓</button><span class="lbl" id="log-n"></span></div><ol class="log" id="log"></ol></div>
+            <div class="tele-log"><div class="logbar"><h3>Event log</h3><input type="search" id="log-q" class="logq" placeholder="Search" aria-label="Search the event log" autocomplete="off"><span class="seg sm" id="log-sev" aria-label="Severity"></span><button type="button" class="ibtn" id="log-order" aria-pressed="false" title="Oldest first">↓</button><span class="lbl" id="log-n"></span></div><ol class="log" id="log" aria-label="Event log"></ol><div class="sr-only" id="log-live" role="log" aria-live="polite"></div></div>
             <div class="tele-met"><h3>Metrics</h3><dl class="metrics" id="metrics"></dl></div>
           </div>
         </div>
@@ -13932,7 +13955,7 @@ const SLOT_DEFS = {
 };
 const SLOTS = {};
 for (const k of Object.keys(SLOT_DEFS))
-  SLOTS[k] = {code: slotExample(k).code, worker: null, status: {msg: 'Not loaded.', cls: ''}, lastErr: ''};
+  SLOTS[k] = {code: slotExample(k).code, worker: null, status: {msg: 'No code loaded: pick an example or paste a function, then Load and use.', cls: ''}, lastErr: ''};
 function slotWorker(k, code) {
   const D = SLOT_DEFS[k];
   const src = `"use strict";\n${code}\n;const __mem={};const __wrap=${D.wrap.toString()};self.onmessage=(e)=>{if(e.data&&e.data.reset){for(const k in __mem)delete __mem[k];return;}try{if(typeof ${D.fn}!=='function')throw new Error('Define a function named ${D.fn}(obs, mem)');const r=${D.fn}(e.data,__mem)||{};self.postMessage(__wrap(r));}catch(err){self.postMessage({ok:false,error:String(err&&err.message||err)});}};`;
@@ -27290,7 +27313,7 @@ const SLOT_DEFS = {
 };
 const SLOTS = {};
 for (const k of Object.keys(SLOT_DEFS))
-  SLOTS[k] = {code: slotExample(k).code, worker: null, status: {msg: 'Not loaded.', cls: ''}, lastErr: ''};
+  SLOTS[k] = {code: slotExample(k).code, worker: null, status: {msg: 'No code loaded: pick an example or paste a function, then Load and use.', cls: ''}, lastErr: ''};
 function slotWorker(k, code) {
   const D = SLOT_DEFS[k];
   const src = `"use strict";\n${code}\n;const __mem={};const __wrap=${D.wrap.toString()};self.onmessage=(e)=>{if(e.data&&e.data.reset){for(const k in __mem)delete __mem[k];return;}try{if(typeof ${D.fn}!=='function')throw new Error('Define a function named ${D.fn}(obs, mem)');const r=${D.fn}(e.data,__mem)||{};self.postMessage(__wrap(r));}catch(err){self.postMessage({ok:false,error:String(err&&err.message||err)});}};`;
@@ -32183,7 +32206,9 @@ function drawST() {
 // Each line seeks the timeline to its time; while replaying, lines after the shown moment are dimmed and the log
 // scrolls to the moment. A search box and a severity filter narrow the lines (matches are marked on the timeline),
 // and the order can be flipped to oldest first (the log itself is kept newest first).
-const LOGV = {q: '', sev: 'all', asc: false, hits: null, lastI: -1};
+// The list is rebuilt on every change (replay dimming, search), so it is not a live region itself: a hidden role=log
+// region takes only the newest new line with a severity (a contact, a fault, a warning, the mission's end).
+const LOGV = {q: '', sev: 'all', asc: false, hits: null, lastI: -1, said: null};
 const LOG_SEV = [
   ['all', 'All'],
   ['warn', 'Warnings'],
@@ -32195,6 +32220,7 @@ const logShow = l =>
 function renderLog() {
   if (!logDirty) return;
   logDirty = false;
+  logAnnounce();
   const tc = REPLAY.active ? shownT() : Infinity,
     rows = S.log.filter(logShow),
     shown = LOGV.asc ? rows.slice().reverse() : rows;
@@ -32212,6 +32238,23 @@ function renderLog() {
     const li = [...$('#log').children].find(e => !e.classList.contains('later'));
     if (li) li.scrollIntoView({block: 'nearest'});
   }
+}
+function logAnnounce() {
+  const top = S.log[0];
+  if (top === LOGV.said) return;
+  const fresh = [];
+  for (const l of S.log.slice(0, 5)) {
+    if (l === LOGV.said) break;
+    fresh.push(l);
+  }
+  const first = LOGV.said === null; // the page's first render: nothing is news yet
+  LOGV.said = top;
+  const l = fresh.find(l => l.cls);
+  if (!l || first || REPLAY.active) return;
+  const live = $('#log-live'),
+    p = document.createElement('p');
+  p.textContent = l.msg;
+  live.replaceChildren(p);
 }
 $('#log').addEventListener('click', e => {
   const li = e.target.closest('li[data-t]');
@@ -35683,6 +35726,12 @@ tabMore.addEventListener('keydown', e => {
   e.preventDefault();
   items[(j + items.length) % items.length].focus();
 });
+// More's label is the open tool's name; every name sits in the button (one shown), so its width, and with it the
+// row's wrapping, stays the same whichever tool is open
+const moreLabel = cur =>
+  `<span class="tm-sz">${['More', ...TAB_GROUPS.slice(1).flatMap(g => g.tabs.map(id => TABS.find(t => t.id === id).name))]
+    .map(n => `<span${n === cur ? '' : ' aria-hidden="true"'}>${n}</span>`)
+    .join('')}</span>`;
 function buildTabs() {
   const pipe = TAB_GROUPS[0].tabs,
     more = TAB_GROUPS.slice(1),
@@ -35698,7 +35747,7 @@ function buildTabs() {
           `<button class="tab" role="tab" id="tab-${t.id}"${SYS[t.id] ? ` data-sys="${t.id}"` : ''} aria-selected="${t.id === activeTab}" tabindex="${t.id === activeTab ? 0 : -1}" aria-controls="pane">${t.n ? `<small>${t.n}</small>` : ''}${t.name}</button>`
       )
       .join('') +
-    `<button class="tab tab-more" type="button" id="tab-more" aria-haspopup="menu" aria-expanded="false" aria-selected="${inMore}" tabindex="${inMore ? 0 : -1}">${inMore && cur ? cur.name : 'More'}<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    `<button class="tab tab-more" type="button" id="tab-more" aria-haspopup="menu" aria-expanded="false" aria-selected="${inMore}" tabindex="${inMore ? 0 : -1}">${moreLabel(inMore && cur ? cur.name : 'More')}<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
   tabMore.innerHTML = more
     .map(
       g =>
@@ -48670,7 +48719,7 @@ function palRender() {
   const cur = ul.querySelector('[aria-selected="true"]');
   if (cur) cur.scrollIntoView({block: 'nearest'});
   $('#pal-hint').textContent = toks.length
-    ? `${L.length}${L.length === 40 ? '+' : ''} results`
+    ? `${L.length}${L.length === 40 ? '+' : ''} result${L.length === 1 ? '' : 's'}`
     : 'Recent and actions · type to search settings, lessons, chapters, symbols, signals';
 }
 function palRun(it) {

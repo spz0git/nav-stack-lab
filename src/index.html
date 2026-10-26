@@ -18,7 +18,7 @@
   <main class="layout">
     <header class="appbar" id="appbar">
       <div class="brand top">
-        <h1 title="Tune localization, perception, planning and control on a simulated robot across six levels; analyze the loop; learn with guided lessons. Diff-drive or car-like robot · 24 × 16 m world · 20 Hz">Nav Stack Lab</h1>
+        <h1 title="Tune localization, perception, planning and control on a simulated robot across seven levels and your own; analyze the loop; learn with guided lessons. Diff-drive or car-like robot · 24 × 16 m world · 20 Hz">Nav Stack Lab</h1>
         <button type="button" class="sub ver" id="appver" aria-haspopup="dialog" aria-expanded="false" aria-controls="verpop">__VERSION__</button>
       </div>
       <div class="modebar"><div class="seg" id="modesel" role="group" aria-label="Mode"></div></div>
@@ -47,7 +47,7 @@
       </div>
       </div>
       <div class="health" id="health" role="status" aria-label="Subsystem health"></div>
-      <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across six levels. <b>Press Run</b> to start the mission. Tap the map to add goals. The level menu (<b>L1</b> to <b>L7</b>) holds each floor's quick experiments, and <b>Learn</b> has guided lessons.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
+      <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across seven levels and your own. <b>Press Run</b> to start the mission. Tap the map to add goals. The level menu (<b>L1</b> to <b>L7</b>, and Custom) holds each floor's quick experiments. New here? <b>Start here</b> in <b>Learn</b> is a first pass of eight lessons, about <span id="firstrun-min">95</span> minutes.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
       <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll or pinch to zoom; drag to pan."></canvas>
         <div class="legend" id="legend" hidden>
           <span><i class="disc" style="background:var(--ink)"></i>true pose</span>
@@ -69,7 +69,7 @@
         <div class="tele-grid">
           <div class="plotcol" id="plotcol" data-n="1"><canvas id="plot" aria-label="Time series plot"></canvas></div>
           <div class="tele-side">
-            <div class="tele-log"><div class="logbar"><h3>Event log</h3><input type="search" id="log-q" class="logq" placeholder="Search" aria-label="Search the event log" autocomplete="off"><span class="seg sm" id="log-sev" aria-label="Severity"></span><button type="button" class="ibtn" id="log-order" aria-pressed="false" title="Oldest first">↓</button><span class="lbl" id="log-n"></span></div><ol class="log" id="log"></ol></div>
+            <div class="tele-log"><div class="logbar"><h3>Event log</h3><input type="search" id="log-q" class="logq" placeholder="Search" aria-label="Search the event log" autocomplete="off"><span class="seg sm" id="log-sev" aria-label="Severity"></span><button type="button" class="ibtn" id="log-order" aria-pressed="false" title="Oldest first">↓</button><span class="lbl" id="log-n"></span></div><ol class="log" id="log" aria-label="Event log"></ol><div class="sr-only" id="log-live" role="log" aria-live="polite"></div></div>
             <div class="tele-met"><h3>Metrics</h3><dl class="metrics" id="metrics"></dl></div>
           </div>
         </div>

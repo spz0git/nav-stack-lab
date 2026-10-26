@@ -297,6 +297,12 @@ tabMore.addEventListener('keydown', e => {
   e.preventDefault();
   items[(j + items.length) % items.length].focus();
 });
+// More's label is the open tool's name; every name sits in the button (one shown), so its width, and with it the
+// row's wrapping, stays the same whichever tool is open
+const moreLabel = cur =>
+  `<span class="tm-sz">${['More', ...TAB_GROUPS.slice(1).flatMap(g => g.tabs.map(id => TABS.find(t => t.id === id).name))]
+    .map(n => `<span${n === cur ? '' : ' aria-hidden="true"'}>${n}</span>`)
+    .join('')}</span>`;
 function buildTabs() {
   const pipe = TAB_GROUPS[0].tabs,
     more = TAB_GROUPS.slice(1),
@@ -312,7 +318,7 @@ function buildTabs() {
           `<button class="tab" role="tab" id="tab-${t.id}"${SYS[t.id] ? ` data-sys="${t.id}"` : ''} aria-selected="${t.id === activeTab}" tabindex="${t.id === activeTab ? 0 : -1}" aria-controls="pane">${t.n ? `<small>${t.n}</small>` : ''}${t.name}</button>`
       )
       .join('') +
-    `<button class="tab tab-more" type="button" id="tab-more" aria-haspopup="menu" aria-expanded="false" aria-selected="${inMore}" tabindex="${inMore ? 0 : -1}">${inMore && cur ? cur.name : 'More'}<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    `<button class="tab tab-more" type="button" id="tab-more" aria-haspopup="menu" aria-expanded="false" aria-selected="${inMore}" tabindex="${inMore ? 0 : -1}">${moreLabel(inMore && cur ? cur.name : 'More')}<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
   tabMore.innerHTML = more
     .map(
       g =>

@@ -4,6 +4,15 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v71 · 2026-10-29
+
+- In the safety lessons, every mention of the Metrics list is a link: it opens the telemetry dock and marks the row
+  the lesson talks about (on a phone it takes you to the dock under the map). Lesson 3 now says in place what each
+  safety measure counts, instead of sending you to chapter 8 for it.
+- Safety lesson 1 explains the two seeds the lessons quote: the world's seed fixes the warehouse and the people's
+  routes, the run seed (Vehicle → Random seed) fixes the noise, so the same seed replays the same run.
+- A link opened in the address bar right after you change something on the page (a lesson, a setup) opens
+  as it should; the page's own update of the address no longer overwrites it.
 ## v70 · 2026-10-29
 
 - Safety lesson 2 (hazards and risk) now says what each symbol in its relative-speed and exposure equations means,

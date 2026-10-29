@@ -49,6 +49,8 @@ function predCell(cell) {
     ) + cell('cv', `${pe.cv[1].toFixed(2)} m`, '', 'Constant velocity’s mean error 2 s ahead, on the same people at the same moments')
   );
 }
+// the row a lesson's link points at (showMetric, ui/signals.js), marked until t: the list is rebuilt every frame
+let metMark = {name: '', t: 0};
 function renderMetrics() {
   const r = S.robot,
     e = S.est,
@@ -119,7 +121,10 @@ function renderMetrics() {
   if (S.slam) items.push(['SLAM map', `${S.slam.n} of ${S.beacons.length} beacons · ${3 + 2 * S.slam.n} states`, 'loc']);
   if (S.pf) items.push(['Particles', `N_eff ${S.pf.neff.toFixed(0)}/${S.pf.N}, inj ${(S.pf.inj * 100).toFixed(0)}%`, 'loc']);
   if (P.assoc === 'unknown' && P.loc !== 'truth' && P.loc !== 'dr') items.push(['Gated measurements', String(S.rejected), 'loc']);
-  $('#metrics').innerHTML = items.map(([a, b, c]) => `<div${c ? ` data-sys="${c}"` : ''}><dt>${a}</dt><dd>${b}</dd></div>`).join('');
+  const mk = performance.now() < metMark.t ? metMark.name : '';
+  $('#metrics').innerHTML = items
+    .map(([a, b, c]) => `<div${c ? ` data-sys="${c}"` : ''}${a === mk ? ' class="met-hi"' : ''}><dt>${a}</dt><dd>${b}</dd></div>`)
+    .join('');
 }
 
 // The safety measures (core/safety.js), in the metrics list: each contact with its speed and the lab's severity class,

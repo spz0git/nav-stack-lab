@@ -169,3 +169,27 @@ function setMetView(v) {
   v.hidden = true;
   $('#metrics').after(v);
 }
+// Lessons point at the list ("Metrics → Contacts by speed", data-met="Contacts by speed"): open the dock, show the
+// metrics and mark the row, or the whole list when the row is not shown for this setup (no people, no radar brake …)
+function showMetric(name) {
+  if (uiMode === 'learn' && !wideUI()) setUIMode('sim'); // phones: the dock is under the map, outside Learn
+  if (WS.dockOff) wsDock(true);
+  setMetView('metrics');
+  renderMetrics();
+  const row = name ? [...$('#metrics').children].find(d => d.firstChild.textContent === name) : null;
+  if (row) {
+    metMark = {name, t: performance.now() + 2500};
+    renderMetrics();
+  } else {
+    const l = $('#metrics');
+    l.classList.remove('flash');
+    void l.offsetWidth;
+    l.classList.add('flash');
+  }
+  (row ? $('#metrics .met-hi') : $('#metrics')).scrollIntoView({block: 'center', behavior: 'smooth'});
+  if (name && !row) toast(`“${name}” is listed once an experiment sets it up: press one of the lesson’s Try buttons.`, 5600);
+}
+document.addEventListener('click', e => {
+  const b = e.target && e.target.closest ? e.target.closest('[data-met]') : null;
+  if (b) showMetric(b.dataset.met);
+});

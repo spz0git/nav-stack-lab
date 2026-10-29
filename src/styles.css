@@ -3903,6 +3903,11 @@ details.see > p {
   animation: flash 1.8s ease-out;
   border-radius: var(--r-ctl);
 }
+/* a Metrics row a lesson's link points at (ui/signals.js) */
+.metrics .met-hi {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: var(--r-ctl);
+}
 @media (prefers-reduced-motion: reduce) {
   * {
     scroll-behavior: auto;

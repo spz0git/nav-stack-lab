@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v71 · 2026-10-29
 
 - In the safety lessons, every mention of the Metrics list is a link: it opens the telemetry dock and marks the row
   the lesson talks about (on a phone it takes you to the dock under the map). Lesson 3 now says in place what each

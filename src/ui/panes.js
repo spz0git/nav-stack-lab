@@ -22,6 +22,17 @@ const lvMenu = (() => {
   document.body.appendChild(m);
   return m;
 })();
+// A fade at the bottom of the level list or the brief while more of it is below, so a cut-off line reads as "scroll
+// for more" (overlay scrollbars on phones and Macs stay hidden until you scroll); it goes once the end is in view.
+function lvMenuMore() {
+  for (const el of lvMenu.querySelectorAll('.lvl-list, .brief'))
+    el.classList.toggle('more-below', el.scrollTop + el.clientHeight < el.scrollHeight - 4);
+}
+for (const el of lvMenu.querySelectorAll('.lvl-list, .brief')) el.addEventListener('scroll', lvMenuMore, {passive: true});
+new MutationObserver(() => requestAnimationFrame(lvMenuMore)).observe(lvMenu, {childList: true, subtree: true});
+addEventListener('resize', () => {
+  if (!lvMenu.hidden) lvMenuMore();
+});
 function lvMenuOpen(on) {
   const b = $('#lvl-btn');
   if (on == null) on = lvMenu.hidden;
@@ -35,6 +46,7 @@ function lvMenuOpen(on) {
   lvMenu.style.width = w + 'px';
   const cur = lvMenu.querySelector('.lvl[aria-pressed="true"]');
   if (cur) cur.focus();
+  requestAnimationFrame(lvMenuMore);
 }
 document.addEventListener(
   'pointerdown',

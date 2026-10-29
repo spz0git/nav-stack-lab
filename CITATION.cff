@@ -5,8 +5,8 @@ type: software
 authors:
   - family-names: szaf
     name-particle: ""
-version: "69"
-date-released: 2026-10-26
+version: "70"
+date-released: 2026-10-29
 repository-code: https://github.com/spz0git/nav-stack-lab
 url: https://spz0git.github.io/nav-stack-lab/
 license: MIT

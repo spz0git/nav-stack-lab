@@ -11,6 +11,8 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   safety measure counts, instead of sending you to chapter 8 for it.
 - Safety lesson 1 explains the two seeds the lessons quote: the world's seed fixes the warehouse and the people's
   routes, the run seed (Vehicle → Random seed) fixes the noise, so the same seed replays the same run.
+- A link opened in the address bar right after you change something on the page (a lesson, a setup) opens
+  as it should; the page's own update of the address no longer overwrites it.
 ## v70 · 2026-10-29
 
 - Safety lesson 2 (hazards and risk) now says what each symbol in its relative-speed and exposure equations means,

@@ -40,6 +40,7 @@ function hashSoon() {
 }
 // A pasted or edited setup link while the page is open: apply it (our own writes do not fire hashchange)
 window.addEventListener('hashchange', async () => {
+  clearTimeout(hashTimer); // a write still pending from a moment ago must not overwrite the link just opened
   const h = location.hash.slice(1);
   if (h === hashLast) return;
   if (h === 'learn') {

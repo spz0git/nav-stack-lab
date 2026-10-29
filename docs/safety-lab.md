@@ -141,10 +141,14 @@ measures:
 4. **Exposure.** The fraction of operating time spent in each situation, measured over runs (time with a person within
    2 m, time in a doorway, time reversing). Measured exposure is a teaching point the standard's tables do not offer:
    the learner sees that exposure is a property of the ODD and the mission, and changes when either does.
-5. **Controllability.** With no driver, controllability is about the other people involved. The lab has exactly that
-   switch: scripted people never step aside, reactive people (`people: 'reactive'`) do. The difference in contacts
-   between the two, on the same seeds, is the measured share of hazardous situations other people resolve. Most
-   driverless analyses take no credit for it; the exercise shows what taking it would assume.
+5. **Controllability.** With no driver, controllability is about the other people involved: ISO 26262 counts
+   everyone exposed, not only a driver. The lab has exactly that switch: scripted people never step aside, reactive
+   people (`people: 'reactive'`) do. The difference in contacts between the two, on the same seeds, is the measured
+   share of hazardous situations other people resolve. Most driverless analyses take no credit for it; the exercise
+   shows what taking it would assume. The robot's own reaction is not controllability (the analysis rates it going
+   wrong, so crediting it would count the same protection twice); the lab names it separately as the avoidance
+   margin, time to contact minus the time to stop, read from Metrics → Time to contact, as evidence for the safety
+   goal rather than an input to the rating.
 6. **Integrity level and safety goal.** The ASIL rule is explained without reproducing the table: with the classes
    numbered, the level rises one step for each step up in any class, from QM at the bottom to D for the worst case in
    all three. Each hazardous event gets a safety goal in measurable terms ("no contact with a person above 0.3 m/s

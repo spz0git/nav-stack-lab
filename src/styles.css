@@ -460,6 +460,10 @@ dialog:focus-visible {
 .lvlmenu[hidden] {
   display: none;
 }
+.lvlmenu .more-below {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
+}
 .lvl-list {
   display: flex;
   flex-direction: column;
@@ -1648,6 +1652,16 @@ dialog:focus-visible {
   text-align: left;
   white-space: normal;
   min-width: 140px;
+}
+.exptab.txt th,
+.exptab.txt td {
+  text-align: left;
+  white-space: normal;
+  vertical-align: top;
+}
+.exptab.txt th:first-child,
+.exptab.txt td:first-child {
+  min-width: 0;
 }
 .exptab th {
   font-weight: 600;

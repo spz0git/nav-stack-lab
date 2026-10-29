@@ -4,6 +4,23 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v70 · 2026-10-29
+
+- Safety lesson 2 (hazards and risk) now says what each symbol in its relative-speed and exposure equations means,
+  and lists them under Terms and symbols.
+- Safety lesson 2 shows how an integrity level is worked out, in tables: the lab's touch, bump and strike against
+  the standard's severity classes and the level each sum of severity, exposure and controllability gives. It then
+  walks through the analysis in four steps and builds L5's hazard log: four situations, four hazardous events rated
+  class by class with the reason for each rating, and the safety goal they lead to (level C). Chapter 8 §3 gives the
+  same classes in words.
+- Safety lesson 2 spells out controllability: the people exposed, everyone nearby and not only a driver, with the
+  robot's own reaction left out, since that is what the analysis rates. The robot's side gets its own name and
+  equation, the avoidance margin: time to contact minus the time the robot needs to stop.
+- The level menu fades out at the bottom while there is more to scroll, in the level list and in the quick
+  experiments, so a line cut off at the edge reads as "scroll for more".
+- Check yourself takes an answer within 5 % of the exact one as close enough and shows the exact value, so a
+  rounded or slightly off working still counts. Questions that ask for an exact count still need it exactly.
+
 ## v69 · 2026-10-26
 
 - The page is about 0.9 MB lighter (4.7 → 3.8 MB; 1.41 → 1.20 MB compressed): it no longer carries the simulation

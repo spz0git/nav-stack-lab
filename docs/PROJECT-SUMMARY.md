@@ -4,11 +4,11 @@ project: nav-stack-lab
 title: Nav Stack Lab
 kind: code
 source: https://github.com/spz0git/nav-stack-lab
-commit: 04c30b2
+commit: 6f6de5c
 updated: 2026-10-29
 status: active
 stage: v70 (2026-10-29) answers Spy's review comments on the live page: safety lesson 2 rebuilt around a worked hazard analysis of the busy floor
-next_action: Spy pushes the v67–v70 release tags (the session's proxy refuses tag pushes with HTTP 403) and picks the next track: the live simulation in a worker (about a week) or a feature track
+next_action: Spy picks the next track: the live simulation in a worker (about a week) or a feature track
 blocked_on: nothing
 confidential: false
 ---
@@ -22,9 +22,8 @@ A robot navigation simulator and course in one offline HTML file, for students a
 - v70 (2026-10-29) answers Spy's live-page comments: safety lesson 2 gets defined symbols, severity and integrity tables, L5's hazard log and controllability beside the robot's avoidance margin; near answers count; the level menu shows more below.
 - v69 (2026-10-26) closed Phase C of the 2026-10-25 audit; only the live simulation in a worker remains of that plan.
 - Testing: CI on every PR, the scoped gate before each merge, the full suite of twelve nightly.
-- Release tags: none on the remote yet (v67–v70); the session's git proxy refuses tag pushes (HTTP 403). The superseded PRs #139, #141 and #142 are closed.
+- Release tags v67–v70 are on GitHub (pushed by Spy, 2026-10-29); sessions cannot push tags (the proxy answers HTTP 403), so Spy tags releases by hand. Open: PR #145 (safety lessons: Metrics links, measures defined in place).
 - Waiting on Spy:
-  - pushing the v67–v70 tags;
   - the 33 clause numbers;
   - public or private;
   - the next track.
@@ -45,6 +44,5 @@ Out of scope: runtime dependencies or network access, reproducing the safety sta
 ## Next big items
 1. The live simulation in a worker, the audit's last item: a render-only mirror of the state and a message protocol the tests also move to — Claude · about a week, its own phase.
 2. Confirm the 33 clause numbers the safety lessons cite, the five the audit flags first — Spy · an hour.
-3. Push the v67–v70 release tags from a machine whose git can push tags — Spy · minutes.
-4. Pick the next track: sensors, environments, or the learning tracks — Spy · a decision.
-5. Go public and turn Pages on — Spy · a decision.
+3. Pick the next track: sensors, environments, or the learning tracks — Spy · a decision.
+4. Go public and turn Pages on — Spy · a decision.

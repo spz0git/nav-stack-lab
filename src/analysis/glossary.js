@@ -1148,10 +1148,20 @@ Object.assign(GLOSS, {
   ],
   controllability: [
     'controllability',
-    'Whether the people involved can avoid the harm. With no driver, it is the person in the aisle stepping aside.',
+    'Whether the people exposed can avoid the harm by reacting in time: a driver in a car, and here the people around the robot. The robot’s own reaction is not counted; it is what the analysis rates.',
     '',
     ['controllability']
   ],
+  avoidmargin: [
+    'avoidance margin',
+    'The robot’s side, kept apart from controllability: time to contact minus the time it needs to stop (react, then brake). Positive, it can still stop in time.',
+    's',
+    ['avoidance margin']
+  ],
+  tstopS: ['<i>t</i><sub>stop</sub>', 'Time the robot needs to stop: the reaction time plus <i>v</i> / <i>a</i><sub>max</sub>.', 's', []],
+  treactS: ['<i>t</i><sub>react</sub>', 'Time before braking starts: a control tick and the actuator lag.', 's', []],
+  amaxS: ['<i>a</i><sub>max</sub>', 'The robot’s braking (acceleration) limit.', 'm/s²', []],
+  margS: ['<i>m</i>', 'Avoidance margin: <i>TTC</i> − <i>t</i><sub>stop</sub>; negative means it can no longer stop in time.', 's', []],
   asil: [
     'integrity level',
     'ISO 26262’s rating of a hazardous event, from QM through A to D, set by its severity, exposure and controllability; it sets how rigorous the development must be.',
@@ -1435,7 +1445,7 @@ const LESSON_TERMS = {
   'What the stack was built for: the operating domain':
     'odd margin wallclear contacts sevclass speedplanner pf unlabeled costmap inflation lidar beacon fog track',
   'Hazards and risk: from situations to safety goals':
-    'hara hazard hazevent opsit severity sevclass vrel vrelS vrob vped exposure Esit Tsit Top controllability asil safetygoal speedplanner socialforce contacts closest sotif',
+    'hara hazard hazevent opsit severity sevclass vrel vrelS vrob vped exposure Esit Tsit Top controllability avoidmargin ttcsafe tstopS treactS amaxS margS asil safetygoal speedplanner socialforce contacts closest sotif',
   'Something breaks: detect it, react, in time':
     'fault ftti safetymech safestate faultsched fmea degraded lostguard lidar beacon pf sigx contacts sevclass speedplanner',
   'Learned blocks: the data is the specification':

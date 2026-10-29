@@ -460,6 +460,10 @@ dialog:focus-visible {
 .lvlmenu[hidden] {
   display: none;
 }
+.lvlmenu .more-below {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
+}
 .lvl-list {
   display: flex;
   flex-direction: column;

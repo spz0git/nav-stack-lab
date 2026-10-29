@@ -1134,6 +1134,12 @@ Object.assign(GLOSS, {
     'm/s',
     ['relative speed']
   ],
+  vrelS: ['<i>v</i><sub>rel</sub>', 'Relative speed at contact, the length of <b>v</b><sub>r</sub> − <b>v</b><sub>p</sub>.', 'm/s', []],
+  vrob: ['<b>v</b><sub>r</sub>', 'The robot’s true velocity, as a vector, at the first tick of the contact.', 'm/s', []],
+  vped: ['<b>v</b><sub>p</sub>', 'The person’s true velocity, as a vector, at the same tick; zero for a rack or a wall.', 'm/s', []],
+  Esit: ['<i>E</i><sub>s</sub>', 'Exposure to situation <i>s</i>: <i>T</i><sub>s</sub> / <i>T</i><sub>op</sub>, between 0 and 1.', '', []],
+  Tsit: ['<i>T</i><sub>s</sub>', 'Time spent in situation <i>s</i> while the mission runs, e.g. with a person within 2 m.', 's', []],
+  Top: ['<i>T</i><sub>op</sub>', 'Operating time: the time the mission runs.', 's', []],
   exposure: [
     'exposure',
     'How often a situation occurs; the lab measures it as the share of the operating time spent in it.',
@@ -1429,7 +1435,7 @@ const LESSON_TERMS = {
   'What the stack was built for: the operating domain':
     'odd margin wallclear contacts sevclass speedplanner pf unlabeled costmap inflation lidar beacon fog track',
   'Hazards and risk: from situations to safety goals':
-    'hara hazard hazevent opsit severity sevclass vrel exposure controllability asil safetygoal speedplanner socialforce contacts closest sotif',
+    'hara hazard hazevent opsit severity sevclass vrel vrelS vrob vped exposure Esit Tsit Top controllability asil safetygoal speedplanner socialforce contacts closest sotif',
   'Something breaks: detect it, react, in time':
     'fault ftti safetymech safestate faultsched fmea degraded lostguard lidar beacon pf sigx contacts sevclass speedplanner',
   'Learned blocks: the data is the specification':

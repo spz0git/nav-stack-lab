@@ -1,0 +1,59 @@
+# Tags each release and publishes it as a GitHub Release, so no one has to push a tag by hand (sessions cannot).
+# On every push to main: read the version NN from src/version.json; if there is no GitHub Release vNN yet, find the
+# commit that brought that version to main (the first commit on main's first-parent line whose src/version.json
+# has it: the release PR's merge commit), tag it vNN (an existing tag is kept), and publish the release with that
+# version's CHANGELOG.md section as its notes and that commit's dist/nav-stack-lab.html attached. Pushes that do not
+# change the version find the release there and stop.
+# Run by hand (Actions → Release → Run workflow) with a version, e.g. 68, to publish an older release the same way.
+name: Release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, e.g. 68 (empty: the one in src/version.json)'
+        required: false
+permissions:
+  contents: write
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the whole history: the commit that brought the version, and the existing tags
+      - name: Tag and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANT: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          ver() { git show "$1:src/version.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))'; }
+          N="${WANT:-$(ver HEAD)}"
+          N="${N#v}"
+          TAG="v$N"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists; nothing to do."
+            exit 0
+          fi
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            SHA=$(git rev-list -n 1 "$TAG")
+          else
+            SHA=""
+            for c in $(git rev-list --first-parent --reverse HEAD -- src/version.json); do
+              if [ "$(ver "$c")" = "$N" ]; then SHA=$c; break; fi
+            done
+            [ -n "$SHA" ] || { echo "::error::No commit on main has version $N in src/version.json"; exit 1; }
+          fi
+          DATE=$(git show "$SHA:src/version.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).date))')
+          git show "$SHA:CHANGELOG.md" | awk -v h="## $TAG · " 'index($0, h) == 1 {on = 1; next} on && /^## / {exit} on' > notes.md
+          [ -s notes.md ] || { echo "::error::CHANGELOG.md at ${SHA:0:7} has no section for $TAG"; exit 1; }
+          mkdir -p asset
+          git show "$SHA:dist/nav-stack-lab.html" > asset/nav-stack-lab.html
+          gh release create "$TAG" asset/nav-stack-lab.html --target "$SHA" --title "$TAG · $DATE" --notes-file notes.md
+          echo "Published $TAG · $DATE on ${SHA:0:7}"

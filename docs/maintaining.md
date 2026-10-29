@@ -51,7 +51,9 @@ while working and again on `main` after the merge only repeats them.
    on `main` since, bring the branch up to date first and run the scoped gate there. Pages deploys on its own when it is
    turned on (`PAGES_ENABLED`, above). The full browser suite runs nightly and on demand
    (`.github/workflows/browser-tests.yml`, Actions → Browser tests → Run workflow).
-   Tag the release on the merge commit: `git tag v<NN> <merge commit> && git push origin v<NN>`.
+   The merge tags itself: `.github/workflows/release.yml` tags the commit that brought the version to `main` `v<NN>`
+   and publishes a GitHub Release with that version's changelog section and the page attached. Do not tag by hand;
+   to publish an older version's release, run the workflow with its number (Actions → Release → Run workflow).
 5. Republish the live artifact from `dist/nav-stack-lab.html` to the URL above with downloads enabled, and check that
    the Version in the publish result equals `src/version.json`. While a PR is open the live artifact is not touched;
    a "preview" is a separate, new artifact of the branch's `dist/`.

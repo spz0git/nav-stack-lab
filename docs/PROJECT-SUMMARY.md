@@ -4,7 +4,7 @@ project: nav-stack-lab
 title: Nav Stack Lab
 kind: code
 source: https://github.com/spz0git/nav-stack-lab
-commit: 6a31ff8
+commit: d8b2808
 updated: 2026-10-29
 status: active
 stage: v71 (2026-10-29) answers Spy's questions on the safety lessons: the Metrics list is linked from the text, the measures defined in place, the seeds explained
@@ -21,9 +21,9 @@ A robot navigation simulator and course in one offline HTML file, for students a
 ## Status
 - v71 (2026-10-29): every mention of the Metrics list in the safety lessons opens the dock and marks the row; lesson 3 defines the safety measures in place; lesson 1 explains the world seed and the run seed.
 - v70 (2026-10-29): safety lesson 2 rebuilt around a worked hazard analysis of the busy floor.
-- v69 (2026-10-26) closed Phase C of the 2026-10-25 audit; only the live simulation in a worker remains.
+- v69 (2026-10-26) closed Phase C of the 2026-10-25 audit; only the live simulation in a worker remains of that plan.
 - Testing: CI on every PR, the scoped gate before each merge, the full suite of twelve nightly.
-- Release tags: none on the remote yet (v67–v71); the session's git proxy has refused tag pushes.
+- Release tags v67–v70 are on GitHub (pushed by Spy, 2026-10-29); sessions cannot push tags (the proxy answers HTTP 403), so Spy tags releases by hand: v71 is still to tag.
 - Waiting on Spy:
   - the 33 clause numbers;
   - public or private;
@@ -44,7 +44,7 @@ Out of scope: runtime dependencies or network access, reproducing the safety sta
 
 ## Next big items
 1. The live simulation in a worker, the audit's last item: a render-only mirror of the state and a message protocol the tests also move to — Claude · about a week, its own phase.
-2. Confirm the 33 clause numbers the safety lessons cite, the five the audit flags first — Spy · an hour.
-3. Push the v67–v71 release tags from a machine whose git can push tags — Spy · minutes.
+2. Tag v71 on its merge commit — Spy · minutes.
+3. Confirm the 33 clause numbers the safety lessons cite, the five the audit flags first — Spy · an hour.
 4. Pick the next track: sensors, environments, or the learning tracks — Spy · a decision.
 5. Go public and turn Pages on — Spy · a decision.

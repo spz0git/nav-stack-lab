@@ -20,7 +20,7 @@ GATE=[('smoke.py',[r'ERRORS \[\]']),('test.py',[r'ERRORS: \[\]']),('p5test.py',[
 # (a changed path, the tests it needs); 'ALL' for what every test depends on. The core runs under every test, so any
 # core change runs the L1–L5 regression and every Try button; the rest follow the subsystem.
 SCOPE=[
-    (r'^(build\.(mjs|sh)|package(-lock)?\.json|src/(manifest\.json|index\.html|worker/)|tools/(tex|changelog)\.mjs|tools/vendor/|tests/(_browser|run_all)\.py)','ALL'),
+    (r'^(build\.(mjs|sh)|src/(manifest\.json|index\.html|worker/)|tools/(tex|changelog)\.mjs|tools/vendor/|tests/(_browser|run_all)\.py)','ALL'),  # package.json is not here: the build needs only Node, so its version bump or a dev tool changes nothing in the page
     (r'^src/core/',['test.py','p5test.py']),
     (r'^src/core/(vehicle|controllers|mpc|dispatch|planning-car)\.js|^src/analysis/(num|model|speed|ui)\.js',['dyntest.py']),
     (r'^src/(core/(slots|custom-controller|examples-data)\.js|examples/)|^src/ui/source\.js|^tools/code\.mjs',['extest.py']),

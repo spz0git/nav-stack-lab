@@ -1562,6 +1562,13 @@ function glossMark(html, ids) {
       i = j;
       continue;
     }
+    if (html.startsWith('<button', i)) {
+      // a button's label (a link to the Metrics list) is copied whole: a term inside it would take its clicks
+      const j = html.indexOf('</button>', i) + 9;
+      out += html.slice(i, j);
+      i = j;
+      continue;
+    }
     if (html[i] === '<' && /[A-Za-z\/!]/.test(html[i + 1] || '')) {
       const j = html.indexOf('>', i);
       out += html.slice(i, j + 1);

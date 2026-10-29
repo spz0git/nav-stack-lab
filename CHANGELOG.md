@@ -4,6 +4,14 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- In the safety lessons, every mention of the Metrics list is a link: it opens the telemetry dock and marks the row
+  the lesson talks about (on a phone it takes you to the dock under the map). Lesson 3 now says in place what each
+  safety measure counts, instead of sending you to chapter 8 for it.
+- Safety lesson 1 explains the two seeds the lessons quote: the world's seed fixes the warehouse and the people's
+  routes, the run seed (Vehicle → Random seed) fixes the noise, so the same seed replays the same run.
+
 ## v69 · 2026-10-26
 
 - The page is about 0.9 MB lighter (4.7 → 3.8 MB; 1.41 → 1.20 MB compressed): it no longer carries the simulation

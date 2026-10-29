@@ -4,11 +4,11 @@ project: nav-stack-lab
 title: Nav Stack Lab
 kind: code
 source: https://github.com/spz0git/nav-stack-lab
-commit: 835ab97
+commit: 04c30b2
 updated: 2026-10-29
 status: active
 stage: v70 (2026-10-29) answers Spy's review comments on the live page: safety lesson 2 rebuilt around a worked hazard analysis of the busy floor
-next_action: Spy closes the superseded PRs #139, #141 and #142 and picks the next track: the live simulation in a worker (about a week) or a feature track
+next_action: Spy pushes the v67–v70 release tags (the session's proxy refuses tag pushes with HTTP 403) and picks the next track: the live simulation in a worker (about a week) or a feature track
 blocked_on: nothing
 confidential: false
 ---
@@ -22,9 +22,9 @@ A robot navigation simulator and course in one offline HTML file, for students a
 - v70 (2026-10-29) answers Spy's live-page comments: safety lesson 2 gets defined symbols, severity and integrity tables, L5's hazard log and controllability beside the robot's avoidance margin; near answers count; the level menu shows more below.
 - v69 (2026-10-26) closed Phase C of the 2026-10-25 audit; only the live simulation in a worker remains of that plan.
 - Testing: CI on every PR, the scoped gate before each merge, the full suite of twelve nightly.
-- Release tags: none on the remote yet (v67–v70); the session's git proxy has refused tag pushes.
+- Release tags: none on the remote yet (v67–v70); the session's git proxy refuses tag pushes (HTTP 403). The superseded PRs #139, #141 and #142 are closed.
 - Waiting on Spy:
-  - closing the superseded PRs #139, #141 and #142;
+  - pushing the v67–v70 tags;
   - the 33 clause numbers;
   - public or private;
   - the next track.

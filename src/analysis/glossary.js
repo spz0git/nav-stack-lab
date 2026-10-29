@@ -1142,7 +1142,7 @@ Object.assign(GLOSS, {
   ],
   controllability: [
     'controllability',
-    'Whether the people involved can avoid the harm. With no driver, it is the person in the aisle stepping aside.',
+    'Whether the robot itself can still avoid the harm, or soften it, once the hazardous event begins: by braking it can when the time to contact is longer than its stopping time. People stepping aside are not counted: that is credit taken from others.',
     '',
     ['controllability']
   ],
@@ -1429,7 +1429,7 @@ const LESSON_TERMS = {
   'What the stack was built for: the operating domain':
     'odd margin wallclear contacts sevclass speedplanner pf unlabeled costmap inflation lidar beacon fog track',
   'Hazards and risk: from situations to safety goals':
-    'hara hazard hazevent opsit severity sevclass vrel exposure controllability asil safetygoal speedplanner socialforce contacts closest sotif',
+    'hara hazard hazevent opsit severity sevclass vrel exposure controllability ttcsafe asil safetygoal speedplanner socialforce contacts closest sotif',
   'Something breaks: detect it, react, in time':
     'fault ftti safetymech safestate faultsched fmea degraded lostguard lidar beacon pf sigx contacts sevclass speedplanner',
   'Learned blocks: the data is the specification':

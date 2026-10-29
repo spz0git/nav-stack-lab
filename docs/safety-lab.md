@@ -141,7 +141,9 @@ measures:
 4. **Exposure.** The fraction of operating time spent in each situation, measured over runs (time with a person within
    2 m, time in a doorway, time reversing). Measured exposure is a teaching point the standard's tables do not offer:
    the learner sees that exposure is a property of the ODD and the mission, and changes when either does.
-5. **Controllability.** With no driver, controllability is about the other people involved. The lab has exactly that
+5. **Controllability.** (Superseded by decision 12: the lab rates controllability from the robot's side, whether the
+   robot can still avoid the harm once the event begins, its time to contact against its stopping time; what follows
+   is kept as the original proposal and now describes credit taken from others.) With no driver, controllability is about the other people involved. The lab has exactly that
    switch: scripted people never step aside, reactive people (`people: 'reactive'`) do. The difference in contacts
    between the two, on the same seeds, is the measured share of hazardous situations other people resolve. Most
    driverless analyses take no credit for it; the exercise shows what taking it would assume.
@@ -351,7 +353,7 @@ lesson or chapter links to `#notes=ch8/…` today, so the renumbering moves one 
 | Concept | Levels | Sensors and switchboard | Faults and settings | Other support | Missing |
 | --- | --- | --- | --- | --- | --- |
 | ODD | L2, L5 as the reference; generator families (rooms, warehouse, hall) as the domain's dimensions | GNSS availability, beacon density, weather as ODD attributes | `weather`, `people`, `vehicles`, `mu` | Level menu, links, Experiments | ODD sheet and check; sampling worlds from a sheet; runtime ODD monitor |
-| HARA | L4 doorways, L5 aisles, L6 reversing, L7 avoidance | — | `people: 'reactive'` (controllability) | Contact counts, closest approach | Impact speed and event records (C1); exposure counters (C3); hazard log |
+| HARA | L4 doorways, L5 aisles, L6 reversing, L7 avoidance | — | `people: 'reactive'` (credit taken from others; decision 12) | Contact counts, closest approach | Impact speed and event records (C1); exposure counters (C3); hazard log |
 | Faults (26262) | L3, L5 | All seven switches; `SENSORS` registry with what each gives; health checks per switch | `odoB`, `gyroBias`, `bOff`, `bOut`, `gnssOut`, `lag`, `biasDeg`, `biasW`, `latency`, `sensLat` | Health lights, lost-guard, lidar safety stop, `sntest.py` | Timed faults in the core (C4); detection time in the summary (C5) |
 | Triggering conditions (SOTIF) | L4, L5, L6, L7; generated worlds | Weather on lidar and radar; sonar specular, dead zone, crosstalk; GNSS multipath; radar clutter and ghosts | `weather`, `radClutter`, `radGhost`, `sonXt`, `gnssMp`, `assoc` + `clutter`, `unknownAs` | The matrix of 3.3 already taught across loc/per/plan/ctl | Event records with active conditions (C1); a monitor that notices them (C6) |
 | AI (8800) | L2 → L4 shift; generated worlds | Learned detector reads the lidar; policy reads the scan | `detModel`, `predModel`, `polModel` | Models list their training runs; Train tab; policy safety layer with counters | Per-slice detection and prediction metrics in the summary; an out-of-distribution score |
@@ -498,6 +500,7 @@ The owner's answers to the design questions (2026-10-22). Question 2, the clause
 | 9 | Predicts on searches | Predicts ask only about properties that hold at any seed, never about one found scenario. |
 | 10 | The kidnap in the core | The page's kidnap and scatter move onto the core's fault schedule (C4); loc/03, loc/04 and loc/07 are re-measured in the same PR. |
 | 11 | The ODD monitor | In scope for phase 4 (C6), off by default. |
+| 12 | Controllability (owner's comment on the live page, 2026-10-29) | Rated from the robot's side: whether the robot itself can still avoid or soften the harm once the hazardous event begins, by braking when its time to contact exceeds its stopping time (lesson 2, chapter 8 §3). People stepping aside are credit taken from others, an assumption, not controllability. |
 
 ## 10. Clause numbers to confirm
 

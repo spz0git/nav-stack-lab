@@ -4,6 +4,15 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- Safety, lesson 2 (Hazards and risk): controllability is now rated from the robot's side, as it should be for a robot
+  with no driver: whether the robot itself can still avoid the harm once the danger begins, which by braking means a
+  time to contact longer than its stopping time (about 1.15 s on the busy floor). People who step aside are no longer
+  counted as controllability; the lesson shows them as credit taken from others, an assumption a hazard log has to
+  state. Chapter 8 §3 and the glossary say the same, and the chapter's table has the time each run spent beyond the
+  robot's control.
+
 ## v69 · 2026-10-26
 
 - The page is about 0.9 MB lighter (4.7 → 3.8 MB; 1.41 → 1.20 MB compressed): it no longer carries the simulation

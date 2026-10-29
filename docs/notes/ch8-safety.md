@@ -69,7 +69,13 @@ E_s = \frac{T_s}{T_{op}}.
 $$
 The lab counts $T_s$ for having a person within 2 m (Metrics → Person within 2 m) and for reversing. Exposure is a property of the domain and the mission, and of the behaviour: the speed planner waits near people, so it spends more time near them than a robot that ignores them.
 
-**Controllability.** Whether the people involved can avoid the harm. With no driver, it is the person in the aisle: scripted people never step aside, reacting people (Vehicle → People → Reactive) do. The difference between the two on the same seeds is the measured share of harm the people avert themselves. Most analyses of driverless systems take no credit for it, because a person who is looking at a phone, or carrying a box, does not step aside.
+**Controllability, from the robot's side.** ISO 26262 asks whether the driver, or others involved, can avoid the harm. This robot has no driver: the one meant to control the situation is the robot itself, so the lab rates whether the robot can still avoid the harm, or soften it, once the hazardous event begins. By braking alone it can when the time to contact is longer than its stopping time,
+$$
+t_{contact} > T_{stop} = \tau + \frac{v}{a},
+$$
+with $\tau$ the actuator lag. On the busy floor ($v$ = 0.8 m/s, $a$ = 0.8 m/s², $\tau$ = 0.15 s) $T_{stop}$ = 1.15 s, so the seconds with less than a second to contact (Metrics → Time to contact) are the seconds beyond the robot's control by braking. Steering away can add to it where there is room; a robot that does nothing has none.
+
+**Credit taken from others.** Reacting people (Vehicle → People → Reactive) step aside; scripted ones never do. The difference between the two on the same seeds is the harm the people avert themselves. It is not the robot's controllability, and most analyses of driverless systems take no credit for it, because a person who is looking at a phone, or carrying a box, does not step aside. A hazard log that counts it records it as an assumption the safety case must defend.
 
 **The integrity level.** ISO 26262 (part 3, 6.4.3 and 6.4.4) combines the three classes, severity in four steps (0 to 3), exposure in five (0 to 4) and controllability in four (0 to 3), into an integrity level from QM (ordinary quality management) through A to D. Its determination table has a simple regularity, which is how the lab states it without reproducing the table: with every class at least 1, the level is D for the sum $s + e + c = 10$ (the worst class on all three scales), C for 9, B for 8, A for 7, and QM below; a class of 0 on any scale gives QM. Each step down in any one scale lowers the level by one step.
 
@@ -77,13 +83,15 @@ The lab counts $T_s$ for having a person within 2 m (Metrics → Person within 2
 
 **Measured** on L5, the busy floor, at seed 7, up to Mission complete; in brackets seeds 2–5:
 
-| Response to people | People | Contacts, speed and class | Person within 2 m | Mission |
-| --- | --- | --- | --- | --- |
-| ignore | scripted | 3 strikes: 1.36, 1.40, 1.60 m/s (the same) | 18.5 of 106 s | 5/5 |
-| ignore | reacting | 2 bumps: 0.61, 0.87 m/s (2–3 bumps, 0.56–0.91) | 20.9 of 107 s | 5/5 |
-| speed planner | scripted | 1 bump: 0.73 m/s (1, 0.71–1.12) | 33.4 of 121 s | 5/5 |
-| speed planner | reacting | none (none; a rack contact on 2 of 4) | 37.0 of 122 s | 5/5 |
-| MPC with predictions | scripted | 1 bump: 0.65 m/s (0–1) | 25.6 of 129 s | 5/5 |
+| Response to people | People | Contacts, speed and class | Time to contact under 1 s | Person within 2 m | Mission |
+| --- | --- | --- | --- | --- | --- |
+| ignore | scripted | 3 strikes: 1.36, 1.40, 1.60 m/s (the same) | 3.1 s (4.2–4.4) | 18.5 of 106 s | 5/5 |
+| ignore | reacting | 2 bumps: 0.61, 0.87 m/s (2–3 bumps, 0.56–0.91) | 3.9 s (4.0–4.2) | 20.9 of 107 s | 5/5 |
+| speed planner | scripted | 1 bump: 0.73 m/s (1, 0.71–1.12) | 2.9 s (2.1–2.9) | 33.4 of 121 s | 5/5 |
+| speed planner | reacting | none (none; a rack contact on 2 of 4) | 1.0 s (0.7–2.1) | 37.0 of 122 s | 5/5 |
+| MPC with predictions, its time budget off | scripted | none (none on 3 of 4; a strike at 1.10 m/s on seed 4) | 0.9 s (0–1.3) | 25.5 of 124 s | 5/5 |
+
+The robot's controllability shows down the third column: the speed planner acts on what it sees and cuts the time beyond its control (from 3.1 to 2.9 s at seed 7, from 4.2–4.4 to 2.1–2.9 s on seeds 2–5), while the people's own avoidance (the second row) leaves it where it was. The MPC row is measured with its 15 ms solve budget off (`mpcBudget` 0): with the budget on, the solver stops at a wall-clock limit, so the same seed can give one contact on one run and none on the next.
 
 And L6, the parking lot, at seed 7: no contact, reversing for 31.1 of 148 s (30–39 s on seeds 2–5) and a person within 2 m for 57.6 s. Only one row meets the safety goal on every seed, and it takes credit for the people stepping aside.
 

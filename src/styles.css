@@ -460,6 +460,10 @@ dialog:focus-visible {
 .lvlmenu[hidden] {
   display: none;
 }
+.lvlmenu .more-below {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
+}
 .lvl-list {
   display: flex;
   flex-direction: column;
@@ -1673,6 +1677,27 @@ dialog:focus-visible {
 .saf-list .bad,
 .exptab td.bad {
   color: var(--bad);
+}
+/* the hazard-analysis tables in the safety lessons: class, meaning, the lab's measure; the integrity grid centred */
+.exptab.hara th,
+.exptab.hara td {
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+}
+.exptab.hara th:first-child,
+.exptab.hara td:first-child {
+  min-width: 0;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.exptab.hara.asil table {
+  width: auto;
+}
+.exptab.hara.asil th:nth-child(n + 3),
+.exptab.hara.asil td:nth-child(n + 3) {
+  text-align: center;
+  min-width: 3.2em;
 }
 .expchart {
   width: 100%;

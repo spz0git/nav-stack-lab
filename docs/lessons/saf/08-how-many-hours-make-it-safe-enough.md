@@ -28,7 +28,7 @@ Answer: 0
 
 ## Try: People who react: nothing left to count
 cfg: {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":{"name":"ODD-1, people who react","family":"warehouse","like":"L5","w":24,"h":16,"ranges":{"aisle":[2,3.2],"people":[0,4],"stepout":[0,0]},"weather":["clear"],"people":["reactive"]},"budget":40,"rounds":0,"seed":1,"run":true}}
-Setup: The same domain with people who react to the robot (the social-force model lesson 2 used for controllability).
+Setup: The same domain with people who react to the robot (the social-force model lesson 2 used to measure what the people's own avoidance is worth).
 See: No strike in 1.26 hours.
 | Search seed | Hours of operation | Contacts with the robot moving |
 |---|---|---|

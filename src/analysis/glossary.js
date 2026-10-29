@@ -1118,7 +1118,7 @@ Object.assign(GLOSS, {
   ],
   severity: [
     'severity',
-    'How badly a hazardous event could hurt. The lab rates the relative speed at contact: touch below 0.3 m/s, bump up to 1 m/s, strike above (the lab’s own scale, not a standard’s).',
+    'How badly a hazardous event could hurt. The lab rates the relative speed at contact: touch below 0.3 m/s, bump up to 1 m/s, strike above (the lab’s own scale, not a standard’s); as classes S0 (touch) to S3 (a strike above 2 m/s).',
     '',
     ['severity']
   ],
@@ -1142,7 +1142,7 @@ Object.assign(GLOSS, {
   ],
   controllability: [
     'controllability',
-    'Whether the people involved can avoid the harm. With no driver, it is the person in the aisle stepping aside.',
+    'Whether the situation can still be brought under control so the harm is avoided. With no driver, the lab rates it from the robot’s side: an independent measure, such as a safety stop, that stops it in time (C1 to C3); people stepping aside earn no credit.',
     '',
     ['controllability']
   ],

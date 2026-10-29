@@ -4,6 +4,17 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- Safety lesson "Hazards and risk": controllability is now rated from the robot's side. The robot has no driver, so
+  the question is whether something on the robot that still works, such as the lidar safety stop, avoids the harm in
+  time; people stepping aside earn no credit. Chapter 8 and the glossary say the same.
+- The same lesson defines every term in its two equations (relative speed and exposure), and shows the scales as
+  tables: severity S0–S3 with the lab's speed classes, exposure E0–E4, controllability C0–C3, and the integrity
+  level (QM to D) for every combination, with one hazard rated through them.
+- The level menu fades out at the bottom while there is more to scroll, in the level list and in the quick
+  experiments, so a cut-off line reads as "scroll for more".
+
 ## v69 · 2026-10-26
 
 - The page is about 0.9 MB lighter (4.7 → 3.8 MB; 1.41 → 1.20 MB compressed): it no longer carries the simulation

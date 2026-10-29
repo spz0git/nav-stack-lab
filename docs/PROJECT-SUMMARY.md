@@ -4,11 +4,11 @@ project: nav-stack-lab
 title: Nav Stack Lab
 kind: code
 source: https://github.com/spz0git/nav-stack-lab
-commit: 835ab97
+commit: 6a31ff8
 updated: 2026-10-29
 status: active
-stage: v70 (2026-10-29) answers Spy's review comments on the live page: safety lesson 2 rebuilt around a worked hazard analysis of the busy floor
-next_action: Spy closes the superseded PRs #139, #141 and #142 and picks the next track: the live simulation in a worker (about a week) or a feature track
+stage: v71 (2026-10-29) answers Spy's questions on the safety lessons: the Metrics list is linked from the text, the measures defined in place, the seeds explained
+next_action: Spy picks the next track: the live simulation in a worker (about a week) or a feature track
 blocked_on: nothing
 confidential: false
 ---
@@ -19,12 +19,12 @@ confidential: false
 A robot navigation simulator and course in one offline HTML file, for students and engineers learning how localization, perception, planning, control and safety standards fit together. The repo is private; the live page is a claude.ai artifact (https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7). GitHub Pages stays off until the repo goes public.
 
 ## Status
-- v70 (2026-10-29) answers Spy's live-page comments: safety lesson 2 gets defined symbols, severity and integrity tables, L5's hazard log and controllability beside the robot's avoidance margin; near answers count; the level menu shows more below.
-- v69 (2026-10-26) closed Phase C of the 2026-10-25 audit; only the live simulation in a worker remains of that plan.
+- v71 (2026-10-29): every mention of the Metrics list in the safety lessons opens the dock and marks the row; lesson 3 defines the safety measures in place; lesson 1 explains the world seed and the run seed.
+- v70 (2026-10-29): safety lesson 2 rebuilt around a worked hazard analysis of the busy floor.
+- v69 (2026-10-26) closed Phase C of the 2026-10-25 audit; only the live simulation in a worker remains.
 - Testing: CI on every PR, the scoped gate before each merge, the full suite of twelve nightly.
-- Release tags: none on the remote yet (v67–v70); the session's git proxy has refused tag pushes.
+- Release tags: none on the remote yet (v67–v71); the session's git proxy has refused tag pushes.
 - Waiting on Spy:
-  - closing the superseded PRs #139, #141 and #142;
   - the 33 clause numbers;
   - public or private;
   - the next track.
@@ -45,6 +45,6 @@ Out of scope: runtime dependencies or network access, reproducing the safety sta
 ## Next big items
 1. The live simulation in a worker, the audit's last item: a render-only mirror of the state and a message protocol the tests also move to — Claude · about a week, its own phase.
 2. Confirm the 33 clause numbers the safety lessons cite, the five the audit flags first — Spy · an hour.
-3. Push the v67–v70 release tags from a machine whose git can push tags — Spy · minutes.
+3. Push the v67–v71 release tags from a machine whose git can push tags — Spy · minutes.
 4. Pick the next track: sensors, environments, or the learning tracks — Spy · a decision.
 5. Go public and turn Pages on — Spy · a decision.

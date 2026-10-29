@@ -1,1 +1,1 @@
-{"version": 69, "date": "2026-10-26", "note": "Audit fixes, Phase C: the long core functions split, one track lifecycle, numerics tests, the page 0.9 MB lighter, lesson run logs as tables, shorter chapters, the event log announced, a stable tab row, Changed/Runs/View at mid widths"}
+{"version": 70, "date": "2026-10-29", "note": "Safety lesson 2: controllability rated from the robot side, people stepping aside counted as credit taken from others (PR #141)"}

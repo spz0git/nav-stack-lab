@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v70 · 2026-10-29
 
 - Safety lesson 2 (hazards and risk) now says what each symbol in its relative-speed and exposure equations means,
   and lists them under Terms and symbols.

@@ -30,7 +30,8 @@
     the artifact version the publish will create (the last publish result's version + 1), with the date and a short note;
     the label then matches the artifact's version history (check the publish result's Version against it).
     CI's `npm run version:check` makes the release commit also update `package.json` (with its lock), `CITATION.cff` and
-    the issue templates' placeholders to match, and after the merge tag it: `git tag vNN <merge commit> && git push origin vNN`.
+    the issue templates' placeholders to match. The merge tags itself: `.github/workflows/release.yml` tags it `vNN` and
+    publishes a GitHub Release (that version's changelog, the page attached); do not tag by hand (sessions cannot push tags).
   - The version label opens What's new, which is `CHANGELOG.md` inlined by the build (`tools/changelog.mjs`; `## Unreleased`
     is left out). Write each entry for someone who uses the page; file names and internals go in the PR, not the log.
     In the release commit, rename `## Unreleased` to `## vNN · date`.

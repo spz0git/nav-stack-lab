@@ -6,7 +6,29 @@ title: Hazards and risk: from situations to safety goals
 <p><b>The idea.</b> A hazard is something the robot can do that could hurt someone; in a given operational situation it becomes a hazardous event. Each is rated three ways. Severity, on the lab's own scale since there are no injuries to rate here: the relative speed at contact, a touch below 0.3 m/s, a bump up to 1 m/s, a strike above. Exposure: the share of the operating time spent in the situation. Controllability: whether the people involved can avoid the harm.</p>
 $$v_{rel} = \lVert \mathbf v_r - \mathbf v_p \rVert \qquad E_s = \frac{T_s}{T_{op}}$$
 <p>Here $\mathbf v_r$ and $\mathbf v_p$ are the true velocities of the robot and the person, as vectors, at the moment they touch, and $v_{rel}$, the length of their difference, is the relative speed; for a rack or a wall $\mathbf v_p = 0$. $T_s$ is the time spent in the situation $s$ (for example, with a person within 2 m), $T_{op}$ the operating time, the time the mission runs, and $E_s$ the exposure, the share of the one in the other.</p>
-<p>ISO 26262 combines the three classes into an integrity level from QM up to D. Its table follows a regularity the lab can state without reproducing it: numbering the classes from 1, the level is D when severity, exposure and controllability add up to 10, C for 9, B for 8, A for 7, and QM below. The lab's safety goal for the busy floor: no contact with a person above 0.3 m/s while the robot drives, nothing worse than a touch.</p>
+<p><b>Severity, in the standard's classes.</b> ISO 26262 rates severity by the injuries likely, in four classes, S0 to S3. The lab has no injuries, only speeds, so it lets each of its speed classes stand for one of the standard's. That mapping is the lab's assumption for teaching, not a measurement:</p>
+<div class="exptab txt"><table><thead><tr><th>Lab class</th><th>Relative speed at contact</th><th>Stands for</th><th>The standard's class, in short</th></tr></thead><tbody>
+<tr><td>touch</td><td>below 0.3 m/s</td><td>S0</td><td>no injuries</td></tr>
+<tr><td>bump</td><td>0.3 to 1 m/s</td><td>S1</td><td>light or moderate injuries</td></tr>
+<tr><td>strike</td><td>above 1 m/s</td><td>S2</td><td>severe injuries, survival likely</td></tr>
+<tr><td>(none)</td><td>not used by the lab</td><td>S3</td><td>life-threatening or fatal injuries</td></tr>
+</tbody></table></div>
+<p><b>The integrity level.</b> Exposure is rated E0 to E4: E2 for a situation that takes up under 1 % of the operating time, E3 for 1 to 10 %, E4 for more than 10 %. Controllability is rated C0 to C3: C1 when nearly everyone involved (99 % or more) would avoid the harm, C2 when most would (90 % or more), C3 when fewer would. ISO 26262 combines the three classes into an integrity level from QM up to D. The lab does not reproduce the standard's table, but the rule behind it is short: add the three class numbers.</p>
+<div class="exptab txt"><table><thead><tr><th>S + E + C</th><th>Integrity level</th></tr></thead><tbody>
+<tr><td>10 (S3, E4, C3: the worst on every scale)</td><td>D, the most rigorous</td></tr>
+<tr><td>9</td><td>C</td></tr>
+<tr><td>8</td><td>B</td></tr>
+<tr><td>7</td><td>A</td></tr>
+<tr><td>6 or less, or any class 0</td><td>QM: ordinary quality management, no integrity level</td></tr>
+</tbody></table></div>
+<p>Rated that way, the busy floor's hazardous events (the numbers from the Try runs below):</p>
+<div class="exptab txt"><table><thead><tr><th>Hazardous event</th><th>S</th><th>E</th><th>C</th><th>Sum</th><th>Level</th></tr></thead><tbody>
+<tr><td>The robot drives into a person in an aisle</td><td>S2</td><td>E4</td><td>C3</td><td>9</td><td>C</td></tr>
+<tr><td>The same, taking credit for people who step aside</td><td>S2</td><td>E4</td><td>C2</td><td>8</td><td>B</td></tr>
+<tr><td>A person walks into the robot standing still</td><td>S1</td><td>E4</td><td>C1</td><td>6</td><td>QM</td></tr>
+</tbody></table></div>
+<p>Why those classes: S2, because the robot that ignores people strikes at 1.36 to 1.60 m/s; S1, because a person walking into a robot standing still makes a bump at most. E4, because a person is within 2 m of the robot for 17 to 30 % of the time. C3, because the analysis takes no credit for people stepping aside; C2, if it takes credit, since most people who react turn a strike into a bump; C1, because a robot standing still is easy to walk round.</p>
+<p>The safety goal takes the level of the worst event it covers. The lab's goal for the busy floor, no contact with a person above 0.3 m/s while the robot drives (nothing worse than a touch), is therefore a level C goal, or B if the analysis takes credit for the people, which most analyses of driverless systems do not.</p>
 <p><b>Where it comes from.</b> The relative speed is the robot's true velocity minus the person's at the first tick of the contact; exposure is counted only while the mission runs. <a class="chref" href="#notes=ch8/3-hazard-analysis-and-risk-assessment">The three scales, the integrity-level rule, and the measured table: chapter 8 §3</a></p>
 <p><b>What the lab does.</b> Every contact is recorded with its speed and class: Metrics → Contacts by speed, beside the event log. Person within 2 m counts the seconds, out of the seconds driving, that a person is within 2 m of the robot, the exposure of the busy floor's main situation; on the car, Reversing counts the seconds in reverse. People react under Vehicle → People. The numbers are seed 7, counted up to Mission complete.</p>
 

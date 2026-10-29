@@ -1649,6 +1649,15 @@ dialog:focus-visible {
   white-space: normal;
   min-width: 140px;
 }
+.exptab.txt th,
+.exptab.txt td {
+  text-align: left;
+  white-space: normal;
+  vertical-align: top;
+}
+.exptab.txt td:first-child {
+  min-width: 0;
+}
 .exptab th {
   font-weight: 600;
   color: var(--muted);

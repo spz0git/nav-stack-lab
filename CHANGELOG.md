@@ -8,6 +8,10 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 - Safety lesson 2 (hazards and risk) now says what each symbol in its relative-speed and exposure equations means,
   and lists them under Terms and symbols.
+- Safety lesson 2 shows how an integrity level is worked out, in tables: the lab's touch, bump and strike against
+  the standard's severity classes, the level each sum of severity, exposure and controllability gives, and the busy
+  floor's hazardous events rated class by class (level C for driving into a person, B with credit for people who
+  step aside). Chapter 8 §3 gives the same classes in words.
 
 ## v69 · 2026-10-26
 

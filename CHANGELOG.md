@@ -12,6 +12,8 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   the standard's severity classes, the level each sum of severity, exposure and controllability gives, and the busy
   floor's hazardous events rated class by class (level C for driving into a person, B with credit for people who
   step aside). Chapter 8 §3 gives the same classes in words.
+- Check yourself takes an answer within 5 % of the exact one as close enough and shows the exact value, so a
+  rounded or slightly off working still counts. Questions that ask for an exact count still need it exactly.
 
 ## v69 · 2026-10-26
 

@@ -27,6 +27,17 @@ async def main():
             const h=A.glossMark(L.b,A.lessonTerms(L));if(tx(h)!==tx(L.b))bad.push('text changed: '+L.t);n+=raw.length;m+=(h.match(/class="term"/g)||[]).length;}
           return {lessons:A.LESSON_GROUPS().reduce((a,G)=>a+G.items.length,0),listed:n,marked:m,bad};}""")
         print('GLOSSARY',g); errs+=['GLOSSARY '+x for x in g['bad']]
+        # the self-check: exact is right, within 5 % is close enough with the exact value shown, beyond is not; a count
+        # (Tolerance 0) stays exact
+        async def check(h,v):
+            await pg.evaluate(f"location.hash='{h}'"); await pg.wait_for_timeout(300)
+            g,k=h[7:].split(':'); d=pg.locator(f'#learnview .selfcheck[data-ck="{g}:{int(k)-1}"]'); await d.locator('input').fill(v); await d.locator('.sc-go').click()
+            r=d.locator('.sc-res'); return (await r.get_attribute('class')).split()[-1], (await r.inner_text())[:40]
+        sc={v:await check('lesson=saf:2',v) for v in ['27.6','28','26.5','30']}
+        sc['count 595']=await check('lesson=loc:8','595')
+        print('SELFCHECK',sc)
+        want={'27.6':('ok','Right.'),'28':('ok','Close enough'),'26.5':('ok','Close enough'),'30':('no',''),'count 595':('no','')}
+        errs+=[f'SELFCHECK {v}: {sc[v]}' for v,(k,t) in want.items() if sc[v][0]!=k or not sc[v][1].startswith(t)]
         print('ERR',errs[:5])
         await b.close()
 asyncio.run(main())

@@ -15,7 +15,8 @@
 //     example: <slot>/<id>     the slot example "Edit and run" loads (src/examples/<slot>/<nn>-<id>.js)
 //     Note: …                  what to look at, what to change
 //   ## Think about           "Q: …" and "A: …" pairs
-//   ## Check yourself        Q: … / Answer: <number> / Tolerance: <number> (optional, 0 = exact) / Unit: … / How: …
+//   ## Check yourself        Q: … / Answer: <number> / Tolerance: <number> (optional, 0 = exact; the page also takes
+//                            anything within 5 % of a non-exact answer, ui/learn.js SC_NEAR) / Unit: … / How: …
 // Math is TeX, as in the companion notes: $ … $ inline, $$ … $$ display (in the body it may span lines; in a one-line
 // field it stays on that line). The build turns it into MathML (tools/tex.mjs); the page never sees the TeX.
 // The output has the same shape as the objects the JS files used to hold: {t, b, tries:[[label, cfg, {setup, see,

@@ -29172,7 +29172,10 @@ function predPick(div, k) {
   const d = div.nextElementSibling;
   if (d && d.classList.contains('see')) d.open = true;
 }
-// The numeric self-check: right within the tolerance, or the working after a second miss
+// The numeric self-check: right within the tolerance, or the working after a second miss. A worked answer need not be
+// exact: anything within SC_NEAR of it counts, with the exact value shown, unless the question asks for an exact
+// count (Tolerance 0).
+const SC_NEAR = 0.05;
 const scTries = {};
 function selfCheck(div) {
   const id = div.dataset.ck,
@@ -29191,9 +29194,11 @@ function selfCheck(div) {
     res.textContent = 'Type a number.';
     return;
   }
-  if (Math.abs(x - c.a) <= c.tol) {
+  const err = Math.abs(x - c.a);
+  if (err <= (c.tol ? Math.max(c.tol, SC_NEAR * Math.abs(c.a)) : 0)) {
     res.className = 'sc-res ok';
-    res.innerHTML = `Right. ${c.how}`; // c.how is the lesson's own HTML (MathML from its TeX)
+    // c.how is the lesson's own HTML (MathML from its TeX)
+    res.innerHTML = err <= c.tol ? `Right. ${c.how}` : `Close enough: the exact answer is ${c.a}${c.unit ? ` ${c.unit}` : ''}. ${c.how}`;
     LEARN.check[id] = true;
     learnSave();
     lessonProgRefresh(id);

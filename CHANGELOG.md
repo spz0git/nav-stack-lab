@@ -9,9 +9,10 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 - Safety lesson 2 (hazards and risk) now says what each symbol in its relative-speed and exposure equations means,
   and lists them under Terms and symbols.
 - Safety lesson 2 shows how an integrity level is worked out, in tables: the lab's touch, bump and strike against
-  the standard's severity classes, the level each sum of severity, exposure and controllability gives, and the busy
-  floor's hazardous events rated class by class (level C for driving into a person, B with credit for people who
-  step aside). Chapter 8 §3 gives the same classes in words.
+  the standard's severity classes and the level each sum of severity, exposure and controllability gives. It then
+  walks through the analysis in four steps and builds L5's hazard log: four situations, four hazardous events rated
+  class by class with the reason for each rating, and the safety goal they lead to (level C). Chapter 8 §3 gives the
+  same classes in words.
 - Check yourself takes an answer within 5 % of the exact one as close enough and shows the exact value, so a
   rounded or slightly off working still counts. Questions that ask for an exact count still need it exactly.
 

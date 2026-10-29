@@ -1655,6 +1655,7 @@ dialog:focus-visible {
   white-space: normal;
   vertical-align: top;
 }
+.exptab.txt th:first-child,
 .exptab.txt td:first-child {
   min-width: 0;
 }

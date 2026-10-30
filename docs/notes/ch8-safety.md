@@ -158,6 +158,8 @@ The interval belongs to the situation as much as to the robot: the same fault is
 
 ## 7. Searching the domain
 
+**The three seeds.** A seed is the number that starts a random number generator: the same seed gives the same draws and so the same run, and another seed is another run of the same robot, just as likely. The lab has three. The *world seed* belongs to the level generator (the seed box in the level menu) and fixes a generated warehouse: its racks, its beacons and the routes the people walk. The *run seed* (Vehicle → Random seed, 7 by default) fixes every random draw inside one run: the sensor noise, the particle filter's particles, a sampling planner's samples. The *search seed* (Tools → Safety) fixes the search's own draws, that is which worlds and run seeds the random half picks and how each round perturbs the worst runs. A scenario therefore carries two seeds, its world's and its run's, and a search carries a third that decides which scenarios it holds; the same search seed on the same sheet and budget gives the same scenarios and so the same runs. Every number the lessons quote is for stated seeds, and setting them shows it again. A result over "run seeds 1 to 5" is five runs of the same robot, and how far it moves between them says how much one run can claim.
+
 **Scenarios and their margin.** A scenario is a point of the domain: a generated world (its seed, the aisle width, the number of people and of people who wait for the robot), the weather, whether the people react, and the run's seed. Its run gets a margin, lower being worse,
 $$
 m = \begin{cases} -\max_c v_{rel,c} & \text{if the run had a contact} \\ \min(g_{person},\ g_{rack}) & \text{otherwise,} \end{cases}

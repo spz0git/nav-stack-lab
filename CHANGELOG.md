@@ -4,6 +4,12 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- The seeds a lesson quotes are explained on tap in every lesson that uses them: the world seed (the generated warehouse),
+  the run seed (Vehicle → Random seed) and the search seed (Tools → Safety), and under Terms and symbols at the end of
+  the lesson. Chapter 8 has a short section, The three seeds, with how they fit together.
+
 ## v71 · 2026-10-29
 
 - In the safety lessons, every mention of the Metrics list is a link: it opens the telemetry dock and marks the row

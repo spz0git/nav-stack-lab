@@ -3,7 +3,7 @@
 Status: built, all four phases and nine lessons (v60–v66, 2026-10-22 to 2026-10-24): phases 1 and 2 (v60, v61), phase 3
 (v64), phase 4a (v65: rates, importance sampling, leading indicators, lesson 8) and 4b (v66: the ODD monitor, the
 argument, storage, lesson 9). Decision 4 was looked at again with the argument graph: it fits the Tools tab with a
-full-width view, so Safety stays a Learn group and a Tools tab. The clause numbers of section 10 still wait for a check. Written against v59 as a
+full-width view, so Safety stays a Learn group and a Tools tab. The clause numbers of section 10 still wait for a check (since 2026-10-30 only this document cites them; see the note under "Rules for writing it"). Written against v59 as a
 proposal for a new track inside Nav Stack Lab that teaches the ideas of four safety standards by doing them on the
 simulator; what was built is in the roadmap's "Safety lab" sections. The owner's decisions on the design
 questions are recorded in section 9; the clause numbers the track cites wait for the owner's check in section 10.
@@ -57,6 +57,7 @@ teaches these four standards and no others (decision 1).
   (section 10) is pending. A confirmed number loses the caveat in the lessons that cite it (so far one: ISO 26262-2
   6.4.8, confirmed from the 2018 edition's contents page, in saf/09); a corrected one is changed in the lessons, the
   chapter and this document together.
+- **Note, 2026-10-30: the lessons and chapter 8 no longer cite clauses.** The rule above is the earlier policy; the owner found bare clause numbers confusing for a reader who cannot open the texts. Each lesson now says in its own words what its standard asks for and why, and chapter 8 §1 introduces the four standards once, with a link to each publisher's page and the statement that the lab paraphrases them. Clause numbers stay in this document only, for checking the design against the texts.
 - **Measured, not asserted.** As everywhere in the lab, every number in a lesson's "What you will see" is measured
   headless first, and a Predict's answer holds at other seeds and can be checked by looking at the page.
 - **The lab's own scales are labelled as such.** Where the track needs a scale the standards define for cars (severity,
@@ -492,7 +493,7 @@ The owner's answers to the design questions (2026-10-22). Question 2, the clause
 | # | Question | Decision |
 | --- | --- | --- |
 | 1 | Which standards | Only the four: ISO 26262, ISO 21448, ISO/PAS 8800 and UL 4600. No sidebar on the robot-specific standards, and no companion standards cited; GSN is used as a notation only. |
-| 2 | Clause numbers | First: the owner checks them in section 10, and no lesson cites an unchecked row. Changed 2026-10-22 (the licensed texts are not available here): the lessons and chapter cite the best available numbers of section 10, say that they come from public outlines and are unchecked, and a row is corrected wherever it is cited once someone checks it. |
+| 2 | Clause numbers | First: the owner checks them in section 10, and no lesson cites an unchecked row. Changed 2026-10-22 (the licensed texts are not available here): the lessons and chapter cite the best available numbers of section 10, say that they come from public outlines and are unchecked, and a row is corrected wherever it is cited once someone checks it. Changed 2026-10-30: the lessons and the chapter cite no clause numbers at all (the owner found bare clause numbers confusing for a reader who cannot open the texts); the numbers stay in section 10. |
 | 3 | Severity scale | The lab's own scale from the relative speed at contact, labelled as the lab's: under 0.3 m/s, 0.3–1 m/s, over 1 m/s. |
 | 4 | Tools tab or mode | A Learn group `saf` plus Tools → Safety. Revisited after phase 2 (2026-10-24): it stays so, since the safety work happens on runs the map shows; looked at again with phase 4, once the GSN graph shows whether it needs a mode's room. |
 | 5 | Page size | About +320 KB (to about 4.65 MB) accepted; the models' lighter export stays a separate item. |
@@ -504,6 +505,8 @@ The owner's answers to the design questions (2026-10-22). Question 2, the clause
 | 11 | The ODD monitor | In scope for phase 4 (C6), off by default. |
 
 ## 10. Clause numbers to confirm
+
+Note, 2026-10-30: the lessons and chapter 8 no longer cite these numbers (the owner found bare clause numbers confusing for a reader who cannot open the texts), so a correction here changes only this document. The "Where cited" column records where each number was cited until then.
 
 Every clause number this document and the draft lessons cite, against the 2018 edition of ISO 26262, ISO 21448:2022,
 ISO/PAS 8800:2024 and the third edition of ANSI/UL 4600 (2023). None was checked against a licensed copy: the

@@ -501,7 +501,30 @@ const GLOSS = {
   ],
   rrad: ['<i>r</i>', 'Neighbourhood radius; it shrinks as the tree grows.', 'm', ['r']],
   ntree: ['<i>n</i>', 'Number of nodes in the tree.', '', ['n']],
-  seed: ['seed', 'Starting value of the random number generator: the same seed gives the same run.', '', ['seed']],
+  seed: [
+    'seed',
+    'The number that starts a random number generator: the same seed gives the same draws, so the same run, and another seed is another run of the same robot, just as likely. The lessons quote three kinds: the <i>world seed</i> (level menu, generator) fixes a generated warehouse, the <i>run seed</i> (Vehicle → Random seed) fixes the noise and the samples in a run, and the <i>search seed</i> (Tools → Safety) fixes the runs a search makes. A number a lesson quotes at a seed is the number you see when you set that seed. Chapter 8, “The three seeds” (§7).',
+    '',
+    ['seed', 'seeds']
+  ],
+  worldseed: [
+    'world seed',
+    'The seed of the level generator (level menu, the seed box or Next seed): it fixes a generated warehouse, that is its racks, its beacons and the routes the people walk. A search lists it as “world 4374”. It does not touch the noise in a run; that is the run seed.',
+    '',
+    ['world seed', 'world seeds']
+  ],
+  runseed: [
+    'run seed',
+    'Vehicle → Random seed (7 by default, applied on Reset): every random draw in one run, that is the sensor noise, the particle filter’s particles and the sampling planner’s samples. The same run seed in the same world gives the same run exactly; “run seeds 1 to 5” are five runs of the same robot in the same world.',
+    '',
+    ['run seed', 'run seeds']
+  ],
+  searchseed: [
+    'search seed',
+    'Tools → Safety, Search seed: the search’s own draws, that is which worlds it picks and how it perturbs the worst of them. The same search seed on the same sheet and budget gives the same runs again; another search seed is another random sample of the domain.',
+    '',
+    ['search seed', 'search seeds']
+  ],
   hybrid: [
     'Hybrid A*',
     'A* over grid cells in which every node keeps a continuous pose and every edge is an arc the car can drive.',
@@ -869,7 +892,12 @@ const GLOSS = {
     ['one-dimensional convolution', '1D convolution', 'convolution']
   ],
   precision: ['precision', 'The share of detections that are real: true detections over all detections.', '', ['precision']],
-  recall: ['recall', 'The share of real people that were detected: true detections over detectable people.', '', ['recall']],
+  recall: [
+    'recall',
+    'The share of the people the scan hits that the detector finds: true positives over true positives plus false negatives, TP / (TP + FN). People the scan never hits are in neither count.',
+    '',
+    ['recall']
+  ],
   distshift: [
     'distribution shift',
     'A learned block meeting inputs unlike its training data: a new sensor, site or behaviour; the central risk of learned components.',
@@ -1443,69 +1471,71 @@ Object.assign(GLOSS, {
 });
 const LESSON_TERMS = {
   'What the stack was built for: the operating domain':
-    'odd margin wallclear contacts sevclass speedplanner pf unlabeled costmap inflation lidar beacon fog track',
+    'odd margin wallclear contacts sevclass speedplanner pf unlabeled costmap inflation lidar beacon fog track seed worldseed runseed searchseed',
   'Hazards and risk: from situations to safety goals':
-    'hara hazard hazevent opsit severity sevclass vrel vrelS vrob vped exposure Esit Tsit Top controllability avoidmargin ttcsafe tstopS treactS amaxS margS asil safetygoal speedplanner socialforce contacts closest sotif',
+    'hara hazard hazevent opsit severity sevclass vrel vrelS vrob vped exposure Esit Tsit Top controllability avoidmargin ttcsafe tstopS treactS amaxS margS asil safetygoal speedplanner socialforce contacts closest sotif seed',
   'Something breaks: detect it, react, in time':
-    'fault ftti safetymech safestate faultsched fmea degraded lostguard lidar beacon pf sigx contacts sevclass speedplanner',
+    'fault ftti safetymech safestate faultsched fmea degraded lostguard lidar beacon pf sigx contacts sevclass speedplanner seed',
   'Learned blocks: the data is the specification':
-    'slice coverage ood monitor recall distshift multimodal prederr mlp fog track speedplanner contacts lidar beam',
+    'slice coverage ood monitor recall distshift multimodal prederr mlp fog track speedplanner contacts lidar beam seed',
   'The safety argument: claims, evidence, and what breaks it':
-    'safecase gsn defeater assumption oddmon mrm odd hazard contacts sevclass scenario scenset ruleof3 fog lidar ood',
+    'safecase gsn defeater assumption oddmon mrm odd hazard contacts sevclass scenario scenset ruleof3 fog lidar ood seed searchseed',
   'How many hours make it safe enough':
-    'ruleof3 poisson impsamp effhours leadind spearman exposure scenario refine sevclass contacts closest ttcsafe odd',
+    'ruleof3 poisson impsamp effhours leadind spearman exposure scenario refine sevclass contacts closest ttcsafe odd seed searchseed',
   'Mitigations, and what they cost':
-    'aeb falsestop avail ttc radar doppler ghost clutter guard fog sotif trigcond safestate contacts sevclass scenset monitor',
+    'aeb falsestop avail ttc radar doppler ghost clutter guard fog sotif trigcond safestate contacts sevclass scenset monitor seed',
   'Looking for the failures nobody wrote down':
-    'scenario runmargin refine scenset odd fourareas trigcond sevclass contacts guard speedplanner',
+    'scenario runmargin refine scenset odd fourareas trigcond sevclass contacts guard speedplanner seed worldseed runseed searchseed',
   'Nothing breaks, and it still fails: triggering conditions':
-    'sotif funcins trigcond fourareas fault speedplanner multimodal fog lidar track lostguard mirror unlabeled pf sonar deadzone guard ttcsafe degraded contacts sevclass',
+    'sotif funcins trigcond fourareas fault speedplanner multimodal fog lidar track lostguard mirror unlabeled pf sonar deadzone guard ttcsafe degraded contacts sevclass seed',
   'GNSS: the noise is not white':
-    'gnss gaussmarkov white bias augstate multipath outage gate d2 chi2 nees band2s overconf consistent ekf Hjac K odometry deadreck kidnap joseph',
+    'gnss gaussmarkov white bias augstate multipath outage gate d2 chi2 nees band2s overconf consistent ekf Hjac K odometry deadreck kidnap joseph seed',
   'Placing the poles on purpose: pole placement and LQR': 'poleplace lqr pole zeta wn Ke kth rwf DM pm overshoot ts plantgain hold pade',
   'Pose-graph SLAM: the map that closes the loop':
-    'posegraph keyframe loopclosure icp scanmatch gaussnewton drift odometry covariance gyro lidar logodds frontier',
+    'posegraph keyframe loopclosure icp scanmatch gaussnewton drift odometry covariance gyro lidar logodds frontier seed',
   'Scan matching: the lidar as a position sensor':
-    'scanmatch gaussnewton lidar disttrans ekf kgain nees gate d2 kidnap covariance ellipse poserr beacon',
+    'scanmatch gaussnewton lidar disttrans ekf kgain nees gate d2 kidnap covariance ellipse poserr beacon seed',
   'A gyro in the loop: heading is the expensive error':
-    'gyro bias zupt deadreck odometry thetaerr sigx Modo poserr consistent nees band2s ekf beacon',
+    'gyro bias zupt deadreck odometry thetaerr sigx Modo poserr consistent nees band2s ekf beacon seed',
   'Dead reckoning drifts, and knows it':
-    'deadreck odometry arc v w covariance mu gmot uodo Sigma Gjac Vjac Modo sigx t thetaerr ellipse poserr band2s consistent',
+    'deadreck odometry arc v w covariance mu gmot uodo Sigma Gjac Vjac Modo sigx t thetaerr ellipse poserr band2s consistent seed',
   'The Kalman update, and NEES as a lie detector':
-    'beacon rb ekf nu z zhat kgain Sinn Hjac Qmeas K mu Sigma Iid nees eerr overconf bias assumed joseph',
+    'beacon rb ekf nu z zhat kgain Sinn Hjac Qmeas K mu Sigma Iid nees eerr overconf bias assumed joseph seed',
   'Gating, and the kidnapped robot':
-    'kidnap particle ellipse poserr unlabeled mahal gate d2 nu Sinn chi2 clutter ekf knownids pf inject hyp',
+    'kidnap particle ellipse poserr unlabeled mahal gate d2 nu Sinn chi2 clutter ekf knownids pf inject hyp seed',
   'Particles: resampling, injection and symmetry':
-    'pf motionmodel particle likelihood resample neff lowvar sumP wi Npart amcl wfs wavg inject globalloc mirror unlabeled lidar',
+    'pf motionmodel particle likelihood resample neff lowvar sumP wi Npart amcl wfs wavg inject globalloc mirror unlabeled lidar seed',
   'EKF-SLAM: the map is part of the state':
-    'slam landmark xslam mlm Pslam nlm ppos rr bb Pmm Jxz Qmeas correlated drift deadreck loopclosure',
-  'Log-odds mapping': 'lidar beam grid logodds clamp l lmeas lfh estframe deadreck bresenham',
+    'slam landmark xslam mlm Pslam nlm ppos rr bb Pmm Jxz Qmeas correlated drift deadreck loopclosure seed',
+  'Log-odds mapping': 'lidar beam grid logodds clamp l lmeas lfh estframe deadreck bresenham seed',
   'Sonar: one number for a whole cone':
-    'sonar cone specular deadzone crosstalk arcmodel conelik guard logodds lmeas pf likelihood contacts closest lidar',
-  'Costmap: lethal cells and the inflation band': 'costmap disttrans lethal inflation dobs penalty winf edgecost frontier',
+    'sonar cone specular deadzone crosstalk arcmodel conelik guard logodds lmeas pf likelihood contacts closest lidar seed',
+  'Costmap: lethal cells and the inflation band': 'costmap disttrans lethal inflation dobs penalty winf edgecost frontier seed',
   'Tracking people: from lidar hits to tracks':
-    'cluster lidar cvkf track mahal confirm coast xag pxy vxy Fcv Rproc Qtrk siga d2 pt pag vag t rt rag ggrow groundtruth',
-  'Sensor latency: stale readings, moving prediction': 'latency tick lidar beacon nu Ts v nees ekf pf inject timestamp lagged biased',
+    'cluster lidar cvkf track mahal confirm coast xag pxy vxy Fcv Rproc Qtrk siga d2 pt pag vag t rt rag ggrow groundtruth seed',
+  'Sensor latency: stale readings, moving prediction': 'latency tick lidar beacon nu Ts v nees ekf pf inject timestamp lagged biased seed',
   'A learned detector: people from the shape and motion of the hits':
-    'conv1d precision recall distshift track cvkf cluster lidar logodds agent icp speedplanner odometry deadreck pf',
+    'conv1d precision recall distshift track cvkf cluster lidar logodds agent icp speedplanner odometry deadreck pf seed',
   'A learned predictor: three futures for each person':
-    'mlp mixture resp wta multimodal prederr cvkf track speedplanner socialforce contacts closest groundtruth distshift',
+    'mlp mixture resp wta multimodal prederr cvkf track speedplanner socialforce contacts closest groundtruth distshift seed',
   'Radar: speed from the echo':
-    'radar doppler angres ghost egomotion ttc xconfirm fog cvkf track gate chi2 mahal ekf Hjac confirm coast speedplanner moose lidar joseph',
+    'radar doppler angres ghost egomotion ttc xconfirm fog cvkf track gate chi2 mahal ekf Hjac confirm coast speedplanner moose lidar joseph seed',
   'Velocity obstacles: steering around people in velocity space':
-    'vo rvo track cvkf agent speedplanner socialforce contacts closest lidar costmap tracker',
-  'People who react': 'socialforce Fsf v0p edir vp tausf sumO Asf rij dpp Bsf ndir contacts closest',
-  'A*: the heuristic and ε': 'astar node fcost gcost hcost heur admissible eightconn octile eps weighted expansions',
+    'vo rvo track cvkf agent speedplanner socialforce contacts closest lidar costmap tracker seed',
+  'People who react': 'socialforce Fsf v0p edir vp tausf sumO Asf rij dpp Bsf ndir contacts closest seed',
+  'A*: the heuristic and ε': 'astar node fcost gcost hcost heur admissible eightconn octile eps weighted expansions seed',
   'RRT*: sampling, rewiring, and luck': 'rrtstar samples parent rewire neigh asym rrad ntree seed',
-  'Hybrid A*: planning for a car': 'hybrid heading minturn arcs reverse heur hcost eps dijkstra rs analytic steerlimit fulllock tracker',
-  'Replanning and the behaviour layer': 'fsm replan lethal estimate speedplanner agent states costmap',
+  'Hybrid A*: planning for a car':
+    'hybrid heading minturn arcs reverse heur hcost eps dijkstra rs analytic steerlimit fulllock tracker seed',
+  'Replanning and the behaviour layer': 'fsm replan lethal estimate speedplanner agent states costmap seed',
   'An end-to-end policy: from the scan to a path, and why it is hard':
-    'bc compounding dagger dart mlp mixture resp wta multimodal distshift astar costmap inflation tracker lidar precision speedplanner',
+    'bc compounding dagger dart mlp mixture resp wta multimodal distshift astar costmap inflation tracker lidar precision speedplanner seed',
   'D* Lite: repairing the plan instead of starting over':
-    'dstar rhs km astar heur expansions costmap lethal inflation penalty replan fsm eps node',
+    'dstar rhs km astar heur expansions costmap lethal inflation penalty replan fsm eps node seed',
   'Frontier exploration: the robot picks its own goals':
-    'frontier frontiercell floorseen logodds lethal inflation costmap fsm replan estimate',
-  'Space-time A*: planning with time as a coordinate': 'sta refspeed horizon ijk kidx t dtst v0r cij pa rrobot speedplanner expansions',
+    'frontier frontiercell floorseen logodds lethal inflation costmap fsm replan estimate seed',
+  'Space-time A*: planning with time as a coordinate':
+    'sta refspeed horizon ijk kidx t dtst v0r cij pa rrobot speedplanner expansions seed',
   'The loop being analyzed':
     'tracker v0c integrator the gpl uc wturn delta Lwb ectl derivative opoint findiff hold latency actlag frenet zero',
   'Pure pursuit is a PD controller': 'pd carrot Ld alpha the ectl pp curv linearized wturn v0c Ls sL Td wc pm delta Lwb gpl inscribed',
@@ -1513,7 +1543,7 @@ const LESSON_TERMS = {
   'Nyquist and the −1 point': 'pole Ls m1 wfreq nyqcrit encircle Nenc Zun Pun Ms Td argprinc',
   'Delay margin: the latency budget': 'pm DT wc DM latency limitcycle steptest descfn',
   'Poles, damping and the step response': 'pole zdisc sL Tsamp zeta wn overshoot ts rwf v0c kth rootlocus rhp gm lyapunov',
-  'Actuator lag, and what MPC assumes': 'firstorder tau wfreq mpc predmodel actlag pm Ms Kc',
+  'Actuator lag, and what MPC assumes': 'firstorder tau wfreq mpc predmodel actlag pm Ms Kc seed',
   'Integral action and steady-state error': 'bias stepdist ess dbias Ke1 integrator pid Ki sL mpc',
   'Linear versus nonlinear': 'smallsig steerrate ratelim injsine descfn lockin',
   'Speed changes the plant: gain scheduling': 'plantgain v0c Lwb v delta the Ld L0 kpp wc rwf curv cruise gainsched pp',
@@ -1521,11 +1551,11 @@ const LESSON_TERMS = {
     'tracker cruise openloop latency actlag Gs Tlat tau bandwidth rise mpc aacc Kv vref aprev steptest',
   'The estimator in the loop': 'estimate ekf beacon odometry eest ectl Ls uc injection crossover',
   "When the wheels don't go where they point":
-    'dynbike tyreslip slipang cornstiff understeer kus vch yawr v delta Lwb sideslip odometry deadreck gyro tracker cruise alatcap',
-  'Running out of grip': 'mug ay alatcap curv tyreslip slipang understeer fulllock tracker cruise kus',
+    'dynbike tyreslip slipang cornstiff understeer kus vch yawr v delta Lwb sideslip odometry deadreck gyro tracker cruise alatcap seed',
+  'Running out of grip': 'mug ay alatcap curv tyreslip slipang understeer fulllock tracker cruise kus seed',
   'Gain scheduling breaks above v_ch': 'gainsched vch plantgain yawmode pp Ld rwf kth wc pm zeta Ms overshoot steptest kus v0c',
   'The moose test: an MPC that knows the tyres':
-    'moose mpc predmodel tyrempc dynbike vch kus understeer yawr yawmode mug sideslip zeta pm Ms overshoot steptest wc cruise alatcap',
+    'moose mpc predmodel tyrempc dynbike vch kus understeer yawr yawmode mug sideslip zeta pm Ms overshoot steptest wc cruise alatcap seed',
   'Curves: does the straight-line analysis hold?':
     'opoint findiff thdot gpl uc u0 edot v0c the pp rwf curv feedforward stanley pid offset steptest steerrate frenet'
 };

@@ -332,6 +332,33 @@ async def main():
             check(lv[0]=='log' and lv[1].startswith('Robot kidnapped'),f'the log\'s live region reads the newest fault: {lv}')
             await pg.fill('#log-q','kidnap'); await pg.wait_for_timeout(150); await pg.fill('#log-q',''); await pg.wait_for_timeout(150)
             check(await pg.evaluate("document.querySelector('#log-live').children.length")==1,'searching the log announces nothing more')
+            # ---- Learn: a lesson's header steps back as well as on, and the ends of the list have no button for the missing side
+            area('Lesson steps')
+            LH='''() => ({prev: !!document.querySelector('#learn-prev'), next: !!document.querySelector('#learn-next'),
+                pt: (document.querySelector('#learn-prev')||{}).textContent, hash: location.hash,
+                head: document.querySelector('.learn-head').textContent.replace(/\\s+/g,' '),
+                fit: document.querySelector('.learn-head').scrollWidth <= document.querySelector('.learn-head').clientWidth + 1,
+                page: document.scrollingElement.scrollWidth <= document.scrollingElement.clientWidth + 1})'''
+            await fresh(pg,'#lesson=saf:2')
+            h=await pg.evaluate(LH)
+            check(h['prev'] and h['next'] and h['pt']=='← Previous lesson','safety lesson 2 has Previous lesson and Next lesson'+f' {h}')
+            await pg.click('#learn-prev'); await pg.wait_for_timeout(250)
+            h=await pg.evaluate(LH)
+            check('Safety · 1 of ' in h['head'],f'pressing Previous opens safety lesson 1 ({h["head"]})')
+            check(h['prev'] and h['next'],'safety lesson 1 still has both buttons (it is not the first of the list)')
+            await fresh(pg,'#lesson=loc:2')
+            h=await pg.evaluate(LH)
+            check(h['pt']=='← Previous in the first pass',f'a lesson on the first pass offers Previous in the first pass ({h["pt"]})')
+            await pg.click('#learn-prev'); await pg.wait_for_timeout(250)
+            h=await pg.evaluate(LH)
+            check('Localization · 1 of ' in h['head'],f'it opens lesson 1 of the first group ({h["head"]})')
+            check(not h['prev'] and h['next'],'lesson 1 of the first group has no Previous button, and still has Next')
+            for (w,hh) in [(1024,768),(390,844)]:
+                await pg.set_viewport_size({'width':w,'height':hh}); await pg.wait_for_timeout(250)
+                await fresh(pg,'#lesson=loc:2')
+                h=await pg.evaluate(LH)
+                check(h['prev'] and h['next'] and h['fit'] and h['page'],f'{w} px: the lesson header holds Previous and Next without sideways scroll {h["fit"]} {h["page"]}')
+            await pg.set_viewport_size({'width':1440,'height':900}); await pg.wait_for_timeout(200)
         except Exception as e:  # a step that cannot run (an element gone, a timeout) fails its area; the areas after it do not run
             check(False,'stopped: '+(str(e).strip().split(chr(10))[0])[:160])
         area('')

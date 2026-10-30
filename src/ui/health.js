@@ -17,6 +17,8 @@ const HEALTH = {ev: [], prev: {}, S: null, open: null}; // open: the subsystem w
   row.appendChild(st);
   row.appendChild($('#health'));
 }
+// The short forms of the light names, which the CSS shows where the row is narrow (a data-s attribute on the name)
+const H_SHORT = {loc: 'Loc', per: 'Per', plan: 'Plan', ctl: 'Ctl'};
 function renderHealth() {
   const el = $('#health');
   if (!el || !S) return;
@@ -41,7 +43,7 @@ function renderHealth() {
     }
   const html = H_SYS.map(
     ([k, name]) =>
-      `<button type="button" class="hl ${H[k][0]}" data-sys="${k}" data-hs="${k}" aria-expanded="${HEALTH.open === k}" title="${esc(name)}: ${esc(H[k][1])} (click for every check)"><i aria-hidden="true"></i><b>${name}</b><span>${esc(H[k][1])}</span></button>`
+      `<button type="button" class="hl ${H[k][0]}" data-sys="${k}" data-hs="${k}" aria-expanded="${HEALTH.open === k}" title="${esc(name)}: ${esc(H[k][1])} (click for every check)"><i aria-hidden="true"></i><b data-s="${H_SHORT[k]}">${name}</b><span>${esc(H[k][1])}</span></button>`
   ).join('');
   if (el.dataset.h !== html) {
     el.dataset.h = html;

@@ -672,12 +672,13 @@ dialog:focus-visible {
   .statusrow {
     order: 0;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px 18px;
     min-width: 0;
   }
   .statusrow > .status {
-    flex: 1 1 auto;
+    flex: 1 1 340px;
     min-width: 0;
     background: none;
     border: 0;
@@ -712,9 +713,34 @@ dialog:focus-visible {
   .statusrow .hl.bad b {
     color: var(--bad);
   }
-  /* beside a lesson the map column is narrower: the lights keep their dots, the names go to the tooltips */
+  /* a light is a dot and its name, always visible: the full word where the row is wide, the short form (data-s:
+     Loc, Per, Plan, Ctl) at mid widths and beside a lesson, where the map column is narrower. The full word stays in
+     the text (font-size 0), so the accessible name does not change. */
+  .statusrow .hl b::after {
+    content: none;
+  }
+}
+@media (min-width: 761px) and (max-width: 1279px) {
+  .statusrow .hl b {
+    font-size: 0;
+  }
+  .statusrow .hl b::after {
+    content: attr(data-s) / '';
+    content: attr(data-s);
+    font-size: var(--fs-small);
+  }
+  .statusrow .hl {
+    padding: 3px 5px;
+  }
+}
+@media (min-width: 1280px) {
   .layout[data-mode='learn'] .statusrow .hl b {
-    display: none;
+    font-size: 0;
+  }
+  .layout[data-mode='learn'] .statusrow .hl b::after {
+    content: attr(data-s) / '';
+    content: attr(data-s);
+    font-size: var(--fs-small);
   }
 }
 .st-note {
@@ -1687,6 +1713,14 @@ dialog:focus-visible {
 .saf-list .bad,
 .exptab td.bad {
   color: var(--bad);
+}
+/* a search a Try started, its progress under the Try in the Learn column (ui/safety.js safTryStatus) */
+.experiments p.saf-trystat {
+  margin: 8px 0 0;
+  padding: 4px 8px;
+  border-left: 3px solid var(--saf);
+  background: var(--panel);
+  font-size: var(--fs-ui);
 }
 .expchart {
   width: 100%;
@@ -5342,12 +5376,9 @@ article.chapter .notes-table td button.try {
   .statusrow > .sensdots {
     flex: 0 0 auto;
   }
-  .layout[data-mode='learn'] .sensdots .sd {
-    font-size: 0;
-    gap: 0;
-  }
-  .layout[data-mode='learn'] .sensdots .sd.blind {
-    font-size: var(--fs-small);
+  /* beside a lesson the sensor names stay: they are the short forms already, a little tighter */
+  .layout[data-mode='learn'] .sensdots {
+    gap: 2px 5px;
   }
 }
 /* the Sensors switches (Localize): one per modality with what it gives */

@@ -69,7 +69,7 @@ Answer: 0
 
 ## Think about
 Q: In which of the five runs was anything broken?
-A: None. Every contact here came from a part of the design that was not good enough for a situation. In the first two runs it was the prediction, in the fog and sonar runs it was the physics of a sensor, and at seed 1 it was the filter's assumption that it can tell the poses apart. ISO 21448 starts from this. A system whose parts all work as specified can still be unsafe, and the work is to find the situations where it is.
+A: None. Every contact here came from a part of the design that was not good enough for a situation. In the first two runs it was the prediction. In the fog and sonar runs it was the physics of a sensor, and at seed 1 it was the filter's assumption that it can tell the poses apart. ISO 21448 starts from this. A system whose parts all work as specified can still be unsafe, and the work is to find the situations where it is.
 Q: The learned predictor fixed the 51 s contact and a new contact appeared near 100 s. Was the new one caused by the fix?
 A: It may or may not have been. With the old predictor the robot was somewhere else at 100 s, because the two runs had already gone different ways at 51 s. Either way, the new contact was unknown before and is known now. So after a change you rerun the whole set of known situations, and the search for unknown ones is never finished.
 Q: Which of the triggering conditions could the stack be taught to notice, and with what?

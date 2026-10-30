@@ -6,6 +6,11 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 ## Unreleased
 
+- A lesson's header has a Previous lesson button beside Next lesson. Along the first pass it steps back along the
+  first pass (Previous in the first pass); the first lesson of the list has no Previous button.
+- The health lights in the status strip always carry their name: Loc, Per, Plan and Ctl beside a lesson and at
+  mid widths (Localize, Perceive, Plan and Control where there is room), and the sensors' names stay beside their
+  dots in Learn too. At mid widths the strip no longer squeezes the status figures; the lights wrap to their own row.
 - The seeds a lesson quotes are explained on tap in every lesson that uses them: the world seed (the generated warehouse),
   the run seed (Vehicle → Random seed) and the search seed (Tools → Safety), and under Terms and symbols at the end of
   the lesson. Chapter 8 has a short section, The three seeds, with how they fit together.

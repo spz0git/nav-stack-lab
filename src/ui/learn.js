@@ -335,6 +335,14 @@ function selfCheck(div) {
   res.className = 'sc-res no';
   res.innerHTML = scTries[id] < 2 ? 'Not quite. Check the units and try once more.' : `Not quite. ${c.how}`;
 }
+// Previous: back along the first pass while the open lesson is on it (and not its first), otherwise the previous lesson in the list
+function learnPrevId(id) {
+  const k = LEARN_PATH.findIndex(p => p[0] === id);
+  if (k > 0) return LEARN_PATH[k - 1][0];
+  const all = allLessonIds(),
+    i = all.indexOf(id);
+  return i > 0 ? all[i - 1] : null;
+}
 // Renders the Learn column: the list (Start here, progress, the groups, the chapters) or the open lesson, and wires every control.
 function renderLearn() {
   const v = $('#learnview');
@@ -343,12 +351,13 @@ function renderLearn() {
   const cur = lessonOpen && lessonItem(lessonOpen);
   const all = allLessonIds(),
     k = cur ? all.indexOf(lessonOpen) : -1,
-    nextId = cur ? learnNextId(lessonOpen) : null;
+    nextId = cur ? learnNextId(lessonOpen) : null,
+    prevId = cur ? learnPrevId(lessonOpen) : null;
   v.classList.toggle('reading', !!cur);
   v.innerHTML =
     `<div class="learn-head">${
       cur
-        ? `<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i + 1} of ${cur.G.items.length}</span>${nextId ? `<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen) && onPath(nextId) ? 'The next lesson of the first pass' : 'The next lesson in the list'}">${onPath(lessonOpen) && onPath(nextId) ? 'Next in the first pass →' : 'Next lesson →'}</button>` : ''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
+        ? `<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i + 1} of ${cur.G.items.length}</span>${prevId ? `<button class="linkbtn" id="learn-prev" type="button" title="${onPath(lessonOpen) && onPath(prevId) ? 'The previous lesson of the first pass' : 'The previous lesson in the list'}">${onPath(lessonOpen) && onPath(prevId) ? '← Previous in the first pass' : '← Previous lesson'}</button>` : ''}${nextId ? `<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen) && onPath(nextId) ? 'The next lesson of the first pass' : 'The next lesson in the list'}">${onPath(lessonOpen) && onPath(nextId) ? 'Next in the first pass →' : 'Next lesson →'}</button>` : ''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
         : `<h2>Lessons</h2>`
     }</div>` +
     (cur ? '' : startHereHTML() + progressHTML()) +
@@ -443,6 +452,8 @@ function renderLearn() {
   ); // loading the level must not undo the lesson's layers
   const bk = $('#learn-back');
   if (bk) bk.onclick = lessonBack;
+  const pv = $('#learn-prev');
+  if (pv) pv.onclick = () => openLesson(prevId);
   const nx = $('#learn-next');
   if (nx) nx.onclick = () => openLesson(nextId);
   const lk = $('#learn-link');

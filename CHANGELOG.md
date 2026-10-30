@@ -14,6 +14,10 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 - The seeds a lesson quotes are explained on tap in every lesson that uses them: the world seed (the generated warehouse),
   the run seed (Vehicle → Random seed) and the search seed (Tools → Safety), and under Terms and symbols at the end of
   the lesson. Chapter 8 has a short section, The three seeds, with how they fit together.
+- The safety lessons no longer list clause numbers from the standards. Each says in a few plain sentences which
+  standard its exercise comes from, what that standard asks for at this step and why. Chapter 8 §1 now introduces
+  the four standards once: who publishes each, which edition the lab follows, what it is for, and a link to its
+  official page.
 
 ## v71 · 2026-10-29
 

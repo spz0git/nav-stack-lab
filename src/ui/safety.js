@@ -24,7 +24,11 @@ const SAF = {
   sets: [],
   saved: [], // ODD sheets saved in this browser
   msg: '',
-  pts: []
+  pts: [],
+  hits: 0, // runs of the search so far with a contact
+  tryNext: null, // the cfg.saf of the Try that asked for the next search, and of the one running (safTryStatus)
+  tryRef: null,
+  gen: 0 // counts the Try buttons that asked for a search: only the latest one's starts
 };
 const SAF_LABEL = {
   aisle: ['Aisles', 'm'],
@@ -245,24 +249,88 @@ function safProgress() {
   if (el) el.textContent = safProg();
   if (bar) bar.style.width = (100 * SAF.done) / Math.max(1, SAF.total) + '%';
 }
+// A finished search in one line: the runs with a contact in each half and the worst margin
+function safSummary() {
+  const R = SAF.results.filter(r => r.margin != null),
+    half = k => {
+      const H = R.filter(r => r.kind === k);
+      return H.length ? `${H.filter(r => r.margin < 0).length} of the ${H.length} ${k === 'random' ? 'random' : 'refined'}` : '';
+    },
+    hit = R.filter(r => r.margin < 0).length,
+    strikes = R.filter(r => r.margin <= -1).length; // a strike: a contact at 1 m/s or more (core/safety.js SAFE_SEV)
+  if (!R.length) return 'no run finished';
+  return `${R.length} runs, ${hit} with a contact${hit ? ` (${strikes} of them a strike)` : ''}: ${[half('random'), half('refine')].filter(Boolean).join(', ')}; the worst margin ${Math.min(...R.map(r => r.margin)).toFixed(2)}`;
+}
+// A search a Try started, reported under that Try in the Learn column, which covers the Safety tab (on a phone it is
+// the whole page). The Try's cfg.saf is the lesson's own object (learn.js passes it on unchanged), so its button is
+// found by it; a Learn column rendered again gets the line back at the next run. text null removes the line.
+function safTryStatus(text) {
+  const v = $('#learnview'),
+    ref = SAF.tryRef;
+  if (!v || !ref) return;
+  const b = [...v.querySelectorAll('button[data-try]')].find(x => {
+    const [g, i, j] = x.dataset.try.split(':'),
+      it = lessonItem(g + ':' + i),
+      t = it && it.L.tries[+j];
+    return t && t[1].saf === ref;
+  });
+  if (!b) return;
+  const card = b.closest('li') || b.parentNode;
+  let p = card.querySelector('.saf-trystat');
+  if (text == null) return p && p.remove();
+  if (!p) {
+    p = document.createElement('p');
+    p.className = 'saf-trystat';
+    const head = b.closest('.exp-head') || b;
+    head.after(p);
+  }
+  p.textContent = text;
+}
 async function safSearch() {
   if (SAF.running || oddSheetError(SAF.sheet)) return;
   const sh = oddCopy(SAF.sheet),
     extra = safExtra(),
     plan = searchPlan(SAF.budget, SAF.rounds),
     u = makeRng(SAF.seed * 7919 + 17).u;
-  Object.assign(SAF, {running: true, cancel: false, results: [], done: 0, total: plan.reduce((a, s) => a + s.n, 0), msg: ''});
+  Object.assign(SAF, {
+    running: true,
+    cancel: false,
+    results: [],
+    done: 0,
+    hits: 0,
+    total: plan.reduce((a, s) => a + s.n, 0),
+    msg: '',
+    tryRef: SAF.tryNext
+  });
+  SAF.tryNext = null;
+  const nR = plan.length - 1,
+    going = () =>
+      `Searching in the background: ${SAF.done} of ${SAF.total} runs, ${SAF.hits} with a contact so far. The map stays still; switch to Simulate (on a phone, then Settings) to watch the Safety tab's chart fill.`;
+  logE(
+    `Safety search started: ${sh.name.split(',')[0]}, ${SAF.total} runs (${plan[0].n} at random${nR ? `, then ${nR} round${nR > 1 ? 's' : ''} near the worst` : ''}), search seed ${SAF.seed}`
+  );
+  safTryStatus(going());
   safRefresh();
   for (const step of plan) {
     if (SAF.cancel) break;
     SAF.msg = step.kind === 'random' ? 'sampling the domain' : 'refining around the worst';
     const batch = searchBatch(step, SAF.results, sh, u, SAF.imp),
       base = SAF.results.length;
-    const sums = await safRunJobs(batch, extra, () => {
+    const sums = await safRunJobs(batch, extra, (i, s) => {
       SAF.done++;
+      const m = searchMargin(s);
+      if (m != null && m < 0) SAF.hits++;
+      if (SAF.done % 10 === 0 && SAF.done < SAF.total)
+        logE(`Safety search: ${SAF.done} of ${SAF.total} runs, ${SAF.hits} with a contact so far`);
       safProgress();
+      safTryStatus(going());
     });
-    batch.forEach((sc, k) => SAF.results.push({i: base + k, kind: step.kind, sc, s: sums[k], margin: searchMargin(sums[k]), w: sc.w || 1}));
+    // a cancelled batch leaves the runs it never started undefined: they are not results
+    batch.forEach(
+      (sc, k) =>
+        sums[k] !== undefined &&
+        SAF.results.push({i: base + k, kind: step.kind, sc, s: sums[k], margin: searchMargin(sums[k]), w: sc.w || 1})
+    );
     const o = $('#saf-out');
     if (o && activeTab === 'saf') {
       o.innerHTML = safResultsHTML();
@@ -273,10 +341,17 @@ async function safSearch() {
   }
   SAF.running = false;
   SAF.msg = `${SAF.results.length} runs${SAF.cancel ? ' (cancelled)' : ''}`;
-  logE(
-    `Safety search: ${SAF.results.length} runs, ${SAF.results.filter(r => r.margin != null && r.margin < 0).length} with a contact`,
-    'ok'
-  );
+  if (SAF.cancel) {
+    logE(`Safety search stopped after ${SAF.done} of ${SAF.total} runs`, 'warn');
+    // stopped for another Try's search: that one reports under its own button
+    safTryStatus(SAF.tryNext ? null : `Stopped after ${SAF.done} of ${SAF.total} runs.`);
+  } else {
+    const sum = safSummary();
+    logE(`Safety search done: ${sum}`, 'ok');
+    safTryStatus(
+      `Done: ${sum}. In Simulate (on a phone, Settings) the Safety tab charts every run and lists the worst, each with an Open button.`
+    );
+  }
   safRefresh();
 }
 async function safRerun(i) {
@@ -327,11 +402,15 @@ function safFromTry(c) {
       })();
   }
   if (SAF.running) SAF.cancel = true; // a search already running stops after the runs in its workers
-  if (c.run)
+  if (c.run) {
+    // only the latest Try's search starts: one pressed twice while a search stops does not queue two
+    const gen = ++SAF.gen;
+    SAF.tryNext = c;
     (async () => {
       while (SAF.running) await new Promise(r => setTimeout(r, 100));
-      safSearch();
+      if (gen === SAF.gen) safSearch();
     })();
+  }
 }
 function drawSafChart() {
   const c = $('#cv-saf'),

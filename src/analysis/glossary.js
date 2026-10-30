@@ -892,7 +892,12 @@ const GLOSS = {
     ['one-dimensional convolution', '1D convolution', 'convolution']
   ],
   precision: ['precision', 'The share of detections that are real: true detections over all detections.', '', ['precision']],
-  recall: ['recall', 'The share of real people that were detected: true detections over detectable people.', '', ['recall']],
+  recall: [
+    'recall',
+    'The share of the people the scan hits that the detector finds: true positives over true positives plus false negatives, TP / (TP + FN). People the scan never hits are in neither count.',
+    '',
+    ['recall']
+  ],
   distshift: [
     'distribution shift',
     'A learned block meeting inputs unlike its training data: a new sensor, site or behaviour; the central risk of learned components.',

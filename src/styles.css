@@ -1714,6 +1714,14 @@ dialog:focus-visible {
 .exptab td.bad {
   color: var(--bad);
 }
+/* a search a Try started, its progress under the Try in the Learn column (ui/safety.js safTryStatus) */
+.experiments p.saf-trystat {
+  margin: 8px 0 0;
+  padding: 4px 8px;
+  border-left: 3px solid var(--saf);
+  background: var(--panel);
+  font-size: var(--fs-ui);
+}
 .expchart {
   width: 100%;
   height: 200px;

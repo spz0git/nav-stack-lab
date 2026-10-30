@@ -120,7 +120,9 @@ function lessonStage(id) {
     t = it && it.L.tries[0],
     cfg = t && t[1];
   if (!cfg) return draw();
-  if (cfg.sim) tryGo({...cfg, layers: {...lessonLayers(id), ...(cfg.layers || {})}, hold: true});
+  // The stage sets the first Try up without running it: a search Try's run flag is dropped here, so a search starts
+  // only when the button is pressed.
+  if (cfg.sim) tryGo({...cfg, saf: cfg.saf && {...cfg.saf, run: false}, layers: {...lessonLayers(id), ...(cfg.layers || {})}, hold: true});
   else lessonGo({...cfg, test: undefined});
 }
 function lessonBack() {

@@ -4,8 +4,22 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v72 · 2026-10-30
 
+- The nine safety lessons are rewritten sentence by sentence into plainer prose: shorter sentences, the reason
+  next to the fact, no slogans. No measured number, table or experiment changed. Lesson 2 walks through why each
+  hazardous event on the busy floor gets its classes, and lesson 8 says what rate would be acceptable and how far
+  the measured one is from it.
+- Safety lesson 5 (searching the domain) explains the margin with an example, the two halves of a search as steps,
+  and gives a tour of the Safety tab from the top: the sheet, Search, the chart, the worst runs and their Open
+  button, scenario sets and Rerun. Each search Try says what to expect when you press it. A search started from a
+  lesson now shows its progress under the Try button and in the event log, and reports its result there when it
+  ends; opening the lesson no longer starts a search by itself.
+- Safety lesson 6 (learned blocks) opens with what the three learned blocks are and why their data is their
+  specification, says what a slice is and what the monitor does before giving its formula, defines recall from
+  true positives and false negatives, and explains the hand-written detector the learned one replaces and the
+  out-of-distribution score the first Try plots.
+- Safety lesson 4's lidar Try shows the lidar layer, so you see the scans vanish when the lidar fails at 30 s.
 - A lesson's header has a Previous lesson button beside Next lesson. Along the first pass it steps back along the
   first pass (Previous in the first pass); the first lesson of the list has no Previous button.
 - The health lights in the status strip always carry their name: Loc, Per, Plan and Ctl beside a lesson and at

@@ -104,13 +104,6 @@ const LEARN_PATH = [
 const LESSON_WPM = 170,
   TRY_MIN = 1,
   lessonMinCache = new WeakMap();
-// The first pass's reading time: the Start here card and the first-run hint both show it
-function pathMinutes() {
-  return LEARN_PATH.reduce((a, [id]) => {
-    const it = lessonItem(id);
-    return a + (it ? lessonMinutes(it.L) : 0);
-  }, 0);
-}
 function lessonMinutes(L) {
   if (lessonMinCache.has(L)) return lessonMinCache.get(L);
   const parts = [L.b];
@@ -133,6 +126,12 @@ function lessonMinutes(L) {
   lessonMinCache.set(L, m);
   return m;
 }
+// The first pass's length: the sum of its lessons' minutes (Start here and the first-run hint both show it)
+const firstPassMinutes = () =>
+  LEARN_PATH.reduce((a, [id]) => {
+    const it = lessonItem(id);
+    return a + (it ? lessonMinutes(it.L) : 0);
+  }, 0);
 function startHereHTML() {
   const steps = LEARN_PATH.map(([id, why], n) => {
     const it = lessonItem(id);
@@ -141,7 +140,7 @@ function startHereHTML() {
     const st = lessonState(id).st;
     return `<li class="${st}"><a class="lsref" href="#lesson=${g}:${+i + 1}" data-sys="${g}">${it.L.t}</a> <span class="note">${why} · ${lessonMinutes(it.L)} min</span>${st === 'done' ? ' <span class="ldone" title="done">✓</span>' : ''}</li>`;
   }).join('');
-  const mins = pathMinutes();
+  const mins = firstPassMinutes();
   return `<details class="starthere" id="starthere" ${LEARN.start ? 'open' : ''}><summary><h3>Start here</h3></summary><div class="sh-body">
 <p><b>Who this is for.</b> Students and engineers who want to see localization, perception, planning and control work together on one robot, change one thing, and watch what happens. The lessons assume vectors and matrices, a little probability (a Gaussian, a variance) and derivatives. The control lessons also use transfer functions and Bode plots; if those are new, chapter 6 builds them in order.</p>
 <p><b>How the pieces fit.</b> A <b>lesson</b> is a short read with experiments: each button sets the lab up and runs it, and the numbers in the text were measured in this simulator. A <b>chapter</b> (the companion notes at the end of this list) derives the formulas a lesson uses; the <i>Derivation</i> links go there and Back returns. The <b>levels</b> L1 to L7 are the floors the robot drives on; each has quick one-click experiments in its own panel under Simulate. The <b>Symbols</b> tab under Reference lists every symbol with its meaning; dotted terms in a lesson show their definition on hover or tap.</p>

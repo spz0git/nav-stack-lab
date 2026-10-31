@@ -261,7 +261,7 @@ function firstRunDone() {
   if (h) h.hidden = true;
 }
 $('#firstrun-x').onclick = firstRunDone;
-if ($('#firstrun-min')) $('#firstrun-min').textContent = pathMinutes(); // the same sum as Start here's, not a number that goes stale
+if ($('#firstrun-min')) $('#firstrun-min').textContent = firstPassMinutes();
 $('#run').onclick = () => {
   exitReplay();
   running = !running;

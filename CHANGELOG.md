@@ -4,15 +4,20 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## v77 · 2026-10-31
+## v78 · 2026-10-31
 
 - With the lidar switched off (Sensors) and the radar on, setting Perceive → Tracker inputs to Radar now tracks people
   from the radar alone, so speed planning and velocity obstacles can still give way to them. Before, the tracker
   waited for lidar scans that never came, and the robot drove straight through people. The radar only looks ahead,
   so someone coming from the side or behind is seen late or not at all. With the lidar off and Tracker inputs left
   on Lidar, the health panel and the Perceive tab now say how to switch.
-- The welcome hint's reading time for the first pass of lessons (now about 99 minutes) is taken from the Start here
-  card, so the two always agree.
+
+## v77 · 2026-10-31
+
+- Custom level → Generate: the number fields now line up, each label beside its box in even columns, so the form
+  reads as a table instead of a ragged run of fields.
+- The first-run hint gives the first pass's length as Start here counts it (99 minutes since the lessons were
+  rewritten; it said 95).
 
 ## v76 · 2026-10-31
 

@@ -5,23 +5,23 @@ summary: The vehicle models, from the kinematic unicycle and bicycle to the dyna
 
 # Vehicle models: from kinematics to dynamics
 
-Every planner and tracker in this lab assumes a model of how the vehicle moves when commanded. The lab simulates two kinematic models: the unicycle for the diff-drive robot and the bicycle for the car, each wrapped in an actuation chain of delays, lags and limits. A third vehicle has tyres that slip: the dynamic bicycle model of §4 (Vehicle → Car (dynamic: tyre slip)). Right now you are driving {{live:vehNow}}. Those models are exact for slow vehicles whose wheels roll without slipping, and they are what chapters 4 to 7 build on. A car at road speed is a different object: its tyres slip, its mass and yaw inertia matter, and the relationship between steering and turning changes with speed in ways the kinematic model cannot represent. This chapter derives both, in order: the unicycle (§1), the actuation chain (§2), the kinematic bicycle (§3), the dynamic bicycle model with linear tyres (§4), what it predicts about steady cornering, the characteristic speed and stability (§5), and the limits that mark where one model hands over to the other (§6). The blue numbers follow your settings where the lab has them. The car's wheelbase is {{live:wheelbase}} m with a steering lock of {{live:steerMaxDeg}}°, so its tightest turn has radius {{live:Rmin}} m. At the operating speed of {{live:v0}} m/s, a turn at the planning radius of {{live:Rplan}} m pulls {{live:ayPlan}} m/s² of lateral acceleration, against a cap of {{live:alat}} m/s².
+Every planner and tracker in this lab assumes a model of how the vehicle moves when it is given a command. The lab simulates two kinematic models. The unicycle models the diff-drive robot and the bicycle models the car, and each is wrapped in an actuation chain of delays, lags and limits. A third vehicle has tyres that slip. It runs the dynamic bicycle model of §4 (Vehicle → Car (dynamic: tyre slip)). Right now you are driving {{live:vehNow}}. The kinematic models are exact for slow vehicles whose wheels roll without slipping, and chapters 4 to 7 build on them. A car at road speed behaves differently. Its tyres slip, its mass and yaw inertia matter, and the way steering turns the car changes with speed in ways the kinematic model cannot represent. This chapter derives both kinds of model in order. §1 is the unicycle, §2 the actuation chain and §3 the kinematic bicycle. §4 is the dynamic bicycle model with linear tyres, and §5 is what it predicts about steady cornering, the characteristic speed and stability. §6 gives the limits where one model hands over to the other. The blue numbers follow your settings where the lab has them. The car's wheelbase is {{live:wheelbase}} m with a steering lock of {{live:steerMaxDeg}}°, so its tightest turn has radius {{live:Rmin}} m. At the operating speed of {{live:v0}} m/s, a turn at the planning radius of {{live:Rplan}} m pulls {{live:ayPlan}} m/s² of lateral acceleration, against a cap of {{live:alat}} m/s².
 
 ## 1. The unicycle
 
-**The model.** The differential-drive robot has two driven wheels on one axle. Commanding their speeds commands a forward speed $v$ and a turn rate $\omega$ about the axle's midpoint, and nothing else: the body cannot move sideways. Its pose $(x, y, \theta)$ evolves by
+**The model.** The differential-drive robot has two driven wheels on one axle. Setting the two wheel speeds sets a forward speed $v$ and a turn rate $\omega$ about the axle's midpoint. Nothing else can be commanded, and the body cannot move sideways. Its pose $(x, y, \theta)$ evolves by
 
 $$
 \dot x = v\cos\theta, \qquad \dot y = v\sin\theta, \qquad \dot\theta = \omega
 $$
 
-This is the unicycle, and it is the model every localization filter in chapter 2 integrates. Over one tick with $v$ and $\omega$ held constant the solution is an arc of radius $v/\omega$, which the lab integrates exactly (the arc model of chapter 2 §2) rather than by Euler steps, so that a circle driven for a full turn closes.
+This is the unicycle. Every localization filter in chapter 2 integrates it. Over one tick with $v$ and $\omega$ held constant, the solution is an arc of radius $v/\omega$. The lab integrates that arc exactly (the arc model of chapter 2 §2) instead of taking Euler steps, so a circle driven for a full turn closes.
 
-**What makes it a robot and not a point.** The lab's unicycle has a radius of 0.3 m for collision, a maximum speed, a maximum turn rate of 1.8 rad/s, and optional acceleration limits on both; it can turn in place, which is why the planners for it need no heading in their state. The one thing it cannot do is move sideways, the nonholonomic constraint $\dot y\cos\theta - \dot x\sin\theta = 0$, and that constraint is what makes path tracking a control problem rather than a lookup: the robot must turn to move across.
+**What makes it a robot and not a point.** The lab's unicycle is a disc of radius 0.3 m for collision. It has a maximum speed, a maximum turn rate of 1.8 rad/s, and optional acceleration limits on both. It can turn in place, so the planners for it need no heading in their state. It cannot move sideways. This is the nonholonomic constraint $\dot y\cos\theta - \dot x\sin\theta = 0$. Because of it, a tracker cannot just look up the next point on the path and move there. The robot has to turn before it can move across, and that makes path tracking a control problem.
 
 ## 2. The actuation chain
 
-A command does not become motion at once. The lab applies, in order, the same things a real drivetrain does:
+A command does not become motion at once. The lab applies the same stages a real drivetrain does, in this order:
 
 | Stage | What it does | Where it is set |
 | --- | --- | --- |
@@ -32,39 +32,39 @@ A command does not become motion at once. The lab applies, in order, the same th
 | Steering rate (car) | δ moves at most 1.5 rad/s | Vehicle tab |
 | Bias | a constant offset: steering misalignment in degrees, or a turn-rate offset | Vehicle tab |
 
-Each stage is a lesson in chapter 6: latency is a pure phase loss $\omega T$, the lag is a pole at $-1/\tau$, the limits are where the linear analysis stops, the bias is what integral action removes. Chapter 7's MPC can carry the lag in its model and the lessons show what that is worth. Everything in this chain is also what separates the command the controller sends from the motion the estimator measures, which is why the MPC's analysis reads a gain on the actuator state separately from its gains on the errors.
+Each stage comes back in the lessons of chapter 6. Latency is a pure phase loss $\omega T$. The lag is a pole at $-1/\tau$. The limits mark where the linear analysis stops, and the bias is what integral action removes. Chapter 7's MPC can carry the lag in its model, and its lessons show what that is worth. This chain is also what separates the command the controller sends from the motion the estimator measures. For that reason the MPC's analysis reads its gain on the actuator state separately from its gains on the errors.
 
 ## 3. The kinematic bicycle
 
-**The derivation.** Collapse a car's two front wheels into one at the front axle and the two rear wheels into one at the rear, a bicycle, and assume neither wheel slips sideways: each wheel's velocity points along the wheel. Take the reference point at the rear axle, moving at speed $v$ along the heading θ. The front wheel, a wheelbase $L$ ahead, is steered by δ, so its velocity points along $\theta + \delta$; but it is also rigidly attached, so its velocity is the rear point's velocity plus $L\dot\theta$ perpendicular to the body. Equating the perpendicular components:
+**The derivation.** Replace a car's two front wheels with one wheel at the middle of the front axle, and its two rear wheels with one at the middle of the rear axle. The result is a bicycle. Assume that neither wheel slips sideways, so each wheel's velocity points along the wheel. Take the reference point at the rear axle, moving at speed $v$ along the heading θ. The front wheel sits a wheelbase $L$ ahead and is steered by δ, so its velocity points along $\theta + \delta$. It is also rigidly attached to the body, so its velocity is the rear point's velocity plus $L\dot\theta$ perpendicular to the body. Its component along the body is then $v$ and its component across the body is $L\dot\theta$. For the velocity to point along $\theta + \delta$, the ratio of the two must be $\tan\delta$:
 
 $$
 L\,\dot\theta = v\tan\delta \quad\Longrightarrow\quad \dot\theta = \frac{v\tan\delta}{L}, \qquad R = \frac{L}{\tan\delta}
 $$
 
-With $\dot x = v\cos\theta$, $\dot y = v\sin\theta$ the model is the unicycle with its turn rate tied to speed and steering. The turning radius at full lock is $R_{\min} = L/\tan\delta_{\max}$ = {{live:Rmin}} m for the lab's car, and the car cannot turn at all when stopped, which is the whole difference between the planners of chapter 4 §4 and the grid planners before them.
+With $\dot x = v\cos\theta$, $\dot y = v\sin\theta$ the model is the unicycle with its turn rate tied to speed and steering. The turning radius at full lock is $R_{\min} = L/\tan\delta_{\max}$ = {{live:Rmin}} m for the lab's car. The car cannot turn at all when it is stopped. That is the whole difference between the planners of chapter 4 §4 and the grid planners before them.
 
-**Why the rear axle.** The rear wheel's no-slip condition says the rear point moves along the heading exactly. The front point does not: it moves along $\theta + \delta$. The centre of mass moves along $\theta + \beta$ with a sideslip angle $\beta = \arctan(l_r\tan\delta/L)$, up to {{live:betaMax}}° at full lock with the lab's $l_r = L - l_f$ = {{live:lr}} m (the geometry of the car with tyre slip, §4). Referencing the rear axle keeps the kinematics in unicycle form. That is why the trackers of chapter 5 can share one set of path coordinates, and why on a reverse leg the same equations hold with the heading flipped.
+**Why the rear axle.** By the rear wheel's no-slip condition, the rear point moves along the heading. The front point moves along $\theta + \delta$ instead. The centre of mass moves along $\theta + \beta$, where the sideslip angle is $\beta = \arctan(l_r\tan\delta/L)$. It reaches {{live:betaMax}}° at full lock with the lab's $l_r = L - l_f$ = {{live:lr}} m (the geometry of the car with tyre slip, §4). Taking the reference at the rear axle keeps the kinematics in unicycle form. So the trackers of chapter 5 can share one set of path coordinates, and on a reverse leg the same equations hold with the heading flipped.
 
-**What the lab adds.** The steering angle is a state with a rate limit (1.5 rad/s) and a lock (32°), the body is a 0.9 × 0.5 m rectangle for collision (three covering circles for planning), and the speed profile caps $v^2\kappa$ at the lateral-acceleration slider, §6. Nothing else: no mass, no tyres, no slip. The kinematic car, *Car (kinematic)* in the Vehicle tab, always goes exactly where its front wheel points; the third option, *Car (dynamic: tyre slip)*, is the model of the next section.
+**What the lab adds.** The steering angle is a state with a rate limit (1.5 rad/s) and a lock (32°). The body is a 0.9 × 0.5 m rectangle for collision, covered by three circles for planning. The speed profile caps $v^2\kappa$ at the lateral-acceleration slider (§6). The model has no mass, no tyres and no slip. The kinematic car, *Car (kinematic)* in the Vehicle tab, always goes where its front wheel points. The third option, *Car (dynamic: tyre slip)*, is the model of the next section.
 
 ## 4. The dynamic bicycle model
 
-**Why kinematics is not enough.** A real tyre produces lateral force only by slipping. The contact patch deforms, the wheel travels at a small angle to the direction it points, and the force is roughly proportional to that angle, the slip angle $\alpha$, with a cornering stiffness $C$ (in N/rad), up to a limit set by friction. So at any speed where the lateral force needed to turn is appreciable, the wheels do not go where they point. The vehicle's turn then depends on its mass, its inertia and its tyres, not only on its geometry.
+**Why kinematics is not enough.** A real tyre produces lateral force only by slipping. The contact patch deforms, and the wheel travels at a small angle to the direction it points. That angle is the slip angle $\alpha$. The force is roughly proportional to it, up to a limit set by friction, and the constant of proportionality is the cornering stiffness $C$ (in N/rad). So at any speed where turning needs an appreciable lateral force, the wheels do not go where they point. The vehicle's turn then depends on its mass, its inertia and its tyres as well as on its geometry.
 
-**The model.** Keep the bicycle, put the reference at the centre of mass, hold the forward speed $v_x$ constant (the longitudinal dynamics decouple to first order), and take as states the lateral velocity $v_y$ and the yaw rate $r$. Newton's second law in the body frame, where the lateral acceleration is $\dot v_y + v_x r$ (the second term is the centripetal part of turning), and the moment balance about the centre of mass:
+**The model.** Keep the bicycle and put the reference point at the centre of mass. Hold the forward speed $v_x$ constant, since to first order the longitudinal dynamics decouple from the lateral ones. The states are the lateral velocity $v_y$ and the yaw rate $r$. In the body frame the lateral acceleration is $\dot v_y + v_x r$, where the second term is the centripetal part of turning. Newton's second law across the body and the moment balance about the centre of mass are then
 
 $$
 m\,(\dot v_y + v_x r) = F_{yf} + F_{yr}, \qquad I_z\,\dot r = l_f F_{yf} - l_r F_{yr}
 $$
 
-The slip angle at each axle is the angle between where the wheel points and where it moves. The front wheel points at δ relative to the body and moves with lateral velocity $v_y + l_f r$ (the body's lateral velocity plus the yaw rate's contribution at $l_f$ ahead); the rear wheel points straight and moves with $v_y - l_r r$:
+The slip angle at each axle is the angle between where the wheel points and where it moves. The front wheel points at δ relative to the body. It moves with lateral velocity $v_y + l_f r$, which is the body's lateral velocity plus the yaw rate's contribution at $l_f$ ahead. The rear wheel points straight ahead and moves with lateral velocity $v_y - l_r r$. Each lateral velocity divided by $v_x$ is the angle at which that wheel moves, so
 
 $$
 \alpha_f = \delta - \frac{v_y + l_f r}{v_x}, \qquad \alpha_r = -\frac{v_y - l_r r}{v_x}, \qquad F_{yf} = C_f\,\alpha_f, \quad F_{yr} = C_r\,\alpha_r
 $$
 
-(small angles throughout; the simulator and the MPC of chapter 7 write $\tan\delta$ for δ, the same to first order, so that with no slip the car turns at the kinematic $v\tan\delta/L$). Substitute and collect: a linear state-space model whose matrices depend on the speed,
+All angles are taken as small. The simulator and the MPC of chapter 7 write $\tan\delta$ for δ, which is the same to first order, so that with no slip the car turns at the kinematic rate $v\tan\delta/L$. Substituting the forces into the two equations of motion and collecting terms gives a linear state-space model whose matrices depend on the speed:
 
 $$
 \begin{bmatrix} \dot v_y \\ \dot r \end{bmatrix} =
@@ -73,7 +73,7 @@ $$
 \begin{bmatrix} \dfrac{C_f}{m} \\[6pt] \dfrac{l_f C_f}{I_z} \end{bmatrix} \delta
 $$
 
-This is the linear bicycle model (Rajamani's *Vehicle Dynamics and Control* is the standard reference). The kinematic model of §3 is its limit as the stiffnesses go to infinity: with no slip allowed, the slip angles must be zero, which gives $v_y = l_r r$ and $r = v_x\tan\delta/L$ directly.
+This is the linear bicycle model. The standard reference is Rajamani's *Vehicle Dynamics and Control*. The kinematic model of §3 is its limit as the stiffnesses go to infinity. With no slip allowed, both slip angles must be zero, and that gives $v_y = l_r r$ and $r = v_x\tan\delta/L$ directly.
 
 **Two cars.** The table below is for a representative passenger car: $m$ = 1500 kg, $I_z$ = 2500 kg·m², $l_f$ = 1.2 m, $l_r$ = 1.5 m ($L$ = 2.7 m), $C_f$ = 80 kN/rad, $C_r$ = 100 kN/rad. The lab's car with tyre slip is much smaller: right now $m$ = {{live:dynM}} kg, $I_z$ = {{live:dynIz}} kg·m², $l_f$ = {{live:dynLf}} m and $l_r$ = {{live:dynLr}} m ($L$ = {{live:wheelbase}} m), $C_f$ = {{live:dynCf}} N/rad, $C_r$ = {{live:dynCr}} N/rad, μ = {{live:dynMu}} (Vehicle tab; the Grippy preset unless you changed it). The eigenvalues of the matrix above, which are the vehicle's own yaw dynamics before any controller, for the passenger car:
 

@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v80 · 2026-10-31
 
 - Chapter 4 has a new section, *Speed planning: the ST graph* (§6), on how the robot slows and waits for people
   without leaving its path: the grid of time against distance along the path, the cost of each cell near a predicted

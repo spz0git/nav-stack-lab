@@ -4,6 +4,18 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v76 · 2026-10-31
+
+- The nine chapters are rewritten in plainer prose, as the lessons were in v72 and v75: long sentences split, the
+  reason next to the fact, every term explained where it first appears, and a few skipped steps written out. No
+  heading, equation, table, live value or measured number changed.
+- Corrections found on the way, in the chapters and the lessons that point at them: a late lidar scan is placed
+  from an estimate that lags with it, so the walls smear rather than shift (perception lesson 4 and chapter 3 §7,
+  measured headless); a diagonal space-time move takes one step, checked at both ends; velocity obstacles sample 77
+  candidates; the chamfer distance errs on the unsafe side and the lethal margin covers it; a radar update leaves an
+  ellipse stretched across the line of sight; pure pursuit's short-lookahead oscillation comes from the delays, not
+  from lost damping; and the Butterworth damping of LQR holds for any weight ratio when only position is weighted.
+
 ## v75 · 2026-10-31
 
 - All 45 lessons on control, localization, perception and planning are rewritten sentence by sentence in plainer

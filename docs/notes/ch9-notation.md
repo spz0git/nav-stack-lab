@@ -5,20 +5,20 @@ summary: One table of the symbols the lessons and chapters share, the convention
 
 # Notation and references
 
-The lessons, the chapters and the Symbols tab use one set of symbols. This page collects them, says which conventions were chosen where textbooks differ, and lists the references. The Symbols tab under Reference has the full list with units and is searchable; this page is the short version with the reasons.
+The lessons, the chapters and the Symbols tab use one set of symbols. This page collects them, says which convention the lab chose where textbooks differ, and lists the references. The Symbols tab under Reference has the full list with units, and you can search it. This page is the short version, with the reasons for the choices.
 
 ## 1. Conventions
 
-- **Frames and angles.** The pose is $(x, y, \theta)$ in the world frame, $\theta$ counter-clockwise from $+x$. For the car the pose is the rear-axle centre. Formulas use radians; the interface shows degrees where people think in degrees (steering lock, heading error, phase margin).
-- **Truth and estimate.** The true pose has no decoration; the estimate is $\mu$ (its mean) with covariance $\Sigma$, and in text "the estimate". A predicted quantity wears a hat: $\hat z$ is the reading the filter expects.
-- **Noise.** Three covariances appear and they are kept apart: $M = \mathrm{diag}(\sigma_v^2, \sigma_\omega^2)$ is the odometry (input) noise, $Q = \mathrm{diag}(\sigma_r^2, \sigma_b^2)$ the measurement noise of a beacon reading, and $R$, where a chapter needs it, is process noise added directly to the state. This follows *Probabilistic Robotics* (Thrun, Burgard and Fox), where $R$ is motion noise and $Q$ measurement noise; much of the control literature swaps the two letters, so check which convention a book uses before comparing formulas.
-- **Beacon readings.** A reading is $z = (r, b)$: range $r$ and bearing $b$ relative to the heading, with $\sigma_r$ and $\sigma_b$. Older versions of the Symbols tab wrote the bearing as $\varphi$; the lessons use $b$ throughout.
-- **Errors in the tracking loop.** $e$ is the lateral (cross-track) error, positive to the left of the path, and $\theta_e$ the heading error, both measured from the estimate, not the truth. The trackers' gains are $K_e$ and $K_\theta$ in the loop analysis; rear-wheel feedback's own knobs are $k_e$ and $k_\theta$ in lower case because they are not the same numbers (chapter 5 §3 relates them).
-- **Sampling.** The control tick is $T = 0.05$ s (20 Hz); the lidar scans at 10 Hz and the beacons at 5 Hz. In the loop analysis the tick appears as a zero-order hold, $e^{-sT/2}$ on average, and discrete elements are evaluated at $z = e^{sT}$.
+- **Frames and angles.** The pose is $(x, y, \theta)$ in the world frame, $\theta$ counter-clockwise from $+x$. For the car, the position in the pose is the centre of the rear axle. Formulas use radians. The interface shows degrees for the quantities people usually read in degrees (steering lock, heading error, phase margin).
+- **Truth and estimate.** The true pose is written without decoration. The estimate is $\mu$ (its mean) with covariance $\Sigma$, and the text calls it "the estimate". A predicted quantity has a hat, so $\hat z$ is the reading the filter expects.
+- **Noise.** Three covariances appear, each with its own letter. $M = \mathrm{diag}(\sigma_v^2, \sigma_\omega^2)$ is the odometry (input) noise. $Q = \mathrm{diag}(\sigma_r^2, \sigma_b^2)$ is the measurement noise of a beacon reading. $R$, where a chapter needs it, is process noise added directly to the state. This follows *Probabilistic Robotics* (Thrun, Burgard and Fox), where $R$ is motion noise and $Q$ measurement noise. Much of the control literature swaps the two letters, so check which convention a book uses before comparing formulas.
+- **Beacon readings.** A reading is $z = (r, b)$, the range $r$ and the bearing $b$ relative to the heading, with standard deviations $\sigma_r$ and $\sigma_b$. Older versions of the Symbols tab wrote the bearing as $\varphi$. The lessons use $b$ throughout.
+- **Errors in the tracking loop.** $e$ is the lateral (cross-track) error, positive to the left of the path, and $\theta_e$ is the heading error. Both are measured from the estimate, not from the true pose. In the loop analysis the trackers' gains are $K_e$ and $K_\theta$. Rear-wheel feedback's own gains are written $k_e$ and $k_\theta$, in lower case, because they are different numbers (chapter 5 §3 relates them).
+- **Sampling.** The control tick is $T = 0.05$ s (20 Hz). The lidar scans at 10 Hz and the beacons report at 5 Hz. In the loop analysis the tick appears as a zero-order hold, which on average acts as a delay of half a tick, $e^{-sT/2}$. Discrete elements are evaluated at $z = e^{sT}$.
 
 ## 2. Letters that mean two things
 
-A letter is reused when the two meanings never meet in one formula. These are the ones worth knowing:
+The lab reuses a letter when its two meanings never appear in the same formula. The table lists the reused letters you will meet.
 
 | Letter | In one place | In another |
 |---|---|---|
@@ -76,7 +76,7 @@ A letter is reused when the two meanings never meet in one formula. These are th
 
 ## 4. References
 
-What the lab takes from each, in one line. The inline citations in the lessons point here.
+Each entry says in one line what the lab takes from that source. The citations in the lessons point to this list.
 
 - Thrun, Burgard and Fox, *Probabilistic Robotics* (MIT Press, 2005). The EKF and particle-filter derivations of chapter 2, log-odds mapping and the inverse sensor model of chapter 3, and the noise notation above.
 - Bar-Shalom, Li and Kirubarajan, *Estimation with Applications to Tracking and Navigation* (Wiley, 2001). Mahalanobis gating, NEES as a consistency test, and the constant-velocity tracker of chapter 3.

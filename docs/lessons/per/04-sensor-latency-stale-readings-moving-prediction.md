@@ -2,7 +2,7 @@ group: per
 title: Sensor latency: stale readings, moving prediction
 
 <p><b>Why this matters.</b> Every reading a sensor delivers describes the past. Exposure, transfer and processing each add tens of milliseconds, and a lidar frame can be a tenth of a second old before any software sees it. Suppose a filter applies a reading to the current state when the reading describes an earlier one. The data is correct, but it is used at the wrong time. That is worse than noise, because the error is systematic and the filter has no term for it. A real perception stack therefore puts a timestamp on every reading first of all, and keeps a latency budget for the whole chain from sensor to motors.</p>
-<p><b>The idea.</b> Delay every lidar scan and beacon reading by $T_s$, and deliver it to estimators that believe it is current. In the meantime the robot has moved $v\,T_s$. For a beacon ahead, the reading says "closer than you think" by that much, every time and in the same direction. For the lidar, every hit is placed from the current pose, so the whole scan is shifted backward along the motion. Each consumer goes wrong in its own way. The EKF settles into a steady bias, a biased estimate that reports itself as consistent. The map gets walls drawn too close and then erased. The tracker sees people who appear to jump between scans.</p>
+<p><b>The idea.</b> Delay every lidar scan and beacon reading by $T_s$, and deliver it to estimators that believe it is current. In the meantime the robot has moved $v\,T_s$. A beacon ahead therefore reads farther than the filter predicts from its current pose, by about that much, every time and in the same direction. The filter keeps correcting backwards, and its estimate settles about $v\,T_s$ behind the truth while it reports itself as consistent. Lidar hits are placed from that estimate at the moment they arrive. Because the estimate lags by about as much as the scan is late, a hit lands near its true place while the robot drives straight. What remains is the lag in heading, a few degrees, which moves a hit at 4 m by a tenth of a metre or more, most of all in turns. Each consumer goes wrong in its own way. The EKF carries a steady bias. The map gets walls smeared and then partly erased. The tracker sees people who appear to jump between scans.</p>
 <p>A reading taken at $t$ is applied at $t + T_s$, so the innovation contains the motion during $T_s$, measured along the beam:</p>
 $$\nu \approx v\,T_s$$
 <p><b>Where it comes from.</b> The predicted reading uses the pose at delivery, and the actual reading was made from the pose $T_s$ earlier. For small motion the two poses differ by $v\,T_s$ along the heading. Projected onto the beam, that difference is the range innovation. Nothing in $S = H\Sigma H^\top + Q$ accounts for it, so NEES rises in the same way as it does for odometry bias. <a class="chref" href="#notes=ch3/7-latency-the-reading-is-true-the-time-is-wrong">Derivation: chapter 3 §7</a></p>
@@ -32,13 +32,13 @@ Answer: 2
 
 ## Try: Mapping with latency 0.3 s
 cfg: {"sim":true,"level":3,"set":{"sensLat":0.3},"tab":"per"}
-Setup: L4, mapping the building with the EKF, with scans delivered 0.3 s late. At cruise speed that is a shift of 24 cm.
-See: Walls across the direction of motion are painted about a quarter of a metre too close. The next scan, taken further on, partly erases them, so they come out thin and broken. Of the mapped occupied cells, 97 % are still near a real obstacle, but only 83 % of the seen obstacle cells make it into the map, against 96 % without latency. The planner replans seven times instead of three as walls appear and disappear. All four goals are reached.
-Shows: For a map, latency acts like a pose error that depends on the motion. It is zero when the robot stands still, and largest at speed and in turns. The walls being erased and redrawn make the planner replan twice as often. The fix is to timestamp each scan and place its hits from the pose at the time of the scan. That removes the effect completely, and it only needs a short history of poses, which every real mapping stack keeps.
+Setup: L4, mapping the building with the EKF, with scans delivered 0.3 s late. At cruise speed the robot moves 24 cm in that time.
+See: Measured headless at this seed, a hit from a late scan lands within about 4 cm of its true place along the heading and 2 cm across while the robot drives straight, against 2 cm and 1 cm with no latency, because the estimate lags by about as much as the scan. The heading lags too, by 2° on the straights and 3° in the turns, and at 4 m that moves a hit sideways by 14 to 22 cm. So the walls are drawn about in place but smeared, and the next scan, taken further on, partly erases them. They come out thin and broken. Of the mapped occupied cells, 97 % are still near a real obstacle, but only 83 % of the seen obstacle cells make it into the map, against 96 % without latency. The planner replans seven times instead of three as walls appear and disappear. All four goals are reached.
+Shows: For a map, latency acts like a pose error that depends on the motion. It is nearly zero when the robot stands still or drives straight at a steady speed, and largest in turns and when the speed changes, because then the lagged estimate no longer matches the pose the scan was taken from. The walls being erased and redrawn make the planner replan twice as often. The fix is to timestamp each scan and place its hits from the pose at the time of the scan. That removes the effect completely, and it only needs a short history of poses, which every real mapping stack keeps.
 Predict: Mapping the building with scans 0.3 s late at cruise speed: what happens to the walls in the map?
-- Drawn too close to the robot, then partly erased
-- Drawn in the right place: latency only delays them
-- Drawn too far away, beyond their true position
+- Drawn about in place but smeared, then partly erased by later scans: thin and broken
+- Drawn in the right place and complete: latency only delays them
+- Shifted a quarter of a metre as a whole, a scan at a time
 Answer: 0
 
 ## Code: sensDeliver
@@ -48,7 +48,7 @@ Note: Every reading is queued with the tick at which it is due. A reading whose 
 
 ## Think about
 Q: Why does the EKF's NEES recover when the robot stops but the map does not?
-A: The EKF's latency error is proportional to speed. It vanishes when the robot stops, and the filter is consistent again within seconds. The map keeps everything it was told. The walls drawn 24 cm too close stay there until enough free beams erase them, and the walls it failed to draw are still missing.
+A: The EKF's latency error is proportional to speed. It vanishes when the robot stops, and the filter is consistent again within seconds. The map keeps everything it was told. The smeared walls stay where they were drawn until enough free beams erase them, and the walls it failed to draw are still missing.
 Q: Which is more dangerous: 0.2 s of latency on the beacons or on the lidar?
 A: On this floor, latency on the lidar. Late beacons bias the pose by 16 cm, which the planner tolerates. A late lidar breaks the people tracker's association, and the planner then reacts to ghosts. In general, latency does the most harm on the sensor that feeds the consumer with the tightest gate.
 Q: What would a lagged-state filter need to store?

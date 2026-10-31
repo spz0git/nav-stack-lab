@@ -246,7 +246,7 @@ The poles start at the origin ($k \to 0$, the open-loop double integrator) and l
 
 ## 6. Worked example: what moves what
 
-With the formulas of sections 2 to 5 every chip on the Analyze screen can be reproduced by hand. The first table does it for your current settings; for pure pursuit on the diff-drive robot without latency or lag the two columns agree to the digit shown, and when they do not, the difference is the latency, the lag or a controller whose gains are not the pure-pursuit ones.
+With the formulas of sections 2 to 5 you can reproduce every chip on the Analyze screen by hand. The first table does this for your current settings. For pure pursuit on the diff-drive robot with no latency or lag, the two columns agree to the digit shown. When they differ, the cause is the latency, the lag, or a controller whose gains are not the pure-pursuit ones.
 
 | Quantity | By hand, your settings | Analyze view |
 | --- | --- | --- |
@@ -260,7 +260,7 @@ With the formulas of sections 2 to 5 every chip on the Analyze screen can be rep
 | 2% settling ≈ $4/(\zeta\omega_n)$ | {{live:settle0}} s | {{live:settle}} s |
 | $e_{ss} = b/K_e$ for $b$ = 0.1 rad/s | {{live:ess0}} cm | {{live:ess}} cm |
 
-The second table is what the app reports from the L1 defaults when one parameter moves at a time. Each row has a button that sets it up, so the chips and the first table show the same numbers live.
+The second table gives what the app reports when one parameter at a time is moved away from the L1 defaults. Each row has a button that sets it up, and the chips and the first table then show the same numbers live.
 
 | Change | $\omega_c$ rad/s | PM | $T_{d,\max}$ s | $M_s$ | $\zeta$ | $\omega_n$ rad/s | OS | $t_s$ s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -272,23 +272,23 @@ The second table is what the app reports from the L1 defaults when one parameter
 | Latency 0.5 s [try: Set | {"level":0,"set":{"ctl":"pp","latency":0.5}}] | 1.95 | 7° | 0.06 | 10.1 | 0.08 | 2.05 | 41% | 19.8 |
 | Actuator lag 0.3 s [try: Set | {"level":0,"set":{"ctl":"pp","lag":0.3}}] | 1.76 | 35° | 0.35 | 1.75 | 0.47 | 1.78 | 9% | 3.7 |
 
-Three things to read in it. The lookahead and the speed move the crossover without touching the damping: $\zeta$ stays at 0.707 and the overshoot at 4% because, as section 2 showed, pure pursuit's two gains move together. Latency leaves $\omega_c$ alone (it changes no magnitude) and eats the phase margin at $\omega_c T_{lat}$ radians: 0.3 s costs 1.95 × 0.3 rad = 34°, and the table shows 63° falling to 29°. At 0.5 s the loop is 7° from a limit cycle and $M_s$ = 10 says a disturbance is amplified tenfold at one frequency; the simulated robot weaves at about $\omega_n$ = 2 rad/s, one cycle every 3 s. An actuator lag is in between: it lowers the magnitude too, so the crossover drops a little and the margin loss is milder than for the same latency.
+The table shows three things. First, the lookahead and the speed move the crossover but not the damping. $\zeta$ stays at 0.707 and the overshoot at 4%, because pure pursuit's two gains move together (section 2). Second, latency leaves $\omega_c$ alone, since it changes no magnitude, and takes $\omega_c T_{lat}$ radians off the phase margin. For 0.3 s that is 1.95 × 0.3 rad = 34°, and the table shows 63° falling to 29°. At 0.5 s the loop is 7° from a limit cycle. $M_s$ = 10 means that a disturbance at one frequency is amplified tenfold, and the simulated robot weaves at about $\omega_n$ = 2 rad/s, one cycle every 3 s. Third, an actuator lag costs less margin than a latency of the same length. It also lowers the magnitude, so the crossover drops a little and less phase is lost there.
 
-The view also checks itself against the full nonlinear simulator. **Run step test** kidnaps the robot 0.2 m to one side of a straight path and records $e(t)$; its overshoot and settling time are printed beside the linear prediction, and the two agree when the yaw-rate limit (1.8 rad/s) and the steering-rate limit are not hit, which is why the step is small. **Measure L(jω)** injects a sinusoid $u_p = A\sin\omega t$ at the plant input, between the controller and the actuator, lets the loop respond, and extracts the controller's output $U_c$ at the same frequency by lock-in (multiplying by sin and cos and averaging over whole cycles). Since the controller sees only the plant's response to the sum, $L(j\omega) = -U_c/U_p$, and the measured points land on the model's Bode curve within about 0.2 dB and 0.5° for all five linearizable controllers. The **large sine** setting shows where that stops. On the diff-drive the measured gain sits up to about 0.5 dB low at the lowest frequencies. On the car it falls 2 to 3.5 dB at every frequency: a 0.2 rad sine trips the trackers' dry-steering rule, which slows the car while the wheels are more than 0.1 rad from the commanded angle, and a slower car is a smaller plant gain; the 1.5 rad/s steering-rate limit adds about 30° of lag at the top frequency only. A gain that depends on the amplitude is the describing-function view of a nonlinearity.
+The view also checks itself against the full nonlinear simulator. **Run step test** kidnaps the robot 0.2 m to one side of a straight path and records $e(t)$. It prints the measured overshoot and settling time beside the linear prediction. The two agree as long as the robot stays within the yaw-rate limit (1.8 rad/s) and the steering-rate limit, and the step is kept small for that reason. **Measure L(jω)** injects a sinusoid $u_p = A\sin\omega t$ at the plant input, between the controller and the actuator, and lets the loop respond. It then extracts the controller's output $U_c$ at the same frequency by lock-in: it multiplies the output by sin and by cos and averages over whole cycles. The controller sees only the plant's response to the sum, so $L(j\omega) = -U_c/U_p$. For all five linearizable controllers the measured points land on the model's Bode curve to within about 0.2 dB and 0.5°. The **large sine** setting shows where that agreement ends. On the diff-drive the measured gain is up to about 0.5 dB low at the lowest frequencies. On the car it is 2 to 3.5 dB low at every frequency. A 0.2 rad sine trips the trackers' dry-steering rule, which slows the car while the wheels are more than 0.1 rad from the commanded angle. A slower car means a smaller plant gain. The 1.5 rad/s steering-rate limit adds about 30° of lag, at the top frequency only. A gain that depends on the amplitude of the input is how the describing-function method treats a nonlinearity.
 
 [try: Measure L(jω), small sine | {"level":0,"set":{"ctl":"pp"},"test":"inj","injAmp":"small"}] [try: Large sine | {"level":0,"set":{"ctl":"pp"},"test":"inj","injAmp":"large"}] [try: Large sine, car | {"level":5,"set":{"ctl":"rwf"},"test":"inj","injAmp":"large"}]
 
 ## 7. Where the model stops
 
-The linear loop is exact for small errors on a straight path with a known pose. Each of the app's extensions relaxes one of those three conditions, and two controllers fall outside the model altogether.
+The linear loop is exact for small errors on a straight path with a known pose. Each of the app's extensions drops one of these three conditions. Two controllers fall outside the model altogether.
 
-**Large errors.** The linearization drops $\sin\theta_e \approx \theta_e$, $\ell \approx L_d$ and the saturations: the yaw-rate limit $\omega_{max}$ = 1.8 rad/s, the steering limit 32° and the steering rate 1.5 rad/s. Once a limit is active the loop gain is effectively lower than the model says. That is stabilizing for a loop with good margins and destabilizing for one near a limit cycle: a rate limit adds phase lag of its own. The large-sine injection and the step test are the app's way of showing the difference, and lesson 9 of the control-loop group (linear vs nonlinear) is built on it.
+**Large errors.** The linearization assumes $\sin\theta_e \approx \theta_e$ and $\ell \approx L_d$, and it leaves out the saturations: the yaw-rate limit $\omega_{max}$ = 1.8 rad/s, the steering limit 32° and the steering rate 1.5 rad/s. Once a limit is active, the loop gain is effectively lower than the model says. For a loop with good margins that is stabilizing. For a loop near a limit cycle it is destabilizing, because a rate limit adds phase lag of its own. The large-sine injection and the step test show the difference in the app, and lesson 9 of the control-loop group (linear vs nonlinear) is built on it.
 
-**Curved paths.** On a circle of radius $R$ the plant equation picks up a constant, $\dot\theta_e = g u - v_0/R$, and the controller must supply a steady $u = v_0/(gR)$ just to follow. For a law with no feedforward that steady command comes from a steady error, so the loop settles with the robot off the path by a fixed offset. The app runs the loop to that settled state before reading the gains (`benchSettle`), reads them about the settled point, and reports the offset in the $e_{ss}$ chip. Rear-wheel feedback adds the feedforward term $\kappa_{ref}\cos\theta_e/(1 - \kappa_{ref}e)$ and settles with no offset. Pure pursuit measures its lookahead along the path and follows a circle almost exactly. The MPC, which previews the reference, settles with none.
+**Curved paths.** On a circle of radius $R$ the plant equation gains a constant term, $\dot\theta_e = g u - v_0/R$. The controller must supply a steady $u = v_0/(gR)$ only to stay on the circle. A law with no feedforward can produce that steady command only from a steady error, so the loop settles with the robot off the path by a fixed offset. The app runs the loop to that settled state before reading the gains (`benchSettle`), reads them about the settled point, and reports the offset in the $e_{ss}$ chip. Rear-wheel feedback adds the feedforward term $\kappa_{ref}\cos\theta_e/(1 - \kappa_{ref}e)$ and settles with no offset. Pure pursuit measures its lookahead along the path and follows a circle with almost no offset. The MPC previews the reference and also settles with no offset.
 
 [try: PID on a 2 m circle | {"level":0,"set":{"ctl":"pid"},"curveR":2,"test":"step","stepKind":"offset","stepAmp":0.2}]
 
-**The estimator in the loop.** The model assumes the controller sees the true $e$ and $\theta_e$. With an EKF or particle filter in the loop the controller sees an estimate with its own dynamics, and a slow estimator behaves like extra lag. The margin chips do not include it, by design. The **experiments use the estimator** switch runs the step test and the injection with the estimator active, so the measured curve can be compared with the model's; the gap is the estimator's contribution.
+**The estimator in the loop.** The model assumes the controller sees the true $e$ and $\theta_e$. With an EKF or a particle filter in the loop, the controller sees an estimate that has dynamics of its own. A slow estimator acts like extra lag. The margin chips leave the estimator out on purpose. The **experiments use the estimator** switch runs the step test and the injection with the estimator active, so you can compare the measured curve with the model's. The gap between them is the estimator's contribution.
 
 [try: EKF in the loop, measure L(jω) | {"level":0,"set":{"ctl":"pp","loc":"ekf","odoK":1},"useEst":true,"test":"inj"}]
 
@@ -305,43 +305,43 @@ The linear loop is exact for small errors on a straight path with a known pose. 
 
 For the MPC the five gains are read by the same central differences as for pure pursuit, applied to a converged solve (25 iterations instead of the 3 the simulator uses per tick). The view analyses the MPC's local behaviour at the operating point, not its receding-horizon logic. Chapter 7 derives the MPC itself.
 
-**Outside the model.** The DWA samples velocities and scores rollouts. It is not a function of $e$ and $\theta_e$ that a finite difference could linearize, and the Analyze view says so. Code in the controller slot is treated the same way: it runs as a black box in a worker. The Analyze view does not linearize it, even when it is a static law whose numerical gains would exist.
+**Outside the model.** The DWA samples velocities and scores rollouts. It is not a function of $e$ and $\theta_e$ that a finite difference could linearize, and the Analyze view says so. Code in the controller slot is treated the same way. It runs as a black box in a worker, and the Analyze view does not linearize it, even when it is a static law whose numerical gains would exist.
 
 ## 8. Placing the poles on purpose: pole placement and LQR
 
-Dragging a pole in the Analyze view and reading off the gains is pole placement done by hand. The textbook versions do the same from numbers, and for the two-integrator loop both solve in closed form. Take the delay-free loop of §1 with the two gains of rear-wheel feedback's form, $u = -K_e e - K_\theta \theta_e$: the characteristic polynomial is
+Dragging a pole in the Analyze view and reading off the gains is pole placement done by hand. The textbook methods do the same from numbers. For the loop with two integrators, both pole placement and LQR have closed-form solutions. Take the delay-free loop of §1 with a law of the same form as rear-wheel feedback, $u = -K_e e - K_\theta \theta_e$. Its characteristic polynomial is
 
 $$
 s^2 + g K_\theta\, s + g v_0 K_e = 0 .
 $$
 
-**Pole placement.** Ask for a pair with damping $\zeta$ and natural frequency $\omega_n$, that is $s^2 + 2\zeta\omega_n s + \omega_n^2$, and match coefficients:
+**Pole placement.** Ask for a pair with damping $\zeta$ and natural frequency $\omega_n$, whose polynomial is $s^2 + 2\zeta\omega_n s + \omega_n^2$, and match the coefficients:
 
 $$
 K_e = \frac{\omega_n^2}{g v_0}, \qquad K_\theta = \frac{2\zeta\omega_n}{g} .
 $$
 
-Two gains, two coefficients, one exact answer; this is why rear-wheel feedback can put its pair anywhere while a one-knob tracker can only move along its curve (§2). The answer is exact for the delay-free loop only. The hold, the latency and the actuator lag add phase, so the pair the full loop actually has sits to the right of the one asked for and lower in damping; the faster the pair, the larger the move, which is §4's delay margin seen from the pole plot. The design row under the pole plot does this computation and then shows where the pair really lands.
+There are two gains for two coefficients, so the answer is unique. Rear-wheel feedback has two independent gains and can put its pair anywhere. A tracker with one knob can only move its pair along a curve (§2). The answer holds only for the delay-free loop. The hold, the latency and the actuator lag add phase lag. The pair the full loop actually has therefore sits to the right of the one asked for, with less damping. The faster the pair, the larger the shift. This is §4's delay margin seen on the pole plot. The design row under the pole plot does this computation and then shows where the pair actually lands.
 
-**LQR.** The linear-quadratic regulator does not choose poles; it chooses a cost and lets the poles follow. For the plant $\dot x = Ax + Bu$ with $x = (e, \theta_e)$,
+**LQR.** The linear-quadratic regulator starts from a cost instead of from poles, and the poles follow from the cost. For the plant $\dot x = Ax + Bu$ with $x = (e, \theta_e)$,
 
 $$
 A = \begin{pmatrix} 0 & v_0 \\ 0 & 0 \end{pmatrix}, \quad B = \begin{pmatrix} 0 \\ g \end{pmatrix}, \quad J = \int_0^\infty q_e e^2 + q_\theta \theta_e^2 + r u^2\, \mathrm dt,
 $$
 
-the optimal feedback is $u = -R^{-1}B^{\mathsf T}P\,x$ with $P$ the symmetric solution of the algebraic Riccati equation $A^{\mathsf T}P + PA - PBR^{-1}B^{\mathsf T}P + Q = 0$. Write $P = \begin{pmatrix} p_1 & p_2 \\ p_2 & p_3 \end{pmatrix}$ and the three scalar equations are
+the optimal feedback is $u = -R^{-1}B^{\mathsf T}P\,x$. Here $Q = \operatorname{diag}(q_e, q_\theta)$ and $R = r$ are the weights of the cost, and $P$ is the symmetric solution of the algebraic Riccati equation $A^{\mathsf T}P + PA - PBR^{-1}B^{\mathsf T}P + Q = 0$. Write $P = \begin{pmatrix} p_1 & p_2 \\ p_2 & p_3 \end{pmatrix}$. The Riccati equation then becomes three scalar equations:
 
 $$
 -\frac{g^2}{r} p_2^2 + q_e = 0, \qquad v_0 p_1 - \frac{g^2}{r} p_2 p_3 = 0, \qquad 2 v_0 p_2 - \frac{g^2}{r} p_3^2 + q_\theta = 0 ,
 $$
 
-so $p_2 = \sqrt{q_e r}/g$, then $p_3 = \sqrt{r(2 v_0 p_2 + q_\theta)}/g$, and the gains $K = (g/r)(p_2, p_3)$ are
+The first gives $p_2 = \sqrt{q_e r}/g$, and the third then gives $p_3 = \sqrt{r(2 v_0 p_2 + q_\theta)}/g$. Both take the positive root, so that $P$ is positive definite. The gains $K = (g/r)(p_2, p_3)$ are
 
 $$
 K_e = \sqrt{\frac{q_e}{r}}, \qquad K_\theta = \sqrt{\frac{q_\theta}{r} + \frac{2 v_0}{g}\sqrt{\frac{q_e}{r}}} .
 $$
 
-Three things to read off. Only the ratios $q_e/r$ and $q_\theta/r$ matter: scaling the whole cost changes nothing. With $q_\theta = 0$ the damping is fixed at $\zeta = 1/\sqrt 2$ whatever the weights (substitute the gains into the polynomial), the same number pure pursuit is stuck with. That is no coincidence: a double integrator with the cheapest possible control always settles on the Butterworth pair, $\zeta = 1/\sqrt 2$, with 4.3 % overshoot. And a smaller $r$ (cheaper control) raises $\omega_n$ like $(q_e/r)^{1/4}$, a slow lever, so halving the settling time costs sixteen times the control weight. LQR guarantees a phase margin of at least 60° and an infinite gain margin for the delay-free plant. The delays take some of that back exactly as they do for a placed pair, and the margins §4 computes are the ones to believe.
+The formulas show three things. First, only the ratios $q_e/r$ and $q_\theta/r$ matter, so scaling the whole cost changes nothing. Second, with $q_\theta = 0$ the damping is $\zeta = 1/\sqrt 2$ for any weights. You can check this by substituting the gains into the polynomial. Pure pursuit has the same damping and cannot change it. The reason is a general result: a double integrator with the cheapest possible control always settles on the Butterworth pair, $\zeta = 1/\sqrt 2$, with 4.3 % overshoot. Third, a smaller $r$ (cheaper control) raises $\omega_n$ only as $(q_e/r)^{1/4}$. Halving the settling time doubles $\omega_n$, and that takes a $q_e/r$ sixteen times larger. For the delay-free plant, LQR guarantees a phase margin of at least 60° and an infinite gain margin. The delays take some of that back, in the same way as for a placed pair, so the margins that §4 computes are the ones to believe.
 
-What LQR adds over placement is a reason for the pair: a trade between tracking error and steering effort, stated in units you can argue about. What it does not add is any knowledge of the delays, the saturation or the curvature; those are still §4, §5 and §7's business.
+Compared with pole placement, LQR gives a reason for the pair it picks. The pair comes from a trade between tracking error and steering effort, stated as weights you can argue about. LQR knows nothing about the delays, the saturation or the curvature. Those are still handled in §4, §5 and §7.
 

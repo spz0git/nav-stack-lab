@@ -33,6 +33,12 @@ async def main():
             await pg.evaluate(f"location.hash='{h}'"); await pg.wait_for_timeout(300)
             g,k=h[7:].split(':'); d=pg.locator(f'#learnview .selfcheck[data-ck="{g}:{int(k)-1}"]'); await d.locator('input').fill(v); await d.locator('.sc-go').click()
             r=d.locator('.sc-res'); return (await r.get_attribute('class')).split()[-1], (await r.inner_text())[:40]
+        # let the page settle first: the last control lesson's analysis and its debounced write of the setup link to the
+        # hash (urlstate.js) can land after the lesson link below and switch the page back to Analyze
+        for _ in range(200):
+            if not await pg.evaluate('window.__an.AN.busy'): break
+            await pg.wait_for_timeout(100)
+        await pg.wait_for_timeout(600)
         sc={v:await check('lesson=saf:2',v) for v in ['27.6','28','26.5','30']}
         sc['count 595']=await check('lesson=loc:8','595')
         print('SELFCHECK',sc)

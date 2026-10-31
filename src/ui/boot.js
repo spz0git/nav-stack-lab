@@ -148,6 +148,10 @@ window.__nav = {
   EXP,
   SAF, // Tools → Safety (ui/safety.js)
   ARG, // its safety argument (ui/argument.js)
+  safOpenRun, // a run of a search or of the argument's evidence, opened up to its contact
+  get running() {
+    return running;
+  },
   safSearch,
   expCSV,
   configURL,

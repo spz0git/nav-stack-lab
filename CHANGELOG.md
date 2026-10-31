@@ -4,6 +4,17 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v74 · 2026-10-31
+
+- The safety lessons show their results where you read them. A search Try lists its five worst runs under its
+  button when it is done; an argument Try draws the safety argument there as it checks, and a button takes you to
+  the Safety tab for the chart, the rates and the editor. You no longer have to switch to Simulate to see what
+  happened.
+- A red claim in the safety argument now leads to the run that broke it. Pick a node and the solutions under it
+  that failed are listed with the runs that count against each: the world and seed, and what happened. Open plays
+  that run on the map from 3 s before its contact and pauses at the contact (Pause on contact is ticked for you).
+  The search's Open buttons do the same.
+
 ## v73 · 2026-10-31
 
 - Safety lesson 8's last prediction asks which of the four measures ranks last, and now lists all four: the

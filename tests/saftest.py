@@ -15,6 +15,9 @@ from _browser import launch, page_url, ROOT
 #   - phase 4b: the ODD monitor sees fog and crawls, with its light and log line; a small argument checked in the page
 #     gives the verdicts core/argument.js gives; arguments stay in this browser across a reload; an argument travels in
 #     a link.
+#   - the results in the lesson: a search's worst runs under its Try in the Learn column, and a checked argument's graph
+#     with the runs behind a red claim; Open plays such a run from 3 s before its contact and pauses at that contact,
+#     the same contact the background run recorded.
 # FAILS and ERRORS must be [].
 FAILS, ERRORS = [], []
 def check(ok, what):
@@ -83,6 +86,16 @@ SMALLARG = {'format': 'nav-stack-lab-argument', 'version': 1, 'name': 'Test argu
   {'id': 'A1', 'type': 'assumption', 'parent': 'G1', 'rel': 'context', 'text': 'Only fog matters here'},
   {'id': 'E1', 'type': 'solution', 'parent': 'G1', 'rel': 'support', 'text': 'Fog with the monitor',
    'evidence': {'kind': 'runs', 'level': 4, 'set': {'weather': 'fog', 'oddMon': True}, 'seeds': [7], 'secs': 20, 'metric': 'oddFirst', 'op': '<=', 'value': 2}}]}
+# One solution that fails: scripted people, the busy floor at seed 7, a contact at about 52 s
+FAILARG = {'format': 'nav-stack-lab-argument', 'version': 1, 'name': 'Test argument: a contact', 'nodes': [
+  {'id': 'G1', 'type': 'goal', 'text': 'No contact with a person'},
+  {'id': 'E1', 'type': 'solution', 'parent': 'G1', 'rel': 'support', 'text': 'Scripted people, seed 7',
+   'evidence': {'kind': 'runs', 'level': 4, 'set': {'people': 'scripted'}, 'seeds': [7], 'secs': 60, 'metric': 'contacts', 'op': '<=', 'value': 0}}]}
+async def wait_still(pg):
+    await pg.wait_for_timeout(300)
+    for _ in range(80):
+        if not await pg.evaluate('window.__nav.running'): break
+        await pg.wait_for_timeout(250)
 async def main():
     async with async_playwright() as p:
         b = await launch(p)
@@ -130,6 +143,21 @@ async def main():
         await pg.click('[data-safopen]'); await pg.wait_for_timeout(400)
         lv = await pg.evaluate('[window.__nav.LV.id, window.__nav.LV.name, window.__nav.S.fsm.state]')
         check(lv[0] == 'G', 'Open loads the scenario: ' + ' '.join(map(str, lv)))
+        # Open plays the run up to the contact that set its margin, and stops there
+        w = await pg.evaluate("() => { const r = window.__nav.SAF.results.slice().sort((a, b) => a.margin - b.margin || a.i - b.i)[0]; return r.s.events.length ? r.s.events.reduce((a, e) => (e.v > a.v ? e : a)) : null; }")
+        if w:
+            await wait_still(pg)
+            got = await pg.evaluate("() => ({t: window.__nav.S.t, ev: window.__nav.S.safe.events.slice(-1)[0] || null, pc: document.querySelector('#pausec').checked})")
+            check(got['pc'] and got['ev'] and abs(got['ev']['t'] - w['t']) < 0.06 and got['ev']['v'] == w['v'], f"Open pauses at the worst run's contact ({w['t']} s, {w['v']} m/s): {got['ev'] and [got['ev']['t'], got['ev']['v']]}")
+        # the same search under a search Try of lesson 5, in the Learn column
+        await pg.evaluate("() => { const N = window.__nav, A = window.__an; N.SAF.tryRef = A.LESSON_GROUPS().find(g => g.id === 'saf').items[4].tries[0][1].saf; N.SAF.tryText = 'Done.'; A.setUIMode('learn'); A.openLesson('saf:4'); }")
+        await pg.wait_for_timeout(400)
+        n = await pg.evaluate("() => document.querySelectorAll('.saf-embed[data-safk=\"saf:4:0\"] [data-safopen]').length")
+        check(n == 5, f'the search Try lists its five worst runs, each with Open ({n})')
+        await pg.evaluate("() => document.querySelector('.saf-embed[data-safk=\"saf:4:0\"] [data-safshow]').click()")
+        await pg.wait_for_timeout(300)
+        r2 = await pg.evaluate("() => [document.querySelector('.layout').dataset.mode, !!document.querySelector('#saf-out canvas')]")
+        check(r2[0] != 'learn' and r2[1], f'its button opens the Safety tab in Simulate ({r2})')
         r = await pg.evaluate(LEARN)
         check('Out of distribution (detector)' in r['warn'], 'in fog the Perceive light says the detector is out of distribution: ' + ', '.join(r['warn']))
         check(r['out'] > 0.5, f"most of the scans are outside ({r['out']:.0%})")
@@ -153,6 +181,23 @@ async def main():
         check(v and v['pass'] and v['value'] <= 2, f"a small argument checked in the page passes as in Node: {v}")
         svg = await pg.evaluate("() => document.querySelectorAll('.arg-svg [data-argnode]').length")
         check(svg >= 3, 'the graph draws every node')
+        # a red claim leads to its run: checked from lesson 9's first Try, the Learn column shows the graph and the run
+        await pg.evaluate("() => { window.__an.setUIMode('learn'); window.__an.openLesson('saf:8'); }")
+        await pg.evaluate("a => { window.__nav.tryGo({sim: true, level: 4, tab: 'saf', hold: true, saf: {arg: a, argSet: {}, check: true}}); window.__nav.ARG.tryRef = window.__an.LESSON_GROUPS().find(g => g.id === 'saf').items[8].tries[0][1].saf; }", FAILARG)
+        for _ in range(120):
+            await pg.wait_for_timeout(500)
+            if await pg.evaluate("() => !window.__nav.ARG.running && Object.keys(window.__nav.ARG.verdicts).length > 0"): break
+        v = await pg.evaluate("() => window.__nav.ARG.verdicts.E1")
+        bad = [r for r in (v or {}).get('runs', []) if r['bad']]
+        check(v and not v['pass'] and len(bad) == 1 and bad[0]['t'] is not None, f"the failed solution names its run and when: {bad}")
+        emb = await pg.evaluate("() => { const e = document.querySelector('.saf-embed[data-safk=\"saf:8:0\"]'); return e ? [!!e.querySelector('.arg-svg'), e.querySelectorAll('[data-argrun]').length, e.innerText.includes('E1 fails')] : null; }")
+        check(emb and emb[0] and emb[1] == 1 and emb[2], f'under the Try: the graph, and the run behind the red claim with Open ({emb})')
+        check(await pg.evaluate("() => window.__nav.ARG.done") == 1, 'opening the lesson set its first Try up without checking ARG-1 (only the one run of this check ran)')
+        await pg.evaluate("() => document.querySelector('.saf-embed[data-safk=\"saf:8:0\"] [data-argrun]').click()")
+        await wait_still(pg)
+        got = await pg.evaluate("() => ({seed: window.__nav.P.seed, ev: window.__nav.S.safe.events.slice(-1)[0] || null})")
+        check(got['seed'] == 7 and got['ev'] and abs(got['ev']['t'] - bad[0]['t']) < 0.06 and got['ev']['kind'] == 'person', f"its Open pauses at that contact ({bad[0]['t']} s): {got['ev'] and got['ev']['t']}")
+        await pg.evaluate("() => window.__an.setUIMode('sim')")
         await pg.reload(); await pg.wait_for_timeout(1500)
         kept = await pg.evaluate("() => window.__nav.ARG.list.map(a => a.name)")
         check('Test argument: fog noticed' in kept, 'the argument is still there after a reload (IndexedDB)')

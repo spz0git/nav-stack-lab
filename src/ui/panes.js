@@ -230,13 +230,15 @@ const howOpen = {};
 let consoleOpen = false;
 const narrowUI = () => matchMedia('(max-width:760px)').matches;
 // Show a Symbols group: scroll only the console on desktop (below its sticky tabs), the page on phones
-function showSym(id) {
+const showSym = id => showTabAt('sym', 'sym-' + id);
+// A tab of Simulate's console, scrolled to one of its elements (Learn gives way to Simulate, whose console it is)
+function showTabAt(tab, elId) {
   if (uiMode === 'learn') setUIMode(AN.mode);
-  activeTab = 'sym';
+  activeTab = tab;
   consoleOpen = true;
   buildTabs();
   renderAllPanes();
-  const el = document.getElementById('sym-' + id),
+  const el = document.getElementById(elId),
     c = document.querySelector('.right') || document.querySelector('.console');
   if (!el) return;
   if (c.scrollHeight > c.clientHeight + 1 && getComputedStyle(c).overflowY !== 'visible') {

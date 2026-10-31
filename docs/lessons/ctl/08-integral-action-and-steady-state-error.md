@@ -55,7 +55,7 @@ Answer: 0
 snippet: pid
 focus: C.I = clamp(C.I + err * DT, -1, 1); … C.prev = err;
 example: ctl/pid
-Note: The integral adds up the heading error and is clamped so that it cannot wind up without bound. The derivative is the error's change per tick. Edit and run loads the PID example, which ships with Ki = 0. Set Ki to 0.3 and watch the lesson's steady-state error disappear and then overshoot.
+Note: The integral adds up the bearing error to the carrot and is clamped so that it cannot wind up without bound. The derivative is the error's change per tick. Edit and run loads the PID example, which ships with Ki = 0. Set Ki to 0.3 and watch the lesson's steady-state error disappear and then overshoot.
 
 ## Think about
 Q: Why does the MPC on the car not remove the misalignment completely?

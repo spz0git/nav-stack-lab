@@ -213,7 +213,7 @@ This is the root mean square of the input's z-scores, each clipped at 10 so that
 | Learned | 0.28 m (0.20–0.25) | 0.78 m (0.66–0.80) | 6 % (6–8 %) |
 | Constant velocity | 0.36 m (0.33–0.37) | 1.61 m (1.38–1.67) | |
 
-On L5, a floor with people the policy was never trained with, 0.4 % of its inputs are outside (0.4–0.5 %), no light comes on, and it has 4 contacts with people (2, 4, 1, 1), where the classical stack has 1 on each seed. L5's people walk the middle of the aisles, so the slices next to a rack and standing are empty there.
+On L5, a floor with people the policy was never trained with, 0.4 % of its inputs are outside (0.4–0.5 %), no light comes on, and it has 4 contacts with people (2, 4, 1 and 1 on seeds 2 to 5), where the classical stack has 1 on each seed. L5's people walk the middle of the aisles, so the slices next to a rack and standing are empty there.
 
 [try: The learned detector in fog | {"sim":true,"level":4,"set":{"agents":"learned","weather":"fog"},"tab":"per","layers":{"agents":true,"lidar":true},"panes":[["oodDet"]]}]
 

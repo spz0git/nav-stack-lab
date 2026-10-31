@@ -1,1 +1,1 @@
-{"version": 75, "date": "2026-10-31", "note": "All 45 lessons on control, localization, perception and planning rewritten in plain prose, as the safety lessons were in v72"}
+{"version": 76, "date": "2026-10-31", "note": "The nine chapters rewritten in plain prose; the latency, space-time, velocity-obstacle, chamfer, radar and LQR statements corrected"}

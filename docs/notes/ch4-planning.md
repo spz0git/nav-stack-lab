@@ -1,11 +1,11 @@
 id: ch4
 num: 4
 sys: plan
-summary: The derivations behind the Planning lessons: the costmap as a graph, A* optimality and the weighted-A* bound, RRT* and why its radius shrinks. Then Reeds–Shepp paths and Hybrid A* for a car, the mission state machine and goal ordering, and space-time A* against predicted people.
+summary: The derivations behind the Planning lessons: the costmap as a graph, A* optimality and the weighted-A* bound, RRT* and why its radius shrinks. Then Reeds–Shepp paths and Hybrid A* for a car, the mission state machine and goal ordering, the speed planner's ST graph, and space-time A* against predicted people.
 
 # Planning: search, sampling, cars and time
 
-A planner turns the costmap of chapter 3 into a route. This chapter derives the four planners in the lab and the layer that decides when to run them, in the order of the Planning lessons. They are A* and its heuristic (lesson 1), RRT* (lesson 2), Hybrid A* for the car (lesson 3), the mission state machine (lesson 4) and space-time A* (lesson 5). The blue numbers follow your settings: the heuristic weight is ε = {{live:eps}}, and RRT* gets {{live:rrtIt}} samples. The car planner uses {{live:planPct}} % of the steering lock (turning radius {{live:Rplan}} m against {{live:Rmin}} m at full lock), and the prediction horizon is {{live:agT}} s.
+A planner turns the costmap of chapter 3 into a route. This chapter derives the four planners in the lab and the layer that decides when to run them, in the order of the Planning lessons. They are A* and its heuristic (lesson 1), RRT* (lesson 2), Hybrid A* for the car (lesson 3), the mission state machine (lesson 4) and space-time A* (lesson 5). Between the last two sits the speed planner, which times the robot's progress along its path past people. The blue numbers follow your settings: the heuristic weight is ε = {{live:eps}}, and RRT* gets {{live:rrtIt}} samples. The car planner uses {{live:planPct}} % of the steering lock (turning radius {{live:Rplan}} m against {{live:Rmin}} m at full lock), and the prediction horizon is {{live:agT}} s.
 
 ## 1. The costmap as a graph
 
@@ -121,7 +121,63 @@ that is, the route cost $g$ from the robot plus the straight line on to the goal
 
 [try: Unknown = lethal | {"sim":true,"level":3,"set":{"unknownAs":"lethal"},"tab":"per"}]
 
-## 6. Space-time A*: time as a coordinate
+## 6. Speed planning: the ST graph
+
+The global plan ignores people on purpose. A person crosses an aisle in two or three seconds, so a route planned around where they stand now is wrong by the time the robot gets there. The lab splits the problem in two, as many mobile robots do. The path planner decides *where* the robot drives, and the speed planner decides *how fast* it moves along that path, a tenth of a second at a time. This split is called the path–velocity decomposition. Its strength is that the second problem has one dimension: the robot can only be somewhere along its path, so the question is how far along it should be at each moment.
+
+The speed planner runs with the path trackers (pure pursuit, rear-wheel feedback, Stanley and PID), which take its speed as a cap, and with MPC, which follows its profile as the reference. DWA picks its own speed in every rollout and does not use it. It is Control → Response to agents → Speed planning, and it needs agent tracking (chapter 3 §5).
+
+**The ST graph.** The planner lays out a grid with time $t$ across and distance $s$ along the path up. A column is 0.2 s and a row is 0.1 m. The grid looks {{live:agT}} s ahead ({{live:stNt}} columns), and as far along the path as the robot could get in that time. For every cell it places the robot's footprint at distance $s$, facing along the path, and every tracked person at their predicted position at time $t$. The prediction is chapter 3 §6's: a disc that moves with the track's velocity and whose radius grows by {{live:agGrow}} m each second. The gap $d$ between the footprint and the nearest predicted disc gives the cell its cost:
+
+| Where the footprint is | Cost of the cell |
+| --- | --- |
+| inside the person's body (the disc without its growth) | a collision: $400 + 2000 \times$ the depth |
+| inside the growth, or closer than the clearance of {{live:stMarg}} m | $40 \times (\text{clearance} - d)$, larger the closer |
+| up to 0.6 m beyond the clearance | a proximity cost that rises from 0 to 1 |
+| anywhere else | nothing |
+
+A person shows up on the graph as a band. Someone who crosses the path ahead fills a short horizontal bar: one distance along the path, for the second or so they take to cross it. Someone standing on the path fills a bar across the whole horizon. Someone walking toward the robot along the path fills a band that slopes down, because the distance at which the two would meet shrinks with time. The ST graph in the telemetry dock draws this grid live, with the chosen profile on top and, dashed, the profile the robot would drive with nobody around.
+
+**The search.** A speed profile is a curve through the graph that starts at the bottom left, and its slope is the speed. The planner searches for the cheapest one by dynamic programming over states $(t, s, v)$, with the speed in steps of 0.05 m/s. From every state it tries six accelerations:
+
+$$
+a \in \{-b,\ -b/2,\ -b/5,\ 0,\ a_c/2,\ a_c\}, \qquad v' = v + a\,\Delta t, \qquad s' = s + \tfrac{1}{2}(v + v')\,\Delta t
+$$
+
+Here $a_c$ and $b$ are the acceleration and braking limits: both equal Vehicle → Linear accel when Acceleration limits is on, and they are 0.8 and 1.5 m/s² when it is off. $\Delta t$ = 0.2 s. The speed never goes below zero, so the robot never backs up. It never rises above the speed reference $v_{\text{ref}}(s)$ either, except while braking as hard as it can. The reference is the cruise speed, lowered on curves so the sideways acceleration stays under $a_{\text{lat}}$, $v \le \sqrt{a_{\text{lat}}/|\kappa|}$, and lowered before the end of the leg so the robot can stop there. A profile costs
+
+$$
+J = \sum_k \Delta t\,\bigl[(v_{\text{ref}} - v_k)^2 + 0.3\,a_k^2 + 3\,\text{prox}_k + \text{pen}_k\bigr]
+$$
+
+where $\text{pen}_k$ is the largest cell cost the step passes through and $\text{prox}_k$ the proximity cost where it ends. The first term asks for speed, the second for a smooth ride, and the last two for distance from people. A collision is a large cost rather than a forbidden cell. There is always a cheapest profile, even when every profile touches someone, and the planner knows how bad the least bad one is.
+
+**Past the horizon.** A profile that stops just before the horizon, in a spot a person will walk through a second later, would look free. So the last state pays a terminal cost as well. The planner checks the next 3 s in half-second steps, with the discs no longer growing, and charges half the cell cost if the robot standing there would be in someone's way.
+
+**Using the answer.** The planner runs at the lidar's 10 Hz. With the defaults its grid has $21 \times 48 \times 23 \approx 23\,000$ states (time, distance, speed), each with six moves. Only the first step of the cheapest profile is used. Its speed at 0.2 s caps the path tracker's speed and the tracker's curvature is kept, so the robot stays on its path and only slows. A tenth of a second later the planner starts again from the new state and the new tracks. If no profile exists at all, the robot brakes at $b$. When the profile falls 0.5 m behind the one it would drive with nobody around, the event log says *Speed planner: yielding to agent #n*.
+
+**When slowing is not enough.** Two situations hand the problem back to the mission layer of §5. One is a *conflict*: even the cheapest profile runs into a predicted body, for about 0.3 s. The other is waiting at a standstill for about 4 s. Either way the speed planner asks for a new path, "agent blocking", at most once every 4 s. For that one plan the people's predicted discs over the next 2 s are stamped into the costmap as obstacles, so A* routes around where they are going. Plan → *When the speed planner reports an agent blocking the path, replan around its predicted positions* turns this off.
+
+**A worked encounter.** On the busy floor at seed 7, at 48.6 s, the robot drives at 0.8 m/s with a person 2.5 m ahead who walks the same way at 0.7 m/s. The ST graph is nearly clear and the profile keeps the cruise speed. At 50.0 s the person reaches the end of their walk and turns back. The track's velocity needs most of a second to follow the turn: it still reads +0.21 m/s at 50.4 s and −0.58 m/s at 51.0 s, against the true −0.7. The speed planner yields at 50.3 s, finds its cheapest profile in conflict at 50.8 s and asks for a new path at 51.0 s. The robot is down to 0.13 m/s when the person walks into it at 51.6 s, at 0.73 m/s: a bump. This is the speed planner's limit. It can slow and wait, but it cannot step aside or back away, and it is only as quick as the tracker's velocity. The same turn appears in safety lesson 3 as a triggering condition.
+
+[try: Speed planning, ST graph | {"sim":true,"level":4,"set":{"spd":"st"},"tab":"ctl","plot":"st"}] [try: People ignored | {"sim":true,"level":4,"set":{"spd":"none"},"tab":"ctl","plot":"st"}]
+
+**Measured** on L5 (scripted people unless stated, lidar tracking, particle filter, pure pursuit), run to Mission complete. Each cell gives the contacts with people, the highest relative speed among them, and the mission time:
+
+| Response | Seed 7 | Seed 2 | Seed 1 |
+| --- | --- | --- | --- |
+| ignore | 3 strikes, up to 1.60 m/s, 106 s | 3 strikes, up to 1.60 m/s, 106 s | 2 strikes and 1 walk-in, 285 s |
+| speed planning | 1 bump, 0.73 m/s, 121 s | 1 bump, 0.83 m/s, 119 s | 2 strikes and 1 walk-in, 249 s |
+| speed planning, prediction frozen | 3 bumps, up to 0.92 m/s, 121 s | 2 bumps, up to 0.91 m/s, 121 s | 1 bump, 3 of 5 goals by 300 s |
+| speed planning, people who react | none, 122 s | none, 118 s | none, 4 of 5 goals by 300 s |
+
+A walk-in is a person walking into the robot while it stands still. Seed 1 is the run in which the particle filter keeps losing the robot (safety lesson 3), so everything there takes longer and its counts say less about the speed planner. On the other two seeds, speed planning turns three strikes into one bump, and the mission takes 13 to 15 s longer. Freezing the prediction (Perceive → Prediction → Static (frozen)) leaves the planner reacting to where people are now. On seeds 7 and 2 the contacts then become slower but more frequent, as perception lesson 3 shows.
+
+**The two settings are not safety dials.** Over the same three seeds, a 2 s horizon gave 2, 5 and 2 contacts (seeds 7, 2 and 1) and a 6 s horizon gave 1, 1 and 4. A clearance of 0 gave 2, 4 and 2, and 0.6 m gave 3, 1 and 3. A contact comes from one encounter. Changing a setting shifts the robot in time, so it meets different people at different moments, and the count moves in either direction.
+
+**Against the alternatives.** Velocity obstacles (§10) may also change the heading, but it decides one velocity at a time, assumes a fixed radius, and does not know the map, so its swerves can end in a shelf. Space-time A* (§7) plans around people in space and time together and leaves the timing to the speed planner. DWA (chapter 5 §6) and MPC (chapter 7) steer and choose the speed in one optimization that checks both the people and the costmap.
+
+## 7. Space-time A*: time as a coordinate
 
 A* on a map decides which way to go, but not when. Adding time to the state makes waiting a move of its own, so a plan can pause in a doorway while someone passes.
 
@@ -135,13 +191,13 @@ $$
 
 A diagonal move is checked against the people at both the step it leaves and the step it arrives in, so the robot cannot cut through a person on the way. Static lethal cells block at every time.
 
-**Heuristic and budget.** The heuristic is the octile distance to the goal in time units. It assumes free space and no waiting, so it is admissible. The search is capped at 60 000 expansions. If the horizon is too crowded to cross, the planner reports "no space-time route within the horizon" and the mission retries 2 s later. That happened once in lesson 5's first run. The output is a path with the waits folded in. The speed planner of the Control tab still enforces the timing, and it reacts when the predictions turn out wrong. The planner picks the route in space-time, and the speed planner keeps to the schedule.
+**Heuristic and budget.** The heuristic is the octile distance to the goal in time units. It assumes free space and no waiting, so it is admissible. The search is capped at 60 000 expansions. If the horizon is too crowded to cross, the planner reports "no space-time route within the horizon" and the mission retries 2 s later. That happened once in lesson 5's first run. The output is a path with the waits folded in. The speed planner (§6) still enforces the timing, and it reacts when the predictions turn out wrong. The planner picks the route in space-time, and the speed planner keeps to the schedule.
 
 **What it costs and buys.** The time dimension multiplies the number of states, and the coarser grid pays for it. Space-time A* even expands fewer cells than plain A* on the same legs (200 to 3 500 against 1 400 to 5 900 in lesson 5). What it gains depends on the people. Against scripted people on the busy floor it makes one contact. A* with the agent layer also makes one, though in a different encounter. Such a contact comes from a person who moves away from the prediction within the planner's reaction time. Against reactive people it makes none. On this floor the speed planner (the trajectory layer) does most of the work. Space-time planning matters where the route itself must change, in doorways and narrow aisles.
 
 [try: Space-time A* | {"sim":true,"level":4,"set":{"plan":"stastar"},"tab":"plan","layers":{"search":true},"searchStep":true}] [try: A* with the agent layer | {"sim":true,"level":4,"set":{"plan":"astar"},"tab":"plan","layers":{"search":true},"searchStep":true}]
 
-## 7. Frontier exploration: the robot picks its own goals
+## 8. Frontier exploration: the robot picks its own goals
 
 **The frontier.** With lidar mapping, each cell of the grid holds the log-odds that it is occupied. That gives three kinds of cell: known free ($l < -0.05$), known occupied ($l > 0.5$) and unknown ($|l| < 0.05$, where nothing has been seen). A *frontier cell* is a known-free cell with an unknown 4-neighbour, so from there the lidar would see into the unknown. The lab also drops frontier cells within the lethal radius of a seen wall, because the robot could not stand on them. This test counts seen walls only. If it also counted the unknown, the cautious policy below would rule out every frontier. The frontier cells form 8-connected clusters, called the *frontiers*. Clusters smaller than $N_{\min}$ cells (the Mission tab's "smallest frontier worth a visit", 6 by default) are ignored, because a sliver seen through a doorway is almost always seen on the way to something else.
 
@@ -170,7 +226,7 @@ Over six seeds the default run takes 111 to 147 s and 80 to 108 m. It always rea
 
 [try: Explore the building | {"sim":true,"level":3,"set":{"mis":"explore"},"tab":"mis"}] [try: Explore with unknown as lethal | {"sim":true,"level":3,"set":{"mis":"explore","unknownAs":"lethal"},"tab":"per"}]
 
-## 8. D* Lite: the search kept alive
+## 9. D* Lite: the search kept alive
 
 **Two values per cell.** Lifelong Planning A* and its moving-start form D* Lite (Koenig & Likhachev 2002) keep, for every cell $u$, the current cost-to-goal $g(u)$ and a one-step lookahead
 $$
@@ -198,7 +254,7 @@ D* Lite pays off where the map is static and only the robot moves. With a prior 
 
 [try: D* Lite with a periodic replan | {"sim":true,"level":1,"set":{"replan":1,"plan":"dstar"},"tab":"plan"}] [try: Lidar mapping, D* Lite | {"sim":true,"level":3,"set":{"plan":"dstar"},"tab":"plan"}]
 
-## 9. Velocity obstacles: avoiding people in velocity space
+## 10. Velocity obstacles: avoiding people in velocity space
 
 **One person, one cone.** Let the person be at relative position $d$, walking at $v_a$, and let $R$ be the robot's and the person's radii added (plus a clearance). If the robot moves at $u$, the relative velocity is $w = u - v_a$ and the robot meets the person at the first $t > 0$ with $|d - t\,w| = R$:
 $$
@@ -229,7 +285,7 @@ If there is no real root, or the root is negative, the two do not collide. If th
 
 [try: Velocity obstacles, 3 s horizon | {"sim":true,"level":4,"set":{"spd":"vo"},"tab":"ctl","layers":{"vo":true,"agents":true}}] [try: People who react | {"sim":true,"level":4,"set":{"spd":"vo","people":"reactive"},"tab":"ctl","layers":{"vo":true,"agents":true}}]
 
-## 10. An end-to-end policy
+## 11. An end-to-end policy
 
 **The setup.** Behaviour cloning fits a function from what the expert sees to what it does. The lab's expert is its own classical stack (A*, the speed planner, pure pursuit). What it sees is the policy's input, $x \in \mathbb{R}^{139}$. The input holds the 120 lidar ranges and the nearest range in each of 12 sectors of 30°, because a flat network reads an obstacle more easily from those than from 120 raw beams. It also holds the goal in the robot frame as $(g_x/10, g_y/10, |g|/10, \cos\beta, \sin\beta)$, and the odometry's $v/1.5$ and $\omega/2$. What the expert does is the output $y \in \mathbb{R}^{16}$, the A* route ahead resampled to eight points 0.4 m apart in the robot frame, in units of 4 m. The first policy was a network $f: 139 \to 256 \to 256 \to 16$ with ReLU activations and 105 744 parameters. It was fitted by least squares with Adam for a hundred epochs. In the page, `policyPlan` turned $4 f(x)$ into world points every half second and handed the path to the tracker. On the way it moved any point inside an inflated obstacle to the nearest free cell. The policy's error is about 20 cm, and the expert keeps a clearance of 40 cm.
 
@@ -274,6 +330,6 @@ Open-loop means the policy's output is compared with the expert's labels on a re
 
 [try: The open floor, where it works | {"sim":true,"level":0,"set":{"plan":"policy"},"tab":"plan"}] [try: The warehouse aisles | {"sim":true,"level":1,"set":{"plan":"policy"},"tab":"plan"}] [try: A classical subgoal | {"sim":true,"level":1,"set":{"plan":"policy","policyGoal":"subgoal"},"tab":"plan"}] [try: The building with a subgoal | {"sim":true,"level":3,"set":{"plan":"policy","policyGoal":"subgoal"},"tab":"plan"}]
 
-## 11. What to carry into the next chapters
+## 12. What to carry into the next chapters
 
 Every planner here produces a path, and the tracker has to follow it. Chapter 5 is about the trackers. The first link between the two chapters is the margin Hybrid A* leaves on the steering lock. A path planned at the vehicle's limit cannot be tracked, because the tracker needs steering in reserve to correct errors. The second link is time. The space-time plan and the speed planner both rely on the predictions of chapter 3. The delay margin of chapter 6 is a related idea one layer down. It measures how much delay a loop can take before it fails.

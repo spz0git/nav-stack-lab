@@ -104,6 +104,39 @@ function segLabel(k) {
     o = f && (typeof f.opts === 'function' ? f.opts() : f.opts).find(([v]) => v === P[k]);
   return o ? o[1] : P[k];
 }
+// Response to agents: all four options for every controller, the ones it cannot use dimmed with the reason (a third
+// element). The path trackers take all four; MPC follows the speed profile as its reference but has no command for
+// velocity obstacles or the reactive stop to adjust; DWA and your code choose their own speed and take none of them.
+const SPD_WHY = {
+  mpc: ["MPC handles people in its own constraints; this one adjusts a path tracker's command."],
+  dwa: [
+    "DWA checks people in its own rollouts; this one adjusts a path tracker's command.",
+    'DWA picks its own speed in every rollout and does not follow a speed profile.'
+  ],
+  custom: [
+    "Your controller gets the tracks in obs.agents and handles people itself; this one adjusts a built-in path tracker's command.",
+    'Your controller picks its own speed and does not follow a speed profile.'
+  ]
+};
+function spdOpts() {
+  const why = SPD_WHY[P.ctl] || [],
+    path = why[0] || '',
+    prof = why[1] || '';
+  return [
+    ['none', {mpc: 'Constraints only', dwa: 'Rollouts only', custom: 'Your code only'}[P.ctl] || 'Ignore'],
+    ['vo', 'Velocity obstacles', path],
+    ['stop', 'Reactive stop', path],
+    ['st', 'Speed planning (ST graph)', prof]
+  ];
+}
+// the line under the row when some options are dimmed: what this controller does about people instead
+function spdOffNote() {
+  const off = spdOpts().filter(o => o[2]);
+  if (!off.length) return '';
+  const names = off.map(o => o[1].replace(/ \(.*\)$/, '')),
+    list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+  return `${list} ${off.length > 1 ? 'work' : 'works'} only with the path trackers (pure pursuit, rear-wheel feedback, Stanley, PID)${P.ctl === 'mpc' ? '; speed planning works with MPC too' : ''}. ${SPD_WHY[P.ctl][0].split(';')[0]}.`;
+}
 const segShort = k => String(segLabel(k)).replace(/ \(.*\)$/, ''); // without its gloss: "Lidar", "Speed planning"
 // Plan → Learned policy: what still runs around the network, for the settings in use
 function policyStackNote() {
@@ -774,19 +807,15 @@ const SCHEMA = {
       k: 'spd',
       type: 'seg',
       label: 'Response to agents',
-      opts: () =>
-        P.ctl === 'mpc'
-          ? [
-              ['none', 'Constraints only'],
-              ['st', 'Speed planning (ST graph)']
-            ]
-          : [
-              ['none', 'Ignore'],
-              ['vo', 'Velocity obstacles'],
-              ['stop', 'Reactive stop'],
-              ['st', 'Speed planning (ST graph)']
-            ],
-      show: () => AG_ST_CTL.includes(P.ctl)
+      opts: spdOpts
+    },
+    {
+      type: 'info',
+      text: () => {
+        const o = spdOpts().find(x => x[0] === P.spd);
+        return (o && o[2] ? `<b>${o[1]} does nothing here.</b> ${o[2]} ` : '') + spdOffNote();
+      },
+      show: () => !AG_PATH_CTL.includes(P.ctl)
     },
     {
       type: 'info',

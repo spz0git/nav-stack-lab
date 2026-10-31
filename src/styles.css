@@ -1298,6 +1298,15 @@ dialog:focus-visible {
   color: var(--ink);
   background: var(--raise);
 }
+/* an option the current setup cannot use: dimmed, and a click says why (Response to agents with MPC or DWA) */
+.seg button[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.seg button[aria-disabled='true']:hover {
+  background: transparent;
+  color: var(--muted);
+}
 .seg button[aria-pressed='true'],
 .seg button[aria-pressed='true']:hover {
   background: var(--accent);

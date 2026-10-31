@@ -67,7 +67,7 @@ function fmtOv(o) {
 function parseVals(f, txt) {
   if (!f) return [];
   if (f.type === 'seg') {
-    const opts = (typeof f.opts === 'function' ? f.opts() : f.opts).map(o => o[0]);
+    const opts = (typeof f.opts === 'function' ? f.opts() : f.opts).filter(o => !o[2]).map(o => o[0]); // not the dimmed ones
     const want = txt.split(/[,\s]+/).filter(Boolean);
     return want.length ? want.filter(v => opts.includes(v)) : opts;
   }
@@ -86,7 +86,14 @@ function expPane() {
   const hint = i => {
     const f = pl.find(x => x.k === EXP.vary[i].k);
     if (!f) return '';
-    if (f.type === 'seg') return 'options: ' + (typeof f.opts === 'function' ? f.opts() : f.opts).map(o => o[0]).join(', ');
+    if (f.type === 'seg')
+      return (
+        'options: ' +
+        (typeof f.opts === 'function' ? f.opts() : f.opts)
+          .filter(o => !o[2])
+          .map(o => o[0])
+          .join(', ')
+      );
     if (f.type === 'bool') return 'off and on';
     return `numbers, e.g. ${f.min}, ${((f.min + f.max) / 2).toFixed(2)}, ${f.max}`;
   };

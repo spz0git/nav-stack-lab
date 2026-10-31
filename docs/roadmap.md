@@ -319,7 +319,7 @@ Owner request: a track that teaches ISO 26262, ISO 21448 (SOTIF), ISO/PAS 8800 a
   loss), compares, saves and picks predictor models (`tests/trtest.py`). The page is 4.5 MB with three models: a
   fourth needs the lighter export (float16 or quantized weights, or the models inlined once instead of twice).
 - Track C, first block (C1): the end-to-end policy, `training/policy/`, `src/models/policy.json`, `policyPlan`. What
-  was tried, in order, each measured (chapter 4 §10): driven trajectories as labels (compounding error, 2 of 4 on
+  was tried, in order, each measured (chapter 4 §11): driven trajectories as labels (compounding error, 2 of 4 on
   L1); noise injection with expert-route labels (L1 solved, the busy floor mostly); sector-minimum features, a wider
   net, two DAgger rounds and a safety layer that snaps waypoints out of the inflation (L3 and L5 better, the aisles
   not: a 10 cm corner cut at the first shelf end pins the robot, and no demonstration shows backing out); a
@@ -400,8 +400,10 @@ Owner request: a track that teaches ISO 26262, ISO 21448 (SOTIF), ISO/PAS 8800 a
   `agentsTick` cleared every track with the lidar off, so `trkIn` Radar silently gave no tracks. Now, with the radar in
   the tracker (`radarTracks()` in `core/agents.js`), each delivered radar scan steps it (`S.radTick`) and the tracks
   stay; switching the lidar off keeps them. L5 with the obstacles removed (`map: 'empty'`), lidar off, seeds 7, 1, 2:
-  people contacts 3/3/2 with no response, 0/0/0 with speed planning on radar tracks, 1/2/2 with velocity obstacles
-  (the forward 120° leaves people from the side unseen until late). `sntest.py` checks that the radar alone gives
+  people contacts 3/3/2 with no response, 0/0/0 with speed planning on radar tracks, 2/2/1 with velocity obstacles
+  (the forward 120° leaves people from the side unseen until late). Corrected 2026-10-31: the first measurement gave
+  1/2/2 because the script called `startMission` again after `loadLevel` had started the mission, which shifts the
+  random draws; start a headless run only from IDLE or DONE, as the worker and `tests/measure_saf.mjs` do. `sntest.py` checks that the radar alone gives
   confirmed tracks on L5.
 - Limits and next steps: nearest-neighbour association (PDA/JPDA would weigh every echo in a gate); the lidar's R does
   not follow the weather (fused tracks in fog follow a turn in 0.5 s, not 0.1); no radar mapping or radar odometry for
@@ -435,6 +437,23 @@ Owner request: a track that teaches ISO 26262, ISO 21448 (SOTIF), ISO/PAS 8800 a
 - Experiments in the real nonlinear simulator: step test (overshoot, settling, time on the steering-rate limit) and sine injection at the plant input (L = −U_c/U_p by lock-in, small or large amplitude) to compare against the model.
 - Verification: injection matches the model within 0.1 dB / 1° for PP, RWF, PID, MPC (with/without lag and lag model, car, latency); predicted and simulated step metrics agree; Nyquist count and eigenvalues agree in every lesson configuration.
 - Learn tab: 10 lessons with Try buttons — the loop, pure pursuit as PD, Bode, Nyquist, delay margin and limit cycles, poles and damping (RWF ζ = k_θ/(2√k_e)), actuator lag and what MPC assumes, integral action, linear vs nonlinear, gain scheduling with speed.
+
+## Speed planning in chapter 4, and Response to agents per controller (2026-10-31)
+- Chapter 4 §6, *Speed planning: the ST graph*: the path–velocity decomposition, the (t, s) grid and its three cell
+  costs (collision inside the body, soft inside the growth and clearance, proximity 0.6 m beyond), the dynamic
+  programme over (t, s, v) with six accelerations and the cost J, the terminal cost past the horizon, the receding use
+  (the speed at 0.2 s caps the tracker), the two escalations (conflict ≈0.3 s, waiting ≈4 s) and the agent layer for
+  that plan; a worked encounter (L5 seed 7, the person who turns back at 50.0 s, track velocity ≈0.8 s late, bump at
+  51.6 s) and a measured table over seeds 7, 2, 1 (ignore, speed planning, prediction frozen, people who react). Old
+  §6–§11 are §7–§12; every "chapter 4 §n" and `#notes=ch4/n-…` link was moved. Chapter 3 §6 promised this section.
+  The Control tab's How it works said blocked cells were forbidden and the escalation took about 1 s; both corrected.
+- Horizon and clearance were swept over the three seeds (agT 2/6 s, stMarg 0/0.6 m): contacts move both ways, so the
+  chapter says they are not safety dials rather than quoting a trend.
+- Control → Response to agents now shows all four options for every controller, the ones it cannot use dimmed
+  (`aria-disabled`, the reason in the title and in a toast on click; a third element in a seg option, `spdOpts` in
+  `ui/schema.js`): MPC dims velocity obstacles and the reactive stop (it follows the speed profile as its reference);
+  DWA and your code dim all three. The row was hidden for DWA and your code, and MPC showed two options. Experiments and
+  the palette skip dimmed options. `uitest.py` checks the row for each controller.
 
 ## Levels
 - L1 Open floor — isolate the controller.

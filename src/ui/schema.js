@@ -1134,7 +1134,7 @@ function gnssInfo() {
   SCHEMA.per.splice(1, 0, {
     type: 'info',
     text: () =>
-      `The lidar is off (Sensors tab): ${P.per === 'mapping' ? 'the map stops growing and the planners use what was seen before; ' : ''}no people are detected${P.agents === 'truth' ? ' (ground-truth tracking still runs)' : ''}, and the costmap gets nothing from the scan.`,
+      `The lidar is off (Sensors tab): ${P.per === 'mapping' ? 'the map stops growing and the planners use what was seen before; ' : ''}${radarTracks() ? 'people are tracked from the radar alone, only in its field of view ahead' : `no people are detected${P.agents === 'truth' ? ' (ground-truth tracking still runs)' : radarOn() && agOn() ? ' (set Tracker inputs to Radar to track them from the radar)' : ''}`}, and the costmap gets nothing from the scan.`,
     show: () => !P.lidar
   });
   senBefore(

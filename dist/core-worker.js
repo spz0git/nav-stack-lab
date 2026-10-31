@@ -3435,12 +3435,12 @@ PARAM_EFFECTS.push(
         S.scanPts = [];
         S.sm = null;
         if (S.sensQ) S.sensQ = S.sensQ.filter(it => it.kind !== 'lidar');
-        if (S.agents && (P.agents === 'lidar' || P.agents === 'learned')) S.agents = agInit();
+        if (S.agents && (P.agents === 'lidar' || P.agents === 'learned') && !radarTracks()) S.agents = agInit(); // the radar keeps the tracks it feeds
       }
       logE(
         v
           ? 'Lidar → on'
-          : `Lidar → off: no mapping, scan matching, people detection or lidar safety stop${P.plan === 'policy' ? '; the learned policy has no input' : ''}`,
+          : `Lidar → off: no mapping, scan matching, ${radarTracks() ? '' : 'people detection '}or lidar safety stop${radarTracks() ? '; people tracked from the radar alone' : ''}${P.plan === 'policy' ? '; the learned policy has no input' : ''}`,
         v ? '' : 'warn'
       );
       if (P.plan === 'policy') requestReplan('lidar switched');
@@ -9469,6 +9469,8 @@ function agInit() {
   };
 }
 const agOn = () => P.agents !== 'off';
+// the radar is one of the tracker's inputs (Perceive → Tracker inputs); with the lidar off it is the only one
+const radarTracks = () => agOn() && P.agents !== 'truth' && radarOn() && P.trkIn !== 'lidar';
 const AG_ST_CTL = [...AG_PATH_CTL, 'mpc']; // controllers that follow the speed plan: path trackers as a speed cap, MPC as its reference
 const stActive = () => AG_ST_CTL.includes(P.ctl) && P.spd === 'st' && agOn();
 // A lidar hit is "explained" when the static map accounts for it
@@ -10175,14 +10177,16 @@ function agentsTick() {
     return;
   }
   const lid = S.scanTick === S.tick,
-    noLid = !P.lidar && S.tick % 2 === 1; // lidar off (Sensors): ground-truth tracks still predict at the scan rate
+    noLid = !P.lidar && S.tick % 2 === 1, // lidar off (Sensors): ground-truth tracks still predict at the scan rate
+    radTrk = radarTracks(),
+    rad = radTrk && !P.lidar && S.radTick === S.tick; // lidar off, radar in the tracker: each radar scan steps the tracker
   if (lid) {
     if (P.agents === 'learned') agDetectLearned();
     else agDetect();
     learnDetTick(); // detection by slice, against the people the scan really hits (core/learnmon.js)
   }
-  if (!P.lidar && P.agents !== 'truth') A.tracks = []; // people detection reads the lidar: with it off, no tracks
-  if (agOn() && (lid || P.agents === 'truth')) agTrack();
+  if (!P.lidar && P.agents !== 'truth' && !radTrk) A.tracks = []; // people detection reads the lidar: with it off and no radar in the tracker, no tracks
+  if (agOn() && (lid || rad || P.agents === 'truth')) agTrack();
   if (agOn() && (lid || noLid)) predTick();
   if (!agOn()) A.tracks = [];
 }
@@ -12677,7 +12681,7 @@ function healthSensorChecks(C, k) {
         'Lidar',
         true,
         'warn',
-        `lidar off: no ${[P.per === 'mapping' ? 'mapping' : '', agOn() && P.agents !== 'truth' ? 'people detection' : '', 'obstacles from the scan'].filter(Boolean).join(', no ')}`
+        `lidar off: no ${[P.per === 'mapping' ? 'mapping' : '', agOn() && P.agents !== 'truth' && !radarTracks() ? 'people detection' : '', 'obstacles from the scan'].filter(Boolean).join(', no ')}${radarTracks() ? '; people tracked from the radar alone, ahead only' : agOn() && P.agents !== 'truth' && radarOn() ? ' (Perceive → Tracker inputs: Radar tracks people from the radar)' : ''}`
       );
   }
   if (k === 'plan' && noLid) {

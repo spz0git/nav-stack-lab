@@ -73,7 +73,7 @@ snippet: scan-match
 focus: const J = [f.gx, f.gy, f.gx * (-s * px - c * py) + f.gy * (c * px - s * py)];
 focus: const dx = -(Hi[0] * b[0] + Hi[1] * b[1] + Hi[2] * b[2]), … dth = -(Hi[6] * b[0] + Hi[7] * b[1] + Hi[8] * b[2]);
 example: loc/sm
-Note: The first marked line builds one row of the Jacobian per hit, by the chain rule of the lesson. The three marked lines after the loop are the step $H\delta = -b$, solved with the $3 \times 3$ inverse. The bilinear field above gives $d$ and its gradient. The fusion into the EKF is ekfScanUpdate, just below in the module. Edit and run loads the scan-matching example, which replaces the estimate by the matched pose instead of fusing it. Raise the 0.5 m outlier cut to 2 m and kidnap the robot by hand to see how far off the estimate can be for the matcher still to pull it in (its basin).
+Note: The first marked line builds one row of the Jacobian per hit, by the chain rule of the lesson. The three marked lines after the loop are the step $H\delta = -b$, solved with the $3 \times 3$ inverse. The bilinear field above gives $d$ and its gradient. The fusion into the EKF is ekfScanUpdate, just below in the module. Edit and run loads the scan-matching example, which replaces the estimate by the matched pose instead of fusing it. Raise the 0.5 m outlier cut to 2 m and kidnap the robot by hand. You then see the matcher's basin, how far off the estimate can be for the matcher still to pull it in.
 
 ## Think about
 Q: The matcher starts from the estimate and the result is fused into the same estimate. Why is that a problem, and what does the lab do about it?

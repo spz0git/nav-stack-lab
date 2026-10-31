@@ -11,6 +11,8 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
   waited for lidar scans that never came, and the robot drove straight through people. The radar only looks ahead,
   so someone coming from the side or behind is seen late or not at all. With the lidar off and Tracker inputs left
   on Lidar, the health panel and the Perceive tab now say how to switch.
+- The welcome hint's reading time for the first pass of lessons (now about 99 minutes) is taken from the Start here
+  card, so the two always agree.
 
 ## v76 · 2026-10-31
 

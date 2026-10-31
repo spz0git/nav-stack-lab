@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v77 · 2026-10-31
 
 - With the lidar switched off (Sensors) and the radar on, setting Perceive → Tracker inputs to Radar now tracks people
   from the radar alone, so speed planning and velocity obstacles can still give way to them. Before, the tracker

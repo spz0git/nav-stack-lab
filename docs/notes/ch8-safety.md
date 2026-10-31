@@ -117,13 +117,13 @@ The Metrics list shows the smallest $\tau$ of the run and the seconds with $\tau
 
 ## 5. Triggering conditions and functional insufficiencies
 
-**Two kinds of failure.** A *fault* is something broken: a sensor switched off, a bias the filters are not told about. A *functional insufficiency* is something not good enough with nothing broken: a predictor that assumes people keep walking, a lidar that sees 4 m in fog, a sonar deaf inside 0.2 m. A *triggering condition* is the situation that exposes an insufficiency: a person turning back beside the robot, fog, a person very close. ISO 26262 deals with the first kind; ISO 21448 with the second.
+**Two kinds of failure.** A *fault* is something broken, such as a sensor switched off or a bias the filters are not told about. A *functional insufficiency* is a part of the design that is not good enough while nothing is broken. Examples are a predictor that assumes people keep walking, a lidar that sees 4 m in fog and a sonar that hears nothing inside 0.2 m. A *triggering condition* is a situation that exposes an insufficiency. For those three it is a person turning back beside the robot, fog, and a person very close. ISO 26262 deals with the first kind of failure and ISO 21448 with the second.
 
-**The four areas.** Sort the situations a system meets two ways: known or unknown to its designers, safe or unsafe. ISO 21448's aim is to grow the known-safe area at the expense of the other three: move known-unsafe situations to safe by changing the function (better sensing, a smaller domain, a slower speed), and find the unknown-unsafe ones by analysis and by searching for them, so that what is left in the unknown-unsafe area is small enough to accept.
+**The four areas.** Sort the situations a system meets in two ways: known or unknown to its designers, and safe or unsafe. ISO 21448 aims to grow the known-safe area at the expense of the other three. Known-unsafe situations are made safe by changing the function, for example with better sensing, a smaller domain or a slower speed. Unknown-unsafe ones are found by analysis and by searching for them. The aim is that what is left in the unknown-unsafe area is small enough to accept.
 
-**Does the stack notice?** For faults it mostly does: the health lights and the Sensors switchboard were built to say what was lost. For triggering conditions it mostly does not: no light watches the fog, the person who turns back is predicted to keep walking until the contact, and the sonar's dead zone reports nothing at all. A condition the stack can notice can be answered with a degraded mode; one it cannot has to be answered in the design or the domain.
+**Does the stack notice?** For faults it mostly does, because the health lights and the Sensors switchboard were built to say what was lost. For triggering conditions it mostly does not. No light watches the fog. The person who turns back is predicted to keep walking until the contact. The sonar's dead zone reports nothing at all. A condition the stack can notice can be answered with a degraded mode. One it cannot notice has to be answered in the design or the domain.
 
-**Measured** on L5 at seed 7, up to Mission complete, nothing broken in any run:
+**Measured** on L5 at seed 7, up to Mission complete, with nothing broken in any run:
 
 | Condition | Insufficiency it exposes | Seed 7 | Seeds 2–5 |
 | --- | --- | --- | --- |
@@ -137,15 +137,15 @@ The Metrics list shows the smallest $\tau$ of the run and the seconds with $\tau
 
 ## 6. Faults, detection and the time budget
 
-**Three moments.** A fault at $t_f$; its detection at $t_d$; the harm it would lead to, if nothing reacted, at $t_h$. ISO 26262 calls $t_h - t_f$ the fault tolerant time interval and asks for safety mechanisms whose detection and reaction fit inside it:
+**Three moments.** A fault happens at $t_f$ and is detected at $t_d$. If nothing reacted, it would lead to harm at $t_h$. ISO 26262 calls $t_h - t_f$ the fault tolerant time interval. It asks for safety mechanisms whose detection and reaction fit inside that interval:
 $$
 (t_d - t_f) + T_{react} < t_h - t_f .
 $$
-The interval belongs to the situation as much as to the robot: the same fault is urgent in a crowded aisle and harmless on an empty floor, so a design takes the worst case it can find over the domain. A fault that is never detected has $t_d = \infty$: no safety mechanism covers it, nothing reacts, and only the design can make it safe.
+The interval depends on the situation as much as on the robot. The same fault is urgent in a crowded aisle and harmless on an empty floor, so a design uses the worst case it can find over the domain. A fault that is never detected has $t_d = \infty$. No safety mechanism covers it and nothing reacts, so only the design can make it safe.
 
-**The fault schedule.** The lab breaks things on a timetable: the setting `sched` lists events such as switching a sensor off, turning beacons off or biasing a motor at a given second, and the event log says when each happens. It is a setting like any other, so a Try, an Experiments run, a search or a level file can carry it, and a reset replays it. The kidnapped-robot experiments of the localization lessons use it too.
+**The fault schedule.** The lab breaks things on a timetable. The setting `sched` lists events, such as switching a sensor off, turning beacons off or biasing a motor, each at a given second. The event log says when each one happens. The schedule is a setting like any other, so a Try, an Experiments run, a search or a level file can carry it, and a reset replays it. The kidnapped-robot experiments of the localization lessons use it too.
 
-**Detection.** The health lights are the stack's detection, and the simulator records when each first turned amber or red, in the page and headless alike. Measured on L5 at seed 7, faults at 30 s, up to Mission complete (seeds 2–5 in brackets):
+**Detection.** The health lights are how the stack detects faults. The simulator records when each light first turned amber or red, in the page and in headless runs alike. Measured on L5 at seed 7, with the faults at 30 s, up to Mission complete (seeds 2–5 in brackets):
 
 | Fault at 30 s | Detected | First harm | Reaction | Outcome |
 | --- | --- | --- | --- | --- |
@@ -155,22 +155,22 @@ The interval belongs to the situation as much as to the robot: the same fault is
 | every beacon off | 40.5 s, Localize red (37.5–46.5 s) | strike at 120.5 s, 1.07 m/s | the lost guard holds and relocalizes, 64 times | 5/5 in 158 s instead of 121 |
 | one motor weaker (+0.3 rad/s turn) | not detected (no light until a person is within 0.3 m) | strike at 51.9 s, 1.28 m/s | none | 5 contacts, 4 strikes, wall clearance 0.10 m |
 
-**Failure modes and effects.** A failure-mode analysis (FMEA, one of the analyses ISO 26262 asks for) lists, for each part, how it can fail, the effect, how the failure is detected and what reacts. The Sensors switchboard's registry already holds the first two columns for the sensors (what each gives the robot, and what turning it off costs); the measurements above fill the last two, and the empty cells are the design work: the lidar has detection without a reaction, the motor neither.
+**Failure modes and effects.** A failure-mode analysis (FMEA, one of the analyses ISO 26262 asks for) lists four things for each part: how it can fail, the effect, how the failure is detected and what reacts. For the sensors, the Sensors switchboard's registry already holds the first two columns (what each sensor gives the robot, and what turning it off costs). The measurements above fill the last two. The empty cells are the design work still to do. The lidar has detection without a reaction, and the motor has neither.
 
 
 ## 7. Searching the domain
 
-**The three seeds.** A seed is the number that starts a random number generator: the same seed gives the same draws and so the same run, and another seed is another run of the same robot, just as likely. The lab has three. The *world seed* belongs to the level generator (the seed box in the level menu) and fixes a generated warehouse: its racks, its beacons and the routes the people walk. The *run seed* (Vehicle → Random seed, 7 by default) fixes every random draw inside one run: the sensor noise, the particle filter's particles, a sampling planner's samples. The *search seed* (Tools → Safety) fixes the search's own draws, that is which worlds and run seeds the random half picks and how each round perturbs the worst runs. A scenario therefore carries two seeds, its world's and its run's, and a search carries a third that decides which scenarios it holds; the same search seed on the same sheet and budget gives the same scenarios and so the same runs. Every number the lessons quote is for stated seeds, and setting them shows it again. A result over "run seeds 1 to 5" is five runs of the same robot, and how far it moves between them says how much one run can claim.
+**The three seeds.** A seed is the number that starts a random number generator. The same seed gives the same draws, and so the same run. Another seed gives another run of the same robot, just as likely as the first. The lab has three seeds. The *world seed* belongs to the level generator (the seed box in the level menu) and fixes a generated warehouse: its racks, its beacons and the routes the people walk. The *run seed* (Vehicle → Random seed, 7 by default) fixes every random draw inside one run, such as the sensor noise, the particle filter's particles and a sampling planner's samples. The *search seed* (Tools → Safety) fixes the search's own draws. These decide which worlds and run seeds the search draws at random, and how each round perturbs the worst runs (both are described below). So a scenario carries two seeds, its world's and its run's. A search carries a third, which decides which scenarios it holds. The same search seed on the same sheet and budget gives the same scenarios, and so the same runs. Every number the lessons quote is for stated seeds, and setting those seeds shows it again. A result over "run seeds 1 to 5" is five runs of the same robot. How far the result moves between them shows how much a single run can claim.
 
-**Scenarios and their margin.** A scenario is a point of the domain: a generated world (its seed, the aisle width, the number of people and of people who wait for the robot), the weather, whether the people react, and the run's seed. Its run gets a margin, lower being worse,
+**Scenarios and their margin.** A scenario is a point of the domain. It consists of a generated world (its seed, the aisle width, the number of people and of people who wait for the robot), the weather, whether the people react, and the run's seed. The scenario's run gets a margin, where lower is worse,
 $$
 m = \begin{cases} -\max_c v_{rel,c} & \text{if the run had a contact} \\ \min(g_{person},\ g_{rack}) & \text{otherwise,} \end{cases}
 $$
-continuous across the boundary between a near miss and a contact, so that a search can tell a run that almost failed from one that never came close. ISO 21448 asks for exactly this pair of activities: evaluate the known scenarios and search for the unknown.
+The margin is continuous across the boundary between a near miss and a contact, so a search can tell a run that almost failed from one that never came close. ISO 21448 asks for these two activities: evaluate the known scenarios and search for the unknown ones.
 
-**Random sampling, then refinement.** A search with budget $B$ spends $B/2$ runs on scenarios drawn uniformly from the sheet's ranges. The rest go in rounds: each round takes the worst tenth of the runs so far (at least three) and perturbs each of their ranges by $\delta\,(\text{hi} - \text{lo})$ with $\delta$ uniform in $(-f, f)$, keeping the world seed and, half the time, the run seed, with $f = 0.25$ in the first round and $0.125$ in the second. It is the cross-entropy idea in its simplest form: sample, keep the worst, sample again near them. Each batch is drawn from the finished runs before it in index order, so the page's workers and `tools/search.mjs` produce the same runs for the same search seed.
+**Random sampling, then refinement.** A search with budget $B$ spends $B/2$ runs on scenarios drawn uniformly from the sheet's ranges. These runs are the search's random half. The rest go in rounds. Each round takes the worst tenth of the runs so far (at least three) and perturbs each of their attributes that has a range by $\delta\,(\text{hi} - \text{lo})$, where hi and lo are the ends of the attribute's range and $\delta$ is uniform in $(-f, f)$. The perturbed scenario keeps the world seed, and half the time it also keeps the run seed. The width is $f = 0.25$ in the first round and $0.125$ in the second. This is the cross-entropy method in its simplest form: sample, keep the worst, and sample again near them. Each batch is drawn from the finished runs before it, in index order, so the page's workers and `tools/search.mjs` produce the same runs for the same search seed.
 
-**Measured**, ODD-1 (generated warehouses, 24 × 16 m, aisles 2–3.2 m, up to four scripted people, clear air, the busy floor's settings), 40 runs, two refinement rounds, search seeds 1, 2 and 3:
+**Measured** on ODD-1 (generated warehouses, 24 × 16 m, aisles 2–3.2 m, up to four scripted people, clear air, the busy floor's settings), with 40 runs, two refinement rounds and search seeds 1, 2 and 3:
 
 | Search | Random 20: with a contact (strikes) | Refined 20: with a contact (strikes) | Worst margin |
 | --- | --- | --- | --- |
@@ -178,25 +178,25 @@ continuous across the boundary between a near miss and a contact, so that a sear
 | ODD-1 with up to three people who wait for the robot | 14 (8), 15 (9), 11 (7) | 14 (11), 14 (7), 18 (12) | −1.85, −1.82, −1.75 |
 | ODD-1 with the safety stop on | 6 (2), 6 (2), 5 (1) | 13 (3), 12 (5), 5 (2) | −1.21, −1.39, −1.33 |
 
-Refinement finds more runs with a contact than random sampling on every seed; its single worst run is worse on only one of the three, which is why a search is judged by how many failures it finds for its budget. With the safety stop the random half is the same 20 scenarios: per scenario it helps on 6, 10 and 6 of them and makes 2, 0 and 1 worse.
+On every seed, refinement finds more runs with a contact than random sampling does. Its single worst run is worse on only one of the three seeds. For that reason a search is judged by how many failures it finds for its budget. With the safety stop on, the random half is the same 20 scenarios as without it. Scenario by scenario, the stop helps on 6, 10 and 6 of them and makes 2, 0 and 1 worse.
 
-**Sorting what it finds.** Every failure is opened and attributed: a known triggering condition in a new place (search seed 1's worst run is §5's person turning back, head-on in a 2 m aisle) becomes one more scenario in that condition's regression set; a new kind of failure becomes a new row. Kept as a set, the scenarios are rerun after every change, and a change is accepted when the whole set improves, not only the case that motivated it.
+**Sorting what it finds.** Every failure is opened and traced to its cause. A known triggering condition in a new place becomes one more scenario in that condition's regression set. Search seed 1's worst run is an example: it is §5's person turning back, met head-on in a 2 m aisle. A new kind of failure becomes a new row in §5's table. The scenarios are kept as a set and rerun after every change. A change is accepted when the whole set improves, not only the case that motivated it.
 
 [try: Search the busy floor's domain | {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":"ODD-1","budget":40,"rounds":2,"seed":1,"run":true}}]
 
 ## 8. Learned blocks: slices and the edge of the data
 
-**Performance by slice.** One number per block hides where it fails. The lab cuts the people detector's recall by range, at every lidar scan of a tracker that detects: a person is *visible* when a beam's true end point lies on their disc (from the true pose), and *found* when a detection lies within 0.6 m of where the estimate's frame puts them; a detection near nobody is false. With $V_s$ visible and $F_s$ found in slice $s$,
+**Performance by slice.** A single number per block hides where the block fails. The lab therefore splits the people detector's recall (the share of the visible people it finds) into slices, starting with range. It does this at every lidar scan of a tracker that detects people. A person is *visible* when the true end point of a beam lies on their disc (computed from the true pose). A person is *found* when a detection lies within 0.6 m of where the estimate's frame puts them. A detection near nobody is a false detection. With $V_s$ visible and $F_s$ found in slice $s$,
 $$
 r_s = \frac{F_s}{V_s}, \qquad \text{false detections per scan} = \frac{\#\{\text{detections near nobody}\}}{\#\text{scans}} .
 $$
-The slices are the range (under 2.5 m, 2.5 to 5 m, farther), next to a rack or wall (the disc within 0.4 m of one) or in the open, walking or standing. The predictors are cut the same way: each 2 s prediction is filed by what the person did in those 2 s, walking on as they were, *changing* (turning by more than 30°, stopping or starting) or standing, and by whether they were within 3 m of the robot. ISO/PAS 8800 sets the requirements on the data and its coverage and verifies the trained component against them: slices are how a requirement names the situations that matter, and how a test shows they are covered.
+The slices are by range (under 2.5 m, 2.5 to 5 m, farther), by place (next to a rack or wall, meaning the disc is within 0.4 m of one, or in the open) and by motion (walking or standing). The predictors are sliced the same way. Each 2 s prediction is filed by what the person did in those 2 s: walking on as they were, *changing* (turning by more than 30°, stopping or starting), or standing. It is also filed by whether the person was within 3 m of the robot. ISO/PAS 8800 sets the requirements on the data and its coverage, and verifies the trained component against them. Slices are how a requirement names the situations that matter, and how a test shows that they are covered.
 
-**Out of distribution.** Each built-in model carries a reference: the mean $\mu_i$ and spread $\sigma_i$ of a short description $x$ of its inputs over the runs its file lists as its training data, replayed on the headless core (`tools/ood-ref.mjs`; the policy's file lists datasets, so its collector's recipes are replayed). The detector's description is its scan's mean and spread of range, the shares of beams that return and return within 1.5 m, the mean change from the last scan, the speed and turn rate, and the map's mean evidence on the hits (8 numbers); the policy's, its 12 sector minima, mean range, the two shares, the goal distance, speed and turn rate (18); the predictor's, its 24 inputs as they are. The score of an input is
+**Out of distribution.** Each built-in model carries a reference for its inputs. The inputs are summarized by a short description $x$, a few numbers per input. The reference is the mean $\mu_i$ and spread $\sigma_i$ of each element of the description over the runs that the model's file lists as its training data. The lab gets them by replaying those runs on the headless core (`tools/ood-ref.mjs`). The policy's file lists datasets instead of runs, so its collector's recipes are replayed. The detector's description has 8 numbers: its scan's mean and spread of range, the shares of beams that return and that return within 1.5 m, the mean change from the last scan, the speed and turn rate, and the map's mean evidence on the hits. The policy's has 18: its 12 sector minima, the mean range, the two shares, the goal distance, the speed and the turn rate. The predictor's is its 24 inputs as they are. The score of an input is
 $$
 s = \sqrt{\frac1m \sum_{i=1}^{m} \min\!\Bigl(10,\ \frac{|x_i - \mu_i|}{\sigma_i}\Bigr)^{2}} ,
 $$
-the root mean square of its z-scores, each clipped so one wild element cannot dominate. The threshold $s_{99}$ is the score 99 % of the training inputs stay under: 1.91 for the detector, 2.24 for the predictor, 1.84 for the policy. A block in use whose input is above it for more than half of the last 5 s turns its subsystem's light amber. It is the simplest monitor that works, a diagonal Gaussian; it is blind to anything its description leaves out, and it says nothing about whether the block's answer is right. ISO/PAS 8800 asks for such measures in operation. A model trained in the Train tab carries the reference of its own training data.
+This is the root mean square of the input's z-scores, each clipped at 10 so that one wild element cannot dominate. The threshold $s_{99}$ is the score that 99 % of the training inputs stay under. It is 1.91 for the detector, 2.24 for the predictor and 1.84 for the policy. If a block in use has its input above the threshold for more than half of the last 5 s, its subsystem's light turns amber. This is the simplest monitor that works. It treats the description as a Gaussian with independent elements (a diagonal covariance). It cannot see anything the description leaves out, and it says nothing about whether the block's answer is right. ISO/PAS 8800 asks for measures like this in operation. A model trained in the Train tab carries the reference of its own training data.
 
 **Measured**, L5 at seed 7 (seeds 2–5 in brackets), up to Mission complete:
 
@@ -213,21 +213,21 @@ the root mean square of its z-scores, each clipped so one wild element cannot do
 | Learned | 0.28 m (0.20–0.25) | 0.78 m (0.66–0.80) | 6 % (6–8 %) |
 | Constant velocity | 0.36 m (0.33–0.37) | 1.61 m (1.38–1.67) | |
 
-The policy on L5, a floor with people it was never trained with: 0.4 % of its inputs outside (0.4–0.5 %), no light, and 4 contacts with people (2, 4, 1, 1) where the classical stack has 1 on each seed. L5's people walk the middle of the aisles, so the slices by a rack and standing are empty there.
+On L5, a floor with people the policy was never trained with, 0.4 % of its inputs are outside (0.4–0.5 %), no light comes on, and it has 4 contacts with people (2, 4, 1, 1), where the classical stack has 1 on each seed. L5's people walk the middle of the aisles, so the slices next to a rack and standing are empty there.
 
 [try: The learned detector in fog | {"sim":true,"level":4,"set":{"agents":"learned","weather":"fog"},"tab":"per","layers":{"agents":true,"lidar":true},"panes":[["oodDet"]]}]
 
 ## 9. Mitigations and their price
 
-**Modifying the function.** ISO 21448 removes or reduces a functional insufficiency by changing the function: better sensing, a restricted function or domain, a hand-over, a minimal-risk manoeuvre, and the changed function is verified again. In the lab the price of a mitigation is availability, the time the robot spends stopped or slowed and the missions it no longer finishes, and its false interventions; the benefit is the contacts and severities it removes. Both are measured on the same scenarios.
+**Modifying the function.** ISO 21448 removes or reduces a functional insufficiency by changing the function. The change can be better sensing, a restricted function or domain, a hand-over or a minimal-risk manoeuvre, and the changed function is then verified again. In the lab a mitigation has two costs. One is availability: the time the robot spends stopped or slowed, and the missions it no longer finishes. The other is its false interventions. Its benefit is the contacts it removes and the severities it lowers. Costs and benefit are measured on the same scenarios.
 
-**The radar emergency brake.** At each radar scan (10 Hz) it takes the echoes the people tracker would (moving against the static world, or not explained by the map), keeps those ahead within half the body's width plus 0.2 m of the arc the odometry says the robot is turning on, and for each that closes at $v_c > 0.1$ m/s computes the time to contact
+**The radar emergency brake.** At each radar scan (10 Hz) the brake takes the echoes the people tracker would take: those moving against the static world, or not explained by the map. It keeps the ones ahead that lie within half the body's width plus 0.2 m of the arc the robot is turning on, as the odometry gives it. For each echo that closes at $v_c > 0.1$ m/s it computes the time to contact
 $$
 T = \frac{d - \ell_f}{v_c},
 $$
-with $d$ the echo's range and $\ell_f$ the distance from the radar to the body's front. Under $T_{brake}$ (1 s by default) the robot is held at a stop for 0.5 s, renewed by each scan that still sees an echo there. It reads one scan and keeps no track, so it reacts at the radar's rate and in fog; and it cannot tell a person's echo from a ghost or clutter, so some of its stops are for nothing. The simulator knows what each echo was and counts the stops by cause.
+with $d$ the echo's range and $\ell_f$ the distance from the radar to the body's front. If $T$ is under $T_{brake}$ (1 s by default), the robot is held at a stop for 0.5 s. Each scan that still sees an echo there renews the hold. The brake reads one scan at a time and keeps no track, so it reacts at the radar's rate, and it works in fog. It cannot tell a person's echo from a ghost or from clutter, so some of its stops are for nothing. The simulator knows what each echo was and counts the stops by cause.
 
-**Measured**, L5 up to Mission complete, seed 7 (in brackets seeds 2–5, and seed 1 where named; *still*: a person walked into the stopped robot):
+**Measured**, L5 up to Mission complete, seed 7 (in brackets seeds 2–5, and seed 1 where named; *still* means a person walked into the stopped robot):
 
 | Condition, mitigation | Contacts with people | Strikes | Stops (for clutter or a rack) | Time stopped or capped | Mission |
 | --- | --- | --- | --- | --- | --- |
@@ -238,33 +238,33 @@ with $d$ the echo's range and $\ell_f$ the distance from the radar to the body's
 | Clear, radar brake | 1 still at 52.1 s (a bump at 51–53 s on seeds 2–5) | 0 | 6 (3 of 6; 2–6 of 3–9) | 3.3 s | 123 s |
 | Clear, cruise 0.5 m/s | a strike at 126.1 s and a bump at 131.6 s (the same on seeds 2–5) | 1 (on 5 of 6 seeds) | — | — | 178 s |
 
-The brake removes every strike in fog because it reads the one sensor the fog does not reach; the lidar safety stop inherits the lidar's blindness. In clear air the brake costs stops and does little, and the slower robot meets different people at different moments and does worse. The radar brake's case for shipping is "on where a monitor says the lidar is degraded": §8's monitor sees fog in half a second.
+The brake removes every strike in fog because it reads the one sensor the fog does not reach. The lidar safety stop inherits the lidar's blindness. In clear air the brake adds stops and does little else. The slower robot meets different people at different moments, and it does worse. So the case for shipping the radar brake is to switch it on where a monitor says the lidar is degraded. §8's monitor sees fog in half a second.
 
 [try: Fog, with the radar emergency brake | {"sim":true,"level":4,"set":{"weather":"fog","radar":true,"radBrake":true},"tab":"ctl","layers":{"agents":true,"radar":true}}]
 
 ## 10. Rates, intervals and indicators
 
-**A rate from a search.** The random half of a search samples the domain: run $i$ operates for $T_i$ seconds (the time its mission ran) and has $k_i$ events, a contact with a person while the robot moves, a strike, or any contact. The refined half is left out, since it was chosen for being bad. With $T = \sum T_i$ and $k = \sum k_i$ the rate is $\hat\lambda = k/T$. If events arrive independently at a constant rate, $k$ is Poisson with mean $\lambda T$, and the exact (Garwood) 95 % interval is the pair of means for which the observed count sits in the tails:
+**A rate from a search.** The random half of a search is a sample of the domain. Run $i$ operates for $T_i$ seconds (the time its mission ran) and has $k_i$ events. Depending on the rate, an event is a contact with a person while the robot moves, a strike, or any contact. The refined half is left out, because it was chosen for being bad. With $T = \sum T_i$ and $k = \sum k_i$, the rate is $\hat\lambda = k/T$. If events arrive independently at a constant rate, $k$ is Poisson with mean $\lambda T$. The exact (Garwood) 95 % interval runs between the two means that put the observed count at the edge of a 2.5 % tail, one on each side:
 $$
 P(X \ge k;\ \lambda_{lo} T) = 0.025, \qquad P(X \le k;\ \lambda_{hi} T) = 0.025, \qquad P(X \le k;\ m) = \sum_{j=0}^{k} e^{-m}\frac{m^j}{j!} .
 $$
-The lab solves both by bisection. ISO 21448 turns acceptance criteria into validation targets with exactly this arithmetic.
+The lab solves both equations by bisection. ISO 21448 uses this arithmetic to turn acceptance criteria into validation targets.
 
-**The rule of three.** With no event, $P(X = 0) = e^{-\lambda T}$. Every $\lambda$ for which that is under 5 % is ruled out at 95 %, one-sided, leaving
+**The rule of three.** With no event, $P(X = 0) = e^{-\lambda T}$. Every $\lambda$ for which this probability is under 5 % is ruled out at 95 % (one-sided). That leaves
 $$
 \lambda < \frac{-\ln 0.05}{T} = \frac{2.996}{T} \approx \frac{3}{T} ;
 $$
-the two-sided interval's top for $k = 0$ is $-\ln 0.025/T = 3.69/T$, which is what the Risk table shows. To claim a target $\lambda^*$ takes $3/\lambda^*$ hours without an event: 3 000 hours for one per thousand, 3 million for one per million, which is why no one validates a rare-event target by operating hours alone.
+and the top of the two-sided interval for $k = 0$ is $-\ln 0.025/T = 3.69/T$. The Risk table shows this top. To claim a target $\lambda^*$ takes $3/\lambda^*$ hours without an event. That is 3 000 hours for one event per thousand hours, and 3 million for one per million. For this reason no one validates a rare-event target by operating hours alone.
 
-**Importance sampling.** The sampler draws the people from $q(x) = 2x$ over their range ($x$ from 0 to 1) instead of the sheet's uniform $p(x) = 1$, and weights run $i$ by $w_i = p/q = 1/(2x_i)$, clipped at $x = 0.05$. The weighted rate
+**Importance sampling.** The sampler draws the people from $q(x) = 2x$ over their range ($x$ from 0 to 1) instead of the sheet's uniform $p(x) = 1$, so it favours worlds with more people. It then weights run $i$ by $w_i = p/q = 1/(2x_i)$, clipped at $x = 0.05$. The weighted rate
 $$
 \hat\lambda_w = \frac{\sum_i w_i k_i}{\sum_i w_i T_i}
 $$
-estimates the domain's rate, since $E_q[w\,f] = E_p[f]$ for anything the run depends on. Its interval is a bootstrap over the runs (1 000 resamples, a fixed seed); with no event at all, the rule of three on the sample's effective hours $T_{eff} = (\sum w_i T_i)^2 / \sum w_i^2 T_i$. Weights that vary spend sample size: $T_{eff} < T$. Importance sampling pays when the oversampled worlds are where the events happen, and costs when they are not.
+estimates the domain's rate, since $E_q[w\,f] = E_p[f]$ for any quantity $f$ of the run. Its interval comes from a bootstrap over the runs (1 000 resamples, with a fixed seed). With no event at all, the lab uses the rule of three on the sample's effective hours $T_{eff} = (\sum w_i T_i)^2 / \sum w_i^2 T_i$. Weights that vary use up sample size, so $T_{eff} < T$. Importance sampling helps when the events happen in the oversampled worlds, and it hurts when they do not.
 
-**Leading indicators.** For each candidate $m$, its value per hour in each random run is ranked against the run's contacts per hour, and Spearman's $\rho$ (the correlation of the ranks) says how well it orders the runs as the harm does. UL 4600 asks for safety performance indicators, leading ones among them, watched in operation.
+**Leading indicators.** Each candidate measure $m$ is taken per hour in each random run, and these values are ranked against the runs' contacts per hour. Spearman's $\rho$ (the correlation of the ranks) says how well the measure puts the runs in the same order as the harm does. UL 4600 asks for safety performance indicators to be watched in operation, leading ones among them.
 
-**Measured**, 40 random runs per search, each to Mission complete:
+**Measured** on 40 random runs per search, each to Mission complete:
 
 | Search | Hours | Contacts with a person, per hour (95 %) | Strikes, per hour (95 %) | Leading indicators, ρ |
 | --- | --- | --- | --- | --- |
@@ -275,21 +275,21 @@ estimates the domain's rate, since $E_q[w\,f] = E_p[f]$ for anything the run dep
 | People who react, seeds 1–3 | 1.26, 1.34, 1.24 | 5: 4.0 (1.3–9.3); 0; 0 | 0: below 2.9, 2.8, 3.0 | under 0.3 m 0.66, … within 2 m 0.27 (seed 1) |
 | People who react, importance-sampled, seeds 1–3 | 1.33, 1.34, 1.28 | 1.7 weighted; 0; 0 | 0: below 3.75, 4.86, 3.76 | |
 
-On ODD-1 contacts are common, and importance sampling gives the same rates within their intervals, with intervals about as wide (the strikes' a little narrower in absolute terms, but around lower estimates): little to gain where nothing is rare. With people who react there is no strike either way, and importance sampling's bound is wider on every seed, because the weights spent effective hours on worlds that held no strike. Every search with contacts ranks a measure of how close the robot came first and the time with a person within 2 m last: exposure is not a leading indicator.
+On ODD-1 contacts are common. Importance sampling gives the same rates within their intervals, and the intervals are about as wide. The strikes' intervals are a little narrower in absolute terms, but around lower estimates. Where nothing is rare there is little to gain. With people who react there is no strike with either sampler, and importance sampling's bound is wider on every seed. The weights spent effective hours on worlds that held no strike. Every search with contacts ranks a measure of how close the robot came first, and the time with a person within 2 m last. Exposure is therefore not a leading indicator.
 
 [try: The busy floor's domain, per hour | {"sim":true,"level":4,"tab":"saf","hold":true,"saf":{"sheet":"ODD-1","budget":40,"rounds":0,"seed":1,"run":true}}]
 
 ## 11. The safety argument and the ODD monitor
 
-**The argument as data.** A node is a goal (a claim), a strategy (how a goal is broken down), a solution (evidence), or context, an assumption or a justification (what a goal leans on, drawn beside it). Each hangs from its parent by a supporting link or a context link. A solution names what to run and what must hold: either *runs*, a configuration at a list of seeds, or a *search* of a sheet, read on its random half, and a metric with a bound,
+**The argument as data.** The argument is stored as nodes. A node is a goal (a claim), a strategy (how a goal is broken down), a solution (evidence), or a context, an assumption or a justification. The last three are what a goal leans on, and they are drawn beside it. Each node hangs from its parent by a supporting link or a context link. A solution names what to run and what must hold. What to run is either *runs*, a configuration at a list of seeds, or a *search* of a sheet, read on its random half. What must hold is a metric with a bound,
 $$
 \text{pass}(E) = \bigl[\, m(E) \ \mathrm{op}\ v(E) \,\bigr], \qquad \text{status}(G) = \begin{cases} \text{fail} & \text{if any supporting child fails} \\ \text{pass} & \text{if every supporting child passes} \\ \text{open} & \text{otherwise.} \end{cases}
 $$
-The metrics: contacts with a person while the robot moves, strikes, the fastest contact with a rack, the fastest with a person, when the ODD monitor first saw the robot outside, the worst seed's share of goals, and a search's upper 95 % rate bounds (§10). Context, assumptions and justifications are not judged; they are what a reader checks by hand. UL 4600 makes such a case the centre of a safety assessment and asks that it be kept current; ISO 26262 and ISO/PAS 8800 ask for one too.
+The metrics are contacts with a person while the robot moves, strikes, the fastest contact with a rack, the fastest with a person, when the ODD monitor first saw the robot outside, the worst seed's share of goals, and a search's upper 95 % rate bounds (§10). Context, assumptions and justifications are not judged. A reader checks them by hand. UL 4600 makes such a case the centre of a safety assessment and asks that it be kept current. ISO 26262 and ISO/PAS 8800 ask for one too.
 
-**Checking it.** Every solution's runs are listed; the changes typed for every run are added on top of each (they win over the solution's own settings, so a change can break the evidence); runs two solutions share are run once; each solution's verdict comes from its runs' summaries, and the statuses follow. The page and `tools/argument.mjs` share the code, so they reach the same verdicts.
+**Checking it.** The check lists every solution's runs. The changes typed for every run are added on top of each one. They override the solution's own settings, so a change can break the evidence. A run that two solutions share is run once. Each solution's verdict comes from its runs' summaries, and the goals' statuses follow from the verdicts. The page and `tools/argument.mjs` share the code, so they reach the same verdicts.
 
-**The ODD monitor.** What a robot can observe of its domain decides what it can monitor. The monitor (off by default) watches two things. The weather, through the lidar's return share: the share of the 120 beams that return, averaged over 2 s. Measured on L5 and generated warehouses it is 0.86 to 0.93 in clear air, 0.67 to 0.76 in rain and 0.57 to 0.59 in fog, so a threshold at 0.65 sees fog and not rain. And the learned blocks in use, through §8's out-of-distribution window. Outside for 1 s, it takes a minimal-risk manoeuvre: a crawl at 0.3 m/s or a stop, until it has been back inside for 3 s. The floor's grip, the people's intentions and an aisle not yet seen are not observable; they need operating rules, written in the argument as assumptions.
+**The ODD monitor.** A robot can monitor only what it can observe of its domain. The monitor (off by default) watches two things. The first is the weather, through the lidar's return share: the share of the 120 beams that return, averaged over 2 s. Measured on L5 and on generated warehouses, it is 0.86 to 0.93 in clear air, 0.67 to 0.76 in rain and 0.57 to 0.59 in fog. A threshold at 0.65 therefore sees fog and not rain. The second is the learned blocks in use, through §8's out-of-distribution window. When the robot has been outside for 1 s, the monitor takes a minimal-risk manoeuvre, a crawl at 0.3 m/s or a stop. It keeps to it until the robot has been back inside for 3 s. The floor's grip, the people's intentions and an aisle not yet seen cannot be observed. They need operating rules, which the argument records as assumptions.
 
 **Measured.** The monitor on L5, seed 7 (seeds 1–5 in brackets):
 

@@ -75,6 +75,7 @@ Shows: A leading indicator has to rise with the harm. Time near people only meas
 Predict: Which of the four measures ranks last against the contacts?
 - Seconds with a person within 2 m
 - Seconds under 0.3 m of a person
+- Seconds with a time to contact under 1 s
 - The closest approach
 Answer: 0
 

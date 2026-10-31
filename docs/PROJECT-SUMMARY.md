@@ -4,7 +4,7 @@ project: nav-stack-lab
 title: Nav Stack Lab
 kind: code
 source: https://github.com/spz0git/nav-stack-lab
-commit: 6d8a1e2
+commit: f61a685
 updated: 2026-10-31
 status: active
 stage: v78 (2026-10-31), UI polish after v76 completed the prose audit before open-sourcing (all 54 lessons and 9 chapters rewritten)

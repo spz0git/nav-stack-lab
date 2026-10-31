@@ -19,7 +19,7 @@ confidential: false
 A robot navigation simulator and course in one offline HTML file, for students and engineers learning how localization, perception, planning, control and safety fit together. The repo is private; the live page is a claude.ai artifact (https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7). GitHub Pages stays off until the repo goes public.
 
 ## Status
-- v77 and v78 (2026-10-31): UI polish: the level generator's form in aligned columns, the chosen option of every switch filled with the accent, a clearer note when agent tracking is off.
+- v77 and v78 (2026-10-31): UI polish: aligned generator form, clearer switches, clearer tracking note.
 - v76 (2026-10-31): the nine chapters rewritten in plain prose, with eight statements corrected against the code or a headless measurement (among them the latency shift, the chamfer error and the LQR damping). The prose audit is complete.
 - v75 (2026-10-31): the 45 lessons on control, localization, perception and planning rewritten in plain prose, every number, table and experiment unchanged; four small factual slips fixed.
 - v74 (2026-10-31): search and argument Trys show their results in the lesson; a red claim lists the runs against it.

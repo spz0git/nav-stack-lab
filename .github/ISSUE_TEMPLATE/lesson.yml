@@ -33,4 +33,4 @@ body:
     id: version
     attributes:
       label: Version
-      placeholder: v79 · 2026-10-31
+      placeholder: v80 · 2026-10-31

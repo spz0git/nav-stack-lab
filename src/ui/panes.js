@@ -616,7 +616,7 @@ function fieldHTML(f) {
     return `<p class="note" data-info="${infoFns.length - 1}">${f.text()}</p>`;
   }
   if (f.type === 'seg')
-    return `<div class="field${chgMark(f) ? ' chg' : ''}"><span class="lbl" title="${TIPS[f.k] || ''}">${f.label}${chgMark(f)}</span><div class="seg" data-k="${f.k}">${(typeof f.opts === 'function' ? f.opts() : f.opts).map(([v, l]) => `<button data-v="${v}" aria-pressed="${P[f.k] === v}">${l}</button>`).join('')}</div></div>`;
+    return `<div class="field${chgMark(f) ? ' chg' : ''}"><span class="lbl" title="${TIPS[f.k] || ''}">${f.label}${chgMark(f)}</span><div class="seg" data-k="${f.k}">${(typeof f.opts === 'function' ? f.opts() : f.opts).map(([v, l, off]) => `<button data-v="${v}" aria-pressed="${P[f.k] === v}"${off ? ` aria-disabled="true" title="${off.replace(/"/g, '&quot;')}"` : ''}>${l}</button>`).join('')}</div></div>`;
   if (f.type === 'bool')
     return `<label class="check${chgMark(f) ? ' chg' : ''}" title="${TIPS[f.k] || ''}"><input type="checkbox" id="p-${f.k}" data-k="${f.k}" ${P[f.k] ? 'checked' : ''}><span>${f.label}${chgMark(f)}</span></label>`;
   if (f.type === 'beacons') {
@@ -661,6 +661,7 @@ function wirePane(t) {
     sg.querySelectorAll('button').forEach(
       b =>
         (b.onclick = () => {
+          if (b.getAttribute('aria-disabled') === 'true') return toast(b.title); // a dimmed option says why instead (a tap on a phone shows no tooltip)
           setParam(sg.dataset.k, b.dataset.v);
           renderAllPanes();
         })

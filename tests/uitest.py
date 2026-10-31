@@ -1,7 +1,8 @@
 # The workspace around the simulation, at 1440 × 900 (about 30 s): the timeline's replay and loop region, Runs (keep,
 # compare, export and import, the previous-run ghost), the command palette, Layers, the URL hash round trip, the
 # keyboard sheet's keys, dark mode's contrast, What's new, the How-it-works panels' MathML, the plot dock and its CSV,
-# and the Changed badge. Each check asserts what the page shows or holds after the action, not only that nothing threw.
+# the Changed badge, and Response to agents' dimmed options for each controller. Each check asserts what the page
+# shows or holds after the action, not only that nothing threw.
 # Prints one summary line per area, then FAILS [...] (checks that did not hold) and ERRORS [...] (page and console
 # errors); both [] when everything held.
 #   python3 tests/uitest.py
@@ -248,6 +249,20 @@ async def main():
                   dollar:(txt.match(/\\$[^$]+\\$/)||[''])[0].slice(0,40), tex:(txt.match(/\\\\(frac|sigma|begin|mathrm|text|theta|omega)\\b/)||[''])[0]}; }''')
                 check(r['open'] and r['n']>0 and r['len']>200 and not r['raw'] and not r['dollar'] and not r['tex'],
                       f"{t}: {r['n']} math elements, no TeX left ({r['dollar'] or r['tex'] or 'clean'})")
+
+            # ---- Response to agents: every controller shows all four options, the ones it cannot use dimmed with the reason
+            area('Response to agents')
+            await fresh(pg,'#l=L5'); await tab(pg,'ctl')
+            want={'pp':[],'mpc':['vo','stop'],'dwa':['vo','stop','st'],'custom':['vo','stop','st']}
+            for ctl,dim in want.items():
+                await pg.evaluate(f"() => {{ window.__nav.setParam('ctl','{ctl}',true); document.querySelector('#tab-ctl').click(); }}"); await pg.wait_for_timeout(120)
+                r=await pg.evaluate("""() => { const b=[...document.querySelectorAll('#pane .seg[data-k="spd"] button')];
+                  return {all:b.map(x=>x.dataset.v), dim:b.filter(x=>x.getAttribute('aria-disabled')==='true').map(x=>x.dataset.v), why:b.every(x=>x.getAttribute('aria-disabled')!=='true'||x.title.length>20)}; }""")
+                check(r['all']==['none','vo','stop','st'] and r['dim']==dim and r['why'],f"{ctl}: all four options, dimmed {r['dim']} (want {dim}), each dimmed one says why")
+            sp=await pg.evaluate('() => window.__nav.P.spd')
+            await pg.click('#pane .seg[data-k="spd"] button[data-v="vo"]',force=True); await pg.wait_for_timeout(150)
+            r=await pg.evaluate("() => ({spd:window.__nav.P.spd, toast:(document.querySelector('#toast')||{}).textContent||''})")
+            check(r['spd']==sp and 'path tracker' in r['toast'],f"your code: a click on the dimmed Velocity obstacles changes nothing and says why ({r['toast'][:50]!r})")
 
             # ---- What's new
             area("What's new")

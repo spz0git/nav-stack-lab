@@ -78,7 +78,8 @@ function revealedBy(s) {
     for (const g of SCHEMA[t]) {
       if (g.type !== 'seg' || !g.k || g.k === s.k) continue;
       const old = P[g.k];
-      for (const [v, l] of typeof g.opts === 'function' ? g.opts() : g.opts) {
+      for (const [v, l, off] of typeof g.opts === 'function' ? g.opts() : g.opts) {
+        if (off) continue; // dimmed for the current setup (Response to agents with DWA, say)
         if (v === old) continue;
         P[g.k] = v;
         let ok = false;

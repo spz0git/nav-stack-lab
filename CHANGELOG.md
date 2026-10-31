@@ -4,6 +4,17 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v80 · 2026-10-31
+
+- Chapter 4 has a new section, *Speed planning: the ST graph* (§6), on how the robot slows and waits for people
+  without leaving its path: the grid of time against distance along the path, the cost of each cell near a predicted
+  person, the search for the cheapest speed profile, when it gives up and asks for a new path, and a worked encounter
+  in which a person turns back toward the robot. The later sections of the chapter move up by one.
+- Control → Response to agents now lists all four options with every controller and dims the ones it cannot use, with
+  the reason when you hover or tap: with MPC, velocity obstacles and the reactive stop; with DWA or your own
+  controller, everything but its own handling of people. Before, the row was missing for DWA and showed only two
+  options for MPC.
+
 ## v79 · 2026-10-31
 
 - With the lidar switched off (Sensors) and the radar on, setting Perceive → Tracker inputs to Radar now tracks people

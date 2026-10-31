@@ -4,10 +4,10 @@ project: nav-stack-lab
 title: Nav Stack Lab
 kind: code
 source: https://github.com/spz0git/nav-stack-lab
-commit: a2a89d8
+commit: 3187647
 updated: 2026-10-31
 status: active
-stage: v79 (2026-10-31) lets the radar alone track people with the lidar off; v76 completed the prose audit before open-sourcing
+stage: v80 (2026-10-31) adds the speed-planning section to chapter 4 and clearer people-handling options; v76 completed the prose audit before open-sourcing
 next_action: Spy spot-reads a few lessons and a chapter on the live page, then sets the date to go public
 blocked_on: nothing
 confidential: false
@@ -19,8 +19,8 @@ confidential: false
 A robot navigation simulator and course in one offline HTML file, for students and engineers learning how localization, perception, planning, control and safety fit together. The repo is private; the live page is a claude.ai artifact (https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7). GitHub Pages stays off until the repo goes public.
 
 ## Status
-- v79 (2026-10-31): with the lidar switched off, the radar alone now feeds the people tracker, so the robot still gives way to people (a gap Spy hit on a custom floor plan).
-- v77 and v78 (2026-10-31): UI polish: aligned generator form, clearer switches, clearer tracking note.
+- v80 (2026-10-31): chapter 4 §6 derives the speed planner (the ST graph) with a worked encounter; Control → Response to agents dims the options a controller cannot use.
+- v77–v79 (2026-10-31): UI polish (generator form, switches, tracking note); the radar alone now tracks people when the lidar is off.
 - v76 (2026-10-31): the nine chapters rewritten in plain prose, with eight statements corrected against the code or a headless measurement. The prose audit is complete.
 - v72–v75 (2026-10-30 and 31): all 54 lessons rewritten in plain prose, every number, table and experiment unchanged.
 - Testing: CI on every PR, the scoped gate before each merge, the full suite nightly; each merged version is tagged and published as a GitHub Release.

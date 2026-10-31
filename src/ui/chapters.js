@@ -164,6 +164,7 @@ const LIVE = {
   Rmin: () => liveF(P.wheelbase / Math.tan(steerMax()), 2),
   Rplan: () => liveF(planR(), 2),
   stMarg: () => liveF(P.stMarg, 2),
+  stNt: () => String(Math.round(P.agT / 0.2)), // the speed planner's columns: its horizon in 0.2 s steps
   dtc: () => liveF(0.2 / Math.max(0.2, Math.min(P.vcruise, P.vmax)), 2),
   nt: () => String(Math.ceil(P.agT / (0.2 / Math.max(0.2, Math.min(P.vcruise, P.vmax)))) + 1),
   v0: () => liveF(anV0()),

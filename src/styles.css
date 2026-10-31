@@ -1714,13 +1714,44 @@ dialog:focus-visible {
 .exptab td.bad {
   color: var(--bad);
 }
-/* a search a Try started, its progress under the Try in the Learn column (ui/safety.js safTryStatus) */
+/* a search or an argument a Try started, under the Try in the Learn column (ui/safety.js safEmbedFill) */
 .experiments p.saf-trystat {
   margin: 8px 0 0;
   padding: 4px 8px;
   border-left: 3px solid var(--saf);
   background: var(--panel);
   font-size: var(--fs-ui);
+}
+.saf-embed:empty {
+  display: none;
+}
+.saf-embed .exptab {
+  margin-top: 6px;
+}
+.saf-embed caption {
+  caption-side: top;
+  text-align: left;
+  font-size: var(--fs-label);
+  color: var(--muted);
+}
+.saf-embed .controls {
+  margin-top: 6px;
+}
+.arg-why .note {
+  margin: 8px 0 2px;
+}
+/* a run per row: its name, what happened under it, the value, Open (fits a phone without scrolling sideways) */
+.runtab {
+  width: 100%;
+}
+.runtab .runwhat {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+.runtab td:last-child {
+  text-align: right;
+  white-space: nowrap;
 }
 .expchart {
   width: 100%;

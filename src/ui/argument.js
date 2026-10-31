@@ -6,6 +6,9 @@
    background workers, with the changes typed under it added to every run, and runs that two solutions share are run
    once. Arguments, ODD sheets and scenario sets are kept in this browser (IndexedDB, store 'safety', beside the custom
    levels and models), saved and loaded as JSON, and an argument travels in a link (#arg= deflated, or #argj= plain).
+   A red claim leads to its runs: the node picked lists the solutions under it that failed and, for each, the runs that
+   count against it (core/argument.js argRuns), each with an Open that plays the run up to its contact. A Try that
+   checks the argument shows the graph and that list under its button in the Learn column (ui/safety.js safEmbedFill).
    ============================================================ */
 const ARG = {
   list: [JSON.parse(JSON.stringify(ARG_BUILTIN))],
@@ -13,6 +16,8 @@ const ARG = {
   sel: 'G1',
   set: {}, // the changes added to every run of the evidence
   verdicts: {},
+  runs: {}, // per solution, its jobs and their summaries, in the order of verdicts[id].runs: [{job, s}]
+  tryRef: null, // the cfg.saf of the Try whose check this is (its result shows under it in the Learn column)
   running: false,
   done: 0,
   total: 0,
@@ -79,7 +84,8 @@ function argLayout(A) {
   place(top, 0, 0);
   return {pos, w: total, h: rowY[rowY.length - 1] + rowH[rowH.length - 1] + 4};
 }
-function argSVG() {
+// pfx keeps the arrowheads' ids apart when the graph is drawn twice (the Safety tab and a lesson)
+function argSVG(pfx = 'arg') {
   const A = argNow(),
     {pos, w, h} = argLayout(A),
     st = argStatus(A, ARG.verdicts),
@@ -91,14 +97,14 @@ function argSVG() {
     const p = pos[n.parent],
       c = pos[n.id];
     if (ARG_SIDE.includes(n.type))
-      edges += `<line x1="${p.x + p.w}" y1="${p.y + 14}" x2="${c.x}" y2="${c.y + 14}" class="arg-ctx" marker-end="url(#arg-open)"/>`;
+      edges += `<line x1="${p.x + p.w}" y1="${p.y + 14}" x2="${c.x}" y2="${c.y + 14}" class="arg-ctx" marker-end="url(#${pfx}-open)"/>`;
     else {
       const x1 = p.x + p.w / 2,
         y1 = p.y + p.h,
         x2 = c.x + c.w / 2,
         y2 = c.y,
         my = (y1 + y2) / 2;
-      edges += `<path d="M${x1} ${y1} V${my} H${x2} V${y2 - 1}" class="arg-sup" marker-end="url(#arg-solid)"/>`;
+      edges += `<path d="M${x1} ${y1} V${my} H${x2} V${y2 - 1}" class="arg-sup" marker-end="url(#${pfx}-solid)"/>`;
     }
   }
   for (const n of A.nodes) {
@@ -121,9 +127,9 @@ function argSVG() {
         n.type === 'solution' && v
           ? `<text class="arg-val" x="${x + W / 2}" y="${y + 18 + 13 * p.lines.length + 2}">${esc(argValText(n.evidence, v))}</text>`
           : '';
-    nodes += `<g class="arg-n ${n.type}${sel}" data-argnode="${esc(n.id)}" style="--st:${col(s)}" tabindex="0" role="button" aria-label="${esc(`${n.id}, ${n.type}: ${n.text}${s ? ', ' + (s === 'pass' ? 'supported' : 'not supported') : ''}`)}">${shape}<text class="arg-id" x="${x + 5}" y="${y + 11}">${esc(n.id)}</text>${mark ? `<text class="arg-id" x="${x + W - 12}" y="${y + Hh + 2}">${mark}</text>` : ''}<text class="arg-t">${text}</text>${val}</g>`;
+    nodes += `<g class="arg-n ${n.type}${sel}${s === 'fail' ? ' fail' : ''}" data-argnode="${esc(n.id)}" style="--st:${col(s)}" tabindex="0" role="button" aria-label="${esc(`${n.id}, ${n.type}: ${n.text}${s ? ', ' + (s === 'pass' ? 'supported' : 'not supported') : ''}`)}">${shape}<text class="arg-id" x="${x + 5}" y="${y + 11}">${esc(n.id)}</text>${mark ? `<text class="arg-id" x="${x + W - 12}" y="${y + Hh + 2}">${mark}</text>` : ''}<text class="arg-t">${text}</text>${val}</g>`;
   }
-  return `<svg class="arg-svg" viewBox="-4 -4 ${w + 8} ${h + 12}" width="${w + 8}" height="${h + 12}" role="group" aria-label="The safety argument"><defs><marker id="arg-solid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" class="arg-hd"/></marker><marker id="arg-open" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" class="arg-ho"/></marker></defs>${edges}${nodes}</svg>`;
+  return `<svg class="arg-svg" viewBox="-4 -4 ${w + 8} ${h + 12}" width="${w + 8}" height="${h + 12}" role="group" aria-label="The safety argument"><defs><marker id="${pfx}-solid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" class="arg-hd"/></marker><marker id="${pfx}-open" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" class="arg-ho"/></marker></defs>${edges}${nodes}</svg>`;
 }
 const argValText = (E, v) =>
   v.error
@@ -148,6 +154,7 @@ function argPaneHTML() {
   <div class="arg-wrap">${argSVG()}</div>
   <div class="controls"><button class="btn small" id="arg-wide">Open the graph full width</button><span class="lbl">Scroll sideways here, or open it over the page; pick a node to edit it.</span></div>
   <p class="note">${top === 'pass' ? '<b>The top claim is supported</b> by the evidence as it stands.' : top === 'fail' ? '<b class="bad">The top claim is not supported</b>: follow the red nodes down to the evidence that failed.' : 'Not checked yet.'}${ARG.msg ? ' ' + esc(ARG.msg) : ''}</p>
+  <div id="arg-why">${argWhyHTML()}</div>
   <div class="exprow"><label class="arg-set">Changes for every run <input type="text" id="arg-set" spellcheck="false" value="${esc(JSON.stringify(ARG.set))}" aria-label="Settings added to every run, as JSON"></label></div>
   <div class="controls"><button class="btn primary" id="arg-run" ${ARG.running || SAF.running ? 'disabled' : ''}>Check the evidence</button><button class="btn" id="arg-cancel" ${ARG.running ? '' : 'hidden'}>Cancel</button><span class="lbl" id="arg-prog">${ARG.running ? `${ARG.done}/${ARG.total} runs` : ''}</span></div>
   <details class="how" open><summary>${esc(n.id)}: edit this node</summary><div class="how-body">
@@ -169,9 +176,11 @@ async function argCheck() {
     uniq = new Map();
   for (const p of plan) for (const j of p.jobs) if (!uniq.has(key(j))) uniq.set(key(j), j);
   const list = [...uniq.values()];
-  Object.assign(ARG, {running: true, done: 0, total: list.length, verdicts: {}, msg: ''});
+  Object.assign(ARG, {running: true, done: 0, total: list.length, verdicts: {}, runs: {}, msg: ''});
+  ARG.sel = A.nodes.find(q => !q.parent).id; // the top claim: what failed under it is listed at once
   SAF.cancel = false;
   safRefresh();
+  safEmbedFill();
   const sums = await safRunJobs(
     list.map(j => ({level: j.level, set: j.set, seed: j.seed, secs: j.secs})),
     {},
@@ -179,16 +188,16 @@ async function argCheck() {
       ARG.done++;
       const el = $('#arg-prog');
       if (el) el.textContent = `${ARG.done}/${ARG.total} runs`;
+      safEmbedFill();
     }
   );
   const byKey = new Map(list.map((j, i) => [key(j), sums[i]]));
   if (!SAF.cancel)
-    for (const p of plan)
-      ARG.verdicts[p.n.id] = argVerdict(
-        p.n.evidence,
-        p.jobs.map(j => byKey.get(key(j))),
-        p.jobs
-      );
+    for (const p of plan) {
+      const S2 = p.jobs.map(j => byKey.get(key(j)));
+      ARG.verdicts[p.n.id] = argVerdict(p.n.evidence, S2, p.jobs);
+      ARG.runs[p.n.id] = p.jobs.map((job, k) => ({job, s: S2[k]}));
+    }
   const st = argStatus(A, ARG.verdicts),
     top = st[A.nodes.find(q => !q.parent).id];
   ARG.running = false;
@@ -199,6 +208,118 @@ async function argCheck() {
       top === 'pass' ? 'ok' : 'warn'
     );
   safRefresh();
+  safEmbedFill();
+}
+/* ---------- from a red claim to its runs ---------- */
+// A run of the evidence in words: which world, and what happened in it that the metric reads
+function argRunName(job) {
+  const L = job.level;
+  if (typeof L === 'number') return `${LEVELS[L].id} seed ${job.seed}`;
+  return L && L.aisle != null ? safWorld(job) : `generated world ${L && L.seed} · seed ${job.seed}`;
+}
+function argRunWhat(E, r, s) {
+  if (!s) return 'the run failed';
+  if (E.metric === 'oddFirst')
+    return s.oddFirst == null ? 'the monitor never saw it outside' : `outside its domain at ${s.oddFirst.toFixed(2)} s`;
+  if (E.metric === 'goals') return `${s.goalsDone} of ${s.goals} goals`;
+  return safWhat(s);
+}
+// The solutions under a node (the node itself when it is one), failed ones first
+function argSolsUnder(A, id) {
+  const out = [],
+    walk = n => {
+      if (n.type === 'solution') out.push(n);
+      for (const k of A.nodes) if (k.parent === n.id && !ARG_SIDE.includes(k.type)) walk(k);
+    },
+    n = A.nodes.find(q => q.id === id);
+  if (n) walk(n);
+  return out;
+}
+// The runs behind the node picked: for a claim, the solutions under it that failed and the runs that count against
+// each; for a solution, all its runs, those against it first. Each run has an Open.
+function argWhyHTML() {
+  const A = argNow(),
+    n = A.nodes.find(q => q.id === ARG.sel);
+  if (!n || ARG_SIDE.includes(n.type) || ARG.running || !Object.keys(ARG.verdicts).length) return '';
+  const st = argStatus(A, ARG.verdicts),
+    sols = argSolsUnder(A, n.id).filter(e => ARG.verdicts[e.id]),
+    one = n.type === 'solution',
+    shown = one ? sols : sols.filter(e => !ARG.verdicts[e.id].pass);
+  if (!shown.length)
+    return st[n.id] === 'pass'
+      ? `<p class="note arg-why"><b>${esc(n.id)} is supported</b> by ${sols.map(e => esc(e.id)).join(', ')}: pick a solution to see its runs.</p>`
+      : '';
+  const rows = e => {
+    const v = ARG.verdicts[e.id],
+      R = ARG.runs[e.id] || [],
+      list = v.runs.filter(r => one || r.bad).sort((a, b) => b.bad - a.bad || a.k - b.k),
+      cap = 8,
+      more = list.length - cap;
+    return (
+      list
+        .slice(0, cap)
+        .map(r => {
+          const x = R[r.k];
+          return `<tr><td>${esc(argRunName(x.job))}<span class="runwhat">${esc(argRunWhat(e.evidence, r, x.s))}</span></td><td class="${r.bad ? 'bad' : ''}">${r.v == null ? '—' : isFinite(r.v) ? +(+r.v).toFixed(2) : 'never'}</td><td><button class="btn small" data-argrun="${esc(e.id)}:${r.k}" title="${r.t != null ? `Plays this run from 3 s before ${r.t.toFixed(1)} s, and pauses at the contact` : 'Sets this run up on the map; Run plays it'}">${r.t != null ? `Open at ${r.t.toFixed(0)} s` : 'Open'}</button></td></tr>`;
+        })
+        .join('') + (more > 0 ? `<tr><td colspan="3" class="lbl">and ${more} more</td></tr>` : '')
+    );
+  };
+  return shown
+    .map(e => {
+      const v = ARG.verdicts[e.id],
+        nb = v.runs.filter(r => r.bad).length;
+      return `<div class="arg-why"><p class="note"><b class="${v.pass ? '' : 'bad'}">${esc(e.id)} ${v.pass ? 'holds' : 'fails'}</b>: ${esc(argValText(e.evidence, v))}. ${
+        one
+          ? `Its ${v.runs.length} run${v.runs.length > 1 ? 's' : ''}${nb ? `, ${nb} against it first` : ''}:`
+          : `${nb} of its ${v.runs.length} run${v.runs.length > 1 ? 's' : ''} count${nb === 1 ? 's' : ''} against it:`
+      }</p><div class="exptab"><table class="runtab"><thead><tr><th>Run, and what happened</th><th>${esc(e.evidence.metric)}</th><th></th></tr></thead><tbody>${rows(e)}</tbody></table></div></div>`;
+    })
+    .join('');
+}
+function argOpenRun(id, k) {
+  const x = (ARG.runs[id] || [])[k],
+    r = ARG.verdicts[id] && ARG.verdicts[id].runs[k];
+  if (x && r) safOpenRun(x.job, r.t, `${id}'s run on ${argRunName(x.job)}`);
+}
+// The Open buttons of the list, and in a lesson the graph's nodes, which pick a node there and in the Safety tab
+function wireArgRuns(root, embed) {
+  root.querySelectorAll('[data-argrun]').forEach(b => {
+    const [id, k] = b.dataset.argrun.split(':');
+    b.onclick = () => argOpenRun(id, +k);
+  });
+  if (embed)
+    root.querySelectorAll('[data-argnode]').forEach(g => {
+      const pick = () => {
+        ARG.sel = g.dataset.argnode;
+        safEmbedFill();
+        safRefresh();
+      };
+      g.onclick = pick;
+      g.onkeydown = e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), pick());
+    });
+}
+// A graph wider than its box scrolls sideways to the first failed solution, where the red path ends
+function argScrollToFail(wrap) {
+  const n = wrap && wrap.querySelector('.arg-n.solution.fail');
+  if (!n || wrap.scrollWidth <= wrap.clientWidth) return;
+  const r = n.getBoundingClientRect(),
+    w = wrap.getBoundingClientRect();
+  wrap.scrollLeft += r.left + r.width / 2 - (w.left + w.width / 2);
+}
+// The check under the Try that started it: where it stands, the graph, and the runs behind the node picked
+function argEmbedHTML() {
+  const A = argNow(),
+    st = argStatus(A, ARG.verdicts),
+    top = st[A.nodes.find(q => !q.parent).id],
+    head = ARG.running
+      ? `Checking the evidence in the background: ${ARG.done} of ${ARG.total} runs.`
+      : top === 'pass'
+        ? 'The top claim is supported. Pick a node to see the runs behind it.'
+        : top === 'fail'
+          ? 'The top claim is not supported. Below are the runs behind the red claims; pick another node to see its own.'
+          : ARG.msg || 'Not checked yet.';
+  return `<p class="saf-trystat">${esc(head)}</p><div class="arg-wrap">${argSVG('arge')}</div>${argWhyHTML()}<div class="controls"><button class="btn small" data-safshow="arg-sec">Edit the argument in the Safety tab</button></div>`;
 }
 /* ---------- keeping arguments, sheets and sets in this browser, and links ---------- */
 const SAFDB = {ok: false};
@@ -262,7 +383,7 @@ function argWide() {
   }
   const st = argStatus(argNow(), ARG.verdicts),
     top = st[argNow().nodes.find(q => !q.parent).id];
-  d.innerHTML = `<div class="srchead"><b>${esc(argNow().name)}</b><span class="lbl">${top === 'pass' ? 'supported' : top === 'fail' ? 'not supported' : 'not checked'}</span><button class="btn" id="argdlg-close">Close</button></div><div class="arg-wrap">${argSVG()}</div>`;
+  d.innerHTML = `<div class="srchead"><b>${esc(argNow().name)}</b><span class="lbl">${top === 'pass' ? 'supported' : top === 'fail' ? 'not supported' : 'not checked'}</span><button class="btn" id="argdlg-close">Close</button></div><div class="arg-wrap">${argSVG('argw')}</div>`;
   $('#argdlg-close').onclick = () => d.close();
   d.querySelectorAll('[data-argnode]').forEach(
     g =>
@@ -292,6 +413,7 @@ function wireArg(pane) {
     return argNow();
   };
   $('#arg-pick').onchange = e => {
+    ARG.tryRef = null;
     ARG.cur = +e.target.value;
     ARG.sel = argNow().nodes.find(q => !q.parent).id;
     ARG.verdicts = {};
@@ -312,7 +434,11 @@ function wireArg(pane) {
     }
     safRefresh();
   };
-  $('#arg-run').onclick = () => argCheck();
+  $('#arg-run').onclick = () => {
+    ARG.tryRef = null; // checked from the tab, not from a lesson's Try
+    argCheck();
+  };
+  wireArgRuns(pane);
   $('#arg-wide').onclick = () => argWide();
   $('#arg-cancel').onclick = () => (SAF.cancel = true);
   $('#arg-apply').onclick = () => {

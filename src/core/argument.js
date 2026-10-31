@@ -50,6 +50,37 @@ const ARG_METRICS = {
       ).hi
   ]
 };
+// Each run's share of a solution's verdict, so a red claim leads to the runs behind it: per run, its value (v), the
+// moment that matters (t, s; null when there is none) and whether it counts against the bound (bad). A count (contacts,
+// strikes, and the rates built on them) is held against the bound only in total, so a run counts against it when it
+// adds to the count; the other metrics are judged run by run.
+const ARG_RUN = (() => {
+  const count = f => s => {
+      const E = s.events.filter(f);
+      return {v: E.length, t: E.length ? E[0].t : null, count: true};
+    },
+    fastest = f => s => {
+      const e = s.events.filter(f).reduce((a, x) => (!a || x.v > a.v ? x : a), null);
+      return {v: e ? e.v : 0, t: e ? e.t : null};
+    };
+  return {
+    contacts: count(RISK_EV.contact),
+    strikes: count(RISK_EV.strike),
+    rackSpeed: fastest(e => e.kind === 'static'),
+    impact: fastest(e => e.kind === 'person'),
+    oddFirst: s => ({v: s.oddFirst == null ? Infinity : s.oddFirst, t: null}),
+    goals: s => ({v: s.goals ? s.goalsDone / s.goals : 1, t: null}),
+    strikeRateHi: count(RISK_EV.strike),
+    contactRateHi: count(RISK_EV.contact)
+  };
+})();
+function argRuns(E, sums) {
+  return sums.map((s, k) => {
+    if (!s) return {k, v: null, t: null, bad: true};
+    const r = ARG_RUN[E.metric](s);
+    return {k, v: r.v, t: r.t, bad: r.count ? r.v > 0 : !ARG_OPS[E.op](r.v, E.value)};
+  });
+}
 // A malformed argument says why; null when it is fine
 function argError(A) {
   if (!A || A.format !== 'nav-stack-lab-argument' || !Array.isArray(A.nodes) || !A.nodes.length) return 'not an argument';
@@ -95,14 +126,15 @@ function argJobs(E, extra = {}) {
   }
   return out;
 }
-// A solution's verdict from its jobs' summaries: {value, pass}
+// A solution's verdict from its jobs' summaries: {value, pass, runs} (runs: argRuns, in the jobs' order)
 function argVerdict(E, sums, jobs) {
-  if (sums.some(s => !s)) return {value: null, pass: false, error: true};
+  const runs = argRuns(E, sums);
+  if (sums.some(s => !s)) return {value: null, pass: false, error: true, runs};
   const v = ARG_METRICS[E.metric][1](
     sums,
     jobs.map(j => j.w || 1)
   );
-  return {value: v, pass: v != null && ARG_OPS[E.op](v, E.value)};
+  return {value: v, pass: v != null && ARG_OPS[E.op](v, E.value), runs};
 }
 // Every node's status from the solutions' verdicts: 'pass', 'fail' or null (not run, or not judged)
 function argStatus(A, verdicts) {

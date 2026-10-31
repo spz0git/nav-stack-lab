@@ -8,6 +8,9 @@
    Risk (phase 4, lesson 8): the random runs as hours of operation, the rate of contacts and of strikes per hour with
    their 95 % intervals (core/search.js riskRate), the hours a target would need, and the leading indicators ranked
    against the contacts, the best of them charted run by run.
+   In the lesson: a Try that searches or checks the argument shows its result under its button in the Learn column
+   (safEmbedFill): the search's worst runs, or the argument's graph and the runs behind a red claim, each with an Open
+   that plays the run up to its contact, and a button to the Safety tab for the rest.
    ============================================================ */
 const SAF = {
   sheet: oddCopy(ODD_SHEETS['ODD-1']),
@@ -28,6 +31,7 @@ const SAF = {
   hits: 0, // runs of the search so far with a contact
   tryNext: null, // the cfg.saf of the Try that asked for the next search, and of the one running (safTryStatus)
   tryRef: null,
+  tryText: null, // that search's line under its Try
   gen: 0 // counts the Try buttons that asked for a search: only the latest one's starts
 };
 const SAF_LABEL = {
@@ -116,7 +120,7 @@ function safResultsHTML() {
   <div class="exptab"><table><thead><tr><th>Run</th><th>Margin</th><th>What happened</th><th>Scenario</th><th></th></tr></thead><tbody>${worst
     .map(
       r =>
-        `<tr><td>${r.i + 1} ${r.kind}</td><td class="${r.margin < 0 ? 'bad' : ''}">${r.margin.toFixed(2)}</td><td>${esc(safWhat(r.s))}</td><td>${esc(safWorld(r.sc))}</td><td><button class="btn small" data-safopen="${r.i}">Open</button></td></tr>`
+        `<tr><td>${r.i + 1} ${r.kind}</td><td class="${r.margin < 0 ? 'bad' : ''}">${r.margin.toFixed(2)}</td><td>${esc(safWhat(r.s))}</td><td>${esc(safWorld(r.sc))}</td><td>${safOpenBtn(r)}</td></tr>`
     )
     .join('')}</tbody></table></div>
   <div class="controls"><button class="btn" id="saf-keep" ${SAF.running ? 'disabled' : ''}>Keep the worst 5 as a set</button></div>
@@ -262,29 +266,96 @@ function safSummary() {
   return `${R.length} runs, ${hit} with a contact${hit ? ` (${strikes} of them a strike)` : ''}: ${[half('random'), half('refine')].filter(Boolean).join(', ')}; the worst margin ${Math.min(...R.map(r => r.margin)).toFixed(2)}`;
 }
 // A search a Try started, reported under that Try in the Learn column, which covers the Safety tab (on a phone it is
-// the whole page). The Try's cfg.saf is the lesson's own object (learn.js passes it on unchanged), so its button is
-// found by it; a Learn column rendered again gets the line back at the next run. text null removes the line.
+// the whole page): its progress, then its worst runs (safEmbedFill). text null removes it.
 function safTryStatus(text) {
-  const v = $('#learnview'),
-    ref = SAF.tryRef;
-  if (!v || !ref) return;
-  const b = [...v.querySelectorAll('button[data-try]')].find(x => {
-    const [g, i, j] = x.dataset.try.split(':'),
-      it = lessonItem(g + ':' + i),
-      t = it && it.L.tries[+j];
-    return t && t[1].saf === ref;
-  });
-  if (!b) return;
-  const card = b.closest('li') || b.parentNode;
-  let p = card.querySelector('.saf-trystat');
-  if (text == null) return p && p.remove();
-  if (!p) {
-    p = document.createElement('p');
-    p.className = 'saf-trystat';
-    const head = b.closest('.exp-head') || b;
-    head.after(p);
+  SAF.tryText = text;
+  safEmbedFill();
+}
+// The contact that sets a run's margin, the fastest (null when the run had none)
+const safWorstEvent = s => (s && s.events.length ? s.events.reduce((a, e) => (e.v > a.v ? e : a)) : null);
+const safOpenBtn = r => {
+  const e = safWorstEvent(r.s);
+  return `<button class="btn small" data-safopen="${r.i}" title="${e ? `Plays this run from 3 s before its contact at ${e.t.toFixed(1)} s, and pauses at the contact` : 'Sets this run up on the map; Run plays it'}">${e ? `Open at ${e.t.toFixed(0)} s` : 'Open'}</button>`;
+};
+// Opens a run of a search or of an argument's evidence ({level, set, seed}) in the simulator. With a moment t (a
+// contact), the run is fast-forwarded to 3 s before it and plays from there with Pause on contact on, so it stops at
+// the contact; without one it is set up and held at the start. On a phone, where Learn covers the map, Simulate opens.
+async function safOpenRun(job, t, label) {
+  const phone = narrowUI();
+  if (uiMode === 'learn' && phone) setUIMode('sim');
+  await tryGo({sim: true, level: job.level, set: job.set, seed: job.seed, tab: 'saf', hold: true});
+  if (phone) $('.mapwrap').scrollIntoView({block: 'start'}); // the map, not the console below it
+  if (t == null) {
+    logE(`Opened ${label}: Run plays it`);
+    return;
   }
-  p.textContent = text;
+  while (busy) await new Promise(r => setTimeout(r, 10));
+  if ((S.fsm.state === 'IDLE' || S.fsm.state === 'DONE') && remaining().length) startMission();
+  const from = Math.max(0, t - 3);
+  await advance(Math.round(from / DT));
+  pauseOnContact = true;
+  const pc = $('#pausec');
+  if (pc) pc.checked = true;
+  running = true;
+  refreshAll();
+  logE(`Opened ${label} at ${from.toFixed(1)} s, 3 s before its contact at ${t.toFixed(1)} s: it pauses there (Pause on contact)`);
+}
+const safOpenResult = i => {
+  const r = SAF.results[i],
+    e = r && safWorstEvent(r.s);
+  if (r) safOpenRun(r.sc, e ? e.t : null, `search run ${r.i + 1} (${safWorld(r.sc)})`);
+};
+// The search under its Try: the line, then once it is done its worst five runs, each with Open
+function safEmbedHTML() {
+  if (SAF.tryText == null) return '';
+  const R = SAF.running ? [] : SAF.results.filter(r => r.margin != null),
+    worst = R.slice()
+      .sort((a, b) => a.margin - b.margin || a.i - b.i)
+      .slice(0, 5);
+  return (
+    `<p class="saf-trystat">${esc(SAF.tryText)}</p>` +
+    (worst.length
+      ? `<div class="exptab"><table class="runtab"><caption>The worst ${worst.length} runs</caption><thead><tr><th>Run, and what happened</th><th>Margin</th><th></th></tr></thead><tbody>${worst
+          .map(
+            r =>
+              `<tr><td>Run ${r.i + 1}<span class="runwhat">${esc(safWhat(r.s))}</span></td><td class="${r.margin < 0 ? 'bad' : ''}">${r.margin.toFixed(2)}</td><td>${safOpenBtn(r)}</td></tr>`
+          )
+          .join('')}</tbody></table></div>`
+      : '') +
+    (R.length
+      ? `<div class="controls"><button class="btn small" data-safshow="saf-out">Chart, rates and every run in the Safety tab</button></div>`
+      : '')
+  );
+}
+// Fills the placeholder under each safety Try in the Learn column (learn.js) with the search or the argument that Try
+// started; called as they progress and whenever the Learn column is drawn again. The graph is redrawn only when it
+// changed, so a scroll inside it survives the progress line.
+function safEmbedFill() {
+  const v = $('#learnview');
+  if (!v) return;
+  v.querySelectorAll('.saf-embed').forEach(el => {
+    const [g, i, j] = el.dataset.safk.split(':'),
+      it = lessonItem(g + ':' + i),
+      c = it && it.L.tries[+j] && it.L.tries[+j][1].saf,
+      html = !c ? '' : c === ARG.tryRef ? argEmbedHTML() : c === SAF.tryRef ? safEmbedHTML() : '';
+    if (el._h === html) return;
+    const head = html.match(/^<p class="saf-trystat">.*?<\/p>/),
+      body = head ? html.slice(head[0].length) : html,
+      old = el.querySelector(':scope > .saf-embed-body');
+    if (head && old && old._h === body) {
+      el.querySelector(':scope > p.saf-trystat').outerHTML = head[0];
+      el._h = html;
+      return;
+    }
+    el._h = html;
+    el.innerHTML = head ? head[0] + `<div class="saf-embed-body">${body}</div>` : html ? `<div class="saf-embed-body">${body}</div>` : '';
+    const b = el.querySelector('.saf-embed-body');
+    if (b) b._h = body;
+    el.querySelectorAll('[data-safopen]').forEach(x => (x.onclick = () => safOpenResult(+x.dataset.safopen)));
+    el.querySelectorAll('[data-safshow]').forEach(x => (x.onclick = () => showTabAt('saf', x.dataset.safshow)));
+    wireArgRuns(el, true);
+    if (!ARG.running && ARG.sel === argNow().nodes.find(q => !q.parent).id) argScrollToFail(el.querySelector('.arg-wrap')); // not once a node is picked
+  });
 }
 async function safSearch() {
   if (SAF.running || oddSheetError(SAF.sheet)) return;
@@ -305,7 +376,7 @@ async function safSearch() {
   SAF.tryNext = null;
   const nR = plan.length - 1,
     going = () =>
-      `Searching in the background: ${SAF.done} of ${SAF.total} runs, ${SAF.hits} with a contact so far. The map stays still; switch to Simulate (on a phone, then Settings) to watch the Safety tab's chart fill.`;
+      `Searching in the background: ${SAF.done} of ${SAF.total} runs, ${SAF.hits} with a contact so far. The map stays still; the worst runs appear here when it is done.`;
   logE(
     `Safety search started: ${sh.name.split(',')[0]}, ${SAF.total} runs (${plan[0].n} at random${nR ? `, then ${nR} round${nR > 1 ? 's' : ''} near the worst` : ''}), search seed ${SAF.seed}`
   );
@@ -348,9 +419,7 @@ async function safSearch() {
   } else {
     const sum = safSummary();
     logE(`Safety search done: ${sum}`, 'ok');
-    safTryStatus(
-      `Done: ${sum}. In Simulate (on a phone, Settings) the Safety tab charts every run and lists the worst, each with an Open button.`
-    );
+    safTryStatus(`Done: ${sum}. Open plays a run on the map up to its contact.`);
   }
   safRefresh();
 }
@@ -371,9 +440,6 @@ async function safRerun(i) {
   logE(`Scenario set rerun: ${SAF.msg}`, set.last.pass === set.last.n ? 'ok' : 'warn');
   safRefresh();
 }
-function safOpen(sc) {
-  tryGo({sim: true, level: sc.level, set: sc.set, seed: sc.seed, tab: 'saf', hold: true});
-}
 // A Try's cfg.saf: the sheet, the budget, and whether to start
 function safFromTry(c) {
   if (c.sheet) SAF.sheet = oddCopy(typeof c.sheet === 'string' ? ODD_SHEETS[c.sheet] : c.sheet);
@@ -390,6 +456,9 @@ function safFromTry(c) {
     if (i >= 0) ARG.cur = i;
     ARG.sel = argNow().nodes.find(n => !n.parent).id;
     ARG.verdicts = {};
+    ARG.runs = {};
+    ARG.msg = '';
+    ARG.tryRef = c; // the check shows under this Try in the Learn column
     ARG.set = c.argSet || {};
     if (c.check)
       (async () => {
@@ -457,7 +526,7 @@ function drawSafChart() {
 function wireSafOut() {
   const pane = $('#pane');
   if (!pane) return;
-  pane.querySelectorAll('[data-safopen]').forEach(b => (b.onclick = () => safOpen(SAF.results[+b.dataset.safopen].sc)));
+  pane.querySelectorAll('[data-safopen]').forEach(b => (b.onclick = () => safOpenResult(+b.dataset.safopen)));
   const k = $('#saf-keep');
   if (k)
     k.onclick = () => {

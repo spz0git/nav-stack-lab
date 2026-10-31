@@ -60,3 +60,42 @@ test('the ODD monitor sees fog within 2 s, and the solution that says so passes;
   assert.ok(on.pass && on.value <= 2, `seen at ${on.value} s`);
   assert.ok(!off.pass && off.value === Infinity, 'never seen with the monitor off');
 });
+
+test('a verdict says which runs count against it, and when', () => {
+  const ev = (t, kind, v, still = false) => ({t, kind, v, still, sev: v >= 1 ? 'strike' : v >= 0.3 ? 'bump' : 'touch'}),
+    sums = [
+      {events: [], oddFirst: 1.2, goals: 4, goalsDone: 4},
+      {events: [ev(12, 'static', 0.2), ev(40, 'static', 0.52)], oddFirst: null, goals: 4, goalsDone: 2},
+      {events: [ev(30, 'person', 1.1), ev(31, 'person', 0.5, true)], oddFirst: 3, goals: 4, goalsDone: 4}
+    ],
+    jobs = sums.map((_, k) => ({level: 4, set: {}, seed: k + 1})),
+    V = (metric, op, value) => C.argVerdict({kind: 'runs', metric, op, value}, sums, jobs);
+  const rack = V('rackSpeed', '<=', 0.3);
+  assert.equal(rack.pass, false);
+  assert.deepEqual(
+    rack.runs.map(r => [r.bad, r.v, r.t]),
+    [
+      [false, 0, null],
+      [true, 0.52, 40],
+      [false, 0, null]
+    ],
+    'the fastest rack contact of each run, judged run by run'
+  );
+  const cont = V('contacts', '<=', 0);
+  assert.deepEqual(
+    cont.runs.map(r => [r.bad, r.v, r.t]),
+    [
+      [false, 0, null],
+      [false, 0, null],
+      [true, 1, 30]
+    ],
+    'a count: a run counts against it when it adds to it; a person walking into the robot standing still does not'
+  );
+  const odd = V('oddFirst', '<=', 2);
+  assert.deepEqual(
+    odd.runs.map(r => r.bad),
+    [false, true, true],
+    'never seen outside, or seen too late'
+  );
+  assert.equal(C.argVerdict({kind: 'runs', metric: 'contacts', op: '<=', value: 0}, [null], [jobs[0]]).runs[0].bad, true);
+});

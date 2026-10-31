@@ -120,9 +120,15 @@ function lessonStage(id) {
     t = it && it.L.tries[0],
     cfg = t && t[1];
   if (!cfg) return draw();
-  // The stage sets the first Try up without running it: a search Try's run flag is dropped here, so a search starts
-  // only when the button is pressed.
-  if (cfg.sim) tryGo({...cfg, saf: cfg.saf && {...cfg.saf, run: false}, layers: {...lessonLayers(id), ...(cfg.layers || {})}, hold: true});
+  // The stage sets the first Try up without running it: a search Try's run flag and an argument Try's check flag are
+  // dropped here, so a search or a check starts only when the button is pressed.
+  if (cfg.sim)
+    tryGo({
+      ...cfg,
+      saf: cfg.saf && {...cfg.saf, run: false, check: false},
+      layers: {...lessonLayers(id), ...(cfg.layers || {})},
+      hold: true
+    });
   else lessonGo({...cfg, test: undefined});
 }
 function lessonBack() {
@@ -201,6 +207,7 @@ function lessonBodyHTML(L, id) {
             see = (x.see ? `<p><b>What you will see.</b> ${x.see}</p>` : '') + shows;
           return (
             `<li><div class="exp-head">${btn(j)}</div>` +
+            (t[1].saf ? `<div class="saf-embed" data-safk="${id}:${j}"></div>` : '') + // its search or argument (ui/safety.js)
             (x.setup ? `<p><b>Setup.</b> ${x.setup}</p>` : '') +
             (pr
               ? `<div class="predict" data-pk="${pk}"><p><b>Before you press.</b> ${pr.q}</p><div class="pred-opts">${pr.opts.map((o, k) => `<button type="button" class="pred-opt${ch == null ? '' : k === pr.a ? ' ok' : k === ch ? ' no' : ''}" data-k="${k}" aria-pressed="${ch === k}">${o}</button>`).join('')}</div><p class="pred-res">${ch == null ? '' : predResText(pr, ch)}</p></div>` +
@@ -452,6 +459,7 @@ function renderLearn() {
         lessonGo(cfg);
       })
   ); // loading the level must not undo the lesson's layers
+  safEmbedFill(); // a safety Try's search or argument, back under its button
   const bk = $('#learn-back');
   if (bk) bk.onclick = lessonBack;
   const pv = $('#learn-prev');

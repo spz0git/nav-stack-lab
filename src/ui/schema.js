@@ -432,7 +432,7 @@ const SCHEMA = {
       type: 'info',
       text: () => {
         const ids = LEVELS.filter(l => l.peds.length).map(l => l.id);
-        return `People prediction (constant velocity, the learned predictor, or your code) is set here once agent tracking is on. Tracking is on by default on ${ids.join(' and ')}, the levels with people. <button type="button" class="linkbtn" data-setp="agents:lidar">Turn on lidar tracking</button>`;
+        return `<b>Tracking is off:</b> people are not tracked, so nothing knows where they are heading. Pick a tracker above to turn it on; people prediction (constant velocity, the learned predictor, or your code) is set here then. Tracking is on by default on ${ids.join(' and ')}, the levels with people. <button type="button" class="btn small" data-setp="agents:lidar">Turn on lidar tracking</button>`;
       },
       show: () => !agOn()
     },

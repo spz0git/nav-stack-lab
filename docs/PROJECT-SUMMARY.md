@@ -4,11 +4,11 @@ project: nav-stack-lab
 title: Nav Stack Lab
 kind: code
 source: https://github.com/spz0git/nav-stack-lab
-commit: eca9d81
+commit: 4a6d3c7
 updated: 2026-10-31
 status: active
-stage: v73 (2026-10-31) fixes safety lesson 8's last prediction after Spy's comment; v72 (2026-10-30) rewrote the nine safety lessons in plain prose
-next_action: Spy finishes reading the rewritten safety lessons on the live page (the comments reached lesson 8 on 2026-10-31); then picks the next track
+stage: v74 (2026-10-31) shows the safety lessons' search and argument results under each Try and leads a red claim to the run that broke it
+next_action: Spy tries lessons 5, 8 and 9 on the live page (results under the Try, Open at the contact) and finishes the read of the safety lessons; then picks the next track
 blocked_on: nothing
 confidential: false
 ---
@@ -19,8 +19,8 @@ confidential: false
 A robot navigation simulator and course in one offline HTML file, for students and engineers learning how localization, perception, planning, control and safety fit together. The repo is private; the live page is a claude.ai artifact (https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7). GitHub Pages stays off until the repo goes public.
 
 ## Status
-- v73 (2026-10-31): safety lesson 8's last prediction asked "which of the four measures" but offered three; it now lists all four. Spy's comment on the live page found it.
-- v72 (2026-10-30): the nine safety lessons rewritten in plain prose, no measured number changed; lessons 5 and 6 explained in full; the standards described without clause numbers, introduced in chapter 8 §1 with links.
+- v74 (2026-10-31), after Spy's feedback: search and argument Trys show their results in the lesson (worst runs, the GSN graph), a red claim lists the runs that count against it, and Open plays a run up to its contact and pauses there; opening lesson 9 no longer starts a 47-run check.
+- v73 (2026-10-31): a fix to safety lesson 8's last prediction; v72 (2026-10-30): the nine safety lessons rewritten in plain prose.
 - Testing: CI on every PR, the scoped gate before each merge, the full suite nightly; each merged version is tagged and published as a GitHub Release.
 - Waiting on Spy: the rest of the read of the rewritten safety lessons; one click on each of the four standards links (checked by search only, the session could not open iso.org); public or private; the next track.
 
@@ -32,7 +32,7 @@ A robot navigation simulator and course in one offline HTML file, for students a
 - Localization: EKF, particle filter, EKF-SLAM, scan matching and pose-graph SLAM.
 - Planning and control: A*, RRT*, Hybrid A*, D* Lite, MPC, DWA and more, with user code slots.
 - Three learned models (detector, predictor, policy), retrainable in the page.
-- Safety tools: contact severity, a worked hazard analysis, leading indicators, ODD sheet and monitor, scenario search, a radar brake, risk rates, a live safety argument.
+- Safety tools (results shown in the lessons, each failing run one click from the map): contact severity, a worked hazard analysis, leading indicators, ODD sheet and monitor, scenario search, a radar brake, risk rates, a live safety argument.
 - Levels stored as JSON, plus a seeded world generator.
 
 Out of scope: runtime dependencies or network access, reproducing the safety standards' text or tables, public hosting while private.

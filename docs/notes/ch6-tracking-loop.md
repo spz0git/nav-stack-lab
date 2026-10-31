@@ -212,7 +212,7 @@ $$
 \omega_n = |s_i|,\qquad \zeta = -\frac{\operatorname{Re} s_i}{\omega_n}
 $$
 
-Without the delays the characteristic equation of section 2 gives $\omega_n = \sqrt 2\,v_0/L_d$ = {{live:wn0}} rad/s and $\zeta = 1/\sqrt 2$ exactly. The hold delay moves the pair a little and leaves the damping at 0.707 to the precision shown. Latency and lag move it a lot.
+Without the delays the characteristic equation of section 2 gives $\omega_n = \sqrt 2\,v_0/L_d$ = {{live:wn0}} rad/s and $\zeta = 1/\sqrt 2$. The hold delay moves the pair a little and leaves the damping at 0.707 to the precision shown. Latency and lag move it a lot.
 
 **Overshoot and settling.** The time-response plot shows $e(t)$ after a lateral offset with the heading aligned, $e(0) = 1$, $\theta_e(0) = 0$. For a second-order loop that initial condition gives
 
@@ -303,7 +303,7 @@ The linear loop is exact for small errors on a straight path with a known pose. 
 
 [try: Rear-wheel feedback | {"level":0,"set":{"ctl":"rwf"}}] [try: PID | {"level":0,"set":{"ctl":"pid"}}] [try: MPC | {"level":0,"set":{"ctl":"mpc"}}] [try: Car, Stanley | {"level":5,"set":{"ctl":"stanley"}}]
 
-For the MPC the five gains are read by the same central differences as for pure pursuit, applied to a converged solve (25 iterations instead of the 3 the simulator uses per tick). The view analyses the MPC's local behaviour at the operating point, not its receding-horizon logic. Chapter 7 derives the MPC itself.
+For the MPC the five gains are read by the same central differences as for pure pursuit, applied to a converged solve (25 iterations instead of the 3 the simulator uses per tick). The view analyses how the MPC behaves near the operating point. It does not analyse the receding-horizon logic. Chapter 7 derives the MPC itself.
 
 **Outside the model.** The DWA samples velocities and scores rollouts. It is not a function of $e$ and $\theta_e$ that a finite difference could linearize, and the Analyze view says so. Code in the controller slot is treated the same way. It runs as a black box in a worker, and the Analyze view does not linearize it, even when it is a static law whose numerical gains would exist.
 

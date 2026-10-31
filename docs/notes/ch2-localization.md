@@ -221,7 +221,7 @@ $$
 
 The wheels give $\sigma_\omega = 0.2|\omega| + 0.1|v| + 0.02$ rad/s, about $5.7°/\mathrm s$ at 0.8 m/s, plus their bias of $0.01\,v$ rad/s. With the gyro, $M = \mathrm{diag}(\sigma_v^2, \sigma_g^2)$, and the heading's share of $V M V^{\mathsf T}$ shrinks by $(\sigma_\omega/\sigma_g)^2$. At the cruise speed that is about 360 times.
 
-**The random walk.** Each tick adds $\sigma_g^2 \Delta t^2$ to the heading variance (the $b$ term of §2), so after $t$ seconds of noise alone
+**The random walk.** Each tick adds $\sigma_g^2 \Delta t^2$ to the heading variance (the heading entry of $V M V^{\mathsf T}$ in §2, with $\sigma_g$ in place of $\sigma_\omega$), so after $t$ seconds of noise alone
 
 $$
 \sigma_\theta^2(t) = \sigma_g^2\,\Delta t\, t,
@@ -279,7 +279,7 @@ and the linearized problem has the normal equations $H\,\delta = -b$, with $H = 
 | Kidnapped at 8 s, lidar only | 16 m from then on | 10⁵ | 0 | 0, no match rejected by the gate (8 poor fits dropped after a minute) |
 | Kidnapped at 8 s, beacons and lidar | 0.25 m at 24 s, 2 cm at 34 s | back to 3.5 by 54 s | – | 76 matches rejected on the way (39 poor fits, 37 by the gate) |
 
-On L2's aisles, with odometry noise and bias ×1 and no beacons, the error is 0.04 m RMS and the robot reaches all four goals.
+On L2's aisles, scan matching alone (odometry noise and bias ×1, no beacons) gives 0.04 m RMS, and the robot reaches all four goals.
 
 [try: Lidar only: every beacon off | {"sim":true,"level":2,"set":{"loc":"ekf","bOff":"all","scanMatch":true},"tab":"loc","plot":"pos"}] [try: Kidnapped, lidar only | {"sim":true,"level":2,"set":{"loc":"ekf","bOff":"all","scanMatch":true},"tab":"loc","plot":"pos","act":"kidnap"}]
 
@@ -392,7 +392,7 @@ where $P_{pp}$ is the 2×2 position block, $P_{:,p}$ the first two columns of $P
 
 The first four runs and the last drive laps of an 18 × 10 m rectangle on the lot's empty floor (Map → empty), where only the people get in the way. The multipath run drives the lane above the middle row of parked cars. "NEES max" is the largest value of the status strip's 20 s mean, read every 10 s. The beacons are off in all the runs.
 
-**What the model leaves out.** The first thing is satellite geometry. A real fix is worse when the visible satellites bunch in one part of the sky (the dilution of precision, DOP), and better when more of them are visible. The second is the sky itself. Next to a wall a real receiver loses satellites as well as picking up reflections. A 2D world has no sky, so the lab models the effect with distance instead. The third is the receiver's clock and the atmosphere, which are where the slow bias comes from. The fourth is carrier phase and RTK. With a base station nearby, a receiver that tracks the carrier's phase is good to centimetres, and the error model is entirely different. The last is the receiver's own filter. It smooths the fixes, and so correlates them further, before the robot's filter sees them.
+**What the model leaves out.** The first thing is satellite geometry. A real fix is worse when the visible satellites bunch in one part of the sky (the dilution of precision, DOP), and better when more of them are visible. The second is the sky itself. Next to a wall a real receiver loses satellites as well as picking up reflections. A 2D world has no sky, so the lab models the effect by the distance to the nearest wall or parked car instead. The third is the receiver's clock and the atmosphere, which are where the slow bias comes from. The fourth is carrier phase and RTK. With a base station nearby, a receiver that tracks the carrier's phase is good to centimetres, and the error model is entirely different. The last is the receiver's own filter. It smooths the fixes, and so correlates them further, before the robot's filter sees them.
 
 **When GNSS still beats beacons.** GNSS needs nothing installed, and it works anywhere under open sky. Its error does not grow with distance or with time. However long the robot drives, the next fix is within a few metres. Beacons give centimetres, but only where someone installed them and only within their range. Most systems use both: GNSS to find where on Earth the robot is, and the lidar, beacons or a map to find where it is in the lane.
 

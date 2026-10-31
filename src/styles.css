@@ -1293,15 +1293,18 @@ dialog:focus-visible {
   font-size: var(--fs-ui);
   font-weight: 500;
 }
+/* the chosen option is filled with the accent, so which one is on reads at a glance; the others look pressable */
 .seg button:hover {
   color: var(--ink);
-}
-.seg button[aria-pressed='true'] {
   background: var(--raise);
-  border-color: var(--line-2);
-  color: var(--ink);
+}
+.seg button[aria-pressed='true'],
+.seg button[aria-pressed='true']:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 600;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 .lbl {
   font-size: var(--fs-small);

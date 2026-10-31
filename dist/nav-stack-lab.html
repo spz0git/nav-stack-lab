@@ -1313,15 +1313,18 @@ dialog:focus-visible {
   font-size: var(--fs-ui);
   font-weight: 500;
 }
+/* the chosen option is filled with the accent, so which one is on reads at a glance; the others look pressable */
 .seg button:hover {
   color: var(--ink);
-}
-.seg button[aria-pressed='true'] {
   background: var(--raise);
-  border-color: var(--line-2);
-  color: var(--ink);
+}
+.seg button[aria-pressed='true'],
+.seg button[aria-pressed='true']:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 600;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 .lbl {
   font-size: var(--fs-small);
@@ -21733,7 +21736,7 @@ const SCHEMA = {
       type: 'info',
       text: () => {
         const ids = LEVELS.filter(l => l.peds.length).map(l => l.id);
-        return `People prediction (constant velocity, the learned predictor, or your code) is set here once agent tracking is on. Tracking is on by default on ${ids.join(' and ')}, the levels with people. <button type="button" class="linkbtn" data-setp="agents:lidar">Turn on lidar tracking</button>`;
+        return `<b>Tracking is off:</b> people are not tracked, so nothing knows where they are heading. Pick a tracker above to turn it on; people prediction (constant velocity, the learned predictor, or your code) is set here then. Tracking is on by default on ${ids.join(' and ')}, the levels with people. <button type="button" class="btn small" data-setp="agents:lidar">Turn on lidar tracking</button>`;
       },
       show: () => !agOn()
     },

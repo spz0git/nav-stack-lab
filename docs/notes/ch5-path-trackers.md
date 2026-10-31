@@ -35,7 +35,7 @@ $$
 
 The diff-drive robot commands $\omega = v\kappa$. The car commands the steering angle that gives that curvature on the bicycle model, $\delta = \arctan(L_{wb}\,\kappa)$, where $L_{wb}$ is the wheelbase. The lookahead itself is scheduled with speed, $L_d = L_0 + k\,v$, so a faster robot looks further ahead. The carrot is taken at arc length $s + L_d$ along the path, so on a curve it is slightly nearer than $L_d$ in a straight line.
 
-**Linearization: the hidden PD.** Near a straight path with small errors, the carrot sits at $(L_d, 0)$ in path coordinates and the robot at $(0, e)$ with heading $\theta_e$, so the bearing to the carrot is $\alpha \approx -\theta_e - e/L_d$. With $\sin\alpha \approx \alpha$ and $L \approx L_d$:
+**Linearization: the hidden PD.** Take a straight path and small errors. In path coordinates the carrot sits at $(L_d, 0)$ and the robot at $(0, e)$ with heading $\theta_e$. The bearing to the carrot is then $\alpha \approx -\theta_e - e/L_d$. With $\sin\alpha \approx \alpha$ and $L \approx L_d$:
 
 $$
 \omega = v\kappa \approx \frac{2v}{L_d}\left(-\theta_e - \frac{e}{L_d}\right) = -K_e\,e - K_\theta\,\theta_e, \qquad K_e = \frac{2v}{L_d^2},\ K_\theta = \frac{2v}{L_d}

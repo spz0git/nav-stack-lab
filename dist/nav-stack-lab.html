@@ -1665,6 +1665,47 @@ dialog:focus-visible {
   background: var(--panel);
   color: var(--ink);
 }
+/* the level menu's Generate form: one even rhythm, the number fields in aligned columns */
+.cust-gen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cust-gen > * {
+  margin: 0;
+}
+.gen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 320px));
+  gap: 6px 32px;
+  font-size: var(--fs-ui);
+  line-height: 1.25;
+}
+.gen-grid label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 30px;
+}
+.gen-grid input[type='number'] {
+  flex: none;
+  width: 72px;
+  font: inherit;
+  padding: 3px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--panel);
+  color: var(--ink);
+  text-align: right;
+}
+.cust-gen .gen-seed input[type='number'] {
+  width: 72px;
+  text-align: right;
+}
+.cust-gen .controls {
+  margin-top: 2px;
+}
 .expbar {
   height: 6px;
   border-radius: 3px;
@@ -33266,13 +33307,13 @@ function genFormHTML() {
     .map(([k, f]) => `<button type="button" data-v="${k}" aria-pressed="${k === G.gen}">${f.name}</button>`)
     .join('')}</div></div>
   <p class="note">${F.about[0].toUpperCase() + F.about.slice(1)}.</p>
-  <div class="exprow">${Object.entries(GEN_COMMON)
+  <div class="gen-grid">${Object.entries(GEN_COMMON)
     .map(([k, d]) => field(k, d))
     .join('')}</div>
-  <div class="exprow">${Object.entries(F.params)
+  <div class="gen-grid">${Object.entries(F.params)
     .map(([k, d]) => field(k, d))
     .join('')}</div>
-  <div class="exprow"><label>settings of <select class="sel" data-gen="like">${GEN_LIKE.map(id => {
+  <div class="exprow gen-seed"><label>settings of <select class="sel" data-gen="like">${GEN_LIKE.map(id => {
     const L = LEVELS.find(x => x.id === id);
     return `<option value="${id}" ${G.like === id ? 'selected' : ''}>${id} ${esc(L.name)}</option>`;
   }).join(

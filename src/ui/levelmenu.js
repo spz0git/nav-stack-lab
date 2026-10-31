@@ -125,13 +125,13 @@ function genFormHTML() {
     .map(([k, f]) => `<button type="button" data-v="${k}" aria-pressed="${k === G.gen}">${f.name}</button>`)
     .join('')}</div></div>
   <p class="note">${F.about[0].toUpperCase() + F.about.slice(1)}.</p>
-  <div class="exprow">${Object.entries(GEN_COMMON)
+  <div class="gen-grid">${Object.entries(GEN_COMMON)
     .map(([k, d]) => field(k, d))
     .join('')}</div>
-  <div class="exprow">${Object.entries(F.params)
+  <div class="gen-grid">${Object.entries(F.params)
     .map(([k, d]) => field(k, d))
     .join('')}</div>
-  <div class="exprow"><label>settings of <select class="sel" data-gen="like">${GEN_LIKE.map(id => {
+  <div class="exprow gen-seed"><label>settings of <select class="sel" data-gen="like">${GEN_LIKE.map(id => {
     const L = LEVELS.find(x => x.id === id);
     return `<option value="${id}" ${G.like === id ? 'selected' : ''}>${id} ${esc(L.name)}</option>`;
   }).join(

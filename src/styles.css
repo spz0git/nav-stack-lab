@@ -1645,6 +1645,47 @@ dialog:focus-visible {
   background: var(--panel);
   color: var(--ink);
 }
+/* the level menu's Generate form: one even rhythm, the number fields in aligned columns */
+.cust-gen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cust-gen > * {
+  margin: 0;
+}
+.gen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 320px));
+  gap: 6px 32px;
+  font-size: var(--fs-ui);
+  line-height: 1.25;
+}
+.gen-grid label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 30px;
+}
+.gen-grid input[type='number'] {
+  flex: none;
+  width: 72px;
+  font: inherit;
+  padding: 3px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--panel);
+  color: var(--ink);
+  text-align: right;
+}
+.cust-gen .gen-seed input[type='number'] {
+  width: 72px;
+  text-align: right;
+}
+.cust-gen .controls {
+  margin-top: 2px;
+}
 .expbar {
   height: 6px;
   border-radius: 3px;

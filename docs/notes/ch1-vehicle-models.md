@@ -143,7 +143,7 @@ $$
 
 In this lab that one number stands for tyres, friction and load transfer. The Experiments tab varies it when you ask how fast a route can be driven. At the planning radius of {{live:Rplan}} m and the operating speed of {{live:v0}} m/s the lab's car pulls {{live:ayPlan}} m/s², {{live:ayFrac}} % of the cap. The cap is sound as far as it goes, because a vehicle that keeps $v^2\kappa$ well below $\mu g$ stays in the linear tyre regime where the models above hold. With the kinematic car nothing checks the cap against the tyres. The car with tyre slip clips each axle's force at μ times its static load. On that car a cap above μ$g$ (now {{live:mug}} m/s²) asks for more than the floor can give. On the slippery floor at 2 m/s with the cap at 6 m/s², the front tyres saturate, and the car pushes wide of the first sharp turn and hits a pillar. The lesson *Running out of grip* is built on this run. [try: Cap above the grip | {"sim":true,"level":0,"set":{"veh":"dyn","mass":10,"Iz":0.9,"lf":0.27,"Cf":40,"Cr":90,"mu":0.25,"vmax":2.5,"vcruise":2,"alat":6},"plot":"cte","panes":[["ay","mug"]],"layers":{"slip":true,"trail":true}}]
 
-**When the kinematic model is enough.** It takes three conditions. The lab's robots meet all of them, and a car on a motorway meets none:
+**When the kinematic model is enough.** It takes three conditions. The lab's robots meet all of them, and a car on a motorway fails at least two:
 
 - Lateral acceleration well below the friction limit, say under 0.3 g, so that the slip angles are a degree or two and the tyres are linear.
 - Speed well below the characteristic speed, so that the steady yaw gain is within 10 % of $v/L$.

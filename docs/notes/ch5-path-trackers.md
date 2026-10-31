@@ -61,7 +61,7 @@ $$
 \kappa_{\text{cmd}} = \frac{\kappa\,\cos\theta_e}{1 - \kappa e} \;-\; k_\theta\,\theta_e \;-\; k_e\,\frac{\sin\theta_e}{\theta_e}\,e
 $$
 
-The first term is feedforward. It is the curvature that keeps $\dot\theta_e = 0$ in the Frenet equation of §1. So on a curve with zero error the controller already steers along the curve, and the feedback has nothing to do. The other two terms are feedback on the heading error and the lateral error. The $\sin\theta_e/\theta_e$ factor is 1 near zero, and it makes the lateral term fade out smoothly when the robot is facing across the path.
+The first term is feedforward. It is the curvature that keeps $\dot\theta_e = 0$ in the Frenet equation of §1. So on a curve with zero error the controller already steers along the curve, and the feedback has nothing to do. The other two terms are feedback on the heading error and the lateral error. The $\sin\theta_e/\theta_e$ factor is 1 near zero and falls as the heading error grows (to about two thirds at 90°), which keeps the lateral term from dominating when the robot faces across the path.
 
 **Why it converges.** Substitute $\omega = v\kappa_{\text{cmd}}$ into the Frenet equations. The feedforward cancels the curvature term, and what is left is
 

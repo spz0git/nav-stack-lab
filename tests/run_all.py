@@ -26,7 +26,7 @@ SCOPE=[
     (r'^src/(core/(slots|custom-controller|examples-data)\.js|examples/)|^src/ui/source\.js|^tools/code\.mjs',['extest.py']),
     (r'^src/(core/(nn|nn-train|dataset|models-data|agents|predict)\.js|models/)|^src/ui/train\.js',['trtest.py']),
     (r'^src/core/(levels|worldgen|worlds)\.js|^src/ui/(levelmenu|maptools|urlstate)\.js',['lvtest.py']),
-    (r'^src/core/(sensors|health|localization|fidelity|step)\.js|^src/ui/health\.js',['sntest.py']),
+    (r'^src/core/(sensors|health|localization|fidelity|step|agents)\.js|^src/ui/health\.js',['sntest.py']),
     (r'^src/core/(safety|search|health|config|learnmon|radar|oddmon|argument)\.js|^src/ui/(safety|status|argument)\.js|^tools/(search|ood-ref|argument)\.mjs',['saftest.py']),
     (r'^docs/lessons/|^src/analysis/(lessons|lessons2|lessons-data|glossary)\.js|^src/ui/(learn|experiments)\.js|^tools/lessons\.mjs',['tles.py','p5test.py']),
     (r'^docs/notes/|^src/ui/chapters\.js|^tools/notes\.mjs',['chtest.py']),

@@ -388,12 +388,12 @@ PARAM_EFFECTS.push(
         S.scanPts = [];
         S.sm = null;
         if (S.sensQ) S.sensQ = S.sensQ.filter(it => it.kind !== 'lidar');
-        if (S.agents && (P.agents === 'lidar' || P.agents === 'learned')) S.agents = agInit();
+        if (S.agents && (P.agents === 'lidar' || P.agents === 'learned') && !radarTracks()) S.agents = agInit(); // the radar keeps the tracks it feeds
       }
       logE(
         v
           ? 'Lidar → on'
-          : `Lidar → off: no mapping, scan matching, people detection or lidar safety stop${P.plan === 'policy' ? '; the learned policy has no input' : ''}`,
+          : `Lidar → off: no mapping, scan matching, ${radarTracks() ? '' : 'people detection '}or lidar safety stop${radarTracks() ? '; people tracked from the radar alone' : ''}${P.plan === 'policy' ? '; the learned policy has no input' : ''}`,
         v ? '' : 'warn'
       );
       if (P.plan === 'policy') requestReplan('lidar switched');

@@ -291,7 +291,7 @@ function healthSensorChecks(C, k) {
         'Lidar',
         true,
         'warn',
-        `lidar off: no ${[P.per === 'mapping' ? 'mapping' : '', agOn() && P.agents !== 'truth' ? 'people detection' : '', 'obstacles from the scan'].filter(Boolean).join(', no ')}`
+        `lidar off: no ${[P.per === 'mapping' ? 'mapping' : '', agOn() && P.agents !== 'truth' && !radarTracks() ? 'people detection' : '', 'obstacles from the scan'].filter(Boolean).join(', no ')}${radarTracks() ? '; people tracked from the radar alone, ahead only' : agOn() && P.agents !== 'truth' && radarOn() ? ' (Perceive → Tracker inputs: Radar tracks people from the radar)' : ''}`
       );
   }
   if (k === 'plan' && noLid) {

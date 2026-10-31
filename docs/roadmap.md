@@ -396,6 +396,13 @@ Owner request: a track that teaches ISO 26262, ISO 21448 (SOTIF), ISO/PAS 8800 a
   robot held against a shelf end). Shelf contacts in 7 of 15 runs with the radar in the tracker against 0 of 6
   without: sharper yields next to shelf ends, as lesson 3's ground-truth tracks. Radar alone: 0.37 m at 1 s, a person
   in view untracked 10 %.
+- Radar with the lidar switched off (Sensors; 2026-10-31): the tracker used to step only on lidar scans and
+  `agentsTick` cleared every track with the lidar off, so `trkIn` Radar silently gave no tracks. Now, with the radar in
+  the tracker (`radarTracks()` in `core/agents.js`), each delivered radar scan steps it (`S.radTick`) and the tracks
+  stay; switching the lidar off keeps them. L5 with the obstacles removed (`map: 'empty'`), lidar off, seeds 7, 1, 2:
+  people contacts 3/3/2 with no response, 0/0/0 with speed planning on radar tracks, 1/2/2 with velocity obstacles
+  (the forward 120° leaves people from the side unseen until late). `sntest.py` checks that the radar alone gives
+  confirmed tracks on L5.
 - Limits and next steps: nearest-neighbour association (PDA/JPDA would weigh every echo in a gate); the lidar's R does
   not follow the weather (fused tracks in fog follow a turn in 0.5 s, not 0.1); no radar mapping or radar odometry for
   localization (the ego-speed estimate is there and could feed the EKF); one forward radar (corner radars would cover

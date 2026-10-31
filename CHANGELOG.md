@@ -4,6 +4,14 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- With the lidar switched off (Sensors) and the radar on, setting Perceive → Tracker inputs to Radar now tracks people
+  from the radar alone, so speed planning and velocity obstacles can still give way to them. Before, the tracker
+  waited for lidar scans that never came, and the robot drove straight through people. The radar only looks ahead,
+  so someone coming from the side or behind is seen late or not at all. With the lidar off and Tracker inputs left
+  on Lidar, the health panel and the Perceive tab now say how to switch.
+
 ## v76 · 2026-10-31
 
 - The nine chapters are rewritten in plainer prose, as the lessons were in v72 and v75: long sentences split, the

@@ -4,11 +4,11 @@ project: nav-stack-lab
 title: Nav Stack Lab
 kind: code
 source: https://github.com/spz0git/nav-stack-lab
-commit: a746c9e
-updated: 2026-10-30
+commit: eca9d81
+updated: 2026-10-31
 status: active
-stage: v72 (2026-10-30) rewrites the nine safety lessons in plain prose, explains the standards without clause numbers, and answers Spy's comments on lessons 5 and 6
-next_action: Spy reads the safety lessons on the live page and says whether the prose now reads as human; then picks the next track
+stage: v73 (2026-10-31) fixes safety lesson 8's last prediction after Spy's comment; v72 (2026-10-30) rewrote the nine safety lessons in plain prose
+next_action: Spy finishes reading the rewritten safety lessons on the live page (the comments reached lesson 8 on 2026-10-31); then picks the next track
 blocked_on: nothing
 confidential: false
 ---
@@ -19,11 +19,10 @@ confidential: false
 A robot navigation simulator and course in one offline HTML file, for students and engineers learning how localization, perception, planning, control and safety fit together. The repo is private; the live page is a claude.ai artifact (https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7). GitHub Pages stays off until the repo goes public.
 
 ## Status
-- v72 (2026-10-30): the nine safety lessons rewritten in plain prose, no measured number changed; lessons 5 and 6 explained in full after Spy's comments; each lesson says what its standard asks for, without clause numbers, and chapter 8 §1 introduces the four standards with links; the seeds explained on tap; a search shows its progress; a Previous lesson button; named health lights.
-- The clause-number check is no longer needed: the page cites no clauses; the 33 numbers stay in docs/safety-lab.md for reference.
-- v70 and v71 (2026-10-29) answered the earlier comments on lessons 1 to 3 (linked Metrics list, measures in place, a worked hazard analysis).
+- v73 (2026-10-31): safety lesson 8's last prediction asked "which of the four measures" but offered three; it now lists all four. Spy's comment on the live page found it.
+- v72 (2026-10-30): the nine safety lessons rewritten in plain prose, no measured number changed; lessons 5 and 6 explained in full; the standards described without clause numbers, introduced in chapter 8 §1 with links.
 - Testing: CI on every PR, the scoped gate before each merge, the full suite nightly; each merged version is tagged and published as a GitHub Release.
-- Waiting on Spy: a read of the rewritten safety lessons; one click on each of the four standards links (checked by search only, the session could not open iso.org); public or private; the next track.
+- Waiting on Spy: the rest of the read of the rewritten safety lessons; one click on each of the four standards links (checked by search only, the session could not open iso.org); public or private; the next track.
 
 ## Features and scope
 - Three modes: Simulate, Analyze (frequency response, poles, LQR) and Learn.

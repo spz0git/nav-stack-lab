@@ -4,6 +4,14 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v75 · 2026-10-31
+
+- All 45 lessons on control, localization, perception and planning are rewritten sentence by sentence in plainer
+  prose, as the safety lessons were in v72: shorter sentences, the reason next to the fact, terms explained where
+  they first appear, and no slogans. No measured number, table, experiment or answer changed. A few slips were
+  fixed on the way: which wheel error makes odometry overestimate, what the PID tracker integrates, where the
+  gyro's controls are (the Sensors tab), and the standard deviation of an averaged GNSS fix.
+
 ## v74 · 2026-10-31
 
 - The safety lessons show their results where you read them. A search Try lists its five worst runs under its

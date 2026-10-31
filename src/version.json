@@ -1,1 +1,1 @@
-{"version": 74, "date": "2026-10-31", "note": "Safety results under each Try in the lesson; a red claim leads to the run that broke it, and Open stops at the contact"}
+{"version": 75, "date": "2026-10-31", "note": "All 45 lessons on control, localization, perception and planning rewritten in plain prose, as the safety lessons were in v72"}

@@ -1,18 +1,18 @@
 group: ctl
 title: Delay margin: the latency budget
 
-<p><b>Why this matters.</b> Of all the margins, the delay margin is the one a vehicle engineer uses most, because latency is the thing most likely to change after the controller is tuned: a new camera, a busier CPU, a different message bus. It converts phase margin into a time, and a time can be budgeted across sensors, estimation, planning and actuation. This lesson shows the conversion, what the loop does when the budget is exceeded, and why a slower loop has a bigger one.</p>
+<p><b>Why this matters.</b> Of all the margins, the delay margin is the one a vehicle engineer uses most. Latency is the thing most likely to change after the controller is tuned, for example with a new camera, a busier CPU or a different message bus. The delay margin turns the phase margin into a time, and a time can be shared out as a budget between sensing, estimation, planning and actuation. This lesson shows the conversion, what the loop does when the latency goes over the budget, and why a slower loop has a bigger budget.</p>
 <p><b>The idea.</b> Phase margin is measured at the crossover frequency. An extra delay $\Delta T$ costs $\omega_c\,\Delta T$ radians of phase there, so the loop can absorb</p>
 $$\text{DM} = \frac{\text{PM}}{\omega_c} \qquad (\text{PM in radians})$$
-<p>of additional latency before the phase at crossover reaches −180° and the loop goes unstable. Fast loops have small budgets, because the same milliseconds are a larger fraction of a shorter period. Past the budget the linear model says the oscillation grows without bound; in the simulator the turn-rate limit caps the command, the effective gain drops, and the growth is bounded, which is what an unstable loop usually looks like on a real vehicle: a ringing that will not die, or a limit cycle.</p>
-<p><b>Where it comes from.</b> $e^{-j\omega\Delta T}$ has unit magnitude and phase $-\omega\Delta T$; at $\omega = \omega_c$ the magnitude is still 1 and the phase margin becomes $\text{PM} - \omega_c\Delta T$; it reaches zero at $\Delta T = \text{PM}/\omega_c$. The delay margin is a first-order statement, because the crossover itself does not move with delay. <a class="chref" href="#notes=ch6/4-reading-the-margins">Derivation: chapter 6 §4</a></p>
-<p><b>What the lab does.</b> The simulator adds latency in whole 50 ms ticks, so the delay-margin chip tells you which setting tips the loop over. The step test runs the full nonlinear simulator with a 0.2 m (or 0.1 m) path offset and overlays the measured response on the linear prediction, so an unstable prediction and a bounded measurement can be compared directly.</p>
+<p>of additional latency before the phase at crossover reaches −180° and the loop goes unstable. Fast loops have small budgets, because the same milliseconds are a larger fraction of a shorter period. Past the budget, the linear model says the oscillation grows without bound. In the simulator the turn-rate limit caps the command, so the effective gain drops and the growth stops. An unstable loop on a real vehicle usually looks like this: a ringing that does not die out, called a limit cycle.</p>
+<p><b>Where it comes from.</b> $e^{-j\omega\Delta T}$ has unit magnitude and phase $-\omega\Delta T$. At $\omega = \omega_c$ the magnitude is still 1, and the phase margin becomes $\text{PM} - \omega_c\Delta T$. It reaches zero at $\Delta T = \text{PM}/\omega_c$. This holds for a pure delay without approximation, because a delay changes no magnitude and so leaves the crossover where it is. <a class="chref" href="#notes=ch6/4-reading-the-margins">Derivation: chapter 6 §4</a></p>
+<p><b>What the lab does.</b> The simulator adds latency in whole 50 ms ticks, and the delay-margin chip tells you at which setting the loop becomes unstable. The step test runs the full nonlinear simulator with a path offset of 0.2 m (or 0.1 m) and draws the measured response over the linear prediction. You can then compare an unstable prediction with a bounded measurement on the same plot.</p>
 
 ## Try: Fast loop (L<sub>0</sub> 0.1 m): small budget
 cfg: {"level":0,"set":{"ctl":"pp","ppL0":0.1,"ppK":0,"latency":0}}
-Setup: Pure pursuit with a 0.1 m lookahead, no latency.
-See: Phase margin 40.4° at 17.6 rad/s: $0.705\ \text{rad} / 17.6\ \text{rad/s} = 0.040$ s of delay margin. The chip reads 40 ms.
-Shows: The budget is smaller than one control tick. Any sensor or network that adds 50 ms, which almost anything does, breaks this loop. A real stack would never run a lateral loop at 17 rad/s for exactly this reason; the lookahead would be lengthened until the budget covered the measured latency with room to spare.
+Setup: Pure pursuit with a 0.1 m lookahead and no latency.
+See: The phase margin is 40.4° at 17.6 rad/s, which gives $0.705\ \text{rad} / 17.6\ \text{rad/s} = 0.040$ s of delay margin. The chip reads 40 ms.
+Shows: The budget is smaller than one control tick. Any sensor or network link that adds 50 ms breaks this loop, and almost every one does. A real stack would not run a lateral loop at 17 rad/s for this reason. Its designers would lengthen the lookahead until the budget covered the measured latency with room to spare.
 Predict: Phase margin 40° at 17.6 rad/s: roughly how much extra delay does that buy?
 - About 40 ms, less than one tick
 - About 0.4 s, several ticks
@@ -21,9 +21,9 @@ Answer: 0
 
 ## Try: Fast loop + 0.05 s latency, step test
 cfg: {"level":0,"set":{"ctl":"pp","ppL0":0.1,"ppK":0,"latency":0.05},"test":"step","stepKind":"offset","stepAmp":0.1}
-Setup: The same loop with one tick of latency, past its 40 ms budget, and a 0.1 m step test.
-See: The linear prediction (solid) grows without bound: unstable poles. The measured response (dashed amber) swings 8 % past the path and then settles into a steady weave of ±3.6 % of the step (±3.6 mm), one cycle about every 0.43 s (about 15 rad/s), that does not die out before the plot ends. The message under the plot reads "The turn-rate limit was active for 0.60 s of the test, so the response departs from the linear prediction."
-Shows: Saturation is what separates "unstable" from "destroyed". When the command hits the turn-rate limit the loop gain effectively falls and the oscillation stops growing, but it does not decay either: the amplitude settles where the clipped loop sits on the edge of stability, a limit cycle. A linear analysis says the loop is unstable; the nonlinear vehicle shows how badly, and a limit cycle at the actuator limit is the symptom to recognize on a real vehicle.
+Setup: The same loop with one tick of latency, which is past its 40 ms budget, and a 0.1 m step test.
+See: The linear prediction (solid) grows without bound, because its poles are unstable. The measured response (dashed amber) swings 8 % past the path. It then settles into a steady weave of ±3.6 % of the step (±3.6 mm), with one cycle about every 0.43 s (about 15 rad/s). The weave does not die out before the plot ends. The message under the plot reads "The turn-rate limit was active for 0.60 s of the test, so the response departs from the linear prediction."
+Shows: Saturation keeps the unstable loop from growing without bound. When the command hits the turn-rate limit, the loop's effective gain falls and the oscillation stops growing. It does not decay either. The amplitude settles where the clipped loop is on the edge of stability, and the result is a limit cycle. The linear analysis says that the loop is unstable, and the nonlinear vehicle shows how badly. On a real vehicle, a limit cycle at the actuator limit is the symptom to recognize.
 Predict: Past its delay budget by 10 ms, how will the simulated step respond?
 - It grows without bound, as the linear model says
 - It rings, then the turn-rate limit holds it in a steady weave that does not die out
@@ -32,9 +32,9 @@ Answer: 1
 
 ## Try: Slow loop (L<sub>0</sub> 1.2 m), 0.3 s, step test
 cfg: {"level":0,"set":{"ctl":"pp","ppL0":1.2,"ppK":0,"latency":0.3},"test":"step","stepKind":"offset","stepAmp":0.2}
-Setup: A 1.2 m lookahead with 0.3 s of latency, six ticks, and a 0.2 m step test.
-See: Crossover 1.46 rad/s, phase margin 38°, and after absorbing 0.3 s the loop still has 0.46 s of delay margin left. The measured step overshoots 4.6 %, rises in 1.65 s and settles in 5 s, on top of the prediction.
-Shows: The slow loop carries 0.3 s of latency, seven times the fast loop's entire budget, and is still comfortably stable, because its crossover is twelve times lower. Delay tolerance and bandwidth trade one for one. The end-to-end latency budget of a vehicle stack is set by this arithmetic: measure the latency, choose the crossover the margin allows, and tune the tracker to it.
+Setup: A 1.2 m lookahead with 0.3 s of latency (six ticks) and a 0.2 m step test.
+See: The crossover is 1.46 rad/s and the phase margin 38°. After absorbing 0.3 s, the loop still has 0.46 s of delay margin left. The measured step overshoots 4.6 %, rises in 1.65 s and settles in 5 s, and it lies on top of the prediction.
+Shows: The slow loop carries 0.3 s of latency, seven times the fast loop's whole budget, and is still comfortably stable, because its crossover is twelve times lower. Delay tolerance and bandwidth trade one for one. A vehicle stack's end-to-end latency budget is set by this arithmetic. You measure the latency, choose the crossover that the margin allows, and tune the tracker to that crossover.
 Predict: A 1.2 m lookahead carrying 0.3 s of latency, six ticks: what will the step show?
 - Unstable: 0.3 s is seven times the fast loop's whole budget
 - A limit cycle at the turn-rate limit
@@ -45,15 +45,15 @@ Answer: 2
 snippet: an-freq
 focus: const dm = pm != null && wc ? (pm * Math.PI) / 180 / wc : null;
 example: ctl/rwf
-Note: One line: the phase margin in radians divided by the crossover frequency is the delay the loop can absorb. Edit and run: the rear-wheel-feedback example as your controller; add latency in the Vehicle tab until it breaks. The Analyze view cannot linearize your code; on the built-in rear-wheel feedback, halving both gains raises the delay margin from 0.35 to 0.46 s.
+Note: The marked line divides the phase margin in radians by the crossover frequency, which gives the delay the loop can absorb. Edit and run loads the rear-wheel-feedback example as your controller. Add latency in the Vehicle tab until the loop breaks. The Analyze view cannot linearize your code. On the built-in rear-wheel feedback, halving both gains raises the delay margin from 0.35 to 0.46 s.
 
 ## Think about
 Q: Why does the simulator's unstable response stop growing?
-A: Because the turn-rate limit clips the command. Describing-function reasoning: a saturated actuator acts like a gain that falls as the amplitude grows, so the amplitude rises until the effective gain brings the loop to the edge of stability, and there it stays: a limit cycle, here ±3.6 mm at about 15 rad/s, and run for 20 s instead of the plot's 3.75 s it is still ±3.6 mm at the end. Linear instability plus saturation is bounded, not safe.
+A: The turn-rate limit clips the command. A describing-function argument, which treats the saturation as a gain that depends on the amplitude, explains the rest. A saturated actuator acts like a gain that falls as the amplitude grows. So the amplitude rises until the effective gain brings the loop to the edge of stability, and there it stays. That is a limit cycle, here ±3.6 mm at about 15 rad/s. Run for 20 s instead of the plot's 3.75 s, it is still ±3.6 mm at the end. Saturation keeps a linearly unstable loop bounded, but the loop is still not safe.
 Q: A stack measures 120 ms from camera exposure to steering command. What crossover can it afford with 45° of margin?
-A: Keep at least 45° after the delay: if the undelayed loop has 65° (pure pursuit), 20° = 0.35 rad may go to delay, so $\omega_c \le 0.35/0.12 \approx 2.9$ rad/s. At 15 m/s with $\omega_c = 2.2\,v/L_d$, that is a lookahead of at least 11 m. Latency sets the lookahead.
+A: The loop must keep at least 45° after the delay. Without delay, pure pursuit has 65°, so 20° = 0.35 rad may go to delay, and $\omega_c \le 0.35/0.12 \approx 2.9$ rad/s. At 15 m/s with $\omega_c = 2.2\,v/L_d$, that means a lookahead of at least 11 m. The measured latency sets the shortest lookahead the stack can use.
 Q: The delay margin chip is computed from the phase margin at one frequency. When is that misleading?
-A: When the phase crosses −180° at several frequencies, or when the magnitude is near 0 dB over a range of frequencies, the first crossing is not the only one that matters and a delay can bring a different part of the curve onto −1 first. $M_s$ catches those cases; the delay margin is the quick estimate and $M_s$ the check.
+A: It misleads when the phase crosses −180° at several frequencies, or when the magnitude stays near 0 dB over a range of frequencies. Then the first crossing is not the only one that matters, and a delay can bring a different part of the curve onto −1 first. $M_s$ catches those cases. Use the delay margin as the quick estimate and $M_s$ as the check.
 
 ## Check yourself
 Q: A loop has 36° of phase margin at a crossover of 4 rad/s. What is its delay margin, in seconds?

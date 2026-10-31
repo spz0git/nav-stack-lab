@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v73 · 2026-10-31
 
 - Safety lesson 8's last prediction asks which of the four measures ranks last, and now lists all four: the
   time to contact under 1 s was missing from the choices.

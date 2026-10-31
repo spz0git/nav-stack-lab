@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v74 · 2026-10-31
 
 - The safety lessons show their results where you read them. A search Try lists its five worst runs under its
   button when it is done; an argument Try draws the safety argument there as it checks, and a button takes you to

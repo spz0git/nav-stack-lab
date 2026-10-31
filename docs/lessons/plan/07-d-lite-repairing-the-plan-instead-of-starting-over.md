@@ -104,4 +104,4 @@ Q: Over the periodic-replan run D* Lite made 24 100 vertex updates and A* 152 50
 Answer: 0.8
 Tolerance: 0.05
 Unit: ×
-How: $152\,500 / (24\,100 \times 8) = 152\,500 / 192\,800 = 0.79$: D* Lite makes six times fewer updates than A* makes expansions, but does slightly more work in all, so the two times, 72 and 59 ms, are close
+How: $152\,500 / (24\,100 \times 8) = 152\,500 / 192\,800 = 0.79$. D* Lite makes about a sixth as many updates as A* makes expansions, but does slightly more work in all, so the two times, 72 and 59 ms, are close

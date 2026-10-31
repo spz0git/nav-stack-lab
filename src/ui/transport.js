@@ -261,6 +261,7 @@ function firstRunDone() {
   if (h) h.hidden = true;
 }
 $('#firstrun-x').onclick = firstRunDone;
+if ($('#firstrun-min')) $('#firstrun-min').textContent = firstPassMinutes();
 $('#run').onclick = () => {
   exitReplay();
   running = !running;

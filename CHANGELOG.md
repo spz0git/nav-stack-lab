@@ -8,6 +8,8 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 - Custom level → Generate: the number fields now line up, each label beside its box in even columns, so the form
   reads as a table instead of a ragged run of fields.
+- The first-run hint gives the first pass's length as Start here counts it (99 minutes since the lessons were
+  rewritten; it said 95).
 
 ## v76 · 2026-10-31
 

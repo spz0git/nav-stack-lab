@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v77 · 2026-10-31
 
 - Custom level → Generate: the number fields now line up, each label beside its box in even columns, so the form
   reads as a table instead of a ragged run of fields.

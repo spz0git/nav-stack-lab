@@ -47,7 +47,7 @@ cd nav-stack-lab
 open dist/nav-stack-lab.html
 ```
 
-You need Node 18 or newer. The page has no runtime dependencies and the build needs nothing but Node; the lint and
+You need Node 20 or newer. The page has no runtime dependencies and the build needs nothing but Node; the lint and
 format checks (`npm run lint`, `npm run fmt:check`) use ESLint and Prettier, which `npm ci` installs.
 
 ## Tests

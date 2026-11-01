@@ -3,8 +3,10 @@
 A robot navigation simulator that runs in your browser. It is one HTML file: nothing to install, works offline,
 works on a phone.
 
-**Try it:** download [`dist/nav-stack-lab.html`](dist/nav-stack-lab.html) from the repository and open it in a
-browser. A public demo goes live when GitHub Pages is turned on for the repository (see `docs/maintaining.md`).
+**Try it:** open the live page at **https://spz0git.github.io/nav-stack-lab/**. It is the file at the head of this
+repository, deployed on every merge. To keep a copy, download [`dist/nav-stack-lab.html`](dist/nav-stack-lab.html)
+(or the file attached to the [latest release](https://github.com/spz0git/nav-stack-lab/releases/latest)) and open it
+in a browser; it works without a network.
 
 ![The busy floor level: a particle filter tracks the robot while the speed planner yields to people](docs/readme/hero.png)
 

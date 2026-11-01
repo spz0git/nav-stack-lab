@@ -32,7 +32,7 @@ rewrites without an issue first. Open an issue before a change that touches more
 
 Every pull request:
 
-1. Builds: `./build.sh` (Node 18+). Commit the rebuilt `dist/` with the source change; CI checks that the committed
+1. Builds: `./build.sh` (Node 20+). Commit the rebuilt `dist/` with the source change; CI checks that the committed
    page equals a fresh build.
 2. Passes the Node tests: `npm test` (69 tests, about 35–55 s). They run the built core, so run `./build.sh` first
    (they read `dist/core-worker.js`). The files in `tests/node/`:

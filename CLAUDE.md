@@ -4,9 +4,9 @@
   Modules share one scope, concatenated in `src/manifest.json` order; `core/` never touches the DOM (UI hooks in `core/state.js`).
   To look at the built page in the desktop app's browser pane, `.claude/launch.json` serves the repo on port 8765
   (`preview_start` name `dist`, then open `/dist/nav-stack-lab.html`).
-- Published artifact: https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7 (the live page; the owner opens it on desktop and phone).
-  The public demo is GitHub Pages (https://spz0git.github.io/nav-stack-lab/, deployed from `main` by a workflow); it is off
-  while the repository is private, and the workflow skips unless the repository variable `PAGES_ENABLED` is `true`. The full
+- Published artifact: https://claude.ai/artifact/UF1o4AwGB7PaMe4dw8kyM7 (the live page; private to the owner, who opens it on desktop and phone).
+  The public demo is GitHub Pages (https://spz0git.github.io/nav-stack-lab/, deployed from `main` by a workflow). The repository is public;
+  the deploy workflow runs only while the repository variable `PAGES_ENABLED` is `true` and Pages is set to GitHub Actions. The full
   release procedure is in `docs/maintaining.md`; the rules below are the short form.
   Commit the rebuilt `dist/` with every source change so artifact and commit match.
 - Publishing rules:

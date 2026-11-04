@@ -480,6 +480,15 @@ dialog:focus-visible {
 .lvlmenu[hidden] {
   display: none;
 }
+.lvl-head {
+  display: none;
+}
+/* a swipe that reaches the end of the list or the brief stops there: it would otherwise scroll the page hidden behind the menu */
+.lvlmenu,
+.lvl-list,
+.brief {
+  overscroll-behavior: contain;
+}
 .lvlmenu .more-below {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
@@ -4848,10 +4857,29 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     right: 8px;
     width: auto !important;
     top: auto !important;
-    bottom: 8px;
+    /* above the bottom bar (z-index 45), which otherwise covered the end of the brief */
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    max-height: 78vh;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    max-height: calc(100vh - 140px);
+    max-height: calc(100dvh - 140px - env(safe-area-inset-bottom, 0px));
+  }
+  .lvl-head {
+    display: flex;
+    align-items: center;
+    padding: 4px 6px 4px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .lvl-head b {
+    font-family: var(--f-display);
+    font-size: var(--fs-read);
+  }
+  .lvl-head > .ibtn {
+    margin-left: auto;
+    min-height: 40px;
+    padding: 2px 12px;
+    font-size: var(--fs-title);
   }
   /* every floor in view: four to a row, the names wrapping (a strip that scrolled sideways hid L4 to L7) */
   .lvl-list {
@@ -22649,8 +22677,10 @@ const lvMenu = (() => {
   m.hidden = true;
   m.setAttribute('role', 'dialog');
   m.setAttribute('aria-label', 'Levels and quick experiments');
-  m.innerHTML = `<div class="lvl-list" role="group" aria-label="Level"></div><section class="brief" id="brief" aria-live="polite"></section>`;
+  // the head shows on phones only, where the menu is a sheet over most of the screen and needs a visible way out
+  m.innerHTML = `<div class="lvl-head"><b>Level</b><button type="button" class="ibtn" id="lvl-x" aria-label="Close the level menu">×</button></div><div class="lvl-list" role="group" aria-label="Level"></div><section class="brief" id="brief" aria-live="polite"></section>`;
   document.body.appendChild(m);
+  m.querySelector('#lvl-x').onclick = () => lvMenuOpen(false);
   return m;
 })();
 // A fade at the bottom of the level list or the brief while more of it is below, so a cut-off line reads as "scroll
@@ -22728,6 +22758,7 @@ function buildLevels() {
       (b.onclick = () => {
         CUST.open = false;
         levelPicked(+b.dataset.i);
+        $('#brief').scrollTop = 0; // the new floor's description from its start
         const nb = lvMenu.querySelector(`.lvl[data-i="${b.dataset.i}"]`);
         if (nb) nb.focus();
       })

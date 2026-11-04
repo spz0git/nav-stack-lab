@@ -4,6 +4,12 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- On a phone, the level menu no longer leaves the page looking stuck. Swiping on the menu after picking a level used
+  to scroll the page hidden behind it, so nothing on screen moved. Now a swipe only scrolls the menu itself, the menu
+  has a × to close it, and its last lines are no longer hidden behind the bottom bar.
+
 ## v80 · 2026-10-31
 
 - Chapter 4 has a new section, *Speed planning: the ST graph* (§6), on how the robot slows and waits for people

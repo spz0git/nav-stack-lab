@@ -18,8 +18,10 @@ const lvMenu = (() => {
   m.hidden = true;
   m.setAttribute('role', 'dialog');
   m.setAttribute('aria-label', 'Levels and quick experiments');
-  m.innerHTML = `<div class="lvl-list" role="group" aria-label="Level"></div><section class="brief" id="brief" aria-live="polite"></section>`;
+  // the head shows on phones only, where the menu is a sheet over most of the screen and needs a visible way out
+  m.innerHTML = `<div class="lvl-head"><b>Level</b><button type="button" class="ibtn" id="lvl-x" aria-label="Close the level menu">×</button></div><div class="lvl-list" role="group" aria-label="Level"></div><section class="brief" id="brief" aria-live="polite"></section>`;
   document.body.appendChild(m);
+  m.querySelector('#lvl-x').onclick = () => lvMenuOpen(false);
   return m;
 })();
 // A fade at the bottom of the level list or the brief while more of it is below, so a cut-off line reads as "scroll
@@ -97,6 +99,7 @@ function buildLevels() {
       (b.onclick = () => {
         CUST.open = false;
         levelPicked(+b.dataset.i);
+        $('#brief').scrollTop = 0; // the new floor's description from its start
         const nb = lvMenu.querySelector(`.lvl[data-i="${b.dataset.i}"]`);
         if (nb) nb.focus();
       })

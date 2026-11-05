@@ -18,19 +18,20 @@ async def tabs_ok(pg, where, bad):
     r = await pg.evaluate('''() => {const t = document.querySelector('.console .tabs'), m = document.querySelector('#tab-more').getBoundingClientRect(),
         c = t.getBoundingClientRect(); return [t.scrollWidth, t.clientWidth, Math.round(m.right), Math.round(c.right)]}''')
     if r[0] > r[1] + 1 or r[2] > r[3] + 1: bad.append(f'{where}: the tab row overflows its panel (More hidden): {r}')
-# On a phone the level menu is a sheet over most of the screen: it clears the bottom bar, a swipe that reaches its end
-# does not scroll the page hidden behind it (the page looked stuck), and its × closes it.
+# On a phone the level menu opens in the page under the level button and scrolls with it (a fixed sheet that scrolled
+# on its own left the page stuck in the Claude app on iPhone); picking a floor keeps it open, a touch elsewhere does
+# not close it (it may start a scroll), its × does.
 async def level_menu_ok(pg, where, bad):
     await pg.evaluate("document.getElementById('lvl-btn').scrollIntoView({block: 'center'})")
     await pg.click('#lvl-btn'); await pg.wait_for_timeout(200)
     await pg.click('.lvl[data-i="3"]'); await pg.wait_for_timeout(400)
-    r = await pg.evaluate('''() => {const m = document.getElementById('lvlmenu'), s = getComputedStyle,
-        x = document.getElementById('lvl-x').getBoundingClientRect();
-        return {open: !m.hidden, bot: m.getBoundingClientRect().bottom, bar: document.querySelector('.bottombar').getBoundingClientRect().top,
-          x: x.width > 0, contain: ['.lvlmenu', '.lvl-list', '.brief'].every(q => s(document.querySelector(q)).overscrollBehaviorY === 'contain')}}''')
+    r = await pg.evaluate('''() => {const m = document.getElementById('lvlmenu'), x = document.getElementById('lvl-x').getBoundingClientRect();
+        return {open: !m.hidden, pos: getComputedStyle(m).position, after: m.previousElementSibling && m.previousElementSibling.id, x: x.width > 0}}''')
     if not r['open']: bad.append(f'{where}: the level menu closed when a level was picked')
-    if r['bot'] > r['bar'] + 1: bad.append(f'{where}: the level menu runs under the bottom bar: {r}')
-    if not r['x'] or not r['contain']: bad.append(f'{where}: the level menu has no close button or lets swipes scroll the page: {r}')
+    if r['pos'] != 'static' or r['after'] != 'levels': bad.append(f'{where}: the level menu is not in the page under the level button: {r}')
+    if not r['x']: bad.append(f'{where}: the level menu has no close button: {r}')
+    await pg.dispatch_event('.tele', 'pointerdown'); await pg.wait_for_timeout(100)
+    if await pg.evaluate("document.getElementById('lvlmenu').hidden"): bad.append(f'{where}: a touch outside closed the level menu')
     await pg.click('#lvl-x'); await pg.wait_for_timeout(150)
     if not await pg.evaluate("document.getElementById('lvlmenu').hidden"): bad.append(f'{where}: the level menu × does not close it')
 async def main():

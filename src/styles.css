@@ -4832,17 +4832,20 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   .lvl-btn svg {
     margin-left: auto;
   }
+  /* in the page under the level button (moved there by ui/panes.js), scrolling with it: no fixed sheet */
   .lvlmenu {
-    left: 8px !important;
-    right: 8px;
+    position: static;
+    order: 10;
     width: auto !important;
-    top: auto !important;
-    /* above the bottom bar (z-index 45), which otherwise covered the end of the brief */
-    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    max-height: none;
+    overflow: visible;
+    box-shadow: none;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(0, 1fr);
-    max-height: calc(100vh - 140px);
-    max-height: calc(100dvh - 140px - env(safe-area-inset-bottom, 0px));
+    grid-template-rows: auto;
+  }
+  .lvlmenu .brief {
+    overflow: visible;
+    overscroll-behavior: auto;
   }
   .lvl-head {
     display: flex;
@@ -4850,6 +4853,7 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     padding: 4px 6px 4px 14px;
     background: var(--panel);
     border-bottom: 1px solid var(--line);
+    border-radius: var(--r-panel) var(--r-panel) 0 0;
   }
   .lvl-head b {
     font-family: var(--f-display);
@@ -4865,7 +4869,8 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   .lvl-list {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    max-height: 34vh;
+    max-height: none;
+    overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }

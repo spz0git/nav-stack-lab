@@ -4,6 +4,13 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## Unreleased
+
+- On a phone, the level menu now opens in the page, right under the level button, and scrolls with the rest of the
+  page. In the Claude app on iPhone, picking a floor and closing the menu could leave the page unable to scroll back
+  up. A touch elsewhere on the page no longer closes the menu, so you can scroll through a floor's experiments; close
+  it with × or the level button.
+
 ## v81 · 2026-11-04
 
 - On a phone, the level menu no longer leaves the page looking stuck. Swiping on the menu after picking a level used

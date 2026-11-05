@@ -8,8 +8,8 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 - On a phone, the level menu now opens in the page, right under the level button, and scrolls with the rest of the
   page. In the Claude app on iPhone, picking a floor and closing the menu could leave the page unable to scroll back
-  up. A touch elsewhere on the page no longer closes the menu, so you can scroll through a floor's experiments; close
-  it with × or the level button.
+  up, with the part above left blank. Picking a floor no longer moves the page by itself. A touch elsewhere on the page
+  no longer closes the menu, so you can scroll through a floor's experiments; close it with × or the level button.
 
 ## v81 · 2026-11-04
 

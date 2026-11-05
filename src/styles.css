@@ -4784,6 +4784,9 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   }
   html {
     scroll-padding-top: 116px;
+    /* the browser keeps its scroll position when content above it changes size (a level switch, the menu); on iPhone,
+       a scroll moved under the finger left the page unable to scroll up, with the content above it unpainted */
+    overflow-anchor: none;
   } /* jumps (Symbols, Try) land below the sticky transport bar */
   /* full-bleed bar without widening the page: the background and its bottom rule are shadows, clipped to the bar's height */
   .transport {

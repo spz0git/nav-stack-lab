@@ -4804,6 +4804,9 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   }
   html {
     scroll-padding-top: 116px;
+    /* the browser keeps its scroll position when content above it changes size (a level switch, the menu); on iPhone,
+       a scroll moved under the finger left the page unable to scroll up, with the content above it unpainted */
+    overflow-anchor: none;
   } /* jumps (Symbols, Try) land below the sticky transport bar */
   /* full-bleed bar without widening the page: the background and its bottom rule are shadows, clipped to the bar's height */
   .transport {
@@ -22728,12 +22731,6 @@ function lvMenuOpen(on) {
   lvMenuPlace();
   if (narrowUI()) {
     lvFocus(lvMenu.querySelector('.lvl[aria-pressed="true"]'));
-    // the floors in view: the page moves up if the menu opened below the bottom of the screen
-    requestAnimationFrame(() => {
-      const t = lvMenu.getBoundingClientRect().top,
-        room = innerHeight - 160;
-      if (t > room) scrollBy(0, t - room);
-    });
     return;
   }
   const r = b.getBoundingClientRect(),

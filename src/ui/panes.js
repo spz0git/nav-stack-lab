@@ -64,12 +64,6 @@ function lvMenuOpen(on) {
   lvMenuPlace();
   if (narrowUI()) {
     lvFocus(lvMenu.querySelector('.lvl[aria-pressed="true"]'));
-    // the floors in view: the page moves up if the menu opened below the bottom of the screen
-    requestAnimationFrame(() => {
-      const t = lvMenu.getBoundingClientRect().top,
-        room = innerHeight - 160;
-      if (t > room) scrollBy(0, t - room);
-    });
     return;
   }
   const r = b.getBoundingClientRect(),

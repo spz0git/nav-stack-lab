@@ -20,11 +20,16 @@ async def tabs_ok(pg, where, bad):
     if r[0] > r[1] + 1 or r[2] > r[3] + 1: bad.append(f'{where}: the tab row overflows its panel (More hidden): {r}')
 # On a phone the level menu opens in the page under the level button and scrolls with it (a fixed sheet that scrolled
 # on its own left the page stuck in the Claude app on iPhone); picking a floor keeps it open, a touch elsewhere does
-# not close it (it may start a scroll), its × does.
+# not close it (it may start a scroll), its × does, and nothing scrolls the page by itself on the way.
 async def level_menu_ok(pg, where, bad):
     await pg.evaluate("document.getElementById('lvl-btn').scrollIntoView({block: 'center'})")
     await pg.click('#lvl-btn'); await pg.wait_for_timeout(200)
-    await pg.click('.lvl[data-i="3"]'); await pg.wait_for_timeout(400)
+    # the pick moves no scroll itself (no focus, no scroll anchoring): on iPhone a scroll moved by the page while the
+    # finger was on the menu left the page unable to scroll up
+    y0 = await pg.evaluate('scrollY')
+    await pg.evaluate('''document.querySelector('.lvl[data-i="3"]').click()'''); await pg.wait_for_timeout(400)
+    y1 = await pg.evaluate('scrollY')
+    if abs(y1 - y0) > 1: bad.append(f'{where}: picking a level scrolled the page ({y0} -> {y1})')
     r = await pg.evaluate('''() => {const m = document.getElementById('lvlmenu'), x = document.getElementById('lvl-x').getBoundingClientRect();
         return {open: !m.hidden, pos: getComputedStyle(m).position, after: m.previousElementSibling && m.previousElementSibling.id, x: x.width > 0}}''')
     if not r['open']: bad.append(f'{where}: the level menu closed when a level was picked')

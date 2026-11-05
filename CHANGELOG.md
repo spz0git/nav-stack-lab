@@ -4,7 +4,7 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
-## Unreleased
+## v82 · 2026-11-05
 
 - On a phone, the page no longer gets stuck at the bottom. After you scrolled down to change the floor, it could refuse
   to scroll back up to the map, most of all on iPhone and in the Claude app. The status strip and the metrics were

@@ -5,8 +5,8 @@ type: software
 authors:
   - family-names: Zafeiropoulos
     given-names: Spyridon
-version: "81"
-date-released: 2026-11-04
+version: "82"
+date-released: 2026-11-05
 repository-code: https://github.com/spz0git/nav-stack-lab
 url: https://spz0git.github.io/nav-stack-lab/
 license: MIT

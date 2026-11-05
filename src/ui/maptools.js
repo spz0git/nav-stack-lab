@@ -242,18 +242,18 @@ function selCard(V) {
 function renderSelection() {
   const c = $('#selcard');
   if (!SEL || !S) {
-    c.hidden = true;
+    setProp(c, 'hidden', true);
     return;
   }
   const f = replayFrame(),
     card = selCard(f ? frameView(f) : S);
   if (!card) {
-    c.hidden = true;
+    setProp(c, 'hidden', true);
     return;
   }
-  c.hidden = false;
-  $('#sel-title').textContent = card[0];
-  $('#sel-body').innerHTML = card[1];
+  setProp(c, 'hidden', false);
+  setText($('#sel-title'), card[0]);
+  setHTML($('#sel-body'), card[1]);
 }
 // a dashed ring around the selected thing (drawn in world coordinates by draw())
 function drawSelection(px) {

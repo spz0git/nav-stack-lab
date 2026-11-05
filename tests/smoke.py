@@ -33,6 +33,14 @@ async def level_menu_ok(pg, where, bad):
     if not r['x'] or not r['contain']: bad.append(f'{where}: the level menu has no close button or lets swipes scroll the page: {r}')
     await pg.click('#lvl-x'); await pg.wait_for_timeout(150)
     if not await pg.evaluate("document.getElementById('lvlmenu').hidden"): bad.append(f'{where}: the level menu × does not close it')
+# Idle, the page changes nothing: rewriting the same status and metrics several times a second made iPhone lay the page
+# out again each time, the page height moved by 1 px back and forth, and at the bottom of the page that moved the scroll
+# position under the finger so it could not scroll up (after a floor switch, the level button being last on the page).
+async def idle_quiet(pg, where, bad):
+    await pg.evaluate("window.__nav.switchLevel(4)"); await pg.wait_for_timeout(400)
+    n = await pg.evaluate('''() => new Promise(res => { const out = []; const mo = new MutationObserver(ms => ms.forEach(m => out.push((m.target.id || m.target.parentElement && m.target.parentElement.id || '?') + ':' + m.type)));
+        mo.observe(document.body, {subtree: true, childList: true, characterData: true, attributes: true}); setTimeout(() => { mo.disconnect(); res(out); }, 1000); })''')
+    if n: bad.append(f'{where}: idle, the page still rewrites itself ({len(n)} changes in 1 s, e.g. {sorted(set(n))[:6]})')
 async def main():
     async with async_playwright() as p:
         b = await launch(p)
@@ -47,6 +55,7 @@ async def main():
                 await tabs_ok(pg, name, bad)
                 await pg.click('#sheetbtn'); await pg.wait_for_timeout(200)  # the sheet closed again
                 await level_menu_ok(pg, name, bad)
+                await idle_quiet(pg, name, bad)
             else:
                 for lvl in range(await pg.evaluate('window.__nav.LEVELS.length')):
                     await pg.evaluate(f'window.__nav.switchLevel({lvl})'); await pg.wait_for_timeout(150)

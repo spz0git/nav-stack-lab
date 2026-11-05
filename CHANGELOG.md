@@ -4,6 +4,15 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v82 · 2026-11-05
+
+- On a phone, the page no longer gets stuck at the bottom. After you scrolled down to change the floor, it could refuse
+  to scroll back up to the map, most of all on iPhone and in the Claude app. The status strip and the metrics were
+  redrawn several times a second even when nothing changed, and on iPhone each redraw nudged the page's height by a
+  pixel, which kept pulling the page back to the bottom. They are now redrawn only when a value changes, and while a
+  run is going the telemetry and the status strip keep the tallest height they reached (until you change floor, reset
+  or fold the dock), so the page no longer shrinks under your finger as the numbers change.
+
 ## v81 · 2026-11-04
 
 - On a phone, the level menu no longer leaves the page looking stuck. Swiping on the menu after picking a level used

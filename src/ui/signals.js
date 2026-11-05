@@ -123,19 +123,21 @@ function renderValues() {
   if (!el || metView !== 'values' || !S) return;
   const t = valuesT();
   const live = CURSOR.hover == null && !REPLAY.active;
-  el.innerHTML =
+  setHTML(
+    el,
     `<p class="val-t">${live ? 'live' : CURSOR.hover != null ? 'hovered' : 'replay'} · ${t.toFixed(1)} s</p>` +
-    SIG_GROUPS.map(([sys, title]) => {
-      const rows = SIGNALS.filter(s => s[3] === sys)
-        .map(([id]) => {
-          const g = SIG[id],
-            v = sigAt(id, t),
-            u = sigUnit(g);
-          return `<div><dt title="${esc(g.name)}">${esc(g.name)}</dt><dd>${sigFmt(v)}${v != null && u ? ' ' + u : ''}</dd></div>`;
-        })
-        .join('');
-      return `<section class="val-g"${sys ? ` data-sys="${sys}"` : ''}><h4>${title}</h4><dl class="metrics">${rows}</dl></section>`;
-    }).join('');
+      SIG_GROUPS.map(([sys, title]) => {
+        const rows = SIGNALS.filter(s => s[3] === sys)
+          .map(([id]) => {
+            const g = SIG[id],
+              v = sigAt(id, t),
+              u = sigUnit(g);
+            return `<div><dt title="${esc(g.name)}">${esc(g.name)}</dt><dd>${sigFmt(v)}${v != null && u ? ' ' + u : ''}</dd></div>`;
+          })
+          .join('');
+        return `<section class="val-g"${sys ? ` data-sys="${sys}"` : ''}><h4>${title}</h4><dl class="metrics">${rows}</dl></section>`;
+      }).join('')
+  );
 }
 function setMetView(v) {
   metView = v;

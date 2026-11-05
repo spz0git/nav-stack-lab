@@ -154,36 +154,37 @@ function syncScrub() {
   if (!sc || !S) return;
   const F = REC.frames,
     n = F.length;
-  sc.dataset.state = n < 2 ? 'empty' : REPLAY.active ? 'replay' : running ? 'live-running' : 'live';
+  setProp(sc.dataset, 'state', n < 2 ? 'empty' : REPLAY.active ? 'replay' : running ? 'live-running' : 'live');
   const r = $('#scrubr');
-  r.max = Math.max(0, n - 1);
-  r.disabled = n < 2;
-  if (!REPLAY.active) r.value = Math.max(0, n - 1);
-  else r.value = clamp(REPLAY.i, 0, n - 1);
+  setProp(r, 'max', String(Math.max(0, n - 1)));
+  setProp(r, 'disabled', n < 2);
+  setProp(r, 'value', String(REPLAY.active ? clamp(REPLAY.i, 0, n - 1) : Math.max(0, n - 1)));
   const f = n ? F[REPLAY.active ? clamp(REPLAY.i, 0, n - 1) : n - 1] : null,
     tEnd = n ? F[n - 1].t : 0;
   const t0 = n ? F[0].t : 0,
     span = Math.max(1e-6, tEnd - t0);
-  $('#scrubt').textContent =
+  setText(
+    $('#scrubt'),
     n < 2
       ? 'no recording yet'
       : REPLAY.active
         ? `${f.t.toFixed(1)} / ${tEnd.toFixed(1)} s · ${REPLAY.playing ? 'playing' : 'replay'}`
-        : `${S.t.toFixed(1)} s · live`;
-  $('#scrub-live').hidden = !REPLAY.active;
+        : `${S.t.toFixed(1)} s · live`
+  );
+  setProp($('#scrub-live'), 'hidden', !REPLAY.active);
   const pb = $('#scrub-play');
-  pb.disabled = n < 2;
-  pb.setAttribute('aria-pressed', String(REPLAY.playing));
-  pb.textContent = REPLAY.playing ? '❚❚' : '▶';
-  pb.title = REPLAY.playing ? 'Pause the recording (P)' : 'Play the recording (P)';
+  setProp(pb, 'disabled', n < 2);
+  setAttr(pb, 'aria-pressed', String(REPLAY.playing));
+  setText(pb, REPLAY.playing ? '❚❚' : '▶');
+  setProp(pb, 'title', REPLAY.playing ? 'Pause the recording (P)' : 'Play the recording (P)');
   const lp = $('#tl-loop');
   if (REPLAY.loop && n > 1) {
     const [a, b] = REPLAY.loop;
-    lp.hidden = false;
+    setProp(lp, 'hidden', false);
     lp.style.left = `${((100 * (a - t0)) / span).toFixed(2)}%`;
     lp.style.width = `${((100 * (b - a)) / span).toFixed(2)}%`;
     lp.title = `Loop ${a.toFixed(1)}–${b.toFixed(1)} s`;
-  } else lp.hidden = true;
+  } else setProp(lp, 'hidden', true);
   // marks: redrawn when the log or the recorded span changes
   const key =
     S.log.length + '|' + (S.log[0] && S.log[0].t) + '|' + t0.toFixed(1) + '|' + tEnd.toFixed(0) + '|' + HEALTH.ev.length + '|' + LOGV.q;

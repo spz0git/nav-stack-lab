@@ -11,8 +11,6 @@ function lessonsOnLevel() {
 let briefOpen = true; // the level's description; folding it is remembered (workspace.js)
 // The level menu (UI review, step 2): one header button names the floor; its menu lists the seven floors on the left
 // and, on the right, the current floor's description and quick experiments (the brief, which used to sit above the tabs).
-// the phone layout (styles.css, max-width 760 px)
-const narrowUI = () => matchMedia('(max-width:760px)').matches;
 const lvMenu = (() => {
   const m = document.createElement('div');
   m.id = 'lvlmenu';
@@ -20,30 +18,12 @@ const lvMenu = (() => {
   m.hidden = true;
   m.setAttribute('role', 'dialog');
   m.setAttribute('aria-label', 'Levels and quick experiments');
-  // the head shows on phones only, where the menu opens in the page under the level button and needs a visible way out
+  // the head shows on phones only, where the menu is a sheet over most of the screen and needs a visible way out
   m.innerHTML = `<div class="lvl-head"><b>Level</b><button type="button" class="ibtn" id="lvl-x" aria-label="Close the level menu">×</button></div><div class="lvl-list" role="group" aria-label="Level"></div><section class="brief" id="brief" aria-live="polite"></section>`;
   document.body.appendChild(m);
-  m.querySelector('#lvl-x').onclick = () => {
-    lvMenuOpen(false);
-    if (kbNav) $('#lvl-btn').focus({preventScroll: true});
-  };
+  m.querySelector('#lvl-x').onclick = () => lvMenuOpen(false);
   return m;
 })();
-// On phones the menu is part of the page, right under the level button, and scrolls with it: a fixed sheet that
-// scrolled on its own left the page unable to scroll in the Claude app on iPhone once it closed. Elsewhere it is a
-// popover on the body.
-function lvMenuPlace() {
-  const lv = $('#levels');
-  if (narrowUI()) {
-    if (lv && lvMenu.previousElementSibling !== lv) lv.after(lvMenu);
-  } else if (lvMenu.parentNode !== document.body) document.body.appendChild(lvMenu);
-}
-lvMenuPlace();
-matchMedia('(max-width:760px)').addEventListener('change', lvMenuPlace);
-// Focus follows a pick with the keyboard or a mouse; a tap on a phone leaves it where it is (focusing moves the page)
-const lvFocus = el => {
-  if (el && (kbNav || !narrowUI())) el.focus({preventScroll: true});
-};
 // A fade at the bottom of the level list or the brief while more of it is below, so a cut-off line reads as "scroll
 // for more" (overlay scrollbars on phones and Macs stay hidden until you scroll); it goes once the end is in view.
 function lvMenuMore() {
@@ -61,25 +41,19 @@ function lvMenuOpen(on) {
   lvMenu.hidden = !on;
   if (b) b.setAttribute('aria-expanded', String(on));
   if (!on || !b) return;
-  lvMenuPlace();
-  if (narrowUI()) {
-    lvFocus(lvMenu.querySelector('.lvl[aria-pressed="true"]'));
-    return;
-  }
   const r = b.getBoundingClientRect(),
     w = Math.min(760, innerWidth - 16);
   lvMenu.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
   lvMenu.style.top = r.bottom + 6 + 'px';
   lvMenu.style.width = w + 'px';
   const cur = lvMenu.querySelector('.lvl[aria-pressed="true"]');
-  lvFocus(cur);
+  if (cur) cur.focus();
   requestAnimationFrame(lvMenuMore);
 }
 document.addEventListener(
   'pointerdown',
   e => {
-    // on phones the menu is in the page: a touch elsewhere may be the start of a scroll, so only × or the button close it
-    if (!lvMenu.hidden && !narrowUI() && !lvMenu.contains(e.target) && !e.target.closest('#lvl-btn')) lvMenuOpen(false);
+    if (!lvMenu.hidden && !lvMenu.contains(e.target) && !e.target.closest('#lvl-btn')) lvMenuOpen(false);
   },
   true
 );
@@ -127,7 +101,7 @@ function buildLevels() {
         levelPicked(+b.dataset.i);
         $('#brief').scrollTop = 0; // the new floor's description from its start
         const nb = lvMenu.querySelector(`.lvl[data-i="${b.dataset.i}"]`);
-        lvFocus(nb);
+        if (nb) nb.focus();
       })
   );
   list.querySelectorAll('.lvl[data-c]').forEach(
@@ -136,7 +110,7 @@ function buildLevels() {
         CUST.open = true;
         custPick(CUST.saved.find(r => r.id === b.dataset.c));
         const nb = lvMenu.querySelector(`.lvl[data-c="${b.dataset.c}"]`);
-        lvFocus(nb);
+        if (nb) nb.focus();
       })
   );
   list.querySelectorAll('.lvl[data-cust], .lvl[data-cur]').forEach(
@@ -145,7 +119,7 @@ function buildLevels() {
         CUST.open = true;
         buildLevels();
         const nb = lvMenu.querySelector(b.dataset.cust ? '.lvl[data-cust]' : '.lvl[data-cur]');
-        lvFocus(nb);
+        if (nb) nb.focus();
       })
   );
   if (custOn) {
@@ -257,6 +231,7 @@ let activeTab = 'loc';
 const howOpen = {};
 // Phones show the console as its tab row until a tab is tapped; tapping the open tab folds it again. Wide screens ignore this.
 let consoleOpen = false;
+const narrowUI = () => matchMedia('(max-width:760px)').matches;
 // Show a Symbols group: scroll only the console on desktop (below its sticky tabs), the page on phones
 const showSym = id => showTabAt('sym', 'sym-' + id);
 // A tab of Simulate's console, scrolled to one of its elements (Learn gives way to Simulate, whose console it is)

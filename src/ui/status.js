@@ -1,4 +1,23 @@
 /* ---------- status & metrics ---------- */
+// Write an element's content only when it changed. The refresh runs several times a second; rewriting identical HTML
+// still makes the browser lay the page out again, and on iPhone that relayout moved the page height by 1 px back and
+// forth, which at the bottom of the page moved the scroll position under the finger and stopped it scrolling up.
+function setHTML(el, html) {
+  if (!el || el.__html === html) return false;
+  el.innerHTML = html;
+  el.__html = html;
+  return true;
+}
+function setText(el, t) {
+  if (el && el.textContent !== t) el.textContent = t;
+}
+// The same for a property (hidden, disabled, title, a dataset entry, an input's value: compared as the browser keeps it)
+function setProp(o, k, v) {
+  if (o && o[k] !== v) o[k] = v;
+}
+function setAttr(el, k, v) {
+  if (el && el.getAttribute(k) !== v) el.setAttribute(k, v);
+}
 // Status strip: the state as a coloured chip (grey ready/idle, amber plan, green drive, blue done, red stuck/lost/contact), then large figures
 const STATE_CLS = {IDLE: 'idle', PLAN: 'plan', DRIVE: 'drive', NO_PATH: 'bad', DONE: 'done', LOST: 'bad'};
 // While the timeline replays a moment, the strip shows that moment (the recorded frame), marked "replay"
@@ -16,25 +35,27 @@ function renderStatus() {
   const st = contact ? 'CONTACT' : ready ? 'READY' : F.state.replace('_', ' '),
     cls = contact ? 'bad' : ready ? 'ready' : STATE_CLS[F.state];
   const cell = (k, v, c = '', tip = '') => `<span class="kv" title="${tip || k}"><span>${k}</span><b class="${c}">${v}</b></span>`;
-  $('#status').innerHTML =
+  setHTML(
+    $('#status'),
     `<span class="pill ${cls}">${st}</span>${F.state === 'IDLE' && WPS.length === 0 ? `<span class="st-note">tap the map to add goals</span>` : ''}` +
-    cell('t', `${V.t.toFixed(1)} s`, f ? 'replay' : '', f ? 'Replaying a recorded moment; Live or Run returns to the live state' : '') +
-    (exploring()
-      ? cell(
-          'floor seen',
-          `${(100 * (exploredFrac() || 0)).toFixed(0)} %`,
-          '',
-          `${S.frontiers ? S.frontiers.length : 0} frontiers left; Mission → Explore picks the goals`
-        )
-      : cell('goals', `${done}/${f ? f.done.length : WPS.length}`)) +
-    (P.loc === 'truth'
-      ? cell('pose', 'known', '', 'Ground truth: the estimate is the true pose; pick an estimator in Localize to see an error')
-      : cell('pose error', `${ep.toFixed(2)} m`, ep > 0.5 ? 'bad' : '', 'Distance between the true pose and the estimate')) +
-    cell('collisions', String(nc), nc ? 'bad' : '', `${V.coll} static, ${V.collPed} people`) +
-    (!f && P.agPred === 'learned' && agOn() ? predCell(cell) : '') +
-    (isCar() ? cell('gear · steer', `${r.v < -0.01 ? 'R' : r.v > 0.01 ? 'D' : '–'} · ${deg(r.d).toFixed(0)}°`) : '') +
-    (f ? `<span class="st-replay" title="The page shows a recorded moment. Live or Run returns to the live state.">replay</span>` : '');
-  $('#run').textContent = running ? 'Pause' : 'Run';
+      cell('t', `${V.t.toFixed(1)} s`, f ? 'replay' : '', f ? 'Replaying a recorded moment; Live or Run returns to the live state' : '') +
+      (exploring()
+        ? cell(
+            'floor seen',
+            `${(100 * (exploredFrac() || 0)).toFixed(0)} %`,
+            '',
+            `${S.frontiers ? S.frontiers.length : 0} frontiers left; Mission → Explore picks the goals`
+          )
+        : cell('goals', `${done}/${f ? f.done.length : WPS.length}`)) +
+      (P.loc === 'truth'
+        ? cell('pose', 'known', '', 'Ground truth: the estimate is the true pose; pick an estimator in Localize to see an error')
+        : cell('pose error', `${ep.toFixed(2)} m`, ep > 0.5 ? 'bad' : '', 'Distance between the true pose and the estimate')) +
+      cell('collisions', String(nc), nc ? 'bad' : '', `${V.coll} static, ${V.collPed} people`) +
+      (!f && P.agPred === 'learned' && agOn() ? predCell(cell) : '') +
+      (isCar() ? cell('gear · steer', `${r.v < -0.01 ? 'R' : r.v > 0.01 ? 'D' : '–'} · ${deg(r.d).toFixed(0)}°`) : '') +
+      (f ? `<span class="st-replay" title="The page shows a recorded moment. Live or Run returns to the live state.">replay</span>` : '')
+  );
+  setText($('#run'), running ? 'Pause' : 'Run');
 }
 // With the learned predictor: both predictors' mean error at 2 s so far, the learned one first
 function predCell(cell) {
@@ -122,9 +143,12 @@ function renderMetrics() {
   if (S.pf) items.push(['Particles', `N_eff ${S.pf.neff.toFixed(0)}/${S.pf.N}, inj ${(S.pf.inj * 100).toFixed(0)}%`, 'loc']);
   if (P.assoc === 'unknown' && P.loc !== 'truth' && P.loc !== 'dr') items.push(['Gated measurements', String(S.rejected), 'loc']);
   const mk = performance.now() < metMark.t ? metMark.name : '';
-  $('#metrics').innerHTML = items
-    .map(([a, b, c]) => `<div${c ? ` data-sys="${c}"` : ''}${a === mk ? ' class="met-hi"' : ''}><dt>${a}</dt><dd>${b}</dd></div>`)
-    .join('');
+  setHTML(
+    $('#metrics'),
+    items
+      .map(([a, b, c]) => `<div${c ? ` data-sys="${c}"` : ''}${a === mk ? ' class="met-hi"' : ''}><dt>${a}</dt><dd>${b}</dd></div>`)
+      .join('')
+  );
 }
 
 // The safety measures (core/safety.js), in the metrics list: each contact with its speed and the lab's severity class,

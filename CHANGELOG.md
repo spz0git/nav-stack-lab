@@ -6,10 +6,10 @@ Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
 ## Unreleased
 
-- On a phone, the level menu now opens in the page, right under the level button, and scrolls with the rest of the
-  page. In the Claude app on iPhone, picking a floor and closing the menu could leave the page unable to scroll back
-  up, with the part above left blank. Picking a floor no longer moves the page by itself. A touch elsewhere on the page
-  no longer closes the menu, so you can scroll through a floor's experiments; close it with × or the level button.
+- On a phone, the page no longer gets stuck at the bottom. After you scrolled down to change the floor, it could refuse
+  to scroll back up to the map, most of all on iPhone and in the Claude app. The status strip and the metrics were
+  redrawn several times a second even when nothing changed, and on iPhone each redraw nudged the page's height by a
+  pixel, which kept pulling the page back to the bottom. They are now redrawn only when a value changes.
 
 ## v81 · 2026-11-04
 

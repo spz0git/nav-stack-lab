@@ -295,8 +295,8 @@ function renderRunsBadge() {
   runMetaNote();
   const n = RUNS.kept.length + RUNS.recent.length,
     el = $('#runs-n');
-  el.textContent = String(n);
-  el.dataset.n = String(n);
+  setText(el, String(n));
+  setProp(el.dataset, 'n', String(n));
   const key = n + '|' + (RUNS.cmp && RUNS.cmp.id);
   if (key !== runsKey) {
     runsKey = key;

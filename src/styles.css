@@ -4784,9 +4784,6 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   }
   html {
     scroll-padding-top: 116px;
-    /* the browser keeps its scroll position when content above it changes size (a level switch, the menu); on iPhone,
-       a scroll moved under the finger left the page unable to scroll up, with the content above it unpainted */
-    overflow-anchor: none;
   } /* jumps (Symbols, Try) land below the sticky transport bar */
   /* full-bleed bar without widening the page: the background and its bottom rule are shadows, clipped to the bar's height */
   .transport {
@@ -4835,20 +4832,17 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   .lvl-btn svg {
     margin-left: auto;
   }
-  /* in the page under the level button (moved there by ui/panes.js), scrolling with it: no fixed sheet */
   .lvlmenu {
-    position: static;
-    order: 10;
+    left: 8px !important;
+    right: 8px;
     width: auto !important;
-    max-height: none;
-    overflow: visible;
-    box-shadow: none;
+    top: auto !important;
+    /* above the bottom bar (z-index 45), which otherwise covered the end of the brief */
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
-  }
-  .lvlmenu .brief {
-    overflow: visible;
-    overscroll-behavior: auto;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    max-height: calc(100vh - 140px);
+    max-height: calc(100dvh - 140px - env(safe-area-inset-bottom, 0px));
   }
   .lvl-head {
     display: flex;
@@ -4856,7 +4850,6 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
     padding: 4px 6px 4px 14px;
     background: var(--panel);
     border-bottom: 1px solid var(--line);
-    border-radius: var(--r-panel) var(--r-panel) 0 0;
   }
   .lvl-head b {
     font-family: var(--f-display);
@@ -4872,8 +4865,7 @@ body:has(.layout[data-mode='learn']) .sheetbtn {
   .lvl-list {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    max-height: none;
-    overflow: visible;
+    max-height: 34vh;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }

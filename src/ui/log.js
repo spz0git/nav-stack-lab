@@ -20,13 +20,16 @@ function renderLog() {
   const tc = REPLAY.active ? shownT() : Infinity,
     rows = S.log.filter(logShow),
     shown = LOGV.asc ? rows.slice().reverse() : rows;
-  $('#log').innerHTML = shown
-    .map(
-      l =>
-        `<li class="${l.cls}${l.t > tc + 1e-6 ? ' later' : ''}${LOGV.q ? ' hit' : ''}" data-t="${l.t}" title="Show this moment (${l.t.toFixed(1)} s)"><span>${l.t.toFixed(1)}s</span>${esc(l.msg)}</li>`
-    )
-    .join('');
-  $('#log-n').textContent = LOGV.q || LOGV.sev !== 'all' ? `${rows.length} of ${S.log.length}` : '';
+  setHTML(
+    $('#log'),
+    shown
+      .map(
+        l =>
+          `<li class="${l.cls}${l.t > tc + 1e-6 ? ' later' : ''}${LOGV.q ? ' hit' : ''}" data-t="${l.t}" title="Show this moment (${l.t.toFixed(1)} s)"><span>${l.t.toFixed(1)}s</span>${esc(l.msg)}</li>`
+      )
+      .join('')
+  );
+  setText($('#log-n'), LOGV.q || LOGV.sev !== 'all' ? `${rows.length} of ${S.log.length}` : '');
   LOGV.hits = LOGV.q ? rows.map(l => l.t) : null;
   // follow the replayed moment: the first line at or before it comes into view
   if (REPLAY.active && REPLAY.i !== LOGV.lastI) {

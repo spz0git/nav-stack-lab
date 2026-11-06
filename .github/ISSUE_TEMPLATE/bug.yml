@@ -12,8 +12,8 @@ body:
     id: version
     attributes:
       label: Version
-      description: The label next to the title, e.g. "v82 · 2026-11-05", and where you ran it (a local build, a downloaded dist/nav-stack-lab.html, the artifact).
-      placeholder: v82 · 2026-11-05, local build
+      description: The label next to the title, e.g. "v83 · 2026-11-06", and where you ran it (a local build, a downloaded dist/nav-stack-lab.html, the artifact).
+      placeholder: v83 · 2026-11-06, local build
     validations:
       required: true
   - type: textarea

@@ -4,6 +4,11 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v83 · 2026-11-06
+
+- The page has an icon in the browser tab, and a link to the demo now comes with a preview card on sites and in chats
+  that show one: the title, a line on what the page is, and a picture of the busy floor in dark mode during a run.
+
 ## v82 · 2026-11-05
 
 - On a phone, the page no longer gets stuck at the bottom. After you scrolled down to change the floor, it could refuse

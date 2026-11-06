@@ -47,8 +47,11 @@ const fonts = JSON.parse(src('fonts/fonts.json'))
       `@font-face{font-family:"${f.family}";font-style:${f.style};font-weight:${f.weight};font-display:swap;src:url(data:font/woff2;base64,${fs.readFileSync(path.join('src/fonts', f.file)).toString('base64')}) format("woff2");unicode-range:${f.unicodeRange}}`
   )
   .join('\n');
+// Favicon: src/icon.svg inlined as a data: URI (the page makes no network request; the CSP allows img-src data:)
+const icon = 'data:image/svg+xml,' + encodeURIComponent(src('icon.svg').trim());
 const page = src('index.html')
   .replace('/*__FONTS__*/', () => fonts)
+  .replace('__ICON__', () => icon)
   .replace('__VERSION__', () => verText)
   .replace('/*__CSS__*/', () => src('styles.css').trimEnd())
   .replace('/*__JS__*/', () => "(()=>{\n'use strict';\n" + js + '\n})();');

@@ -8,7 +8,7 @@ What a maintainer does that a contributor does not: cut a release, keep the demo
 - **GitHub Pages**, https://spz0git.github.io/nav-stack-lab/, is the public demo. The repository has been public
   since 2026-11-01; before that Pages was off, since on a free plan it needs a public repository. A workflow deploys `dist/` from
   `main` on every push (`.github/workflows/pages.yml`: `nav-stack-lab.html` is served as `index.html` and under its
-  own name, with `core-worker.js` beside it), so merging a PR updates the demo; nothing to do by hand. The job is
+  own name, with `core-worker.js` and the link-preview image `docs/readme/preview.png` beside it), so merging a PR updates the demo; nothing to do by hand. The job is
   opt-in: it runs only when the repository variable `PAGES_ENABLED` is `true`, and is skipped otherwise. The demo has
   been on since 2026-11-01. To set it up again: set Settings → Pages → Source: GitHub Actions, add the variable
   (Settings → Secrets and variables → Actions → Variables), then run Deploy demo once from the Actions tab

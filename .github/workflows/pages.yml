@@ -30,6 +30,7 @@ jobs:
           mkdir -p site
           cp dist/nav-stack-lab.html site/index.html
           cp dist/nav-stack-lab.html dist/core-worker.js site/
+          cp docs/readme/preview.png site/   # the link-preview image named by the page's og:image and twitter:image
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

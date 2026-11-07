@@ -106,14 +106,14 @@ src/
     speed.js            the speed (longitudinal) loop
     ui.js               the Analyze view: plots, poles to drag, the story, the design tools
     lessons-data.js     LESSON_DATA and the code snippets' index, inlined by the build
-    lessons2.js         the simulator lessons (loc, per, plan, saf) from LESSON_DATA
+    lessons2.js         the simulator lessons (intro, loc, per, plan, saf) from LESSON_DATA
     lessons.js          the control lessons, the lesson groups, lessonGo (a control Try)
     glossary.js         the glossary (GLOSS) and each lesson's terms (LESSON_TERMS)
 
   worker/main.js    headless runner: core/* + this file = dist/core-worker.js; the page holds only this file and
                     cuts core/* from its own script at runtime (ui/experiments.js)
 docs/notes/         the nine companion chapters (markdown + TeX), converted by tools/notes.mjs at build time
-docs/lessons/       the 54 lessons (markdown + TeX) in five groups, read by tools/lessons.mjs at build time
+docs/lessons/       the 64 lessons (markdown + TeX) in six groups, read by tools/lessons.mjs at build time
 tests/              Playwright tests, the Node tests, and the measurement scripts the lessons' numbers come from
 ```
 

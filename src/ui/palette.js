@@ -469,7 +469,7 @@ function changedHTML() {
     `<h4 class="chg-h">Saved setups <span class="lbl">in this browser only</span></h4>
    <form class="chg-save" id="chg-save"><input type="text" id="chg-name" maxlength="60" placeholder="Name this setup (${LV.id}, ${C.length} changed)" aria-label="Setup name"><button type="submit" class="btn">Save</button></form>` +
     (S2.length
-      ? `<ul class="setups">${S2.map((x, i) => `<li><button type="button" class="linkbtn" data-load="${i}" title="Load: ${esc(x.cfg.level)} with ${esc(fmtOv(x.cfg.params || {}))}">${esc(x.name)}</button><span class="lbl">${esc(x.cfg.level)} · ${Object.keys(x.cfg.params || {}).length} changed${x.cfg.goals ? ' · own goals' : ''}</span><button type="button" class="ibtn sm" data-del="${i}" aria-label="Delete ${esc(x.name)}" title="Delete">×</button></li>`).join('')}</ul>`
+      ? `<ul class="setups">${S2.map((x, i) => `<li><button type="button" class="btn small" data-load="${i}" title="Load: ${esc(x.cfg.level)} with ${esc(fmtOv(x.cfg.params || {}))}">${esc(x.name)}</button><span class="lbl">${esc(x.cfg.level)} · ${Object.keys(x.cfg.params || {}).length} changed${x.cfg.goals ? ' · own goals' : ''}</span><button type="button" class="ibtn sm" data-del="${i}" aria-label="Delete ${esc(x.name)}" title="Delete">×</button></li>`).join('')}</ul>`
       : `<p class="note">None yet. A saved setup keeps the level, the seed, every changed setting and the goals.</p>`)
   );
 }

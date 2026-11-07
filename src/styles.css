@@ -1057,9 +1057,8 @@ dialog:focus-visible {
   font-family: var(--f-display);
   font-size: var(--fs-read);
 }
-.lp-head .linkbtn {
+.lp-head .btn {
   margin-left: auto;
-  font-size: var(--fs-small);
 }
 .lp-row {
   display: grid;
@@ -1171,9 +1170,6 @@ dialog:focus-visible {
   flex: 1 1 140px;
   min-width: 100px;
   accent-color: var(--accent);
-}
-.ghostchip .linkbtn {
-  font-size: var(--fs-small);
 }
 .gh-row {
   display: flex;
@@ -2434,7 +2430,7 @@ textarea {
 }
 .bchips-all {
   display: flex;
-  gap: 14px;
+  gap: 6px;
   margin-top: 4px;
 }
 @media (max-width: 760px) {
@@ -2962,10 +2958,10 @@ details.see > p {
   margin-right: 10px;
   white-space: nowrap;
 }
-.progress .pkey .linkbtn {
+.progress .pkey .btn {
   margin-left: 4px;
 }
-.progress .pkey .linkbtn[data-armed] {
+.progress .pkey .btn[data-armed] {
   color: var(--bad);
   font-weight: 600;
 }

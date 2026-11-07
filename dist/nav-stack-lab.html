@@ -1092,9 +1092,8 @@ dialog:focus-visible {
   font-family: var(--f-display);
   font-size: var(--fs-read);
 }
-.lp-head .linkbtn {
+.lp-head .btn {
   margin-left: auto;
-  font-size: var(--fs-small);
 }
 .lp-row {
   display: grid;
@@ -1206,9 +1205,6 @@ dialog:focus-visible {
   flex: 1 1 140px;
   min-width: 100px;
   accent-color: var(--accent);
-}
-.ghostchip .linkbtn {
-  font-size: var(--fs-small);
 }
 .gh-row {
   display: flex;
@@ -2469,7 +2465,7 @@ textarea {
 }
 .bchips-all {
   display: flex;
-  gap: 14px;
+  gap: 6px;
   margin-top: 4px;
 }
 @media (max-width: 760px) {
@@ -2997,10 +2993,10 @@ details.see > p {
   margin-right: 10px;
   white-space: nowrap;
 }
-.progress .pkey .linkbtn {
+.progress .pkey .btn {
   margin-left: 4px;
 }
-.progress .pkey .linkbtn[data-armed] {
+.progress .pkey .btn[data-armed] {
   color: var(--bad);
   font-weight: 600;
 }
@@ -5770,7 +5766,7 @@ article.chapter .notes-table td button.try {
           <details class="an-adv an-why" id="an-why"><summary>Where these numbers come from</summary><div class="an-tf" id="an-why-body"></div></details>
           <div class="an-grid an-main">
             <figure class="an-fig"><figcaption><span id="cap-step-t">Response: back to the path</span><span class="seg sm" id="an-kind"></span></figcaption><canvas id="cv-step" aria-label="Response of the lateral offset"></canvas><div class="an-play" id="an-play-row" hidden><button type="button" class="btn small" id="an-play">▶ Play</button><input type="range" id="an-scrub" min="0" max="500" value="0" step="1" aria-label="Time in the simulated step test"><span class="mono an-pt" id="an-pt"></span><span class="seg sm" id="an-pspeed" aria-label="Playback speed"></span></div><p class="an-cap" id="cap-step"></p></figure>
-            <figure class="an-fig" id="fig-pz"><figcaption><span>Poles: drag one to redesign</span><button type="button" class="linkbtn" id="an-wi-x" hidden>Clear the what-if</button></figcaption><canvas id="cv-pz" class="an-drag" aria-label="Closed-loop poles; drag a pole to try another design"></canvas><div class="an-design" id="an-design" role="group" aria-label="Design the loop from numbers"><span class="lbl">Place the pair at</span><label>ζ <input type="number" id="d-zeta" value="0.7" step="0.05" min="0.05" max="2"></label><label>ω<sub>n</sub> <input type="number" id="d-wn" value="2" step="0.1" min="0.1" max="30"> rad/s</label><button type="button" class="btn small" id="d-place" title="Pole placement: the delay-free gains for this pair, then where it really lands">Place</button><span class="lbl">LQR</span><label>q<sub>e</sub> <input type="number" id="d-qe" value="1" step="0.1" min="0.0001"></label><label>q<sub>θ</sub> <input type="number" id="d-qth" value="0.5" step="0.1" min="0"></label><label>r <input type="number" id="d-r" value="0.1" step="0.01" min="0.0001"></label><button type="button" class="btn small" id="d-lqr" title="The LQR gains for these weights (closed form, chapter 6 §8), then where the pair really lands">Design</button></div><div class="an-cap" id="cap-pz"></div></figure>
+            <figure class="an-fig" id="fig-pz"><figcaption><span>Poles: drag one to redesign</span><button type="button" class="btn small" id="an-wi-x" hidden>Clear the what-if</button></figcaption><canvas id="cv-pz" class="an-drag" aria-label="Closed-loop poles; drag a pole to try another design"></canvas><div class="an-design" id="an-design" role="group" aria-label="Design the loop from numbers"><span class="lbl">Place the pair at</span><label>ζ <input type="number" id="d-zeta" value="0.7" step="0.05" min="0.05" max="2"></label><label>ω<sub>n</sub> <input type="number" id="d-wn" value="2" step="0.1" min="0.1" max="30"> rad/s</label><button type="button" class="btn small" id="d-place" title="Pole placement: the delay-free gains for this pair, then where it really lands">Place</button><span class="lbl">LQR</span><label>q<sub>e</sub> <input type="number" id="d-qe" value="1" step="0.1" min="0.0001"></label><label>q<sub>θ</sub> <input type="number" id="d-qth" value="0.5" step="0.1" min="0"></label><label>r <input type="number" id="d-r" value="0.1" step="0.01" min="0.0001"></label><button type="button" class="btn small" id="d-lqr" title="The LQR gains for these weights (closed form, chapter 6 §8), then where the pair really lands">Design</button></div><div class="an-cap" id="cap-pz"></div></figure>
           </div>
           <div class="an-exp">
             <span class="lbl">Check in the simulator</span>
@@ -23450,7 +23446,7 @@ function fieldHTML(f) {
   if (f.type === 'beacons') {
     const off = beaconsOff(),
       c = chgMark({k: 'bOff'});
-    return `<div class="field${c ? ' chg' : ''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b => `<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="linkbtn" data-beacon="all">All on</button><button class="linkbtn" data-beacon="none">All off</button></div></div>`;
+    return `<div class="field${c ? ' chg' : ''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b => `<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="btn small" data-beacon="all">All on</button><button class="btn small" data-beacon="none">All off</button></div></div>`;
   }
   if (f.type === 'sensors') return sensorsHTML();
   if (f.type === 'bsensor')
@@ -24033,13 +24029,13 @@ function layersPane() {
     ['ghostrun', 'Previous run on this level: ghost trail on the map and ghost series in the plot']
   ];
   return (
-    `<p class="note">What to draw on the map. Nothing here changes the simulation. ${layersEdited ? `You have edited the layers, so tabs no longer change them. <button class="linkbtn" id="layers-auto" type="button">Let each tab choose again</button>` : 'Each pipeline tab (1–5) shows its own set; ticking a box here keeps your choice for this session.'}</p>` +
+    `<p class="note">What to draw on the map. Nothing here changes the simulation. ${layersEdited ? `You have edited the layers, so tabs no longer change them. <button class="btn small" id="layers-auto" type="button">Let each tab choose again</button>` : 'Each pipeline tab (1–5) shows its own set; ticking a box here keeps your choice for this session.'}</p>` +
     L.map(
       ([k, l]) =>
         `<label class="check"><input type="checkbox" id="layer-${k}" data-layer="${k}" ${LAYERS[k] ? 'checked' : ''}><span>${l}</span></label>`
     ).join('') +
     (GHOST && GHOST.level === LV.id
-      ? `<p class="note">Ghost: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button class="linkbtn" id="ghost-clear" type="button">Forget it</button></p>`
+      ? `<p class="note">Ghost: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button class="btn small" id="ghost-clear" type="button">Forget it</button></p>`
       : '')
   );
 }
@@ -29558,7 +29554,7 @@ function lessonProgHTML(id) {
     )
     .concat(it.L.check ? [`<span class="lp-step${s.chk ? ' ok' : ''}">${s.chk ? '✓' : '○'} Check yourself</span>`] : [])
     .join('');
-  return `<i class="ldot" data-st="${s.st}" aria-hidden="true"></i><span class="lp-txt">${s.st === 'done' ? 'Lesson done' : 'To complete this lesson:'}</span>${steps}<button type="button" class="linkbtn lp-reset" title="Clear this lesson's experiments, predictions and self-check in this browser, so its circle is empty again">Reset</button>`;
+  return `<i class="ldot" data-st="${s.st}" aria-hidden="true"></i><span class="lp-txt">${s.st === 'done' ? 'Lesson done' : 'To complete this lesson:'}</span>${steps}<button type="button" class="btn small lp-reset" title="Clear this lesson's experiments, predictions and self-check in this browser, so its circle is empty again">Reset</button>`;
 }
 function wireLessonProg(v) {
   const b = v.querySelector('.lp-reset');
@@ -29762,7 +29758,7 @@ function renderLearn() {
   v.innerHTML =
     `<div class="learn-head">${
       cur
-        ? `<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i + 1} of ${cur.G.items.length}</span>${prevId ? `<button class="linkbtn" id="learn-prev" type="button" title="${onPath(lessonOpen) && onPath(prevId) ? 'The previous lesson of the first pass' : 'The previous lesson in the list'}">${onPath(lessonOpen) && onPath(prevId) ? '← Previous in the first pass' : '← Previous lesson'}</button>` : ''}${nextId ? `<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen) && onPath(nextId) ? 'The next lesson of the first pass' : 'The next lesson in the list'}">${onPath(lessonOpen) && onPath(nextId) ? 'Next in the first pass →' : 'Next lesson →'}</button>` : ''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
+        ? `<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i + 1} of ${cur.G.items.length}</span>${prevId ? `<button class="linkbtn" id="learn-prev" type="button" title="${onPath(lessonOpen) && onPath(prevId) ? 'The previous lesson of the first pass' : 'The previous lesson in the list'}">${onPath(lessonOpen) && onPath(prevId) ? '← Previous in the first pass' : '← Previous lesson'}</button>` : ''}${nextId ? `<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen) && onPath(nextId) ? 'The next lesson of the first pass' : 'The next lesson in the list'}">${onPath(lessonOpen) && onPath(nextId) ? 'Next in the first pass →' : 'Next lesson →'}</button>` : ''}<button class="btn small" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
         : `<h2>Lessons</h2>`
     }</div>` +
     (cur ? '' : startHereHTML() + progressHTML()) +
@@ -30035,7 +30031,7 @@ function progressHTML() {
     done = groups.reduce((a, g) => a + g.done, 0),
     part = groups.reduce((a, g) => a + g.part, 0);
   const path = LEARN_PATH.filter(([id]) => lessonState(id).st === 'done').length;
-  const key = `<p class="note pkey"><span><i class="ldot" data-st="none" aria-hidden="true"></i>not started</span><span><i class="ldot" data-st="part" aria-hidden="true"></i>started</span><span><i class="ldot" data-st="done" aria-hidden="true"></i>done</span> A lesson's circle fills once you have pressed each of its experiment buttons and passed its Check yourself.${done || part ? ' <button type="button" class="linkbtn" id="learn-reset" title="Clear every lesson\'s progress, predictions and self-checks in this browser">Reset all progress</button>' : ''}</p>`;
+  const key = `<p class="note pkey"><span><i class="ldot" data-st="none" aria-hidden="true"></i>not started</span><span><i class="ldot" data-st="part" aria-hidden="true"></i>started</span><span><i class="ldot" data-st="done" aria-hidden="true"></i>done</span> A lesson's circle fills once you have pressed each of its experiment buttons and passed its Check yourself.${done || part ? ' <button type="button" class="btn small" id="learn-reset" title="Clear every lesson\'s progress, predictions and self-checks in this browser">Reset all progress</button>' : ''}</p>`;
   if (!done && !part) return `<div class="progress" role="group" aria-label="Your progress">${key}</div>`;
   return (
     `<div class="progress" role="group" aria-label="Your progress"><p class="note">${done} of ${n} lessons done${part ? `, ${part} started` : ''} · first pass ${path} of ${LEARN_PATH.length}</p>${key}<div class="pbars">` +
@@ -30458,7 +30454,7 @@ function renderChapter() {
     c = chapterById(chapterOpen);
   v.classList.add('reading', 'chapter');
   v.innerHTML =
-    `<div class="learn-head"><button class="btn small" id="learn-back" type="button" title="${chapterFrom ? 'Back to the lesson you came from' : 'Back to the list'}">${chapterFrom ? '← Back to the lesson' : '← Lessons and notes'}</button><span class="lbl" data-sys="${c.sys}">Chapter ${c.num}</span><button class="linkbtn" id="learn-link" type="button" title="A link that opens this chapter">Copy link</button><span class="lbl" id="learn-msg"></span></div>` +
+    `<div class="learn-head"><button class="btn small" id="learn-back" type="button" title="${chapterFrom ? 'Back to the lesson you came from' : 'Back to the list'}">${chapterFrom ? '← Back to the lesson' : '← Lessons and notes'}</button><span class="lbl" data-sys="${c.sys}">Chapter ${c.num}</span><button class="btn small" id="learn-link" type="button" title="A link that opens this chapter">Copy link</button><span class="lbl" id="learn-msg"></span></div>` +
     `<article class="chapter"><h2>${c.title}</h2><nav class="chapter-toc">${c.toc.map(t => `<a href="#n-${t.id}" data-to="n-${t.id}">${t.text}</a>`).join('')}</nav>${c.html}</article>`;
   v.querySelectorAll('.chapter-toc a').forEach(
     a =>
@@ -31418,9 +31414,9 @@ function safPane() {
     .map(k => `<option value="b:${k}">${esc(ODD_SHEETS[k].name)}</option>`)
     .join(
       ''
-    )}${SAF.saved.map((x, i) => `<option value="s:${i}">${esc(x.name)} (saved)</option>`).join('')}</select></label><label>Save as <input type="text" id="saf-sheetname" size="16" placeholder="a name" aria-label="A name to save this sheet under"></label><button class="linkbtn" id="saf-sheetsave">Save</button><button class="linkbtn" id="saf-monitor" title="The ODD monitor (Mission tab) watches this sheet from now on">${P.oddMon && P.oddSheet === JSON.stringify(sh) ? 'Monitored' : 'Monitor this sheet'}</button></div>
+    )}${SAF.saved.map((x, i) => `<option value="s:${i}">${esc(x.name)} (saved)</option>`).join('')}</select></label><label>Save as <input type="text" id="saf-sheetname" size="16" placeholder="a name" aria-label="A name to save this sheet under"></label><button class="btn small" id="saf-sheetsave">Save</button><button class="btn small" id="saf-monitor" title="The ODD monitor (Mission tab) watches this sheet from now on">${P.oddMon && P.oddSheet === JSON.stringify(sh) ? 'Monitored' : 'Monitor this sheet'}</button></div>
   <div class="exprow saf-sheet">${rng}</div>
-  <div class="exprow"><span class="lbl">Weather</span>${box('weather', 'clear', 'clear')}${box('weather', 'rain', 'rain')}${box('weather', 'fog', 'fog')}<span class="lbl">People</span>${box('people', 'scripted', 'scripted')}${box('people', 'reactive', 'react')}<button class="linkbtn" id="saf-reset">Back to ODD-1</button></div>
+  <div class="exprow"><span class="lbl">Weather</span>${box('weather', 'clear', 'clear')}${box('weather', 'rain', 'rain')}${box('weather', 'fog', 'fog')}<span class="lbl">People</span>${box('people', 'scripted', 'scripted')}${box('people', 'reactive', 'react')}<button class="btn small" id="saf-reset">Back to ODD-1</button></div>
   ${err ? `<p class="note bad">The sheet needs ${esc(err)}.</p>` : ''}
   <details class="how"><summary>Is the level on screen inside it?</summary><div class="exptab"><table><thead><tr><th>Attribute</th><th>This level</th><th>The sheet</th><th></th></tr></thead><tbody>${chk}</tbody></table></div></details>
   <h4 class="saf-h">Search</h4>
@@ -32136,7 +32132,7 @@ function argPaneHTML() {
         : [];
   return `<h4 class="saf-h">Safety argument</h4>
   <p class="note">Claims, how they are broken down, and the evidence for each, in Goal Structuring Notation. Check the evidence to rerun every solution's runs; a failed solution turns its claims red all the way up. Type changes below to rerun the whole argument with them: one changed setting shows which claims it breaks.</p>
-  <div class="exprow"><label>Argument <select id="arg-pick">${opts}</select></label><button class="linkbtn" id="arg-copy">Copy as a new argument</button></div>
+  <div class="exprow"><label>Argument <select id="arg-pick">${opts}</select></label><button class="btn small" id="arg-copy">Copy as a new argument</button></div>
   <div class="arg-wrap">${argSVG()}</div>
   <div class="controls"><button class="btn small" id="arg-wide">Open the graph full width</button><span class="lbl">Scroll sideways here, or open it over the page; pick a node to edit it.</span></div>
   <p class="note">${top === 'pass' ? '<b>The top claim is supported</b> by the evidence as it stands.' : top === 'fail' ? '<b class="bad">The top claim is not supported</b>: follow the red nodes down to the evidence that failed.' : 'Not checked yet.'}${ARG.msg ? ' ' + esc(ARG.msg) : ''}</p>
@@ -35207,14 +35203,14 @@ function layerStatus(k) {
 }
 function layerPopHTML() {
   return (
-    `<div class="lp-head"><b>Layers</b><span class="lbl">${layersEdited ? 'your choice' : 'set by the tab'}</span>${layersEdited ? `<button type="button" class="linkbtn" id="lp-auto">Let each tab choose</button>` : ''}</div>` +
+    `<div class="lp-head"><b>Layers</b><span class="lbl">${layersEdited ? 'your choice' : 'set by the tab'}</span>${layersEdited ? `<button type="button" class="btn small" id="lp-auto">Let each tab choose</button>` : ''}</div>` +
     LAYER_DEFS.map(([k, name, sub, sys]) => {
       const [has, st] = layerStatus(k),
         on = !!LAYERS[k];
       return `<label class="lp-row${on ? '' : ' off'}"${sys ? ` data-sys="${sys}"` : ''}><input type="checkbox" data-layer="${k}" ${on ? 'checked' : ''}><span class="lp-name">${name}<small>${sub}</small></span><span class="lp-st ${on && has ? 'live' : on ? 'idle' : ''}" title="${esc(st)}">${esc(st)}</span></label>`;
     }).join('') +
     (GHOST && GHOST.level === LV.id
-      ? `<p class="lp-foot">Previous run: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button type="button" class="linkbtn" id="lp-forget">Forget it</button></p>`
+      ? `<p class="lp-foot">Previous run: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button type="button" class="btn small" id="lp-forget">Forget it</button></p>`
       : '') +
     `<p class="lp-foot">Drawing only; nothing here changes the simulation.</p>`
   );
@@ -35328,10 +35324,10 @@ function renderGhostChip() {
   if (c.hidden) return;
   c.innerHTML =
     (pin
-      ? `<div class="gh-row"><span class="gh-swatch pin" aria-hidden="true"></span><span class="gh-txt" title="${esc(runName(pin))}">Pinned: ${esc(pin.label)} (${pin.t.toFixed(0)} s)</span><button type="button" class="linkbtn" id="gh-unpin" title="Stop comparing with this run (it stays in Runs)">Unpin</button></div>`
+      ? `<div class="gh-row"><span class="gh-swatch pin" aria-hidden="true"></span><span class="gh-txt" title="${esc(runName(pin))}">Pinned: ${esc(pin.label)} (${pin.t.toFixed(0)} s)</span><button type="button" class="btn small" id="gh-unpin" title="Stop comparing with this run (it stays in Runs)">Unpin</button></div>`
       : '') +
     (gh
-      ? `<div class="gh-row"><span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span>${GHOST.run ? `<button type="button" class="linkbtn" id="gh-pin" title="Keep this path on the map through Reset and new settings, to compare runs with it (Runs has its numbers)">Pin</button>` : ''}<button type="button" class="linkbtn" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="linkbtn" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button></div>`
+      ? `<div class="gh-row"><span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span>${GHOST.run ? `<button type="button" class="btn small" id="gh-pin" title="Keep this path on the map through Reset and new settings, to compare runs with it (Runs has its numbers)">Pin</button>` : ''}<button type="button" class="btn small" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="btn small" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button></div>`
       : '');
   const on = (sel, f) => {
     const b = $(sel);
@@ -35437,7 +35433,7 @@ function renderSearchChip() {
   const txt = `${tr.name} · ${wh} ${n} of ${N}${extra}${n >= N ? ' · done' : ''}`;
   if (!c.firstChild || SP.key !== N + '|' + tr.name) {
     SP.key = N + '|' + tr.name;
-    c.innerHTML = `<span class="sp-t" id="sp-t"></span><span class="sp-b"><button type="button" class="ibtn sm" data-sp="0" title="Back to the start" aria-label="Back to the start">⏮</button><button type="button" class="ibtn sm" data-sp="-1" title="One ${wh} back" aria-label="One ${wh} back">◀</button><button type="button" class="ibtn sm" data-sp="p" id="sp-p" aria-label="Play or pause"></button><button type="button" class="ibtn sm" data-sp="1" title="One ${wh} forward" aria-label="One ${wh} forward">▶</button><button type="button" class="ibtn sm" data-sp="N" title="To the end" aria-label="To the end">⏭</button></span><input type="range" id="sp-r" min="0" max="${N}" step="1" aria-label="Search step"><button type="button" class="linkbtn" id="sp-x" title="Back to the finished search; Run drives">Done</button>`;
+    c.innerHTML = `<span class="sp-t" id="sp-t"></span><span class="sp-b"><button type="button" class="ibtn sm" data-sp="0" title="Back to the start" aria-label="Back to the start">⏮</button><button type="button" class="ibtn sm" data-sp="-1" title="One ${wh} back" aria-label="One ${wh} back">◀</button><button type="button" class="ibtn sm" data-sp="p" id="sp-p" aria-label="Play or pause"></button><button type="button" class="ibtn sm" data-sp="1" title="One ${wh} forward" aria-label="One ${wh} forward">▶</button><button type="button" class="ibtn sm" data-sp="N" title="To the end" aria-label="To the end">⏭</button></span><input type="range" id="sp-r" min="0" max="${N}" step="1" aria-label="Search step"><button type="button" class="btn small" id="sp-x" title="Back to the finished search; Run drives">Done</button>`;
     c.querySelectorAll('[data-sp]').forEach(
       b =>
         (b.onclick = () => {
@@ -36805,7 +36801,7 @@ function changedHTML() {
     `<h4 class="chg-h">Saved setups <span class="lbl">in this browser only</span></h4>
    <form class="chg-save" id="chg-save"><input type="text" id="chg-name" maxlength="60" placeholder="Name this setup (${LV.id}, ${C.length} changed)" aria-label="Setup name"><button type="submit" class="btn">Save</button></form>` +
     (S2.length
-      ? `<ul class="setups">${S2.map((x, i) => `<li><button type="button" class="linkbtn" data-load="${i}" title="Load: ${esc(x.cfg.level)} with ${esc(fmtOv(x.cfg.params || {}))}">${esc(x.name)}</button><span class="lbl">${esc(x.cfg.level)} · ${Object.keys(x.cfg.params || {}).length} changed${x.cfg.goals ? ' · own goals' : ''}</span><button type="button" class="ibtn sm" data-del="${i}" aria-label="Delete ${esc(x.name)}" title="Delete">×</button></li>`).join('')}</ul>`
+      ? `<ul class="setups">${S2.map((x, i) => `<li><button type="button" class="btn small" data-load="${i}" title="Load: ${esc(x.cfg.level)} with ${esc(fmtOv(x.cfg.params || {}))}">${esc(x.name)}</button><span class="lbl">${esc(x.cfg.level)} · ${Object.keys(x.cfg.params || {}).length} changed${x.cfg.goals ? ' · own goals' : ''}</span><button type="button" class="ibtn sm" data-del="${i}" aria-label="Delete ${esc(x.name)}" title="Delete">×</button></li>`).join('')}</ul>`
       : `<p class="note">None yet. A saved setup keeps the level, the seed, every changed setting and the goals.</p>`)
   );
 }

@@ -97,13 +97,13 @@ function layersPane() {
     ['ghostrun', 'Previous run on this level: ghost trail on the map and ghost series in the plot']
   ];
   return (
-    `<p class="note">What to draw on the map. Nothing here changes the simulation. ${layersEdited ? `You have edited the layers, so tabs no longer change them. <button class="linkbtn" id="layers-auto" type="button">Let each tab choose again</button>` : 'Each pipeline tab (1–5) shows its own set; ticking a box here keeps your choice for this session.'}</p>` +
+    `<p class="note">What to draw on the map. Nothing here changes the simulation. ${layersEdited ? `You have edited the layers, so tabs no longer change them. <button class="btn small" id="layers-auto" type="button">Let each tab choose again</button>` : 'Each pipeline tab (1–5) shows its own set; ticking a box here keeps your choice for this session.'}</p>` +
     L.map(
       ([k, l]) =>
         `<label class="check"><input type="checkbox" id="layer-${k}" data-layer="${k}" ${LAYERS[k] ? 'checked' : ''}><span>${l}</span></label>`
     ).join('') +
     (GHOST && GHOST.level === LV.id
-      ? `<p class="note">Ghost: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button class="linkbtn" id="ghost-clear" type="button">Forget it</button></p>`
+      ? `<p class="note">Ghost: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button class="btn small" id="ghost-clear" type="button">Forget it</button></p>`
       : '')
   );
 }

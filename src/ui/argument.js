@@ -150,7 +150,7 @@ function argPaneHTML() {
         : [];
   return `<h4 class="saf-h">Safety argument</h4>
   <p class="note">Claims, how they are broken down, and the evidence for each, in Goal Structuring Notation. Check the evidence to rerun every solution's runs; a failed solution turns its claims red all the way up. Type changes below to rerun the whole argument with them: one changed setting shows which claims it breaks.</p>
-  <div class="exprow"><label>Argument <select id="arg-pick">${opts}</select></label><button class="linkbtn" id="arg-copy">Copy as a new argument</button></div>
+  <div class="exprow"><label>Argument <select id="arg-pick">${opts}</select></label><button class="btn small" id="arg-copy">Copy as a new argument</button></div>
   <div class="arg-wrap">${argSVG()}</div>
   <div class="controls"><button class="btn small" id="arg-wide">Open the graph full width</button><span class="lbl">Scroll sideways here, or open it over the page; pick a node to edit it.</span></div>
   <p class="note">${top === 'pass' ? '<b>The top claim is supported</b> by the evidence as it stands.' : top === 'fail' ? '<b class="bad">The top claim is not supported</b>: follow the red nodes down to the evidence that failed.' : 'Not checked yet.'}${ARG.msg ? ' ' + esc(ARG.msg) : ''}</p>

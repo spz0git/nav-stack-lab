@@ -85,9 +85,9 @@ function safPane() {
     .map(k => `<option value="b:${k}">${esc(ODD_SHEETS[k].name)}</option>`)
     .join(
       ''
-    )}${SAF.saved.map((x, i) => `<option value="s:${i}">${esc(x.name)} (saved)</option>`).join('')}</select></label><label>Save as <input type="text" id="saf-sheetname" size="16" placeholder="a name" aria-label="A name to save this sheet under"></label><button class="linkbtn" id="saf-sheetsave">Save</button><button class="linkbtn" id="saf-monitor" title="The ODD monitor (Mission tab) watches this sheet from now on">${P.oddMon && P.oddSheet === JSON.stringify(sh) ? 'Monitored' : 'Monitor this sheet'}</button></div>
+    )}${SAF.saved.map((x, i) => `<option value="s:${i}">${esc(x.name)} (saved)</option>`).join('')}</select></label><label>Save as <input type="text" id="saf-sheetname" size="16" placeholder="a name" aria-label="A name to save this sheet under"></label><button class="btn small" id="saf-sheetsave">Save</button><button class="btn small" id="saf-monitor" title="The ODD monitor (Mission tab) watches this sheet from now on">${P.oddMon && P.oddSheet === JSON.stringify(sh) ? 'Monitored' : 'Monitor this sheet'}</button></div>
   <div class="exprow saf-sheet">${rng}</div>
-  <div class="exprow"><span class="lbl">Weather</span>${box('weather', 'clear', 'clear')}${box('weather', 'rain', 'rain')}${box('weather', 'fog', 'fog')}<span class="lbl">People</span>${box('people', 'scripted', 'scripted')}${box('people', 'reactive', 'react')}<button class="linkbtn" id="saf-reset">Back to ODD-1</button></div>
+  <div class="exprow"><span class="lbl">Weather</span>${box('weather', 'clear', 'clear')}${box('weather', 'rain', 'rain')}${box('weather', 'fog', 'fog')}<span class="lbl">People</span>${box('people', 'scripted', 'scripted')}${box('people', 'reactive', 'react')}<button class="btn small" id="saf-reset">Back to ODD-1</button></div>
   ${err ? `<p class="note bad">The sheet needs ${esc(err)}.</p>` : ''}
   <details class="how"><summary>Is the level on screen inside it?</summary><div class="exptab"><table><thead><tr><th>Attribute</th><th>This level</th><th>The sheet</th><th></th></tr></thead><tbody>${chk}</tbody></table></div></details>
   <h4 class="saf-h">Search</h4>

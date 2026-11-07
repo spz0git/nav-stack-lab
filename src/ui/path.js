@@ -69,7 +69,7 @@ function progressHTML() {
     done = groups.reduce((a, g) => a + g.done, 0),
     part = groups.reduce((a, g) => a + g.part, 0);
   const path = LEARN_PATH.filter(([id]) => lessonState(id).st === 'done').length;
-  const key = `<p class="note pkey"><span><i class="ldot" data-st="none" aria-hidden="true"></i>not started</span><span><i class="ldot" data-st="part" aria-hidden="true"></i>started</span><span><i class="ldot" data-st="done" aria-hidden="true"></i>done</span> A lesson's circle fills once you have pressed each of its experiment buttons and passed its Check yourself.${done || part ? ' <button type="button" class="linkbtn" id="learn-reset" title="Clear every lesson\'s progress, predictions and self-checks in this browser">Reset all progress</button>' : ''}</p>`;
+  const key = `<p class="note pkey"><span><i class="ldot" data-st="none" aria-hidden="true"></i>not started</span><span><i class="ldot" data-st="part" aria-hidden="true"></i>started</span><span><i class="ldot" data-st="done" aria-hidden="true"></i>done</span> A lesson's circle fills once you have pressed each of its experiment buttons and passed its Check yourself.${done || part ? ' <button type="button" class="btn small" id="learn-reset" title="Clear every lesson\'s progress, predictions and self-checks in this browser">Reset all progress</button>' : ''}</p>`;
   if (!done && !part) return `<div class="progress" role="group" aria-label="Your progress">${key}</div>`;
   return (
     `<div class="progress" role="group" aria-label="Your progress"><p class="note">${done} of ${n} lessons done${part ? `, ${part} started` : ''} · first pass ${path} of ${LEARN_PATH.length}</p>${key}<div class="pbars">` +

@@ -377,14 +377,14 @@ function layerStatus(k) {
 }
 function layerPopHTML() {
   return (
-    `<div class="lp-head"><b>Layers</b><span class="lbl">${layersEdited ? 'your choice' : 'set by the tab'}</span>${layersEdited ? `<button type="button" class="linkbtn" id="lp-auto">Let each tab choose</button>` : ''}</div>` +
+    `<div class="lp-head"><b>Layers</b><span class="lbl">${layersEdited ? 'your choice' : 'set by the tab'}</span>${layersEdited ? `<button type="button" class="btn small" id="lp-auto">Let each tab choose</button>` : ''}</div>` +
     LAYER_DEFS.map(([k, name, sub, sys]) => {
       const [has, st] = layerStatus(k),
         on = !!LAYERS[k];
       return `<label class="lp-row${on ? '' : ' off'}"${sys ? ` data-sys="${sys}"` : ''}><input type="checkbox" data-layer="${k}" ${on ? 'checked' : ''}><span class="lp-name">${name}<small>${sub}</small></span><span class="lp-st ${on && has ? 'live' : on ? 'idle' : ''}" title="${esc(st)}">${esc(st)}</span></label>`;
     }).join('') +
     (GHOST && GHOST.level === LV.id
-      ? `<p class="lp-foot">Previous run: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button type="button" class="linkbtn" id="lp-forget">Forget it</button></p>`
+      ? `<p class="lp-foot">Previous run: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button type="button" class="btn small" id="lp-forget">Forget it</button></p>`
       : '') +
     `<p class="lp-foot">Drawing only; nothing here changes the simulation.</p>`
   );
@@ -498,10 +498,10 @@ function renderGhostChip() {
   if (c.hidden) return;
   c.innerHTML =
     (pin
-      ? `<div class="gh-row"><span class="gh-swatch pin" aria-hidden="true"></span><span class="gh-txt" title="${esc(runName(pin))}">Pinned: ${esc(pin.label)} (${pin.t.toFixed(0)} s)</span><button type="button" class="linkbtn" id="gh-unpin" title="Stop comparing with this run (it stays in Runs)">Unpin</button></div>`
+      ? `<div class="gh-row"><span class="gh-swatch pin" aria-hidden="true"></span><span class="gh-txt" title="${esc(runName(pin))}">Pinned: ${esc(pin.label)} (${pin.t.toFixed(0)} s)</span><button type="button" class="btn small" id="gh-unpin" title="Stop comparing with this run (it stays in Runs)">Unpin</button></div>`
       : '') +
     (gh
-      ? `<div class="gh-row"><span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span>${GHOST.run ? `<button type="button" class="linkbtn" id="gh-pin" title="Keep this path on the map through Reset and new settings, to compare runs with it (Runs has its numbers)">Pin</button>` : ''}<button type="button" class="linkbtn" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="linkbtn" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button></div>`
+      ? `<div class="gh-row"><span class="gh-swatch" aria-hidden="true"></span><span class="gh-txt" title="${esc(GHOST.label)}">Previous run (${GHOST.t.toFixed(0)} s)</span>${GHOST.run ? `<button type="button" class="btn small" id="gh-pin" title="Keep this path on the map through Reset and new settings, to compare runs with it (Runs has its numbers)">Pin</button>` : ''}<button type="button" class="btn small" id="gh-hide" title="Hide the previous-run layer (Layers → Previous run brings it back)">Hide</button><button type="button" class="btn small" id="gh-forget" title="Remove the previous run from the map and the plots">Forget</button></div>`
       : '');
   const on = (sel, f) => {
     const b = $(sel);
@@ -607,7 +607,7 @@ function renderSearchChip() {
   const txt = `${tr.name} · ${wh} ${n} of ${N}${extra}${n >= N ? ' · done' : ''}`;
   if (!c.firstChild || SP.key !== N + '|' + tr.name) {
     SP.key = N + '|' + tr.name;
-    c.innerHTML = `<span class="sp-t" id="sp-t"></span><span class="sp-b"><button type="button" class="ibtn sm" data-sp="0" title="Back to the start" aria-label="Back to the start">⏮</button><button type="button" class="ibtn sm" data-sp="-1" title="One ${wh} back" aria-label="One ${wh} back">◀</button><button type="button" class="ibtn sm" data-sp="p" id="sp-p" aria-label="Play or pause"></button><button type="button" class="ibtn sm" data-sp="1" title="One ${wh} forward" aria-label="One ${wh} forward">▶</button><button type="button" class="ibtn sm" data-sp="N" title="To the end" aria-label="To the end">⏭</button></span><input type="range" id="sp-r" min="0" max="${N}" step="1" aria-label="Search step"><button type="button" class="linkbtn" id="sp-x" title="Back to the finished search; Run drives">Done</button>`;
+    c.innerHTML = `<span class="sp-t" id="sp-t"></span><span class="sp-b"><button type="button" class="ibtn sm" data-sp="0" title="Back to the start" aria-label="Back to the start">⏮</button><button type="button" class="ibtn sm" data-sp="-1" title="One ${wh} back" aria-label="One ${wh} back">◀</button><button type="button" class="ibtn sm" data-sp="p" id="sp-p" aria-label="Play or pause"></button><button type="button" class="ibtn sm" data-sp="1" title="One ${wh} forward" aria-label="One ${wh} forward">▶</button><button type="button" class="ibtn sm" data-sp="N" title="To the end" aria-label="To the end">⏭</button></span><input type="range" id="sp-r" min="0" max="${N}" step="1" aria-label="Search step"><button type="button" class="btn small" id="sp-x" title="Back to the finished search; Run drives">Done</button>`;
     c.querySelectorAll('[data-sp]').forEach(
       b =>
         (b.onclick = () => {

@@ -175,7 +175,7 @@ function lessonProgHTML(id) {
     )
     .concat(it.L.check ? [`<span class="lp-step${s.chk ? ' ok' : ''}">${s.chk ? '✓' : '○'} Check yourself</span>`] : [])
     .join('');
-  return `<i class="ldot" data-st="${s.st}" aria-hidden="true"></i><span class="lp-txt">${s.st === 'done' ? 'Lesson done' : 'To complete this lesson:'}</span>${steps}<button type="button" class="linkbtn lp-reset" title="Clear this lesson's experiments, predictions and self-check in this browser, so its circle is empty again">Reset</button>`;
+  return `<i class="ldot" data-st="${s.st}" aria-hidden="true"></i><span class="lp-txt">${s.st === 'done' ? 'Lesson done' : 'To complete this lesson:'}</span>${steps}<button type="button" class="btn small lp-reset" title="Clear this lesson's experiments, predictions and self-check in this browser, so its circle is empty again">Reset</button>`;
 }
 function wireLessonProg(v) {
   const b = v.querySelector('.lp-reset');
@@ -379,7 +379,7 @@ function renderLearn() {
   v.innerHTML =
     `<div class="learn-head">${
       cur
-        ? `<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i + 1} of ${cur.G.items.length}</span>${prevId ? `<button class="linkbtn" id="learn-prev" type="button" title="${onPath(lessonOpen) && onPath(prevId) ? 'The previous lesson of the first pass' : 'The previous lesson in the list'}">${onPath(lessonOpen) && onPath(prevId) ? '← Previous in the first pass' : '← Previous lesson'}</button>` : ''}${nextId ? `<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen) && onPath(nextId) ? 'The next lesson of the first pass' : 'The next lesson in the list'}">${onPath(lessonOpen) && onPath(nextId) ? 'Next in the first pass →' : 'Next lesson →'}</button>` : ''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
+        ? `<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i + 1} of ${cur.G.items.length}</span>${prevId ? `<button class="linkbtn" id="learn-prev" type="button" title="${onPath(lessonOpen) && onPath(prevId) ? 'The previous lesson of the first pass' : 'The previous lesson in the list'}">${onPath(lessonOpen) && onPath(prevId) ? '← Previous in the first pass' : '← Previous lesson'}</button>` : ''}${nextId ? `<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen) && onPath(nextId) ? 'The next lesson of the first pass' : 'The next lesson in the list'}">${onPath(lessonOpen) && onPath(nextId) ? 'Next in the first pass →' : 'Next lesson →'}</button>` : ''}<button class="btn small" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
         : `<h2>Lessons</h2>`
     }</div>` +
     (cur ? '' : startHereHTML() + progressHTML()) +

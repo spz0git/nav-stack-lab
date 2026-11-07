@@ -625,7 +625,7 @@ function fieldHTML(f) {
   if (f.type === 'beacons') {
     const off = beaconsOff(),
       c = chgMark({k: 'bOff'});
-    return `<div class="field${c ? ' chg' : ''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b => `<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="linkbtn" data-beacon="all">All on</button><button class="linkbtn" data-beacon="none">All off</button></div></div>`;
+    return `<div class="field${c ? ' chg' : ''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b => `<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="btn small" data-beacon="all">All on</button><button class="btn small" data-beacon="none">All off</button></div></div>`;
   }
   if (f.type === 'sensors') return sensorsHTML();
   if (f.type === 'bsensor')

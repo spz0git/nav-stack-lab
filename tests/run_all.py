@@ -28,7 +28,7 @@ SCOPE=[
     (r'^src/core/(levels|worldgen|worlds)\.js|^src/ui/(levelmenu|maptools|urlstate)\.js',['lvtest.py']),
     (r'^src/core/(sensors|health|localization|fidelity|step|agents)\.js|^src/ui/health\.js',['sntest.py']),
     (r'^src/core/(safety|search|health|config|learnmon|radar|oddmon|argument)\.js|^src/ui/(safety|status|argument)\.js|^tools/(search|ood-ref|argument)\.mjs',['saftest.py']),
-    (r'^docs/lessons/|^src/analysis/(lessons|lessons2|lessons-data|glossary)\.js|^src/ui/(learn|experiments)\.js|^tools/lessons\.mjs',['tles.py','p5test.py']),
+    (r'^docs/lessons/|^src/analysis/(lessons|lessons2|lessons-data|glossary)\.js|^src/ui/(learn|experiments|path)\.js|^tools/lesson(s|-folds)\.mjs',['tles.py','p5test.py','chtest.py']),
     (r'^docs/notes/|^src/ui/chapters\.js|^tools/notes\.mjs',['chtest.py']),
     (r'^src/ui/|^src/styles\.css|^src/core/record\.js',['uitest.py']),  # the workspace: replay, runs, palette, layers, the hash, …
     (r'^tests/(\w+\.py)$',None),  # a changed test runs itself

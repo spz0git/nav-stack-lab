@@ -1,5 +1,6 @@
 group: ctl
 title: The speed loop is open, except for MPC
+level: 3
 extra: true
 
 <p><b>Why this matters.</b> The lessons so far were about the lateral loop. Speed is the other axis, and in most of this lab there is no speed loop. The trackers command a speed from a profile, and nothing measures the actual speed to correct the command. This is common on small robots, where a motor controller underneath closes the loop. The open chain is still worth looking at, because its actuator chain (latency, lag and acceleration limit) is the same one the lateral loop drives through. MPC is the exception. Its model has speed as a state, so it closes a speed loop of its own, with its own margins.</p>

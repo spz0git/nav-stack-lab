@@ -1,5 +1,6 @@
 group: ctl
 title: The estimator in the loop
+level: 3
 extra: true
 
 <p><b>Why this matters.</b> The analysis assumes the controller knows where the robot is. In the simulator, as on a real vehicle, the controller knows only the estimate, and the estimate has its own dynamics. Between beacon readings an EKF integrates odometry, so most of the time it follows the true motion smoothly. At each reading it jumps. The loop sees those jumps as disturbances, and the noise shows up as extra scatter in the measured phase. This lesson connects the control chapters with the localization ones. The estimator is part of the loop, and its errors are disturbances to the loop.</p>

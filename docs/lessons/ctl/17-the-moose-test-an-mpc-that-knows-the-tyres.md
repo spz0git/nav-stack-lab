@@ -1,5 +1,6 @@
 group: ctl
 title: The moose test: an MPC that knows the tyres
+level: 3
 extra: true
 
 <p><b>Why this matters.</b> When a car avoids a collision at speed, the vehicle model matters. In the moose test (ISO 3888-2) a car at speed swerves round an obstacle into the other lane and back. A planner can draw the swerve, but the tyres decide whether the car follows it. A controller that predicts with the kinematic model assumes that every steering angle gives its full turn at once. On the slippery floor above the characteristic speed, that assumption is off by a factor of three.</p>

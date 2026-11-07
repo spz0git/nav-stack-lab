@@ -28,7 +28,9 @@ The page has two modes, Simulate and Learn, and a loop analysis view:
   the controller and vehicle you set, shows how fast the robot comes back to the path after a push, how much it
   overshoots and how much delay it tolerates (with Bode and Nyquist plots and poles you can drag for control
   engineers), then checks the linear model against the real simulation.
-- **Learn** has 54 lessons and nine chapters. Each lesson has buttons that set the lab up and run the experiment
+- **Learn** has 64 lessons in six groups and nine chapters. The first group, Foundations, is written for an
+  engineering undergraduate, one idea per lesson; the others go to graduate level, with the math folded under
+  "Show the math". Each lesson has buttons that set the lab up and run the experiment
   for you, and shows the code behind what it teaches: the page's own function, with the lesson's lines marked, and an
   "Edit and run" button that puts a plain version of it in the Code tab for you to change. The numbers in the lessons
   come from the simulator, not from a textbook. A learning track has begun: a learned people detector and an

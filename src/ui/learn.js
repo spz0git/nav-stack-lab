@@ -377,6 +377,7 @@ function renderLearn() {
     nextId = cur ? learnNextId(lessonOpen) : null,
     prevId = cur ? learnPrevId(lessonOpen) : null;
   v.classList.toggle('reading', !!cur);
+  $('.layout').classList.toggle('lesson-open', !!cur); // the dock shows the log and every metric while a lesson is open
   v.innerHTML =
     `<div class="learn-head">${
       cur

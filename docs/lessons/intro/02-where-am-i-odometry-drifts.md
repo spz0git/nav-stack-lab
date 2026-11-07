@@ -23,7 +23,7 @@ Answer: 0
 
 ## Try: Calibrated wheels
 cfg: {"sim":true,"level":2,"set":{"loc":"dr","map":"empty","misLoop":true,"odoB":0},"goals":[[8,5.5],[16,5.5],[16,10.5],[8,10.5]],"tab":"sen","plot":"pos"}
-Setup: The same laps with the calibration bias at ×0 (Sensors tab, Odometry). Only the random noise is left.
+Setup: The same laps with the calibration bias at ×0 (Sensors tab, Odometry; the Sensors tab is in Advanced). Only the random noise is left.
 See: The true lap still wanders away from the believed one. Over the first two minutes the position error peaks at 2.6 m, against 5.5 m with the bias. On seeds 1 to 4 the peak is 1.7 to 4.1 m: never zero, and not always smaller than with the bias.
 Shows: Calibration removes the bias, but not the noise. Random errors partly cancel, but never completely, and what is left still adds up. Dead reckoning alone always drifts. To stop the drift the robot needs something outside itself to measure against, which is the next lesson.
 Predict: With the bias removed, what does the true lap do?

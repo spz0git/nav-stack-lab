@@ -150,7 +150,7 @@ function renderMetrics() {
   setHTML(
     $('#metrics'),
     items
-      .filter(([a]) => !levelBasic() || basic.includes(a))
+      .filter(([a]) => !basicDockNow() || basic.includes(a))
       .map(([a, b, c]) => `<div${c ? ` data-sys="${c}"` : ''}${a === mk ? ' class="met-hi"' : ''}><dt>${a}</dt><dd>${b}</dd></div>`)
       .join('')
   );

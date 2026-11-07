@@ -22,7 +22,7 @@ function refreshAll() {
 const HOLD = {key: '', t: 0, els: ['#dock', '#status']};
 function holdHeights() {
   const on = narrowUI(),
-    key = on ? [LV.id, LV.name, innerWidth, uiMode, AN.mode, WS.dockOff, WS.level, metView].join('|') : '';
+    key = on ? [LV.id, LV.name, innerWidth, uiMode, AN.mode, WS.dockOff, WS.level, !!lessonOpen, metView].join('|') : '';
   const back = !REPLAY.active && S && S.t + 1e-9 < HOLD.t;
   if (S && !REPLAY.active) HOLD.t = S.t;
   const els = HOLD.els.map(q => $(q)).filter(Boolean);

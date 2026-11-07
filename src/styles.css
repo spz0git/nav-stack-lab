@@ -2731,6 +2731,10 @@ details.see > summary {
   font-size: var(--fs-ui);
   color: var(--accent);
 }
+.learncol.reading .lesson details.see > summary {
+  font-size: var(--fs-ui);
+  cursor: pointer;
+}
 details.see[open] > summary {
   color: var(--muted);
   font-weight: 500;
@@ -3347,11 +3351,12 @@ details.see > p {
 /* v84 redesign: the Basic level and the Analyze view's header. Basic hides what a first look does not need (the
    second plot channel, the dock's extra actions, Values, the event log, the sensor dots, the Runs button); the
    elements stay in the page for Advanced. */
-.layout[data-level='basic'] :is(#plotsel2, #pl-more, #metsel, .tele-log, #sensdots, #tg-runs) {
+.layout[data-level='basic'] :is(#sensdots, #tg-runs),
+.layout[data-level='basic']:not(.lesson-open) :is(#plotsel2, #pl-more, #metsel, .tele-log) {
   display: none;
 }
 @container (min-width:620px) {
-  .layout[data-level='basic'] .tele-grid {
+  .layout[data-level='basic']:not(.lesson-open) .tele-grid {
     grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
   }
 }

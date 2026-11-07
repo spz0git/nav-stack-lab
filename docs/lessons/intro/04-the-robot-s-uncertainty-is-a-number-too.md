@@ -23,7 +23,7 @@ Answer: 1
 
 ## Try: Bias ×3, the filter not told
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","map":"empty","misLoop":true,"odoB":3},"goals":[[8,5.5],[16,5.5],[16,10.5],[8,10.5]],"tab":"sen","plot":"pos"}
-Setup: The same laps with the calibration bias at ×3 (Sensors tab, Odometry). The filter's model of the odometry is unchanged, so it does not know about the extra error.
+Setup: The same laps with the calibration bias at ×3 (Sensors tab, Odometry; the Sensors tab is in Advanced). The filter's model of the odometry is unchanged, so it does not know about the extra error.
 See: The band is as narrow as before, about 5 cm, and the error is still only a few centimetres. But it now sits above the band much more often: inside only 70 % of the time over two minutes. NEES rises to between 4 and 9, and is flagged as overconfident when it passes 7.8.
 Shows: The band comes from what the filter believes about its sensors, not from the errors it actually makes. When the robot has an error the filter does not model, the band stays narrow and the error leaves it: the filter is overconfident. Here the beacons still keep the error small, so the robot is fine; on a long stretch without beacons the same filter would be wrong and sure of itself. On seeds 1 to 4 the error is inside the band only 53 to 74 % of the time.
 Predict: The bias triples, and the filter is not told. What happens on the plot?

@@ -22,7 +22,7 @@ Answer: 1
 
 ## Try: Beacon reach 3 m
 cfg: {"sim":true,"level":2,"set":{"loc":"ekf","map":"empty","misLoop":true,"lmRange":3},"goals":[[8,5.5],[16,5.5],[16,10.5],[8,10.5]],"tab":"sen","plot":"pos"}
-Setup: The same, with the beacon sensor's reach cut from 7 m to 3 m (Sensors tab, Beacons). On parts of the lap no beacon is in reach.
+Setup: The same, with the beacon sensor's reach cut from 7 m to 3 m (Sensors tab, Beacons; the Sensors tab is in Advanced). On parts of the lap no beacon is in reach.
 See: The error now rises in stretches and falls back when a beacon comes into reach. Over two minutes it peaks at 1.1 m, with an RMS of 0.26 m. On seeds 1 to 4 the peak is 0.4 to 1.1 m: worse than with 7 m of reach, but far from the metres of dead reckoning.
 Shows: Between readings the filter is dead reckoning, and it drifts like dead reckoning. The reading is what stops the drift. How far the robot drifts depends on how long it goes without one, which is why a real robot's designers count landmarks along its route.
 Predict: With a 3 m reach, what does the error do?

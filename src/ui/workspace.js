@@ -165,6 +165,13 @@ const BASIC_TABS = ['loc', 'per', 'plan', 'ctl'],
   BASIC_MORE = ['view', 'sym'],
   AN_TABS = ['ctl', 'veh']; // Analyze reads only Control and Vehicle
 const levelBasic = () => WS.level === 'basic';
+// the open lesson is one of the Foundations (level 1), written for the Basic page
+const foundationsOpen = () => {
+  const it = lessonOpen && lessonItem(lessonOpen);
+  return !!it && it.L.level === 1;
+};
+// While a lesson is open the dock shows the event log and every metric, whatever the level: the lessons point at them
+const basicDockNow = () => levelBasic() && !lessonOpen;
 // the tab row and the More menu for the left side and the level
 function tabsRow() {
   if (AN.mode === 'an') return AN_TABS;
@@ -203,7 +210,12 @@ function basicDock() {
 // level hides switches to Advanced first.
 function showTab(id, render = true) {
   if (AN.mode === 'an' && !tabShown(id)) setMode('sim');
-  if (!tabShown(id)) setLevel('advanced', TAB_NAME[id]);
+  if (!tabShown(id)) {
+    // a Foundations lesson is written for Basic: its experiments name a tab for the reader, and the console is not
+    // shown in Learn, so the page stays Basic; every other request opens Advanced and says so
+    if (foundationsOpen()) id = tabShown(activeTab) ? activeTab : 'loc';
+    else setLevel('advanced', TAB_NAME[id]);
+  }
   TABS_MODE.before = null; // a tab asked for wins over the one Analyze set aside
   activeTab = id;
   consoleOpen = true;

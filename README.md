@@ -18,12 +18,16 @@ plans (A*, RRT*, Hybrid A*, space-time A*) and how it steers (pure pursuit, Stan
 MPC). You can also write your own controller, planner, localizer or predictor in JavaScript and drop it in. There
 are people walking around, another vehicle, sensor noise, latency, and a car model with tyre slip.
 
-The page has three modes:
+The page has two modes, Simulate and Learn, and a loop analysis view:
 
-- **Simulate** is the lab itself. The map, a timeline you can scrub back through, plots of any signal, an event log,
-  health lights per subsystem, and runs you can keep and compare.
-- **Analyze** linearizes the steering loop and shows you Bode and Nyquist plots, step responses and poles you can
-  drag, then checks the linear model against the real simulation.
+- **Simulate** is the lab itself. It opens in **Basic**: the map, the four subsystems (Localize, Perceive, Plan,
+  Control) with their main settings, one plot and three metrics. **Advanced** (top right) adds the Sensors, Mission
+  and Vehicle tabs, every setting, the tools (Experiments, Train, Safety, Code), more plots, the event log and runs you
+  can keep and compare.
+- **Loop analysis** opens from the Control tab (Analyze this loop, or the A key). It linearizes the steering loop for
+  the controller and vehicle you set, shows how fast the robot comes back to the path after a push, how much it
+  overshoots and how much delay it tolerates (with Bode and Nyquist plots and poles you can drag for control
+  engineers), then checks the linear model against the real simulation.
 - **Learn** has 54 lessons and nine chapters. Each lesson has buttons that set the lab up and run the experiment
   for you, and shows the code behind what it teaches: the page's own function, with the lesson's lines marked, and an
   "Edit and run" button that puts a plain version of it in the Code tab for you to change. The numbers in the lessons

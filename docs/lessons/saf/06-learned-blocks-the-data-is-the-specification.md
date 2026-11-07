@@ -1,5 +1,6 @@
 group: saf
 title: Learned blocks: the data is the specification
+level: 3
 
 <p><b>Why this matters.</b> Three blocks of this stack are learned rather than written by hand. The people detector looks at each lidar scan and marks the beams that hit a person. The people predictor takes a tracked person's last second of movement and guesses where they will be over the next three seconds. The end-to-end policy reads the scan and the goal and draws the short path the robot follows, in place of the planner. Each is a small neural network, trained on recorded runs of the simulator.</p>
 <p>A hand-written block does what its code says, and you can read the code to find out what that is. A learned block does what its training data taught it, and nobody wrote that down. In that sense the data is the specification. For the people detector, the specification is the 39 497 scans it was trained on. Where the robot meets inputs like those scans, the block is as good as its tests say. Where it meets something they did not cover, nobody knows what the block will do. The network does not know either. It answers an unfamiliar input with the same confidence as a familiar one, and nothing in its output says that it is guessing.</p>

@@ -1,5 +1,6 @@
 group: ctl
 title: Gain scheduling breaks above v_ch
+level: 3
 extra: true
 
 <p><b>Why this matters.</b> The gain-scheduling lesson (<a class="lsref" href="#lesson=ctl:10">Speed changes the plant</a>) showed pure pursuit's lookahead schedule keeping the loop the same at every speed. It works because the kinematic plant gain is $v/L$, which is known exactly. With tyres the plant gain is $v/(L + K_{us}v^2)$. It rises with speed, peaks at the characteristic speed, and then falls. The car's own yaw mode (the dynamics of its turning motion) also adds a lag that the kinematic model does not have. Above $v_{ch}$, a schedule designed for the kinematic plant sets the wrong gains, and a tracker tuned on that plant can lose all of its margin.</p>

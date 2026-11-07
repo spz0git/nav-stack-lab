@@ -33,7 +33,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {texText} from './tex.mjs';
-const GROUPS = ['loc', 'per', 'plan', 'ctl', 'saf'];
+const GROUPS = ['intro', 'loc', 'per', 'plan', 'ctl', 'saf']; // intro: Foundations, the first group in the list
 export const MATH_LEADS = ['The math', 'Where it comes from'];
 export function parseLesson(md, file) {
   const lines = md.split('\n');

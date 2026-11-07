@@ -46,6 +46,18 @@ $('#modesel')
 
 // Map layers each lesson is about (Layers tab keys); opening a lesson shows only these, Back restores the user's set.
 const LESSON_LAYERS = {
+  intro: [
+    ['trail', 'look'], // the loop: the path and the carrot
+    ['belief', 'trail'],
+    ['belief', 'beam', 'trail'],
+    ['belief', 'trail'],
+    ['lidar', 'ghost'],
+    ['cost', 'trail'],
+    ['search', 'cost'],
+    ['trail', 'look'],
+    ['trail', 'look'],
+    ['agents', 'lidar']
+  ],
   loc: [
     ['belief', 'trail'],
     ['belief', 'beam', 'trail'],

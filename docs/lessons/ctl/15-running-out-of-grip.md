@@ -1,5 +1,6 @@
 group: ctl
 title: Running out of grip
+level: 3
 extra: true
 
 <p><b>Why this matters.</b> Every vehicle has a grip limit. The tyres can push sideways with at most $\mu$ times their load, so the car can corner with at most $\mu g$ of lateral acceleration. A tighter turn at that speed is not possible. Planners respect the limit through a lateral-acceleration cap on the speed profile, a number that stands in for the tyres. In this lesson you set the cap above what the floor can give, and watch what an understeering car does when it runs out of grip.</p>

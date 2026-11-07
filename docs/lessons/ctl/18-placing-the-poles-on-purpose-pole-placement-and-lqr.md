@@ -1,5 +1,6 @@
 group: ctl
 title: Placing the poles on purpose: pole placement and LQR
+level: 3
 extra: true
 
 <p><b>Why this matters.</b> Every control lesson so far tuned the loop by turning a knob and reading the chips. That works when there is one knob. Rear-wheel feedback has two, and with two gains the two-integrator loop can be given any pole pair at all. The engineering question is then which pair to choose, and why. There are two textbook answers. In pole placement you name the pair and solve for the gains. In the linear-quadratic regulator (LQR) you name a cost, tracking error against steering effort, and the pair follows from it. Here both have closed-form solutions, and each is one click under the pole plot. Both ignore the delays, and this lab lets you see what that costs.</p>

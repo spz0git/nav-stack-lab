@@ -18,11 +18,11 @@ function refreshAll() {
 // Phones: the telemetry dock and the status strip keep the tallest height they reached, so the page never gets shorter
 // while a run changes their rows and lines. A page that shrinks under a finger at its bottom has its scroll position
 // moved by the browser, and iPhone then drops the swipe: the page would not scroll back up. The hold is let go when
-// the floor, the run (time goes back), the width, the mode, the dock or the Metrics/Values view changes.
+// the floor, the run (time goes back), the width, the mode, the dock, the level or the Metrics/Values view changes.
 const HOLD = {key: '', t: 0, els: ['#dock', '#status']};
 function holdHeights() {
   const on = narrowUI(),
-    key = on ? [LV.id, LV.name, innerWidth, uiMode, AN.mode, WS.dockOff, metView].join('|') : '';
+    key = on ? [LV.id, LV.name, innerWidth, uiMode, AN.mode, WS.dockOff, WS.level, !!lessonOpen, metView].join('|') : '';
   const back = !REPLAY.active && S && S.t + 1e-9 < HOLD.t;
   if (S && !REPLAY.active) HOLD.t = S.t;
   const els = HOLD.els.map(q => $(q)).filter(Boolean);

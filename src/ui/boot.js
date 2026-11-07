@@ -33,6 +33,7 @@ let linkCfg = null;
     apply = c => {
       applyConfig(c);
       logE('Setup restored from the link', 'ok');
+      levelForLink(); // a link that sets something Basic hides opens in Advanced (ui/workspace.js)
       return c;
     };
   let c = null;
@@ -114,6 +115,8 @@ window.__runs = {
 };
 window.__plots = {TW, runCSV, plotsImage, PANES, addPane, SIGNALS, sigAt, timeWindow};
 window.__nav = {
+  setLevel, // 'basic' | 'advanced' (ui/workspace.js)
+  level: () => WS.level,
   scatter: () => scatterParticles(),
   kidnapTo,
   get S() {

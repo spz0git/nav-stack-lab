@@ -58,6 +58,7 @@ $('#pausec').onchange = e => {
 };
 $('#legendmore').onclick = () => showSym('map');
 $('#an-src').onclick = () => showSource('analysis/model.js');
+$('#an-back').onclick = () => setMode('sim');
 function syncAnControls() {
   seg(
     $('#an-loop'),
@@ -262,6 +263,7 @@ function firstRunDone() {
 }
 $('#firstrun-x').onclick = firstRunDone;
 if ($('#firstrun-min')) $('#firstrun-min').textContent = firstPassMinutes();
+if ($('#firstrun-n')) $('#firstrun-n').textContent = (NUM_WORDS[LEARN_PATH.length] || String(LEARN_PATH.length)).toLowerCase();
 $('#run').onclick = () => {
   exitReplay();
   running = !running;

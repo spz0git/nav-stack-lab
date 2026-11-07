@@ -1,5 +1,6 @@
 group: ctl
 title: Curves: does the straight-line analysis hold?
+level: 3
 extra: true
 
 <p><b>Why this matters.</b> Every lesson so far linearized about a straight path. Paths have curves, and on a curve three things change. The controller works around a nonzero steering command, some trackers settle beside the path instead of on it, and the car runs into its steering-rate limit. This lesson checks by experiment whether the Bode and Nyquist plots still mean anything on a curve. They do, as long as the gains are read about the right operating point.</p>

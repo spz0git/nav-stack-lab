@@ -28,7 +28,7 @@ export function inline(s) {
   });
   s = s.replace(/\[try:\s*([^|\]]+?)\s*\|\s*(\{.*?\})\s*\]/g, (_, label, cfg) => {
     JSON.parse(cfg);
-    out.push(`<button type="button" class="btn small try" data-cfg='${esc(cfg).replace(/'/g, '&#39;')}'>${esc(label)}</button>`);
+    out.push(`<button type="button" class="btn try" data-cfg='${esc(cfg).replace(/'/g, '&#39;')}'>${esc(label)}</button>`);
     return `\u0000${out.length - 1}\u0000`;
   });
   s = esc(s).replace(/&lt;(\/?)(b|i|sub|sup|br)&gt;/g, '<$1$2>');

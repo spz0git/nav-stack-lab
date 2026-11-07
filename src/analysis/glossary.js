@@ -1462,6 +1462,31 @@ Object.assign(GLOSS, {
     '',
     ["Bresenham's algorithm", "Bresenham's walk", 'Bresenham']
   ],
+  // the Foundations lessons
+  navstack: [
+    'navigation stack',
+    'The chain of steps the robot runs every tick: sense, localize, perceive, plan, control. Each step uses what the one before it produced.',
+    '',
+    ['navigation stack']
+  ],
+  healthlight: [
+    'health light',
+    'One light per step of the stack beside the status strip: green working, amber degraded, red failing, grey idle. A click lists its checks.',
+    '',
+    ['health lights', 'health light']
+  ],
+  crosstrack: [
+    'cross-track error',
+    "The robot's sideways distance from its path (the Cross-track plot; its RMS is in the Metrics list).",
+    'm',
+    ['cross-track error', 'Cross-track RMS']
+  ],
+  lookahead: [
+    'lookahead',
+    'How far ahead on the path pure pursuit puts its carrot. Short: stiff and accurate, sensitive to delay. Long: gentle, rounds the corners.',
+    'm',
+    ['lookahead']
+  ],
   lockin: [
     'lock-in',
     'Measuring one frequency in a noisy signal: multiply it by a sine and a cosine at that frequency and average over whole cycles; what is left is the amplitude and phase at that frequency. How the injection test reads <i>L</i>(jω).',
@@ -1470,6 +1495,16 @@ Object.assign(GLOSS, {
   ]
 });
 const LESSON_TERMS = {
+  'The loop a robot runs': 'navstack tick estimate odometry lidar beacon groundtruth healthlight crosstrack astar expansions costmap',
+  'Where am I? Odometry drifts': 'odometry deadreck bias drift estimate poserr band2s heading seed',
+  'A fix from outside: beacons and the Kalman filter': 'beacon ekf kgain odometry deadreck drift poserr rb seed',
+  "The robot's uncertainty is a number too": 'covariance ellipse band2s consistent overconf nees poserr ekf bias seed',
+  'Seeing the world: lidar makes a map': 'lidar beam grid logodds floorseen ekf replan seed',
+  'Keep your distance: the costmap': 'costmap disttrans lethal inflation penalty wallclear replan',
+  'Finding a way: A* on a grid': 'astar heur admissible eightconn expansions eps weighted node',
+  'Following the line: pure pursuit and the lookahead': 'tracker pp carrot lookahead L0 kpp curv crosstrack replan',
+  'Why controllers wobble: delay': 'latency tick pp lookahead L0 DM pm crossover wc crosstrack',
+  'People in the way': 'lidar cluster track agent horizon speedplanner contacts closest sevclass groundtruth seed',
   'What the stack was built for: the operating domain':
     'odd margin wallclear contacts sevclass speedplanner pf unlabeled costmap inflation lidar beacon fog track seed worldseed runseed searchseed',
   'Hazards and risk: from situations to safety goals':

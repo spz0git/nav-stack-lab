@@ -4,6 +4,30 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v84 · 2026-11-07
+
+- The page now opens in **Basic**: the map, the four parts of the robot (Localize, Perceive, Plan, Control) with their
+  main settings, one plot and three metrics. **Advanced** (top right, or View → Show) brings back every tab, setting
+  and plot, the event log and Runs, and the page remembers your choice. Nothing is out of reach in Basic: when a search
+  result, a layout or a shared link needs something Basic hides, the page switches to Advanced and says so, and each
+  Basic tab ends with how many more settings Advanced has.
+- Analyze is now **Loop analysis**, opened from the top of the Control tab ("Analyze this loop →") or with the A key.
+  It says what it shows, has a "← Back to the simulator" button, and its side panel keeps only Control and Vehicle,
+  the two tabs it reads. Lesson and chapter links to it work as before.
+- A new first group in Learn, **Foundations**: ten short lessons for an engineering undergraduate, one idea each (the
+  loop, odometry, the Kalman filter, uncertainty, lidar mapping, the costmap, A*, pure pursuit, delay, people). Start
+  here's first pass is now these ten.
+- Every lesson's derivations are folded under **Show the math**, so the text reads without them; open it when you want
+  the formulas. Reading times no longer count the folded math. Each group says the level it is written at, and the
+  lessons that assume the most are marked **advanced** in the list.
+- Buttons now come in three sizes that say what they do: one large filled button for the main action (Run; Start with
+  lesson N in Learn), one size for ordinary actions, including each lesson's experiment buttons, and small buttons only
+  inside dense rows such as the telemetry dock and the Runs list. Close (×) and other icon buttons are square and the
+  same size everywhere, actions that change the lab (All on / All off beacons, Forget the previous run, Pin, Reset a
+  lesson, Copy link) are buttons rather than underlined text, and on phones the controls are a little larger for touch.
+- While a lesson is open, the telemetry shows the event log and every metric even in Basic, because the lessons point at
+  them; a Foundations lesson never switches the page to Advanced.
+
 ## v83 · 2026-11-06
 
 - The page has an icon in the browser tab, and a link to the demo now comes with a preview card on sites and in chats

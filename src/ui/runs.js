@@ -161,7 +161,7 @@ function runRow(r, kept) {
   const on = RUNS.cmp === r,
     m = r.metrics;
   return `<li class="run${on ? ' cmp' : ''}"><div class="run-main"><b>${esc(runName(r))}</b><span class="lbl">${esc(r.level)} · ${r.t.toFixed(0)} s · goals ${esc(m.goals)}${m.coll + m.ped ? ` · <span class="bad">${m.coll + m.ped} contact${m.coll + m.ped === 1 ? '' : 's'}</span>` : ''}${m.poseRMS != null ? ` · pose RMS ${m.poseRMS.toFixed(2)} m` : ''}</span></div>
-    <div class="run-acts"><button type="button" class="ibtn" data-cmp="${r.id}" aria-pressed="${on}" title="Overlay this run on the current one: map path, plots and metrics">Compare</button>${kept ? '' : `<button type="button" class="ibtn" data-keep="${r.id}" title="Keep it in the list, with a name">Keep</button>`}<button type="button" class="ibtn" data-load="${r.id}" title="Load its level, settings and goals">Load setup</button><button type="button" class="ibtn" data-exp="${r.id}" title="Save as a JSON file">Export</button><button type="button" class="ibtn" data-del="${r.id}" aria-label="Remove ${esc(runName(r))}" title="Remove">×</button></div></li>`;
+    <div class="run-acts"><button type="button" class="btn small" data-cmp="${r.id}" aria-pressed="${on}" title="Overlay this run on the current one: map path, plots and metrics">Compare</button>${kept ? '' : `<button type="button" class="btn small" data-keep="${r.id}" title="Keep it in the list, with a name">Keep</button>`}<button type="button" class="btn small" data-load="${r.id}" title="Load its level, settings and goals">Load setup</button><button type="button" class="btn small" data-exp="${r.id}" title="Save as a JSON file">Export</button><button type="button" class="ibtn sm" data-del="${r.id}" aria-label="Remove ${esc(runName(r))}" title="Remove">×</button></div></li>`;
 }
 function cmpTableHTML() {
   const c = RUNS.cmp;
@@ -187,8 +187,8 @@ function renderRuns(full = true) {
     if (c) c.innerHTML = cmpTableHTML();
     return;
   }
-  p.innerHTML = `<div class="chg-head"><b>Runs</b><span class="lbl">kept until the page closes; Export keeps one for good</span><button type="button" class="ibtn" id="run-x" aria-label="Close">×</button></div>
-   <form class="chg-save" id="run-keepnow"><input type="text" id="run-name" maxlength="60" placeholder="Name this run (${LV.id}, ${S ? S.t.toFixed(0) : 0} s so far)" aria-label="Run name"><button type="submit" class="btn small" ${S && S.t > 1 ? '' : 'disabled'}>Keep this run</button></form>
+  p.innerHTML = `<div class="chg-head"><b>Runs</b><span class="lbl">kept until the page closes; Export keeps one for good</span><button type="button" class="ibtn sm" id="run-x" aria-label="Close">×</button></div>
+   <form class="chg-save" id="run-keepnow"><input type="text" id="run-name" maxlength="60" placeholder="Name this run (${LV.id}, ${S ? S.t.toFixed(0) : 0} s so far)" aria-label="Run name"><button type="submit" class="btn" ${S && S.t > 1 ? '' : 'disabled'}>Keep this run</button></form>
    <div id="run-cmp">${cmpTableHTML()}</div>
    <h4 class="chg-h">Kept</h4>${RUNS.kept.length ? `<ul class="runs">${RUNS.kept.map(r => runRow(r, true)).join('')}</ul>` : `<p class="note">None yet. Keep the current run above, or a recent one below.</p>`}
    <h4 class="chg-h">Recent <span class="lbl">the last six that ended</span></h4>${RUNS.recent.length ? `<ul class="runs">${RUNS.recent.map(r => runRow(r, false)).join('')}</ul>` : `<p class="note">A run lands here when it ends: Reset, another level, or a Try button.</p>`}
@@ -248,6 +248,7 @@ function toggleRuns(on) {
   const p = $('#runpanel'),
     b = $('#tg-runs');
   on = on == null ? p.hidden : on;
+  if (on) setLevel('advanced', 'the Runs panel');
   p.hidden = !on;
   b.setAttribute('aria-expanded', String(on));
   if (on) {
@@ -261,7 +262,7 @@ function toggleRuns(on) {
   const b = document.createElement('button');
   b.type = 'button';
   b.id = 'tg-runs';
-  b.className = 'ibtn';
+  b.className = 'btn quiet';
   b.setAttribute('aria-expanded', 'false');
   b.setAttribute('aria-controls', 'runpanel');
   b.title = 'Runs: keep, compare and export';

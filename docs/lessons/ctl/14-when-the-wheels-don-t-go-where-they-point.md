@@ -1,5 +1,6 @@
 group: ctl
 title: When the wheels don't go where they point
+level: 3
 extra: true
 
 <p><b>Why this matters.</b> Every model in this lab so far assumes the car goes where its front wheel points, so that its turn rate is $v\tan\delta/L$. At walking pace that is true. A real car corners because its tyres push sideways, and a tyre pushes sideways only by slipping. At speed, then, the wheels do not go where they point. The planners, the trackers and the MPC here are all built on the kinematic model. In this lesson you put a car under them that does not follow it, and see what the mismatch costs.</p>

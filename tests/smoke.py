@@ -1,9 +1,10 @@
 import asyncio, sys
 from playwright.async_api import async_playwright
 from _browser import launch, page_url
-# The smoke test (about 30 s): the page loads, every tab of Simulate opens and fills its pane, on every level, at a
-# desktop and a phone width; the pipeline tabs' row hides nothing (More stays in view); Analyze and Learn open; a short
-# run steps without a page error. run_all.py --changed runs it for every change to the page, before the scoped tests.
+# The smoke test (about 30 s): the page loads in Basic, whose four tabs fill their panes and say what Advanced adds;
+# then in Advanced every tab of Simulate opens and fills its pane, on every level, at a desktop and a phone width; the
+# pipeline tabs' row hides nothing (More stays in view); Analyze (from the Control tab) and Learn open; a short run
+# steps without a page error. run_all.py --changed runs it for every change to the page, before the scoped tests.
 TABS = '''() => [...document.querySelectorAll('#tabs .tab[role="tab"]')].map(b => b.id.slice(4))'''
 MORE = '''() => [...document.querySelectorAll('.tm-item')].map(b => b.id.slice(4))'''
 async def tabs_ok(pg, where, bad):
@@ -18,6 +19,21 @@ async def tabs_ok(pg, where, bad):
     r = await pg.evaluate('''() => {const t = document.querySelector('.console .tabs'), m = document.querySelector('#tab-more').getBoundingClientRect(),
         c = t.getBoundingClientRect(); return [t.scrollWidth, t.clientWidth, Math.round(m.right), Math.round(c.right)]}''')
     if r[0] > r[1] + 1 or r[2] > r[3] + 1: bad.append(f'{where}: the tab row overflows its panel (More hidden): {r}')
+# Basic: the row is the four subsystems and More, nothing overflows, each pane has text and its "more in Advanced"
+# note; the Advanced switch grows the row to the seven pipeline tabs
+async def basic_ok(pg, where, bad):
+    row = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(b => b.id.slice(4))")
+    if row != ['loc', 'per', 'plan', 'ctl', 'more']: bad.append(f'{where}: Basic shows the tabs {row}')
+    for t in row[:-1]:
+        await pg.click('#tab-' + t); await pg.wait_for_timeout(60)
+        r = await pg.evaluate("[document.querySelector('#pane').innerText.trim().length, !!document.querySelector('#pane .adv-more [data-adv]')]")
+        if r[0] < 20 or not r[1]: bad.append(f'{where}: the Basic {t} pane is empty or has no Advanced note: {r}')
+    r = await pg.evaluate('''() => {const t = document.querySelector('.console .tabs'), m = document.querySelector('#tab-more').getBoundingClientRect(),
+        c = t.getBoundingClientRect(); return [t.scrollWidth, t.clientWidth, Math.round(m.right), Math.round(c.right), document.scrollingElement.scrollWidth, innerWidth]}''')
+    if r[0] > r[1] + 1 or r[2] > r[3] + 1 or r[4] > r[5]: bad.append(f'{where}: Basic overflows (tab row, More, page): {r}')
+    await pg.click('#tg-adv'); await pg.wait_for_timeout(150)
+    row = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(b => b.id.slice(4))")
+    if len(row) != 8 or await pg.evaluate('window.__nav.level()') != 'advanced': bad.append(f'{where}: the Advanced switch shows the tabs {row}')
 # On a phone the level menu is a sheet over most of the screen: it clears the bottom bar, a swipe that reaches its end
 # does not scroll the page hidden behind it (the page looked stuck), and its × closes it.
 async def level_menu_ok(pg, where, bad):
@@ -52,16 +68,21 @@ async def main():
             await pg.goto(page_url()); await pg.wait_for_timeout(600)
             if name == 'phone':
                 await pg.click('#sheetbtn'); await pg.wait_for_timeout(200)
+                await basic_ok(pg, name + ' Basic', bad)
                 await tabs_ok(pg, name, bad)
                 await pg.click('#sheetbtn'); await pg.wait_for_timeout(200)  # the sheet closed again
                 await level_menu_ok(pg, name, bad)
                 await idle_quiet(pg, name, bad)
             else:
+                await basic_ok(pg, name + ' Basic', bad)
                 for lvl in range(await pg.evaluate('window.__nav.LEVELS.length')):
                     await pg.evaluate(f'window.__nav.switchLevel({lvl})'); await pg.wait_for_timeout(150)
                     await tabs_ok(pg, f'{name} L{lvl + 1}', bad)
                     await pg.evaluate('window.__nav.advance(40)')
-                await pg.click('#mode-an'); await pg.wait_for_timeout(300)
+                await pg.click('#tab-ctl'); await pg.click('#an-open'); await pg.wait_for_timeout(300)
+                if await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(b => b.id.slice(4)).join()") != 'ctl,veh,more': bad.append(f'{name}: Analyze does not show Control and Vehicle')
+                await pg.click('#an-back'); await pg.wait_for_timeout(200)
+                if await pg.evaluate('window.__an.AN.mode') != 'sim': bad.append(f'{name}: Back to the simulator does not leave Analyze')
                 await pg.click('#tab-learn'); await pg.wait_for_timeout(300)
                 await pg.click('#mode-sim'); await pg.wait_for_timeout(200)
             bad += [f'{name}: {e}' for e in errs]

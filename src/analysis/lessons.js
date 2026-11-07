@@ -34,25 +34,43 @@ const LV_DIFF = 0,
 // loop analysis, v6); LESSONS_EXTRA the control lessons added since, whose experiments may run the simulator.
 const LESSONS = LESSON_DATA.ctl,
   LESSONS_EXTRA = LESSON_DATA.ctlExtra;
+// Foundations comes first: one idea per lesson for an engineering undergraduate. Each other group's note starts with
+// the level it is written at.
 const LESSON_GROUPS = () => [
+  {
+    id: 'intro',
+    title: 'Foundations',
+    note: 'Start here. One idea per lesson, under ten minutes each, written for an engineering undergraduate: the math is folded away under Show the math. The groups below go deeper.',
+    items: SIM_LESSONS.intro
+  },
   {
     id: 'loc',
     title: 'Localization',
-    note: 'Runs in the simulator. Each button reloads the level, applies the settings and runs.',
+    note: 'Graduate level: covariance matrices, Jacobians and the Kalman filter. Runs in the simulator. Each button reloads the level, applies the settings and runs.',
     items: SIM_LESSONS.loc
   },
-  {id: 'per', title: 'Perception', note: '', items: SIM_LESSONS.per},
-  {id: 'plan', title: 'Planning and the mission', note: '', items: SIM_LESSONS.plan},
+  {
+    id: 'per',
+    title: 'Perception',
+    note: 'Graduate level: Bayes’ rule on a grid, Kalman tracking and small neural networks.',
+    items: SIM_LESSONS.per
+  },
+  {
+    id: 'plan',
+    title: 'Planning and the mission',
+    note: 'Graduate level: graph search, its guarantees, and planning for a car and around moving people.',
+    items: SIM_LESSONS.plan
+  },
   {
     id: 'ctl',
     title: 'The control loop (linear analysis)',
-    note: 'Each button sets up the lab and shows the loop analysis on the left; <b>A</b> switches between it and the map.',
+    note: 'Graduate level: transfer functions, Bode and Nyquist plots (chapter 6 builds them). Each button sets up the lab and shows the loop analysis on the left; <b>A</b> switches between it and the map.',
     items: LESSONS.concat(LESSONS_EXTRA)
   },
   {
     id: 'saf',
     title: 'Safety',
-    note: 'The ideas of ISO 26262, ISO 21448 (SOTIF), ISO/PAS 8800 and UL 4600, done on the simulator; the lab paraphrases them and is not a substitute for their text.',
+    note: 'Graduate level: hazard analysis, statistics of rare events and safety arguments. The ideas of ISO 26262, ISO 21448 (SOTIF), ISO/PAS 8800 and UL 4600, done on the simulator; the lab paraphrases them and is not a substitute for their text.',
     items: SIM_LESSONS.saf
   }
 ];

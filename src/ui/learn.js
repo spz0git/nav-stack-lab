@@ -1,13 +1,14 @@
 /* ============================================================
-   UI: the three modes (Simulate · Analyze · Learn) and the Learn column
+   UI: the modes (Simulate · Learn; Analyze opens from the Control tab) and the Learn column
    ============================================================ */
 // uiMode is what the switch shows. The left side is AN.mode (map or loop analysis); in Learn it follows the lesson.
 let uiMode = 'sim',
   lessonOpen = null,
   userLayers = null;
+// Analyze is no longer a mode button (v84): it is a view of the simulator's steering loop, opened from the Control tab
+// (Analyze this loop), the A key, lessons and chapters; while it shows, the switch shows Simulate pressed.
 const MODES = [
   ['sim', 'Simulate', 'mode-sim'],
-  ['an', 'Analyze', 'mode-an'],
   ['learn', 'Learn', 'tab-learn']
 ]; // Learn keeps the old tab's id
 const MODE_HINT = {
@@ -30,12 +31,13 @@ function setUIMode(m) {
 function syncModeUI() {
   $('#modesel')
     .querySelectorAll('button')
-    .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === uiMode)));
+    .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === (uiMode === 'an' ? 'sim' : uiMode))));
   $('.layout').dataset.mode = uiMode;
   $('#learnview').hidden = uiMode !== 'learn';
   $('#modesel').title = MODE_HINT[uiMode];
   const lb = $('#bb-learn');
   if (lb) lb.textContent = uiMode === 'learn' ? 'Simulate' : 'Learn';
+  tabsFollowMode();
 }
 $('#modesel').innerHTML = MODES.map(
   ([v, l, id]) => `<button type="button" id="${id}" data-v="${v}" aria-pressed="${v === uiMode}">${l}</button>`
@@ -46,6 +48,18 @@ $('#modesel')
 
 // Map layers each lesson is about (Layers tab keys); opening a lesson shows only these, Back restores the user's set.
 const LESSON_LAYERS = {
+  intro: [
+    ['trail', 'look'], // the loop: the path and the carrot
+    ['belief', 'trail'],
+    ['belief', 'beam', 'trail'],
+    ['belief', 'trail'],
+    ['lidar', 'ghost'],
+    ['cost', 'trail'],
+    ['search', 'cost'],
+    ['trail', 'look'],
+    ['trail', 'look'],
+    ['agents', 'lidar']
+  ],
   loc: [
     ['belief', 'trail'],
     ['belief', 'beam', 'trail'],
@@ -161,7 +175,7 @@ function lessonProgHTML(id) {
     )
     .concat(it.L.check ? [`<span class="lp-step${s.chk ? ' ok' : ''}">${s.chk ? '✓' : '○'} Check yourself</span>`] : [])
     .join('');
-  return `<i class="ldot" data-st="${s.st}" aria-hidden="true"></i><span class="lp-txt">${s.st === 'done' ? 'Lesson done' : 'To complete this lesson:'}</span>${steps}<button type="button" class="linkbtn lp-reset" title="Clear this lesson's experiments, predictions and self-check in this browser, so its circle is empty again">Reset</button>`;
+  return `<i class="ldot" data-st="${s.st}" aria-hidden="true"></i><span class="lp-txt">${s.st === 'done' ? 'Lesson done' : 'To complete this lesson:'}</span>${steps}<button type="button" class="btn small lp-reset" title="Clear this lesson's experiments, predictions and self-check in this browser, so its circle is empty again">Reset</button>`;
 }
 function wireLessonProg(v) {
   const b = v.querySelector('.lp-reset');
@@ -191,8 +205,7 @@ function lessonProgRefresh(id) {
 // [label, cfg, {setup, see, shows}]; explained tries render as numbered cards. L.q = [[question, answer], …].
 function lessonBodyHTML(L, id) {
   const explained = L.tries.some(t => t[2]),
-    btn = j =>
-      `<button class="btn small${(LEARN.tried[id] || []).includes(j) ? ' tried' : ''}" data-try="${id}:${j}">\u0002${j}\u0002</button>`; // labels are restored after marking
+    btn = j => `<button class="btn${(LEARN.tried[id] || []).includes(j) ? ' tried' : ''}" data-try="${id}:${j}">\u0002${j}\u0002</button>`; // labels are restored after marking
   // Predict first: an experiment with a `predict` question hides "What you will see" until the learner has picked an
   // answer (or opens it); the pick is remembered in this browser. Without a question the text shows as before.
   const tries = explained
@@ -224,7 +237,7 @@ function lessonBodyHTML(L, id) {
   const c = L.check,
     done = c && LEARN.check[id];
   const check = c
-    ? `<h4 class="exph">Check yourself</h4><div class="selfcheck" data-ck="${id}"><p>${c.q}</p><div class="sc-row"><input type="text" inputmode="decimal" autocomplete="off" aria-label="Your answer"${done ? ` value="${c.a}"` : ''}>${c.unit ? `<span class="unit">${c.unit}</span>` : ''}<button type="button" class="btn small sc-go">Check</button></div><p class="sc-res${done ? ' ok' : ''}">${done ? `Right. ${c.how}` : ''}</p></div>`
+    ? `<h4 class="exph">Check yourself</h4><div class="selfcheck" data-ck="${id}"><p>${c.q}</p><div class="sc-row"><input type="text" inputmode="decimal" autocomplete="off" aria-label="Your answer"${done ? ` value="${c.a}"` : ''}>${c.unit ? `<span class="unit">${c.unit}</span>` : ''}<button type="button" class="btn sc-go">Check</button></div><p class="sc-res${done ? ' ok' : ''}">${done ? `Right. ${c.how}` : ''}</p></div>`
     : '';
   const q =
     L.q && L.q.length
@@ -363,10 +376,11 @@ function renderLearn() {
     nextId = cur ? learnNextId(lessonOpen) : null,
     prevId = cur ? learnPrevId(lessonOpen) : null;
   v.classList.toggle('reading', !!cur);
+  $('.layout').classList.toggle('lesson-open', !!cur); // the dock shows the log and every metric while a lesson is open
   v.innerHTML =
     `<div class="learn-head">${
       cur
-        ? `<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i + 1} of ${cur.G.items.length}</span>${prevId ? `<button class="linkbtn" id="learn-prev" type="button" title="${onPath(lessonOpen) && onPath(prevId) ? 'The previous lesson of the first pass' : 'The previous lesson in the list'}">${onPath(lessonOpen) && onPath(prevId) ? '← Previous in the first pass' : '← Previous lesson'}</button>` : ''}${nextId ? `<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen) && onPath(nextId) ? 'The next lesson of the first pass' : 'The next lesson in the list'}">${onPath(lessonOpen) && onPath(nextId) ? 'Next in the first pass →' : 'Next lesson →'}</button>` : ''}<button class="linkbtn" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
+        ? `<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i + 1} of ${cur.G.items.length}</span>${prevId ? `<button class="linkbtn" id="learn-prev" type="button" title="${onPath(lessonOpen) && onPath(prevId) ? 'The previous lesson of the first pass' : 'The previous lesson in the list'}">${onPath(lessonOpen) && onPath(prevId) ? '← Previous in the first pass' : '← Previous lesson'}</button>` : ''}${nextId ? `<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen) && onPath(nextId) ? 'The next lesson of the first pass' : 'The next lesson in the list'}">${onPath(lessonOpen) && onPath(nextId) ? 'Next in the first pass →' : 'Next lesson →'}</button>` : ''}<button class="btn small" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
         : `<h2>Lessons</h2>`
     }</div>` +
     (cur ? '' : startHereHTML() + progressHTML()) +
@@ -377,7 +391,7 @@ function renderLearn() {
           G.items
             .map((L, i) => {
               const id = `${G.id}:${i}`;
-              return `<details class="lesson" data-l="${id}" ${lessonOpen === id ? 'open' : ''}><summary title="${lessonStateText(id)}"><span class="lnum">${i + 1}</span><i class="ldot" data-st="${lessonState(id).st}" aria-hidden="true"></i>${L.t}<span class="sr-only">, ${lessonState(id).st === 'none' ? 'not started' : lessonState(id).st === 'done' ? 'done' : 'started'}</span><span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonOpen === id ? `<div class="lprog" role="status">${lessonProgHTML(id)}</div>` : ''}${lessonBodyHTML(L, id)}</div></details>`;
+              return `<details class="lesson" data-l="${id}" ${lessonOpen === id ? 'open' : ''}><summary title="${lessonStateText(id)}"><span class="lnum">${i + 1}</span><i class="ldot" data-st="${lessonState(id).st}" aria-hidden="true"></i>${L.t}<span class="sr-only">, ${lessonState(id).st === 'none' ? 'not started' : lessonState(id).st === 'done' ? 'done' : 'started'}</span>${L.level === 3 ? '<span class="llevel" title="Advanced: assumes the lessons before it in this group">advanced</span>' : ''}<span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonOpen === id ? `<div class="lprog" role="status">${lessonProgHTML(id)}</div>` : ''}${lessonBodyHTML(L, id)}</div></details>`;
             })
             .join('') +
           `</section>`

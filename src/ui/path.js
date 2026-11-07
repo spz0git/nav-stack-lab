@@ -1,6 +1,6 @@
 /* ============================================================
    UI: the learning path. A "Start here" card at the top of the Learn column (who the lessons are for, what they
-   assume, how lessons, chapters, levels and Symbols relate) and a recommended first pass through eight lessons.
+   assume, how lessons, chapters, levels and Symbols relate) and a recommended first pass: the Foundations group.
    What the reader has opened is remembered in this browser (localStorage, guarded).
    ============================================================ */
 const LEARN_KEY = 'nav-stack-lab.learn';
@@ -69,7 +69,7 @@ function progressHTML() {
     done = groups.reduce((a, g) => a + g.done, 0),
     part = groups.reduce((a, g) => a + g.part, 0);
   const path = LEARN_PATH.filter(([id]) => lessonState(id).st === 'done').length;
-  const key = `<p class="note pkey"><span><i class="ldot" data-st="none" aria-hidden="true"></i>not started</span><span><i class="ldot" data-st="part" aria-hidden="true"></i>started</span><span><i class="ldot" data-st="done" aria-hidden="true"></i>done</span> A lesson's circle fills once you have pressed each of its experiment buttons and passed its Check yourself.${done || part ? ' <button type="button" class="linkbtn" id="learn-reset" title="Clear every lesson\'s progress, predictions and self-checks in this browser">Reset all progress</button>' : ''}</p>`;
+  const key = `<p class="note pkey"><span><i class="ldot" data-st="none" aria-hidden="true"></i>not started</span><span><i class="ldot" data-st="part" aria-hidden="true"></i>started</span><span><i class="ldot" data-st="done" aria-hidden="true"></i>done</span> A lesson's circle fills once you have pressed each of its experiment buttons and passed its Check yourself.${done || part ? ' <button type="button" class="btn small" id="learn-reset" title="Clear every lesson\'s progress, predictions and self-checks in this browser">Reset all progress</button>' : ''}</p>`;
   if (!done && !part) return `<div class="progress" role="group" aria-label="Your progress">${key}</div>`;
   return (
     `<div class="progress" role="group" aria-label="Your progress"><p class="note">${done} of ${n} lessons done${part ? `, ${part} started` : ''} · first pass ${path} of ${LEARN_PATH.length}</p>${key}<div class="pbars">` +
@@ -87,26 +87,31 @@ function learnSave() {
     localStorage.setItem(LEARN_KEY, JSON.stringify(LEARN));
   } catch (_) {}
 }
-// The first pass: concrete and visual first (the simulator), the linear analysis once the loop has been seen running.
+// The first pass: the Foundations group, one idea each, in the order the robot's loop runs (for an engineering
+// undergraduate); the graduate groups follow it.
 const LEARN_PATH = [
-  ['loc:0', 'what odometry alone does, and why the filter has to know it'],
-  ['loc:1', 'how a beacon reading corrects the pose, and how to tell when a filter lies'],
-  ['per:0', 'how lidar hits become a map'],
-  ['per:1', 'how a map becomes a cost the planner can use'],
-  ['plan:0', 'the planner everyone starts with, and what ε buys'],
-  ['ctl:0', 'the steering loop as two integrators: the model behind every tracker'],
-  ['ctl:1', 'pure pursuit has one knob, and this is what it turns'],
-  ['ctl:2', 'how to read the Bode plot the Analyze view draws']
+  ['intro:0', 'sense, localize, perceive, plan, control, every 50 ms'],
+  ['intro:1', 'why counting wheel turns slowly gets the robot lost'],
+  ['intro:2', 'how a landmark reading stops the drift'],
+  ['intro:3', 'how sure the robot is, and how to check it is honest'],
+  ['intro:4', 'how lidar beams become a map'],
+  ['intro:5', 'how the map becomes costs that keep the robot off the shelves'],
+  ['intro:6', 'the search that finds the path, and what greed buys'],
+  ['intro:7', 'how the controller follows the path, and its one knob'],
+  ['intro:8', 'why a little delay makes a stiff controller wobble'],
+  ['intro:9', 'tracking people and slowing down for them']
 ];
+const NUM_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
 // Minutes for a lesson: all its prose read at 170 words a minute (the body, each experiment's setup, what to see, what
 // it shows and its prediction, the code note, Think about and Check yourself; a formula counts as one word), plus a
-// minute per experiment for pressing it and watching the run. Cached per lesson object.
+// minute per experiment for pressing it and watching the run. The math folded under Show the math is not counted: the
+// time is the read without it. Cached per lesson object.
 const LESSON_WPM = 170,
   TRY_MIN = 1,
   lessonMinCache = new WeakMap();
 function lessonMinutes(L) {
   if (lessonMinCache.has(L)) return lessonMinCache.get(L);
-  const parts = [L.b];
+  const parts = [L.b.replace(/<details class="math">[\s\S]*?<\/details>/g, ' ')];
   for (const t of L.tries || []) {
     const x = t[2] || {};
     parts.push(x.setup, x.see, x.shows);
@@ -142,11 +147,12 @@ function startHereHTML() {
   }).join('');
   const mins = firstPassMinutes();
   return `<details class="starthere" id="starthere" ${LEARN.start ? 'open' : ''}><summary><h3>Start here</h3></summary><div class="sh-body">
-<p><b>Who this is for.</b> Students and engineers who want to see localization, perception, planning and control work together on one robot, change one thing, and watch what happens. The lessons assume vectors and matrices, a little probability (a Gaussian, a variance) and derivatives. The control lessons also use transfer functions and Bode plots; if those are new, chapter 6 builds them in order.</p>
+<p><b>Who this is for.</b> Anyone who wants to see localization, perception, planning and control work together on one robot, change one thing, and watch what happens. The first group, Foundations, is written for an engineering undergraduate. You know vectors, derivatives and what a probability distribution is. Nothing else is assumed.</p>
 <p><b>How the pieces fit.</b> A <b>lesson</b> is a short read with experiments: each button sets the lab up and runs it, and the numbers in the text were measured in this simulator. A <b>chapter</b> (the companion notes at the end of this list) derives the formulas a lesson uses; the <i>Derivation</i> links go there and Back returns. The <b>levels</b> L1 to L7 are the floors the robot drives on; each has quick one-click experiments in its own panel under Simulate. The <b>Symbols</b> tab under Reference lists every symbol with its meaning; dotted terms in a lesson show their definition on hover or tap.</p>
-<p><b>A first pass, about ${mins} minutes with the experiments.</b> Eight lessons that visit every part of the stack once; then go deeper in whichever group interests you.</p>
+<p><b>A first pass, about ${mins} minutes with the experiments.</b> ${NUM_WORDS[LEARN_PATH.length] || LEARN_PATH.length} lessons that visit every part of the stack once, one idea each. The math behind each one is folded away under <i>Show the math</i>; open it when you want the derivation.</p>
 <ol class="path">${steps}</ol>
-<button class="btn small primary" type="button" id="path-start">${pathNextLabel()}</button></div></details>`;
+<button class="btn primary" type="button" id="path-start">${pathNextLabel()}</button>
+<p><b>After the first pass.</b> The groups below Foundations are written at graduate level: they use linear algebra, probability and differential equations, and the control group also assumes transfer functions and Bode plots (chapter 6 builds them). Lessons marked <i>advanced</i> assume the ones before them in their group. The chapters at the end of the list derive every formula the lessons use; the <i>Derivation</i> links in the lessons go there.</p></div></details>`;
 }
 // the first lesson of the pass not yet done
 const pathNext = () => {

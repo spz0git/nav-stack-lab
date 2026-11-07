@@ -70,6 +70,9 @@ function predCell(cell) {
     ) + cell('cv', `${pe.cv[1].toFixed(2)} m`, '', 'Constant velocity’s mean error 2 s ahead, on the same people at the same moments')
   );
 }
+// Basic's three rows: how far, what it hit, and how well it knows where it is (or, with the true pose, how well it
+// follows the path)
+const BASIC_METRICS = () => ['Distance', 'Collisions', P.loc === 'truth' ? 'Cross-track RMS' : 'Pose error'];
 // the row a lesson's link points at (showMetric, ui/signals.js), marked until t: the list is rebuilt every frame
 let metMark = {name: '', t: 0};
 function renderMetrics() {
@@ -142,10 +145,12 @@ function renderMetrics() {
   if (S.slam) items.push(['SLAM map', `${S.slam.n} of ${S.beacons.length} beacons · ${3 + 2 * S.slam.n} states`, 'loc']);
   if (S.pf) items.push(['Particles', `N_eff ${S.pf.neff.toFixed(0)}/${S.pf.N}, inj ${(S.pf.inj * 100).toFixed(0)}%`, 'loc']);
   if (P.assoc === 'unknown' && P.loc !== 'truth' && P.loc !== 'dr') items.push(['Gated measurements', String(S.rejected), 'loc']);
-  const mk = performance.now() < metMark.t ? metMark.name : '';
+  const mk = performance.now() < metMark.t ? metMark.name : '',
+    basic = BASIC_METRICS();
   setHTML(
     $('#metrics'),
     items
+      .filter(([a]) => !basicDockNow() || basic.includes(a))
       .map(([a, b, c]) => `<div${c ? ` data-sys="${c}"` : ''}${a === mk ? ' class="met-hi"' : ''}><dt>${a}</dt><dd>${b}</dd></div>`)
       .join('')
   );

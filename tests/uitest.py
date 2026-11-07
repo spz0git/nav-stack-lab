@@ -1,7 +1,8 @@
 # The workspace around the simulation, at 1440 × 900 (about 30 s): the timeline's replay and loop region, Runs (keep,
 # compare, export and import, the previous-run ghost), the command palette, Layers, the URL hash round trip, the
 # keyboard sheet's keys, dark mode's contrast, What's new, the How-it-works panels' MathML, the plot dock and its CSV,
-# the Changed badge, and Response to agents' dimmed options for each controller. Each check asserts what the page
+# the Changed badge, Response to agents' dimmed options for each controller, and the Basic level. The checks run in
+# Advanced (the level is kept in the context's storage, so every page after the first opens in Advanced too). Each check asserts what the page
 # shows or holds after the action, not only that nothing threw.
 # Prints one summary line per area, then FAILS [...] (checks that did not hold) and ERRORS [...] (page and console
 # errors); both [] when everything held.
@@ -58,6 +59,7 @@ async def main():
         pg.set_default_timeout(8000)
         try:
             await fresh(pg)
+            await pg.evaluate("window.__nav.setLevel('advanced')")
 
             # ---- the Changed badge: a setting changed from the panel counts, its ↺ puts it back
             area('Changed')
@@ -279,7 +281,7 @@ async def main():
             await pg.evaluate('window.__nav.switchLevel(2)'); await pg.wait_for_timeout(150)
             await pg.evaluate("window.__nav.setParam('seed',11)")
             await tab(pg,'loc'); await pg.click('#pane [data-k="loc"] button[data-v="pf"]'); await pg.wait_for_timeout(100)
-            await pg.click('#mode-an'); await pg.wait_for_timeout(500)
+            await tab(pg,'ctl'); await pg.click('#an-open'); await pg.wait_for_timeout(500)
             h=await pg.evaluate('location.hash')
             check(all(x in h[1:].split('&') for x in ['l=L3','seed=11','loc=pf','mode=an']),'the hash says the level, seed, setting and mode: '+h)
             p2=await ctx.new_page(); watch(p2); await p2.goto(page_url(h)); await p2.wait_for_timeout(900)
@@ -304,11 +306,12 @@ async def main():
 
             # ---- dark mode: another background, and readable text
             area('Dark mode')
+            await pg.click('#an-back'); await pg.wait_for_timeout(200)  # Analyze's tab row has no Localize
             SELS=['body','.brand h1','#appver','#status .kv span','#status .kv b','#tab-loc','#pane .note','#pane .lbl','#scrubt','#tg-runs']
             light=await pg.evaluate("getComputedStyle(document.body).backgroundColor")
             lc=await pg.evaluate(CONTRAST,SELS)
             dctx=await b.new_context(viewport={'width':1440,'height':900},color_scheme='dark'); dp=await dctx.new_page(); watch(dp)
-            await dp.goto(page_url()); await dp.wait_for_timeout(700); await dp.click('#tab-loc'); await dp.wait_for_timeout(80)
+            await dp.goto(page_url()); await dp.wait_for_timeout(700); await dp.evaluate("window.__nav.setLevel('advanced')"); await dp.click('#tab-loc'); await dp.wait_for_timeout(80)
             dark=await dp.evaluate("getComputedStyle(document.body).backgroundColor")
             dc=await dp.evaluate(CONTRAST,SELS)
             lum=lambda s: sum(int(x) for x in re.findall(r'\d+',s)[:3])
@@ -316,6 +319,24 @@ async def main():
             for (s,c) in dc: check(c is not None and c>=4.5,f'dark: {s} contrast {c}')
             for (s,c) in lc: check(c is not None and c>=4.5,f'light: {s} contrast {c}')
             await dctx.close()
+
+            # ---- the Basic level: a fresh browser opens in Basic, which hides the log, the second channel and Runs and
+            # shows three metrics; the Advanced switch is remembered across a reload
+            area('Basic level')
+            bctx=await b.new_context(viewport={'width':1440,'height':900}); bp=await bctx.new_page(); watch(bp)
+            await bp.goto(page_url()); await bp.wait_for_timeout(700); await bp.evaluate('window.__nav.advance(40)'); await bp.wait_for_timeout(200)
+            BL='''() => ({level: window.__nav.level(), data: document.querySelector('.layout').dataset.level,
+              hid: ['.tele-log', '#plotsel2', '#tg-runs', '#metsel', '#pl-more', '#sensdots'].filter(q => { const e = document.querySelector(q); return !e || !e.offsetParent; }),
+              rows: [...document.querySelectorAll('#metrics > div dt')].map(d => d.textContent), pressed: document.querySelector('#tg-adv').getAttribute('aria-pressed')})'''
+            r=await bp.evaluate(BL)
+            check(r['level']=='basic' and r['data']=='basic' and r['pressed']=='false','a fresh browser opens in Basic: '+str(r))
+            check(len(r['hid'])==6,f"Basic hides the event log, Compare, Runs, Values, the dock's ⋯ and the sensor dots: {r['hid']}")
+            check(r['rows']==['Distance','Collisions','Cross-track RMS'],f"Basic shows three metrics: {r['rows']}")
+            await bp.click('#tg-adv'); await bp.wait_for_timeout(200)
+            await bp.reload(); await bp.wait_for_timeout(800)
+            r=await bp.evaluate(BL)
+            check(r['level']=='advanced' and r['pressed']=='true' and not r['hid'] and len(r['rows'])>3,f'Advanced is kept across a reload: {r}')
+            await bctx.close()
 
             # ---- layout: the tool-tab row keeps its height, the header's tools exist at mid widths, the log announces
             area('Layout')
@@ -361,16 +382,16 @@ async def main():
             h=await pg.evaluate(LH)
             check('Safety · 1 of ' in h['head'],f'pressing Previous opens safety lesson 1 ({h["head"]})')
             check(h['prev'] and h['next'],'safety lesson 1 still has both buttons (it is not the first of the list)')
-            await fresh(pg,'#lesson=loc:2')
+            await fresh(pg,'#lesson=intro:2')   # the first pass is the Foundations group, the first in the list
             h=await pg.evaluate(LH)
             check(h['pt']=='← Previous in the first pass',f'a lesson on the first pass offers Previous in the first pass ({h["pt"]})')
             await pg.click('#learn-prev'); await pg.wait_for_timeout(250)
             h=await pg.evaluate(LH)
-            check('Localization · 1 of ' in h['head'],f'it opens lesson 1 of the first group ({h["head"]})')
+            check('Foundations · 1 of ' in h['head'],f'it opens lesson 1 of the first group ({h["head"]})')
             check(not h['prev'] and h['next'],'lesson 1 of the first group has no Previous button, and still has Next')
             for (w,hh) in [(1024,768),(390,844)]:
                 await pg.set_viewport_size({'width':w,'height':hh}); await pg.wait_for_timeout(250)
-                await fresh(pg,'#lesson=loc:2')
+                await fresh(pg,'#lesson=intro:2')
                 h=await pg.evaluate(LH)
                 check(h['prev'] and h['next'] and h['fit'] and h['page'],f'{w} px: the lesson header holds Previous and Next without sideways scroll {h["fit"]} {h["page"]}')
             await pg.set_viewport_size({'width':1440,'height':900}); await pg.wait_for_timeout(200)

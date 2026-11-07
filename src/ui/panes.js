@@ -176,11 +176,7 @@ async function tryGo(cfg) {
   for (const [k, v] of Object.entries(cfg.set || {})) setParam(k, v, false);
   if (cfg.goals) setGoals(cfg.goals); // a Try with its own goals (a loop to close): the mission restarts on them
   if (cfg.saf) safFromTry(cfg.saf); // the safety lessons: a sheet and a search in Tools → Safety
-  if (cfg.tab) {
-    activeTab = cfg.tab;
-    consoleOpen = true;
-    buildTabs();
-  }
+  if (cfg.tab) showTab(cfg.tab, false);
   applyTabLayers();
   if (cfg.layers) Object.assign(LAYERS, cfg.layers);
   renderAllPanes();
@@ -237,10 +233,7 @@ const showSym = id => showTabAt('sym', 'sym-' + id);
 // A tab of Simulate's console, scrolled to one of its elements (Learn gives way to Simulate, whose console it is)
 function showTabAt(tab, elId) {
   if (uiMode === 'learn') setUIMode(AN.mode);
-  activeTab = tab;
-  consoleOpen = true;
-  buildTabs();
-  renderAllPanes();
+  showTab(tab);
   const el = document.getElementById(elId),
     c = document.querySelector('.right') || document.querySelector('.console');
   if (!el) return;
@@ -320,9 +313,10 @@ const moreLabel = cur =>
   `<span class="tm-sz">${['More', ...TAB_GROUPS.slice(1).flatMap(g => g.tabs.map(id => TABS.find(t => t.id === id).name))]
     .map(n => `<span${n === cur ? '' : ' aria-hidden="true"'}>${n}</span>`)
     .join('')}</span>`;
+// Which tabs show follows the level and the left side (tabsRow, tabsMore in ui/workspace.js)
 function buildTabs() {
-  const pipe = TAB_GROUPS[0].tabs,
-    more = TAB_GROUPS.slice(1),
+  const pipe = tabsRow(),
+    more = tabsMore(),
     inMore = !pipe.includes(activeTab),
     cur = TABS.find(t => t.id === activeTab),
     ae = document.activeElement,
@@ -336,26 +330,27 @@ function buildTabs() {
       )
       .join('') +
     `<button class="tab tab-more" type="button" id="tab-more" aria-haspopup="menu" aria-expanded="false" aria-selected="${inMore}" tabindex="${inMore ? 0 : -1}">${moreLabel(inMore && cur ? cur.name : 'More')}<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
-  tabMore.innerHTML = more
-    .map(
-      g =>
-        `<p class="tm-h">${g.name}</p>` +
-        TABS.filter(t => g.tabs.includes(t.id))
-          .map(
-            t =>
-              `<button type="button" role="menuitem" class="tm-item" id="tab-${t.id}" tabindex="-1" aria-current="${t.id === activeTab}">${t.name}</button>`
-          )
-          .join('')
-    )
-    .join('');
+  tabMore.innerHTML =
+    more
+      .map(
+        g =>
+          `<p class="tm-h">${g.name}</p>` +
+          TABS.filter(t => g.tabs.includes(t.id))
+            .map(
+              t =>
+                `<button type="button" role="menuitem" class="tm-item" id="tab-${t.id}" tabindex="-1" aria-current="${t.id === activeTab}">${t.name}</button>`
+            )
+            .join('')
+      )
+      .join('') +
+    (levelBasic()
+      ? '<button type="button" role="menuitem" class="tm-item tm-adv" id="tm-adv" data-adv tabindex="-1" title="Every tab, setting and plot, the event log and the Runs panel">Show everything (Advanced)</button>'
+      : '');
   tabMore.querySelectorAll('.tm-item').forEach(
     b =>
       (b.onclick = () => {
         tabMoreOpen(false);
-        activeTab = b.id.slice(4);
-        consoleOpen = true;
-        buildTabs();
-        renderAllPanes();
+        if (b.id !== 'tm-adv') showTab(b.id.slice(4));
       })
   );
   $('#tab-more').onclick = e => {
@@ -373,10 +368,7 @@ function buildTabs() {
             buildTabs();
             return;
           }
-          activeTab = id;
-          consoleOpen = true;
-          buildTabs();
-          renderAllPanes();
+          showTab(id);
         })
     );
   $('.console').classList.toggle('collapsed', !consoleOpen);
@@ -397,12 +389,20 @@ function renderAllPanes() {
   else if (t === 'saf') html = safPane();
   else {
     if (t === 'mis') html += `<div id="fsm-wrap" class="fsm-wrap">${fsmSVG()}</div>`;
+    const basic = levelBasic();
+    let more = 0; // the settings Basic leaves out of this pane, for its "N more settings in Advanced"
     for (const f of SCHEMA[t]) {
       if (f.show && !f.show()) continue;
+      if (basic && !fieldBasic(f, t)) {
+        if (isSettingField(f)) more++;
+        continue;
+      }
       html += fieldHTML(f);
     }
     if (NOTES[t])
       html += `<details class="how" ${howOpen[t] ? 'open' : ''} data-how="${t}"><summary>How it works</summary><div class="how-body">${NOTES[t]}<button class="linkbtn" data-sym="${t === 'sen' ? 'loc' : t}">Symbol definitions for this section</button>${t === 'ctl' ? '<button class="linkbtn" data-sym="mpc">MPC symbols</button>' : ''}${t === 'per' || t === 'ctl' ? '<button class="linkbtn" data-sym="ag">Moving-agent symbols</button>' : ''}${SRC_FILES[t] ? `<button class="linkbtn" data-source="${SRC_FILES[t][0]}">View the source</button>` : ''}</div></details>`;
+    if (basic)
+      html += `<p class="note adv-more">${more ? `${more} more setting${more > 1 ? 's' : ''}` : 'More tabs (Sensors, Mission, Vehicle) and plots'} in <button type="button" class="linkbtn" data-adv>Advanced</button></p>`;
   }
   $('#panes').innerHTML = `<div class="pane" id="pane" role="tabpanel">${html}</div>`;
   wirePane(t);
@@ -625,7 +625,7 @@ function fieldHTML(f) {
   if (f.type === 'beacons') {
     const off = beaconsOff(),
       c = chgMark({k: 'bOff'});
-    return `<div class="field${c ? ' chg' : ''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b => `<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="linkbtn" data-beacon="all">All on</button><button class="linkbtn" data-beacon="none">All off</button></div></div>`;
+    return `<div class="field${c ? ' chg' : ''}"><span class="lbl" title="${TIPS.bOff}">${f.label}${c}</span><div class="bchips">${S.beacons.map(b => `<button data-beacon="${b.id}" aria-pressed="${!off.has(b.id)}" title="Beacon ${b.id} at ${b.x.toFixed(1)}, ${b.y.toFixed(1)} m">${b.id}</button>`).join('')}</div><div class="bchips-all"><button class="btn small" data-beacon="all">All on</button><button class="btn small" data-beacon="none">All off</button></div></div>`;
   }
   if (f.type === 'sensors') return sensorsHTML();
   if (f.type === 'bsensor')
@@ -640,7 +640,7 @@ function fieldHTML(f) {
       .join('')}</div></div>`;
   if (f.type === 'btn') {
     btnActs.push(f.act);
-    return `<div><button class="btn" data-act="${btnActs.length - 1}">${f.label}</button></div>`;
+    return `<div><button class="btn" data-act="${btnActs.length - 1}"${f.id ? ` id="${f.id}"` : ''}${f.tip ? ` title="${f.tip}"` : ''}>${f.label}</button></div>`;
   }
   return `<div class="field${chgMark(f) ? ' chg' : ''}"><div class="row"><label for="p-${f.k}" title="${TIPS[f.k] || ''}">${f.label}${chgMark(f)}</label><output id="o-${f.k}">${fmtVal(f, P[f.k])}</output></div><input type="range" id="p-${f.k}" data-k="${f.k}" min="${f.min}" max="${typeof f.max === 'function' ? f.max() : f.max}" step="${f.step}" value="${P[f.k]}"></div>`;
 }

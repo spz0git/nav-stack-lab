@@ -137,7 +137,7 @@ function genFormHTML() {
   }).join(
     ''
   )}</select></label><label>seed <input type="number" data-gen="seed" value="${G.seed}" min="1" max="99999" step="1"></label><button type="button" class="btn small" id="gen-next" title="The next seed: another world of the same kind">Next seed</button></div>
-  <div class="controls"><button type="button" class="btn small primary" id="gen-go">Generate</button><span class="lbl">The area is at most ${WORLD_AREA} m²; a large floor runs slower on a phone.</span></div></div>`;
+  <div class="controls"><button type="button" class="btn confirm" id="gen-go">Generate</button><span class="lbl">The area is at most ${WORLD_AREA} m²; a large floor runs slower on a phone.</span></div></div>`;
 }
 // The brief's content for the Custom panel (the current level's actions, import, generate, the kept levels)
 function custBriefHTML() {

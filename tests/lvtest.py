@@ -40,6 +40,7 @@ async def main():
         pg.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
         pg.on('pageerror', lambda e: errs.append('PAGEERR '+str(e)))
         await pg.goto(page_url()); await pg.wait_for_timeout(800)
+        await pg.evaluate("window.__nav.setLevel('advanced')")  # the Mission tab is Advanced (kept for the context)
         # 1. every family at two sizes, generated from the menu, its mission driven to the end (L2's settings: the map
         #    and the pose are known, so a run that does not finish is the level's fault)
         for fam in ['rooms','warehouse','hall']:

@@ -104,7 +104,7 @@ function expPane() {
   <div class="exprow"><label>Seeds <input type="number" id="exp-s0" min="1" max="99" value="${EXP.seed0}"> to <input type="number" id="exp-s1" min="1" max="99" value="${EXP.seed1}"></label>
     <label>Duration <input type="number" id="exp-secs" min="10" max="900" step="10" value="${EXP.secs}"> s</label>
     <label class="check sm"><input type="checkbox" id="exp-stop" ${EXP.stopDone ? 'checked' : ''}><span>stop when the mission completes</span></label></div>
-  <div class="controls"><button class="btn primary" id="exp-run" ${EXP.running ? 'disabled' : ''}>Run ${n} job${n === 1 ? '' : 's'}</button><button class="btn" id="exp-cancel" ${EXP.running ? '' : 'hidden'}>Cancel</button><span class="lbl" id="exp-prog">${EXP.running ? `${EXP.done}/${EXP.jobs.length}` : EXP.results.length ? `${EXP.results.length} runs done` : ''}</span></div>
+  <div class="controls"><button class="btn" id="exp-run" ${EXP.running ? 'disabled' : ''}>Run ${n} job${n === 1 ? '' : 's'}</button><button class="btn" id="exp-cancel" ${EXP.running ? '' : 'hidden'}>Cancel</button><span class="lbl" id="exp-prog">${EXP.running ? `${EXP.done}/${EXP.jobs.length}` : EXP.results.length ? `${EXP.results.length} runs done` : ''}</span></div>
   <div class="expbar" ${EXP.running ? '' : 'hidden'}><i id="exp-bar" style="width:${EXP.jobs.length ? (100 * EXP.done) / EXP.jobs.length : 0}%"></i></div>
   <div id="exp-out">${expResultsHTML()}</div>
   <details class="how"><summary>Share this setup</summary><div class="how-body">

@@ -49,9 +49,8 @@ const PRESETS = [
     () => {
       setUIMode('sim');
       wsInspector(true);
-      activeTab = 'loc';
-      consoleOpen = true;
-      buildTabs();
+      setLevel('advanced', 'the localization plots and Values');
+      showTab('loc', false);
       layersEdited = false;
       layersKey = '';
       renderAllPanes();
@@ -67,6 +66,7 @@ const PRESETS = [
     'Whole run in every plot, cross-track and speed added, the Runs panel open',
     () => {
       setUIMode('sim');
+      setLevel('advanced', 'the Runs panel and the added plots');
       PANES.length = 0;
       PANES.push({sigs: ['cte'], off: new Set()}, {sigs: ['va', 'vc'], off: new Set()});
       renderPanes();
@@ -96,7 +96,7 @@ function vmMark() {
     b = document.createElement('button');
   b.type = 'button';
   b.id = 'tg-view';
-  b.className = 'ibtn';
+  b.className = 'btn quiet';
   b.setAttribute('aria-expanded', 'false');
   b.setAttribute('aria-controls', 'viewmenu');
   b.title = 'Dock, panel and layout presets';
@@ -108,11 +108,25 @@ function vmMark() {
   m.setAttribute('role', 'dialog');
   m.setAttribute('aria-label', 'View');
   m.innerHTML = `<p class="vm-h">Show</p><div class="vm-tg"></div><p class="vm-h">Layouts</p>${PRESETS.map(([id, name, sub]) => `<button type="button" class="vm-item" data-preset="${id}"><b>${name}<i class="vm-cur">current</i></b><span>${sub}</span></button>`).join('')}<p class="vm-h">Help</p><button type="button" class="vm-item" id="vm-keys"><b>Keyboard shortcuts</b><span>?</span></button>`;
+  // the level switch (ui/workspace.js setLevel): in the app bar beside View, and as a row of View's Show
+  const adv = document.createElement('button');
+  adv.type = 'button';
+  adv.id = 'tg-adv';
+  adv.className = 'btn quiet';
+  adv.setAttribute('aria-pressed', 'false');
+  adv.title = 'Show every setting, tab, plot and the event log. Basic shows the essentials.';
+  adv.textContent = 'Advanced';
+  tools.appendChild(adv);
   tools.appendChild(b);
   document.body.appendChild(m);
   const tg = m.querySelector('.vm-tg');
   tg.appendChild($('#tg-dock'));
   tg.appendChild($('#tg-insp'));
+  const va = adv.cloneNode(true);
+  va.id = 'vm-adv';
+  va.className = 'btn quiet';
+  va.textContent = 'Advanced: every tab, setting and plot';
+  tg.appendChild(va);
   const place = () => {
     const r = b.getBoundingClientRect();
     m.style.top = r.bottom + 6 + 'px';
@@ -203,7 +217,7 @@ function showKeys() {
     d.className = 'srcdlg keysdlg';
     d.setAttribute('aria-label', 'Keyboard shortcuts');
     const groups = [...new Set(KEYS.map(k => k[0]))];
-    d.innerHTML = `<div class="srchead"><b>Keyboard shortcuts</b><span class="lbl">keys work when no text field has focus</span><button class="btn small" id="keys-x" style="margin-left:auto">Close</button></div><div class="keys-body">${groups
+    d.innerHTML = `<div class="srchead"><b>Keyboard shortcuts</b><span class="lbl">keys work when no text field has focus</span><button class="btn" id="keys-x" style="margin-left:auto">Close</button></div><div class="keys-body">${groups
       .map(
         g =>
           `<section><h4>${g}</h4><dl>${KEYS.filter(k => k[0] === g)
@@ -355,11 +369,12 @@ document.addEventListener('keydown', e => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && document.body.classList.contains('sheet-open')) set(false);
   });
-  // the header's Changed, Runs and View are hidden on phones: there they sit in the sheet's head
+  // the header's Changed, Runs, Advanced and View are hidden on phones: there they sit in the sheet's head
   const tools = document.createElement('span');
   tools.className = 'sheet-tools';
   head.insertBefore(tools, $('#sheet-x'));
-  const placeTools = () => ['#tg-chg', '#tg-runs', '#tg-view'].forEach(id => (narrowUI() ? tools : $('#bartools')).appendChild($(id)));
+  const placeTools = () =>
+    ['#tg-chg', '#tg-runs', '#tg-adv', '#tg-view'].forEach(id => (narrowUI() ? tools : $('#bartools')).appendChild($(id)));
   placeTools();
   matchMedia('(max-width:760px)').addEventListener('change', e => {
     if (!e.matches) set(false);

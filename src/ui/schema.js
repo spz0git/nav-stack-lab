@@ -289,6 +289,7 @@ const SCHEMA = {
   ],
   loc: [
     {
+      basic: true,
       k: 'loc',
       type: 'seg',
       label: 'Estimator',
@@ -303,11 +304,13 @@ const SCHEMA = {
       ]
     },
     {
+      basic: true,
       type: 'info',
       text: () => 'Odometry is perfect on this level (noise and bias 0), so dead reckoning matches the truth exactly.',
       show: () => P.loc === 'dr' && !P.odoK && !P.odoB
     },
     {
+      basic: true,
       type: 'btn',
       label: 'Add odometry noise and bias (×1)',
       act: () => {
@@ -318,6 +321,7 @@ const SCHEMA = {
       show: () => P.loc === 'dr' && !P.odoK && !P.odoB
     },
     {
+      basic: true,
       type: 'info',
       text: () =>
         `EKF-SLAM estimates the beacon positions too: ${S && S.slam ? S.slam.n : 0} mapped. The map starts empty; the first reading of each beacon places it.`,
@@ -335,6 +339,7 @@ const SCHEMA = {
       show: () => P.loc === 'ekf' && P.scanMatch
     },
     {
+      basic: true,
       type: 'info',
       text: () => {
         const G = S && S.pg;
@@ -351,6 +356,7 @@ const SCHEMA = {
     {k: 'pgMatch', type: 'bool', label: 'Scan-to-map matching at every keyframe', show: () => P.loc === 'pgslam'},
     {k: 'pgLoop', type: 'bool', label: 'Loop closures (scan-to-scan ICP against earlier keyframes)', show: () => P.loc === 'pgslam'},
     {
+      basic: true,
       type: 'info',
       text: () =>
         SLOTS.loc.worker
@@ -368,7 +374,7 @@ const SCHEMA = {
       ],
       show: () => filt() || P.loc === 'slam'
     },
-    {k: 'npart', label: 'Particles', min: 50, max: 2000, step: 50, show: pf_},
+    {basic: true, k: 'npart', label: 'Particles', min: 50, max: 2000, step: 50, show: pf_},
     {k: 'inject', type: 'bool', label: 'Recovery injection (augmented MCL + sensor resetting)', show: pf_},
     {
       k: 'pfLidar',
@@ -376,27 +382,39 @@ const SCHEMA = {
       label: 'Also weight particles by lidar against the prior map (likelihood field)',
       show: () => pf_() && P.per === 'oracle'
     },
-    {k: 'filtK', label: "Filter's assumed motion noise", min: 0.25, max: 6, step: 0.25, unit: '× true', show: () => P.loc !== 'truth'},
+    {
+      basic: true,
+      k: 'filtK',
+      label: "Filter's assumed motion noise",
+      min: 0.25,
+      max: 6,
+      step: 0.25,
+      unit: '× true',
+      show: () => P.loc !== 'truth'
+    },
     {
       k: 'gnssAug',
       type: 'bool',
       label: 'Estimate the GNSS bias in the EKF (two more states, a random walk)',
       show: () => P.gnss && P.loc === 'ekf'
     },
-    {type: 'btn', label: 'Scatter particles', act: () => scatterParticles(), show: pf_},
+    {basic: true, type: 'btn', label: 'Scatter particles', act: () => scatterParticles(), show: pf_},
     {
+      basic: true,
       type: 'info',
       text: () =>
         'Dead reckoning never uses the beacons: it integrates odometry only, so its error and ellipse only grow. Switch to EKF or the particle filter to see beacons pull the estimate back.',
       show: () => P.loc === 'dr'
     },
     {
+      basic: true,
       type: 'info',
       text: () =>
         'Ground truth: the estimate is the true pose, so the beacons and their on/off state change nothing here (L1, L2 and L6 start this way). Pick EKF or Particle filter to see what the beacons are worth.',
       show: () => P.loc === 'truth'
     },
     {
+      basic: true,
       type: 'btn',
       label: 'Use the EKF (beacons only)',
       act: () => {
@@ -413,6 +431,7 @@ const SCHEMA = {
   ],
   per: [
     {
+      basic: true,
       k: 'per',
       type: 'seg',
       label: 'Map source',
@@ -437,8 +456,9 @@ const SCHEMA = {
         "Lethal: the planners plan only through cells the lidar has already seen free (and 0.4 m clear of unseen ones). At the start that is what one scan covers, at most the lidar's 8 m and nothing behind a wall. A goal farther away or in an unseen room is approached through what has been seen: the robot heads for the edge of the seen floor nearest the goal, replans every second as the map grows, and plans to the goal itself once it is on seen floor (the event log says when). Mission → Explore maps the whole floor the same way, with no goals given. With Free the planner goes optimistically and replans as walls appear.",
       show: () => P.per === 'mapping' && P.unknownAs === 'lethal'
     },
-    {k: 'infl', label: 'Inflation band beyond lethal', min: 0, max: 1.5, step: 0.05, unit: 'm'},
+    {basic: true, k: 'infl', label: 'Inflation band beyond lethal', min: 0, max: 1.5, step: 0.05, unit: 'm'},
     {
+      basic: true,
       type: 'btn',
       label: 'Clear built map',
       act: () => {
@@ -451,6 +471,7 @@ const SCHEMA = {
       show: () => P.per === 'mapping'
     },
     {
+      basic: true,
       k: 'agents',
       type: 'seg',
       label: 'Agent tracking',
@@ -462,6 +483,7 @@ const SCHEMA = {
       ]
     },
     {
+      basic: true,
       type: 'info',
       text: () => {
         const ids = LEVELS.filter(l => l.peds.length).map(l => l.id);
@@ -470,6 +492,7 @@ const SCHEMA = {
       show: () => !agOn()
     },
     {
+      basic: true,
       type: 'info',
       text: () => {
         const M = nnModel('detector');
@@ -642,6 +665,7 @@ const SCHEMA = {
   ],
   plan: [
     {
+      basic: true,
       k: 'plan',
       type: 'seg',
       label: 'Global planner',
@@ -661,6 +685,7 @@ const SCHEMA = {
       ]
     },
     {
+      basic: true,
       type: 'info',
       text: () => {
         const M = nnModel('policy');
@@ -693,6 +718,7 @@ const SCHEMA = {
       show: () => P.plan === 'policy'
     },
     {
+      basic: true,
       type: 'info',
       text: () => {
         const D = S && S.dstar;
@@ -703,18 +729,21 @@ const SCHEMA = {
       show: () => P.plan === 'dstar'
     },
     {
+      basic: true,
       type: 'btn',
       label: 'Step through the last search',
       act: () => searchPlayStart(true),
       show: () => !!(S && S.searchTrace && S.searchTrace.n)
     },
     {
+      basic: true,
       type: 'info',
       text: () =>
         "Space-time A* plans (x, y, t) on a 0.2 m grid against the agents' predicted positions over the prediction horizon, and waits when that is cheaper than a detour. It needs agent tracking (Perceive).",
       show: () => P.plan === 'stastar'
     },
     {
+      basic: true,
       type: 'info',
       text: () =>
         SLOTS.plan.worker
@@ -723,11 +752,12 @@ const SCHEMA = {
       show: () => P.plan === 'custom'
     },
     {
+      basic: true,
       type: 'info',
       text: () => "A* and RRT* plan for a point with clearance. They ignore the car's heading, body and turning radius.",
       show: () => isCar() && (P.plan === 'astar' || P.plan === 'rrtstar')
     },
-    {type: 'info', text: () => 'Reeds–Shepp ignores obstacles entirely.', show: () => P.plan === 'rs'},
+    {basic: true, type: 'info', text: () => 'Reeds–Shepp ignores obstacles entirely.', show: () => P.plan === 'rs'},
     {
       k: 'planPct',
       label: 'Steering used by the planner',
@@ -742,7 +772,7 @@ const SCHEMA = {
       text: () => `Planning radius ${planR().toFixed(2)} m (vehicle minimum ${minTurnR().toFixed(2)} m)`,
       show: () => isCar() && (P.plan === 'hybrid' || P.plan === 'rs')
     },
-    {k: 'eps', label: 'Heuristic weight ε', min: 1, max: 5, step: 0.25, show: () => P.plan === 'astar' || P.plan === 'hybrid'},
+    {basic: true, k: 'eps', label: 'Heuristic weight ε', min: 1, max: 5, step: 0.25, show: () => P.plan === 'astar' || P.plan === 'hybrid'},
     {
       k: 'hybH',
       type: 'seg',
@@ -760,6 +790,7 @@ const SCHEMA = {
     {k: 'smooth', type: 'bool', label: 'Line-of-sight shortcut smoothing', show: () => P.plan === 'astar' || P.plan === 'rrtstar'},
     {k: 'agPlan', type: 'bool', label: 'When the speed planner reports an agent blocking the path, replan around its predicted positions'},
     {
+      basic: true,
       type: 'btn',
       label: 'Replan now',
       act: () => {
@@ -773,6 +804,16 @@ const SCHEMA = {
   ],
   ctl: [
     {
+      basic: true,
+      type: 'btn',
+      id: 'an-open',
+      label: 'Analyze this loop →',
+      tip: 'Linearize the steering loop for this controller and vehicle: how fast it comes back to the path, overshoot, how much delay it tolerates',
+      act: () => setMode('an'),
+      show: () => AN.mode === 'sim'
+    },
+    {
+      basic: true,
       k: 'ctl',
       type: 'seg',
       label: 'Path tracker',
@@ -787,6 +828,7 @@ const SCHEMA = {
       ]
     },
     {
+      basic: true,
       type: 'info',
       text: () =>
         SLOTS.ctl.worker
@@ -795,6 +837,7 @@ const SCHEMA = {
       show: () => P.ctl === 'custom'
     },
     {
+      basic: true,
       k: 'vcruise',
       label: 'Cruise speed (reference profile)',
       min: 0.2,
@@ -863,7 +906,16 @@ const SCHEMA = {
         `Every radar scan (10 Hz), the echoes the tracker would take, moving or not on the map, that lie ahead within half the body's width and 0.2 m of the arc the robot is turning on: the gap over the closing speed is the time to contact, and under ${P.radTTC.toFixed(1)} s the robot stops and holds for 0.5 s, renewed while the echo stays. One scan is enough: no track, no prediction, so it works in fog; and it stops for a ghost or clutter as readily as for a person. After every controller, your code's too.${radarOn() ? '' : ' <b>The radar is off</b>: the brake has nothing to read. <button type="button" class="linkbtn" data-gotab="sen">Sensors tab</button>'}`,
       show: () => P.radBrake
     },
-    {k: 'ppL0', label: 'Lookahead L<sub>0</sub>', min: 0.1, max: 2.5, step: 0.05, unit: 'm', show: () => P.ctl === 'pp' || P.ctl === 'pid'},
+    {
+      basic: true,
+      k: 'ppL0',
+      label: 'Lookahead L<sub>0</sub>',
+      min: 0.1,
+      max: 2.5,
+      step: 0.05,
+      unit: 'm',
+      show: () => P.ctl === 'pp' || P.ctl === 'pid'
+    },
     {
       k: 'ppK',
       label: 'Lookahead gain k (L = L<sub>0</sub> + k·v)',
@@ -883,10 +935,10 @@ const SCHEMA = {
       show: () => P.ctl === 'pp' || P.ctl === 'stanley' || P.ctl === 'rwf' || P.ctl === 'mpc'
     },
     {k: 'rwKth', label: 'Heading gain k_θ', min: 0, max: 6, step: 0.1, unit: '1/m', show: () => P.ctl === 'rwf'},
-    {k: 'rwKe', label: 'Lateral gain k_e', min: 0, max: 12, step: 0.1, unit: '1/m²', show: () => P.ctl === 'rwf'},
-    {k: 'stanK', label: 'Stanley gain k', min: 0.1, max: 8, step: 0.1, show: () => P.ctl === 'stanley'},
-    {type: 'info', text: () => 'Reverse legs use pure pursuit.', show: () => P.ctl === 'stanley'},
-    {k: 'kp', label: 'Kp', min: 0, max: 8, step: 0.1, show: () => P.ctl === 'pid'},
+    {basic: true, k: 'rwKe', label: 'Lateral gain k_e', min: 0, max: 12, step: 0.1, unit: '1/m²', show: () => P.ctl === 'rwf'},
+    {basic: true, k: 'stanK', label: 'Stanley gain k', min: 0.1, max: 8, step: 0.1, show: () => P.ctl === 'stanley'},
+    {basic: true, type: 'info', text: () => 'Reverse legs use pure pursuit.', show: () => P.ctl === 'stanley'},
+    {basic: true, k: 'kp', label: 'Kp', min: 0, max: 8, step: 0.1, show: () => P.ctl === 'pid'},
     {k: 'ki', label: 'Ki', min: 0, max: 3, step: 0.05, show: () => P.ctl === 'pid'},
     {k: 'kd', label: 'Kd', min: 0, max: 1, step: 0.01, show: () => P.ctl === 'pid'},
     {k: 'dwaG', label: 'Goal weight', min: 0, max: 3, step: 0.05, show: () => P.ctl === 'dwa'},
@@ -1035,8 +1087,8 @@ const SCHEMA = {
     {k: 'accel', type: 'bool', label: 'Acceleration limits'},
     {k: 'amax', label: 'Linear accel', min: 0.1, max: 3, step: 0.05, unit: 'm/s²', show: () => P.accel},
     {k: 'alpha', label: 'Angular accel', min: 0.2, max: 8, step: 0.1, unit: 'rad/s²', show: () => P.accel && !isCar()},
-    {k: 'lag', label: 'Actuator lag τ', min: 0, max: 0.6, step: 0.01, unit: 's'},
-    {k: 'latency', label: 'Control latency (whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
+    {basic: true, k: 'lag', label: 'Actuator lag τ', min: 0, max: 0.6, step: 0.01, unit: 's'},
+    {basic: true, k: 'latency', label: 'Control latency (whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
     {
       k: 'people',
       type: 'seg',

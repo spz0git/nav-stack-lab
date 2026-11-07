@@ -69,7 +69,7 @@ function progressHTML() {
     done = groups.reduce((a, g) => a + g.done, 0),
     part = groups.reduce((a, g) => a + g.part, 0);
   const path = LEARN_PATH.filter(([id]) => lessonState(id).st === 'done').length;
-  const key = `<p class="note pkey"><span><i class="ldot" data-st="none" aria-hidden="true"></i>not started</span><span><i class="ldot" data-st="part" aria-hidden="true"></i>started</span><span><i class="ldot" data-st="done" aria-hidden="true"></i>done</span> A lesson's circle fills once you have pressed each of its experiment buttons and passed its Check yourself.${done || part ? ' <button type="button" class="linkbtn" id="learn-reset" title="Clear every lesson\'s progress, predictions and self-checks in this browser">Reset all progress</button>' : ''}</p>`;
+  const key = `<p class="note pkey"><span><i class="ldot" data-st="none" aria-hidden="true"></i>not started</span><span><i class="ldot" data-st="part" aria-hidden="true"></i>started</span><span><i class="ldot" data-st="done" aria-hidden="true"></i>done</span> A lesson's circle fills once you have pressed each of its experiment buttons and passed its Check yourself.${done || part ? ' <button type="button" class="btn small" id="learn-reset" title="Clear every lesson\'s progress, predictions and self-checks in this browser">Reset all progress</button>' : ''}</p>`;
   if (!done && !part) return `<div class="progress" role="group" aria-label="Your progress">${key}</div>`;
   return (
     `<div class="progress" role="group" aria-label="Your progress"><p class="note">${done} of ${n} lessons done${part ? `, ${part} started` : ''} · first pass ${path} of ${LEARN_PATH.length}</p>${key}<div class="pbars">` +
@@ -151,7 +151,7 @@ function startHereHTML() {
 <p><b>How the pieces fit.</b> A <b>lesson</b> is a short read with experiments: each button sets the lab up and runs it, and the numbers in the text were measured in this simulator. A <b>chapter</b> (the companion notes at the end of this list) derives the formulas a lesson uses; the <i>Derivation</i> links go there and Back returns. The <b>levels</b> L1 to L7 are the floors the robot drives on; each has quick one-click experiments in its own panel under Simulate. The <b>Symbols</b> tab under Reference lists every symbol with its meaning; dotted terms in a lesson show their definition on hover or tap.</p>
 <p><b>A first pass, about ${mins} minutes with the experiments.</b> ${NUM_WORDS[LEARN_PATH.length] || LEARN_PATH.length} lessons that visit every part of the stack once, one idea each. The math behind each one is folded away under <i>Show the math</i>; open it when you want the derivation.</p>
 <ol class="path">${steps}</ol>
-<button class="btn small primary" type="button" id="path-start">${pathNextLabel()}</button>
+<button class="btn primary" type="button" id="path-start">${pathNextLabel()}</button>
 <p><b>After the first pass.</b> The groups below Foundations are written at graduate level: they use linear algebra, probability and differential equations, and the control group also assumes transfer functions and Bode plots (chapter 6 builds them). Lessons marked <i>advanced</i> assume the ones before them in their group. The chapters at the end of the list derive every formula the lessons use; the <i>Derivation</i> links in the lessons go there.</p></div></details>`;
 }
 // the first lesson of the pass not yet done

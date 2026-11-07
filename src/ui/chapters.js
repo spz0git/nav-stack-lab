@@ -313,7 +313,7 @@ function renderChapter() {
     c = chapterById(chapterOpen);
   v.classList.add('reading', 'chapter');
   v.innerHTML =
-    `<div class="learn-head"><button class="btn small" id="learn-back" type="button" title="${chapterFrom ? 'Back to the lesson you came from' : 'Back to the list'}">${chapterFrom ? '← Back to the lesson' : '← Lessons and notes'}</button><span class="lbl" data-sys="${c.sys}">Chapter ${c.num}</span><button class="linkbtn" id="learn-link" type="button" title="A link that opens this chapter">Copy link</button><span class="lbl" id="learn-msg"></span></div>` +
+    `<div class="learn-head"><button class="btn small" id="learn-back" type="button" title="${chapterFrom ? 'Back to the lesson you came from' : 'Back to the list'}">${chapterFrom ? '← Back to the lesson' : '← Lessons and notes'}</button><span class="lbl" data-sys="${c.sys}">Chapter ${c.num}</span><button class="btn small" id="learn-link" type="button" title="A link that opens this chapter">Copy link</button><span class="lbl" id="learn-msg"></span></div>` +
     `<article class="chapter"><h2>${c.title}</h2><nav class="chapter-toc">${c.toc.map(t => `<a href="#n-${t.id}" data-to="n-${t.id}">${t.text}</a>`).join('')}</nav>${c.html}</article>`;
   v.querySelectorAll('.chapter-toc a').forEach(
     a =>

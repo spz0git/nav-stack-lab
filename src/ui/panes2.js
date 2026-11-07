@@ -97,13 +97,13 @@ function layersPane() {
     ['ghostrun', 'Previous run on this level: ghost trail on the map and ghost series in the plot']
   ];
   return (
-    `<p class="note">What to draw on the map. Nothing here changes the simulation. ${layersEdited ? `You have edited the layers, so tabs no longer change them. <button class="linkbtn" id="layers-auto" type="button">Let each tab choose again</button>` : 'Each pipeline tab (1–5) shows its own set; ticking a box here keeps your choice for this session.'}</p>` +
+    `<p class="note">What to draw on the map. Nothing here changes the simulation. ${layersEdited ? `You have edited the layers, so tabs no longer change them. <button class="btn small" id="layers-auto" type="button">Let each tab choose again</button>` : 'Each pipeline tab (1–5) shows its own set; ticking a box here keeps your choice for this session.'}</p>` +
     L.map(
       ([k, l]) =>
         `<label class="check"><input type="checkbox" id="layer-${k}" data-layer="${k}" ${LAYERS[k] ? 'checked' : ''}><span>${l}</span></label>`
     ).join('') +
     (GHOST && GHOST.level === LV.id
-      ? `<p class="note">Ghost: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button class="linkbtn" id="ghost-clear" type="button">Forget it</button></p>`
+      ? `<p class="note">Ghost: ${esc(GHOST.label)} (${GHOST.t.toFixed(0)} s). <button class="btn small" id="ghost-clear" type="button">Forget it</button></p>`
       : '')
   );
 }
@@ -123,7 +123,7 @@ function codePane() {
   <p class="note">${blurb} It runs in a sandboxed Web Worker in lockstep with the simulation, with a ${D.timeout} ms budget per call: no access to the page or its state beyond what it is given, and no network except what the page's own origin would allow a worker.</p>
   <details class="codehow" id="codehow"${howOpen.code ? ' open' : ''}><summary>How this fits in</summary>${codeHowHTML(codeSlot)}</details>
   <div class="codewrap"><pre class="codehl" id="codehl" aria-hidden="true"></pre><textarea id="code" spellcheck="false" aria-label="${D.name} code">${esc(sl.code)}</textarea></div>
-  <div class="controls codebar"><button class="btn primary" id="loadcode">Load and use</button><label class="lbl codeexl">Example <select class="sel" id="codeex" aria-label="Slot example">${(SLOT_LIBRARY[codeSlot] || []).map(e => `<option value="${e.id}"${e.code === sl.code ? ' selected' : ''}>${esc(e.name)}</option>`).join('')}<option value=""${(SLOT_LIBRARY[codeSlot] || []).some(e => e.code === sl.code) ? '' : ' selected'}>edited</option></select></label><button class="btn" id="viewsrc" data-src="${codeSlot}">Built-in source</button><span class="lbl" id="codeinfo"></span></div>
+  <div class="controls codebar"><button class="btn" id="loadcode">Load and use</button><label class="lbl codeexl">Example <select class="sel" id="codeex" aria-label="Slot example">${(SLOT_LIBRARY[codeSlot] || []).map(e => `<option value="${e.id}"${e.code === sl.code ? ' selected' : ''}>${esc(e.name)}</option>`).join('')}<option value=""${(SLOT_LIBRARY[codeSlot] || []).some(e => e.code === sl.code) ? '' : ' selected'}>edited</option></select></label><button class="btn" id="viewsrc" data-src="${codeSlot}">Built-in source</button><span class="lbl" id="codeinfo"></span></div>
   <p class="codestat ${sl.status.cls}" id="codestat">${esc(sl.status.msg)}</p>`;
 }
 // A small highlighter for the editor: comments, strings, numbers, keywords, and the obs/out property names the

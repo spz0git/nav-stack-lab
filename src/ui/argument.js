@@ -150,13 +150,13 @@ function argPaneHTML() {
         : [];
   return `<h4 class="saf-h">Safety argument</h4>
   <p class="note">Claims, how they are broken down, and the evidence for each, in Goal Structuring Notation. Check the evidence to rerun every solution's runs; a failed solution turns its claims red all the way up. Type changes below to rerun the whole argument with them: one changed setting shows which claims it breaks.</p>
-  <div class="exprow"><label>Argument <select id="arg-pick">${opts}</select></label><button class="linkbtn" id="arg-copy">Copy as a new argument</button></div>
+  <div class="exprow"><label>Argument <select id="arg-pick">${opts}</select></label><button class="btn small" id="arg-copy">Copy as a new argument</button></div>
   <div class="arg-wrap">${argSVG()}</div>
   <div class="controls"><button class="btn small" id="arg-wide">Open the graph full width</button><span class="lbl">Scroll sideways here, or open it over the page; pick a node to edit it.</span></div>
   <p class="note">${top === 'pass' ? '<b>The top claim is supported</b> by the evidence as it stands.' : top === 'fail' ? '<b class="bad">The top claim is not supported</b>: follow the red nodes down to the evidence that failed.' : 'Not checked yet.'}${ARG.msg ? ' ' + esc(ARG.msg) : ''}</p>
   <div id="arg-why">${argWhyHTML()}</div>
   <div class="exprow"><label class="arg-set">Changes for every run <input type="text" id="arg-set" spellcheck="false" value="${esc(JSON.stringify(ARG.set))}" aria-label="Settings added to every run, as JSON"></label></div>
-  <div class="controls"><button class="btn primary" id="arg-run" ${ARG.running || SAF.running ? 'disabled' : ''}>Check the evidence</button><button class="btn" id="arg-cancel" ${ARG.running ? '' : 'hidden'}>Cancel</button><span class="lbl" id="arg-prog">${ARG.running ? `${ARG.done}/${ARG.total} runs` : ''}</span></div>
+  <div class="controls"><button class="btn" id="arg-run" ${ARG.running || SAF.running ? 'disabled' : ''}>Check the evidence</button><button class="btn" id="arg-cancel" ${ARG.running ? '' : 'hidden'}>Cancel</button><span class="lbl" id="arg-prog">${ARG.running ? `${ARG.done}/${ARG.total} runs` : ''}</span></div>
   <details class="how" open><summary>${esc(n.id)}: edit this node</summary><div class="how-body">
     <div class="exprow"><label>Type <select id="arg-type">${typeOpts(n.type, n.parent ? ARG_TYPES : ['goal'])}</select></label></div>
     <textarea id="arg-text" rows="2" aria-label="The node's text">${esc(n.text)}</textarea>

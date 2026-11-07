@@ -103,7 +103,7 @@ function wnHTML() {
   const rel = c =>
     `<details class="wn-rel"${isNew(c) ? ' open' : ''}><summary><b>v${c.v}</b> <span class="lbl">${c.date}</span>${isNew(c) ? ' <span class="wn-new">new</span>' : ''}</summary><div class="wn-txt">${c.html}</div></details>`;
   return (
-    `<div class="wn-head"><b>What's new in v${now.v}</b><span class="lbl">${now.date}</span><button type="button" class="ibtn wn-x" aria-label="Close">×</button></div>` +
+    `<div class="wn-head"><b>What's new in v${now.v}</b><span class="lbl">${now.date}</span><button type="button" class="ibtn sm wn-x" aria-label="Close">×</button></div>` +
     (since ? `<p class="wn-note">${since}</p>` : '') +
     `<div class="wn-txt">${now.html}</div>` +
     (before.length ? `<h4 class="wn-h">Earlier versions</h4>${before.map(rel).join('')}` : '') +

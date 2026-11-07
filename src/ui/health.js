@@ -103,7 +103,7 @@ function renderHealthPop(H) {
       .slice(-5)
       .reverse();
   const html =
-    `<div class="hp-head" data-sys="${k}"><i class="hl-dot ${H[k][0]}"></i><b>${name}</b><span>${esc(H[k][1])}</span><button type="button" class="ibtn hp-x" title="Close (Esc)">×</button></div>` +
+    `<div class="hp-head" data-sys="${k}"><i class="hl-dot ${H[k][0]}"></i><b>${name}</b><span>${esc(H[k][1])}</span><button type="button" class="ibtn sm hp-x" title="Close (Esc)">×</button></div>` +
     `<ul class="hp-list">${H.all[k].map(c => `<li class="${c.on ? c.lvl : 'off'}"><i class="hl-dot ${c.on ? c.lvl : 'off'}"></i><b>${esc(c.name)}</b><span>${c.on ? esc(c.msg) : 'ok'}</span></li>`).join('')}</ul>` +
     (ev.length
       ? `<p class="hp-h">Recent</p><ul class="hp-ev">${ev.map(e => `<li data-t="${e.t}" title="Show this moment"><span>${e.t.toFixed(1)}s</span>${esc(e.msg.replace(/^[^:]+: /, ''))}</li>`).join('')}</ul>`

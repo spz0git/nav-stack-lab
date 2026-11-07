@@ -4,6 +4,14 @@ The version label in the page header (`v54 · 2026-10-20`) is the number used he
 The page shows this file under the label (What's new): keep each entry readable by someone who uses the page.
 Design notes per feature are in [docs/roadmap.md](docs/roadmap.md).
 
+## v85 · 2026-11-07
+
+- An open lesson's header is tidier: All lessons, the group and Copy link on one line, Previous and Next on the line
+  below, Previous on the left and Next on the right. On a wide screen it all fits on one line; on a phone the buttons
+  read "← Previous" and "Next →".
+- In the lesson list each lesson's minutes line up in a column at the right, and the "advanced" tag sits right after
+  the title. When a title wraps onto two lines, the progress circle stays beside the lesson's number.
+
 ## v84 · 2026-11-07
 
 - The page now opens in **Basic**: the map, the four parts of the robot (Localize, Perceive, Plan, Control) with their

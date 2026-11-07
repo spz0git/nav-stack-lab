@@ -1544,6 +1544,49 @@ dialog:focus-visible {
 .learn-head .linkbtn {
   align-self: center;
 }
+/* An open lesson's head: one row when the column is wide (back, label, Previous, Next, Copy link at the right end);
+   when narrow, two: back, label and Copy link, then Previous at the left and Next at the right. The DOM (and so the
+   keyboard) order stays back, Previous, Next, Copy link. The rows follow the column's width, not the window's. */
+.lesson-head {
+  container-type: inline-size;
+  display: block;
+}
+.lhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+.lhead .lnav {
+  display: flex;
+  align-items: center;
+  gap: 6px 14px;
+  min-width: 0;
+}
+.lhead #learn-next {
+  margin-left: auto;
+}
+.lhead #learn-link {
+  margin-left: auto;
+}
+.lhead #learn-msg {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lhead #learn-msg:empty {
+  display: none;
+}
+@container (max-width: 639px) {
+  .lhead .lnav {
+    order: 1;
+    flex: 1 1 100%;
+  }
+}
+@container (max-width: 439px) {
+  .lhead .lp-long {
+    display: none;
+  }
+}
 .learncol .lesson summary {
   list-style: none;
 }
@@ -1552,7 +1595,7 @@ dialog:focus-visible {
 }
 .learncol .lesson summary::after {
   content: '›';
-  margin-left: auto;
+  flex: 0 0 auto;
   color: var(--muted);
   font-family: var(--f-mono);
 }
@@ -2906,20 +2949,29 @@ details.see > p {
   padding: 0 5px;
   margin-left: 6px;
   white-space: nowrap;
-  align-self: center;
+  vertical-align: 0.1em;
 }
 .lesson {
   border-top: 1px solid var(--line);
   padding: 8px 0 4px;
 }
+/* the minutes: right-aligned at the row's end (before the chevron), one width in every row so they form a column */
 .lesson .lmin {
+  flex: 0 0 auto;
   margin-left: auto;
+  min-width: calc(6ch + 8px);
+  text-align: right;
   font-family: var(--f-mono);
   font-size: var(--fs-label);
   font-weight: 400;
   color: var(--muted);
   white-space: nowrap;
   padding-left: 8px;
+}
+/* the title takes the row's free space; the advanced tag follows its last word */
+.lesson .ltitle {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .learncol.reading .lesson .lmin {
   display: none;
@@ -2933,6 +2985,10 @@ details.see > p {
   margin-right: 7px;
   align-self: center;
   background: transparent;
+}
+/* in a row, the dot sits on the first line's baseline (beside the number), also when the title wraps */
+.lesson summary .ldot {
+  align-self: baseline;
 }
 .lesson .ldot[data-st='part'] {
   background: linear-gradient(90deg, var(--sys, var(--muted)) 50%, transparent 50%);

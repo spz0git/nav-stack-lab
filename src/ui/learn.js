@@ -378,11 +378,10 @@ function renderLearn() {
   v.classList.toggle('reading', !!cur);
   $('.layout').classList.toggle('lesson-open', !!cur); // the dock shows the log and every metric while a lesson is open
   v.innerHTML =
-    `<div class="learn-head">${
-      cur
-        ? `<button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i + 1} of ${cur.G.items.length}</span>${prevId ? `<button class="linkbtn" id="learn-prev" type="button" title="${onPath(lessonOpen) && onPath(prevId) ? 'The previous lesson of the first pass' : 'The previous lesson in the list'}">${onPath(lessonOpen) && onPath(prevId) ? '← Previous in the first pass' : '← Previous lesson'}</button>` : ''}${nextId ? `<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen) && onPath(nextId) ? 'The next lesson of the first pass' : 'The next lesson in the list'}">${onPath(lessonOpen) && onPath(nextId) ? 'Next in the first pass →' : 'Next lesson →'}</button>` : ''}<button class="btn small" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span>`
-        : `<h2>Lessons</h2>`
-    }</div>` +
+    (cur
+      ? // two rows when narrow (back, label, Copy link; then Previous and Next), one when wide: see .lhead in styles.css
+        `<div class="learn-head lesson-head"><div class="lhead"><button class="btn small" id="learn-back" type="button" title="Back to the list; your map layers come back">← All lessons</button><span class="lbl" data-sys="${cur.G.id}">${cur.G.title} · ${cur.i + 1} of ${cur.G.items.length}</span><span class="lnav">${prevId ? `<button class="linkbtn" id="learn-prev" type="button" title="${onPath(lessonOpen) && onPath(prevId) ? 'The previous lesson of the first pass' : 'The previous lesson in the list'}">${onPath(lessonOpen) && onPath(prevId) ? '← Previous<span class="lp-long"> in the first pass</span>' : '← Previous lesson'}</button>` : ''}${nextId ? `<button class="linkbtn" id="learn-next" type="button" title="${onPath(lessonOpen) && onPath(nextId) ? 'The next lesson of the first pass' : 'The next lesson in the list'}">${onPath(lessonOpen) && onPath(nextId) ? 'Next<span class="lp-long"> in the first pass</span> →' : 'Next lesson →'}</button>` : ''}</span><button class="btn small" id="learn-link" type="button" title="A link that opens this lesson">Copy link</button><span class="lbl" id="learn-msg"></span></div></div>`
+      : `<div class="learn-head"><h2>Lessons</h2></div>`) +
     (cur ? '' : startHereHTML() + progressHTML()) +
     LESSON_GROUPS()
       .map(
@@ -391,7 +390,7 @@ function renderLearn() {
           G.items
             .map((L, i) => {
               const id = `${G.id}:${i}`;
-              return `<details class="lesson" data-l="${id}" ${lessonOpen === id ? 'open' : ''}><summary title="${lessonStateText(id)}"><span class="lnum">${i + 1}</span><i class="ldot" data-st="${lessonState(id).st}" aria-hidden="true"></i>${L.t}<span class="sr-only">, ${lessonState(id).st === 'none' ? 'not started' : lessonState(id).st === 'done' ? 'done' : 'started'}</span>${L.level === 3 ? '<span class="llevel" title="Advanced: assumes the lessons before it in this group">advanced</span>' : ''}<span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonOpen === id ? `<div class="lprog" role="status">${lessonProgHTML(id)}</div>` : ''}${lessonBodyHTML(L, id)}</div></details>`;
+              return `<details class="lesson" data-l="${id}" ${lessonOpen === id ? 'open' : ''}><summary title="${lessonStateText(id)}"><span class="lnum">${i + 1}</span><i class="ldot" data-st="${lessonState(id).st}" aria-hidden="true"></i><span class="ltitle">${L.t}<span class="sr-only">, ${lessonState(id).st === 'none' ? 'not started' : lessonState(id).st === 'done' ? 'done' : 'started'}</span>${L.level === 3 ? '<span class="llevel" title="Advanced: assumes the lessons before it in this group">advanced</span>' : ''}</span><span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonOpen === id ? `<div class="lprog" role="status">${lessonProgHTML(id)}</div>` : ''}${lessonBodyHTML(L, id)}</div></details>`;
             })
             .join('') +
           `</section>`

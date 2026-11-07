@@ -216,7 +216,7 @@ function drawPane(P1, c, pi) {
 }
 function paneHTML(P1, i) {
   return `<div class="ppane" data-p="${i}"><div class="pp-head">${P1.sigs.map((id, k) => `<span class="pp-chip${P1.off.has(id) ? ' off' : ''}" data-sig="${id}" style="--c:var(--${PANE_COLORS[k % PANE_COLORS.length]})"><button type="button" class="pp-tg" aria-pressed="${!P1.off.has(id)}" title="${esc(SIG[id].name)}: show or hide"><i></i>${esc(SIG[id].name)} <output></output></button><button type="button" class="pp-x" aria-label="Remove ${esc(SIG[id].name)}" title="Remove">×</button></span>`).join('')}
-    <button type="button" class="ibtn pp-add" data-add="${i}" aria-haspopup="dialog">+ Signal</button><button type="button" class="ibtn pp-close" data-close="${i}" aria-label="Remove this plot" title="Remove this plot">×</button></div><canvas aria-label="Plot ${i + 2}"></canvas></div>`;
+    <button type="button" class="btn small pp-add" data-add="${i}" aria-haspopup="dialog">+ Signal</button><button type="button" class="ibtn sm pp-close" data-close="${i}" aria-label="Remove this plot" title="Remove this plot">×</button></div><canvas aria-label="Plot ${i + 2}"></canvas></div>`;
 }
 function renderPanes() {
   if (PANES.length) setLevel('advanced', 'the added plots'); // Basic has one plot
@@ -415,13 +415,13 @@ wirePlotCanvas(pv);
 {
   const tl = document.createElement('div');
   tl.className = 'tele-tools';
-  tl.innerHTML = `<button type="button" class="ibtn" id="pl-add" title="Add a plot of any recorded signals (up to 3)">+ Plot</button><button type="button" class="ibtn" id="pl-all" aria-pressed="false" title="Show the whole recorded run in every plot">Whole run</button><button type="button" class="ibtn" id="pl-csv" title="Save every signal of this run as CSV (10 Hz)">CSV</button><button type="button" class="ibtn" id="pl-png" title="Save the plots as a PNG image">PNG</button>`;
+  tl.innerHTML = `<button type="button" class="btn quiet" id="pl-add" title="Add a plot of any recorded signals (up to 3)">+ Plot</button><button type="button" class="btn quiet" id="pl-all" aria-pressed="false" title="Show the whole recorded run in every plot">Whole run</button><button type="button" class="btn quiet" id="pl-csv" title="Save every signal of this run as CSV (10 Hz)">CSV</button><button type="button" class="btn quiet" id="pl-png" title="Save the plots as a PNG image">PNG</button>`;
   tl.hidden = true;
   tl.setAttribute('role', 'menu');
   tl.querySelectorAll('button').forEach(b => b.setAttribute('role', 'menuitem'));
   const more = document.createElement('button');
   more.type = 'button';
-  more.className = 'ibtn tele-more';
+  more.className = 'ibtn sm tele-more';
   more.id = 'pl-more';
   more.title = 'More: add a plot, show the whole run, save CSV or PNG';
   more.setAttribute('aria-label', 'More telemetry actions');

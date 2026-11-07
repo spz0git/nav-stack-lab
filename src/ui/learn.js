@@ -205,8 +205,7 @@ function lessonProgRefresh(id) {
 // [label, cfg, {setup, see, shows}]; explained tries render as numbered cards. L.q = [[question, answer], …].
 function lessonBodyHTML(L, id) {
   const explained = L.tries.some(t => t[2]),
-    btn = j =>
-      `<button class="btn small${(LEARN.tried[id] || []).includes(j) ? ' tried' : ''}" data-try="${id}:${j}">\u0002${j}\u0002</button>`; // labels are restored after marking
+    btn = j => `<button class="btn${(LEARN.tried[id] || []).includes(j) ? ' tried' : ''}" data-try="${id}:${j}">\u0002${j}\u0002</button>`; // labels are restored after marking
   // Predict first: an experiment with a `predict` question hides "What you will see" until the learner has picked an
   // answer (or opens it); the pick is remembered in this browser. Without a question the text shows as before.
   const tries = explained
@@ -238,7 +237,7 @@ function lessonBodyHTML(L, id) {
   const c = L.check,
     done = c && LEARN.check[id];
   const check = c
-    ? `<h4 class="exph">Check yourself</h4><div class="selfcheck" data-ck="${id}"><p>${c.q}</p><div class="sc-row"><input type="text" inputmode="decimal" autocomplete="off" aria-label="Your answer"${done ? ` value="${c.a}"` : ''}>${c.unit ? `<span class="unit">${c.unit}</span>` : ''}<button type="button" class="btn small sc-go">Check</button></div><p class="sc-res${done ? ' ok' : ''}">${done ? `Right. ${c.how}` : ''}</p></div>`
+    ? `<h4 class="exph">Check yourself</h4><div class="selfcheck" data-ck="${id}"><p>${c.q}</p><div class="sc-row"><input type="text" inputmode="decimal" autocomplete="off" aria-label="Your answer"${done ? ` value="${c.a}"` : ''}>${c.unit ? `<span class="unit">${c.unit}</span>` : ''}<button type="button" class="btn sc-go">Check</button></div><p class="sc-res${done ? ' ok' : ''}">${done ? `Right. ${c.how}` : ''}</p></div>`
     : '';
   const q =
     L.q && L.q.length

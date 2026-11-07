@@ -96,7 +96,7 @@ function vmMark() {
     b = document.createElement('button');
   b.type = 'button';
   b.id = 'tg-view';
-  b.className = 'ibtn';
+  b.className = 'btn quiet';
   b.setAttribute('aria-expanded', 'false');
   b.setAttribute('aria-controls', 'viewmenu');
   b.title = 'Dock, panel and layout presets';
@@ -112,7 +112,7 @@ function vmMark() {
   const adv = document.createElement('button');
   adv.type = 'button';
   adv.id = 'tg-adv';
-  adv.className = 'ibtn';
+  adv.className = 'btn quiet';
   adv.setAttribute('aria-pressed', 'false');
   adv.title = 'Show every setting, tab, plot and the event log. Basic shows the essentials.';
   adv.textContent = 'Advanced';
@@ -124,6 +124,7 @@ function vmMark() {
   tg.appendChild($('#tg-insp'));
   const va = adv.cloneNode(true);
   va.id = 'vm-adv';
+  va.className = 'btn quiet';
   va.textContent = 'Advanced: every tab, setting and plot';
   tg.appendChild(va);
   const place = () => {
@@ -216,7 +217,7 @@ function showKeys() {
     d.className = 'srcdlg keysdlg';
     d.setAttribute('aria-label', 'Keyboard shortcuts');
     const groups = [...new Set(KEYS.map(k => k[0]))];
-    d.innerHTML = `<div class="srchead"><b>Keyboard shortcuts</b><span class="lbl">keys work when no text field has focus</span><button class="btn small" id="keys-x" style="margin-left:auto">Close</button></div><div class="keys-body">${groups
+    d.innerHTML = `<div class="srchead"><b>Keyboard shortcuts</b><span class="lbl">keys work when no text field has focus</span><button class="btn" id="keys-x" style="margin-left:auto">Close</button></div><div class="keys-body">${groups
       .map(
         g =>
           `<section><h4>${g}</h4><dl>${KEYS.filter(k => k[0] === g)

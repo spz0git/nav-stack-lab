@@ -231,7 +231,7 @@ function selCard(V) {
   c.hidden = true;
   c.setAttribute('aria-live', 'polite');
   c.innerHTML =
-    '<div class="selhead"><b id="sel-title"></b><button type="button" class="ibtn" id="sel-x" aria-label="Clear the selection" title="Clear the selection (Esc)">×</button></div><dl id="sel-body"></dl>';
+    '<div class="selhead"><b id="sel-title"></b><button type="button" class="ibtn sm" id="sel-x" aria-label="Clear the selection" title="Clear the selection (Esc)">×</button></div><dl id="sel-body"></dl>';
   $('.mapwrap').appendChild(c);
   $('#sel-x').onclick = () => {
     SEL = null;
@@ -607,7 +607,7 @@ function renderSearchChip() {
   const txt = `${tr.name} · ${wh} ${n} of ${N}${extra}${n >= N ? ' · done' : ''}`;
   if (!c.firstChild || SP.key !== N + '|' + tr.name) {
     SP.key = N + '|' + tr.name;
-    c.innerHTML = `<span class="sp-t" id="sp-t"></span><span class="sp-b"><button type="button" class="ibtn" data-sp="0" title="Back to the start" aria-label="Back to the start">⏮</button><button type="button" class="ibtn" data-sp="-1" title="One ${wh} back" aria-label="One ${wh} back">◀</button><button type="button" class="ibtn" data-sp="p" id="sp-p" aria-label="Play or pause"></button><button type="button" class="ibtn" data-sp="1" title="One ${wh} forward" aria-label="One ${wh} forward">▶</button><button type="button" class="ibtn" data-sp="N" title="To the end" aria-label="To the end">⏭</button></span><input type="range" id="sp-r" min="0" max="${N}" step="1" aria-label="Search step"><button type="button" class="linkbtn" id="sp-x" title="Back to the finished search; Run drives">Done</button>`;
+    c.innerHTML = `<span class="sp-t" id="sp-t"></span><span class="sp-b"><button type="button" class="ibtn sm" data-sp="0" title="Back to the start" aria-label="Back to the start">⏮</button><button type="button" class="ibtn sm" data-sp="-1" title="One ${wh} back" aria-label="One ${wh} back">◀</button><button type="button" class="ibtn sm" data-sp="p" id="sp-p" aria-label="Play or pause"></button><button type="button" class="ibtn sm" data-sp="1" title="One ${wh} forward" aria-label="One ${wh} forward">▶</button><button type="button" class="ibtn sm" data-sp="N" title="To the end" aria-label="To the end">⏭</button></span><input type="range" id="sp-r" min="0" max="${N}" step="1" aria-label="Search step"><button type="button" class="linkbtn" id="sp-x" title="Back to the finished search; Run drives">Done</button>`;
     c.querySelectorAll('[data-sp]').forEach(
       b =>
         (b.onclick = () => {

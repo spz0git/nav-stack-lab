@@ -410,7 +410,7 @@ document.addEventListener(
   const b = document.createElement('button');
   b.type = 'button';
   b.id = 'tg-pal';
-  b.className = 'ibtn palbtn';
+  b.className = 'btn palbtn';
   b.title = `Search settings, actions, lessons, chapters, symbols and signals (${mac ? '⌘' : 'Ctrl '}K or /)`;
   b.setAttribute('aria-label', 'Search');
   b.innerHTML = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4L14 14"/></svg><span>Search</span><kbd>${mac ? '⌘' : 'Ctrl '}K</kbd>`;
@@ -461,15 +461,15 @@ function changedHTML() {
   const C = changedList(),
     S2 = setupsLoad();
   return (
-    `<div class="chg-head"><b>Changed from ${LV.id} defaults</b><span class="lbl">${C.length} setting${C.length === 1 ? '' : 's'}</span><button type="button" class="ibtn" id="chg-x" aria-label="Close">×</button></div>` +
+    `<div class="chg-head"><b>Changed from ${LV.id} defaults</b><span class="lbl">${C.length} setting${C.length === 1 ? '' : 's'}</span><button type="button" class="ibtn sm" id="chg-x" aria-label="Close">×</button></div>` +
     (C.length
       ? `<ul class="chg-list">${C.map(c => `<li${SYS[c.tab] ? ` data-sys="${c.tab}"` : ''}><button type="button" class="linkbtn chg-go" data-go="${c.k}" title="Open it in ${TAB_NAME[c.tab]}">${esc(plain(c.f.label))}</button><span class="chg-tab">${TAB_NAME[c.tab]}</span><span class="chg-v"><b>${esc(fieldValText(c.f, P[c.k]))}</b> <s>${esc(fieldValText(c.f, c.d))}</s></span><button type="button" class="rst" data-rst="${c.k}" title="Back to the default (${esc(fieldValText(c.f, c.d))})">↺</button></li>`).join('')}</ul>
      <div class="controls"><button type="button" class="btn small" id="chg-all">Reset all</button><button type="button" class="btn small" id="chg-link">Copy link</button></div>`
       : `<p class="note">Everything is at this level's defaults.</p><div class="controls"><button type="button" class="btn small" id="chg-link">Copy link</button></div>`) +
     `<h4 class="chg-h">Saved setups <span class="lbl">in this browser only</span></h4>
-   <form class="chg-save" id="chg-save"><input type="text" id="chg-name" maxlength="60" placeholder="Name this setup (${LV.id}, ${C.length} changed)" aria-label="Setup name"><button type="submit" class="btn small">Save</button></form>` +
+   <form class="chg-save" id="chg-save"><input type="text" id="chg-name" maxlength="60" placeholder="Name this setup (${LV.id}, ${C.length} changed)" aria-label="Setup name"><button type="submit" class="btn">Save</button></form>` +
     (S2.length
-      ? `<ul class="setups">${S2.map((x, i) => `<li><button type="button" class="linkbtn" data-load="${i}" title="Load: ${esc(x.cfg.level)} with ${esc(fmtOv(x.cfg.params || {}))}">${esc(x.name)}</button><span class="lbl">${esc(x.cfg.level)} · ${Object.keys(x.cfg.params || {}).length} changed${x.cfg.goals ? ' · own goals' : ''}</span><button type="button" class="ibtn" data-del="${i}" aria-label="Delete ${esc(x.name)}" title="Delete">×</button></li>`).join('')}</ul>`
+      ? `<ul class="setups">${S2.map((x, i) => `<li><button type="button" class="linkbtn" data-load="${i}" title="Load: ${esc(x.cfg.level)} with ${esc(fmtOv(x.cfg.params || {}))}">${esc(x.name)}</button><span class="lbl">${esc(x.cfg.level)} · ${Object.keys(x.cfg.params || {}).length} changed${x.cfg.goals ? ' · own goals' : ''}</span><button type="button" class="ibtn sm" data-del="${i}" aria-label="Delete ${esc(x.name)}" title="Delete">×</button></li>`).join('')}</ul>`
       : `<p class="note">None yet. A saved setup keeps the level, the seed, every changed setting and the goals.</p>`)
   );
 }
@@ -549,7 +549,7 @@ function toggleChanged(on) {
   const b = document.createElement('button');
   b.type = 'button';
   b.id = 'tg-chg';
-  b.className = 'ibtn';
+  b.className = 'btn quiet';
   b.setAttribute('aria-expanded', 'false');
   b.setAttribute('aria-controls', 'chgpanel');
   b.title = "Settings that differ from this level's defaults, and saved setups";

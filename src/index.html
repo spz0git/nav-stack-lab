@@ -62,7 +62,7 @@
       </div>
       </div>
       <div class="health" id="health" role="status" aria-label="Subsystem health"></div>
-      <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across seven levels and your own. <b>Press Run</b> to start the mission. Tap the map to add goals. The level menu (<b>L1</b> to <b>L7</b>, and Custom) holds each floor's quick experiments. New here? <b>Start here</b> in <b>Learn</b> is a first pass of eight lessons, about <span id="firstrun-min">99</span> minutes.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
+      <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across seven levels and your own. <b>Press Run</b> to start the mission. Tap the map to add goals. The level menu (<b>L1</b> to <b>L7</b>, and Custom) holds each floor's quick experiments. New here? <b>Start here</b> in <b>Learn</b> is a first pass of eight lessons, about <span id="firstrun-min">99</span> minutes. Basic shows the essentials; <b>Advanced</b> (top right) shows everything.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
       <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll or pinch to zoom; drag to pan."></canvas>
         <div class="legend" id="legend" hidden>
           <span><i class="disc" style="background:var(--ink)"></i>true pose</span>
@@ -84,15 +84,17 @@
         <div class="tele-grid">
           <div class="plotcol" id="plotcol" data-n="1"><canvas id="plot" aria-label="Time series plot"></canvas></div>
           <div class="tele-side">
-            <div class="tele-log"><div class="logbar"><h3>Event log</h3><input type="search" id="log-q" class="logq" placeholder="Search" aria-label="Search the event log" autocomplete="off"><span class="seg sm" id="log-sev" aria-label="Severity"></span><button type="button" class="ibtn" id="log-order" aria-pressed="false" title="Oldest first">↓</button><span class="lbl" id="log-n"></span></div><ol class="log" id="log" aria-label="Event log"></ol><div class="sr-only" id="log-live" role="log" aria-live="polite"></div></div>
+            <div class="tele-log"><div class="logbar"><h3>Event log</h3><input type="search" id="log-q" class="logq" placeholder="Search" aria-label="Search the event log" autocomplete="off"><span class="seg sm" id="log-sev" aria-label="Severity"></span><button type="button" class="ibtn" id="log-order" aria-pressed="false" title="Oldest first">↓</button><span class="lbl" id="log-n"></span></div><ol class="log" id="log" aria-label="Event log"></ol></div>
             <div class="tele-met"><h3>Metrics</h3><dl class="metrics" id="metrics"></dl></div>
           </div>
         </div>
+        <div class="sr-only" id="log-live" role="log" aria-live="polite"></div>
       </section>
       </div>
       <div id="anview" class="view" hidden>
+        <div class="an-head"><button type="button" class="btn small" id="an-back" title="Back to the map and the run (A)">← Back to the simulator</button><div class="an-title"><h2>Loop analysis</h2><p class="an-op" id="an-op"></p></div></div>
+        <p class="note" id="an-purpose">This view takes the controller and vehicle set in the Control and Vehicle tabs, linearizes the steering loop about a straight path at the cruise speed, and shows what happens after the robot is pushed 20 cm to the side: how fast it comes back, how much it overshoots, how much extra delay it would tolerate. Run step test checks the model against the full simulator. The classic view for control engineers (transfer function, margins, Bode, Nyquist, root locus) is in the last fold.</p>
         <div class="an-ctl"><span class="lbl">Loop</span><span class="seg sm" id="an-loop"></span><span class="lbl">Path</span><span class="seg sm" id="an-curve"></span><label class="check sm" id="an-est-l" title="Off: the simulator tests (Run step test, Measure L(jω) and the speed step test) feed the controller the true pose. On: they feed it the estimate from the estimator picked in Localize (odometry plus beacons every 4 m beside the path), so the amber curves include the estimation error. The model curves, gains, poles and margins always assume the true pose. With the particle filter or EKF-SLAM the offset step moves only the true pose, which the estimator sees as a small kidnap."><input type="checkbox" id="an-est"><span>simulator tests use the Localize estimator</span></label></div>
-        <p class="an-op" id="an-op"></p>
         <div id="an-none" class="box an-none" hidden></div>
         <div id="an-body">
           <section class="an-story" id="an-story" aria-label="What is analyzed, in plain words"></section>

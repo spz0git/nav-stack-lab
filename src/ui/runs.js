@@ -248,6 +248,7 @@ function toggleRuns(on) {
   const p = $('#runpanel'),
     b = $('#tg-runs');
   on = on == null ? p.hidden : on;
+  if (on) setLevel('advanced', 'the Runs panel');
   p.hidden = !on;
   b.setAttribute('aria-expanded', String(on));
   if (on) {

@@ -52,10 +52,8 @@ function goToField(k) {
   if (!s) return;
   if (uiMode === 'learn') setUIMode(AN.mode);
   if (WS.inspOff) wsInspector(true);
-  activeTab = s.tab;
-  consoleOpen = true;
-  buildTabs();
-  renderAllPanes();
+  if (levelBasic() && !fieldBasic(s.f, s.tab)) setLevel('advanced', `“${plain(s.f.label)}” (${TAB_NAME[s.tab]})`);
+  showTab(s.tab);
   const el = document.querySelector(`#pane [data-k="${k}"]`) || (k === 'bOff' ? document.querySelector('#pane .bchips') : null);
   if (!el) {
     const why = revealedBy(s);

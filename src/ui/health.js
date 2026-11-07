@@ -117,10 +117,7 @@ function renderHealthPop(H) {
     healthOpen(null);
     if (uiMode === 'learn') setUIMode(AN.mode);
     if (WS.inspOff) wsInspector(true);
-    activeTab = k;
-    consoleOpen = true;
-    buildTabs();
-    renderAllPanes();
+    showTab(k);
   };
   pop.querySelectorAll('.hp-ev li').forEach(
     li =>
@@ -145,10 +142,7 @@ function renderSensorDots() {
     el.onclick = () => {
       if (uiMode === 'learn') setUIMode(AN.mode);
       if (WS.inspOff) wsInspector(true);
-      activeTab = 'sen';
-      consoleOpen = true;
-      buildTabs();
-      renderAllPanes();
+      showTab('sen');
       const s = $('#sens-head');
       if (s) s.scrollIntoView({block: 'start'});
     };

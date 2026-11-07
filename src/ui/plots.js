@@ -219,6 +219,7 @@ function paneHTML(P1, i) {
     <button type="button" class="ibtn pp-add" data-add="${i}" aria-haspopup="dialog">+ Signal</button><button type="button" class="ibtn pp-close" data-close="${i}" aria-label="Remove this plot" title="Remove this plot">×</button></div><canvas aria-label="Plot ${i + 2}"></canvas></div>`;
 }
 function renderPanes() {
+  if (PANES.length) setLevel('advanced', 'the added plots'); // Basic has one plot
   const host = $('#plotcol');
   host.querySelectorAll('.ppane').forEach(e => e.remove());
   host.insertAdjacentHTML('beforeend', PANES.map(paneHTML).join(''));

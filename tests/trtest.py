@@ -44,6 +44,7 @@ async def main():
         b=await launch(p); ctx=await b.new_context(viewport={'width':1440,'height':900},accept_downloads=True); pg=await ctx.new_page()
         perr=[]; pg.on('pageerror',lambda e: perr.append(str(e)))
         await pg.goto(page_url()); await pg.wait_for_timeout(800)
+        await pg.evaluate("window.__nav.setLevel('advanced')")  # Tools → Train is an Advanced tab
         await open_tab(pg,'train'); await shot(pg,'1-train-tab')
         check(await pg.locator('#trn-block button[aria-pressed="true"]').inner_text()=='People detector','the tab opens on the people detector')
         check('Built-in' in await pg.locator('.trn-models').inner_text(),'the built-in detector is listed as the baseline')

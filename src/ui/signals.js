@@ -140,6 +140,7 @@ function renderValues() {
   );
 }
 function setMetView(v) {
+  if (v === 'values') setLevel('advanced', 'Values');
   metView = v;
   $('#metsel')
     .querySelectorAll('button')
@@ -176,6 +177,7 @@ function setMetView(v) {
 function showMetric(name) {
   if (uiMode === 'learn' && !wideUI()) setUIMode('sim'); // phones: the dock is under the map, outside Learn
   if (WS.dockOff) wsDock(true);
+  if (name && levelBasic() && !BASIC_METRICS().includes(name)) setLevel('advanced', `Metrics → ${name}`);
   setMetView('metrics');
   renderMetrics();
   const row = name ? [...$('#metrics').children].find(d => d.firstChild.textContent === name) : null;

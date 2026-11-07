@@ -306,8 +306,5 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => {
   const b = e.target && e.target.closest ? e.target.closest('[data-gotab]') : null;
   if (!b) return;
-  activeTab = b.dataset.gotab;
-  consoleOpen = true;
-  buildTabs();
-  renderAllPanes();
+  showTab(b.dataset.gotab);
 });

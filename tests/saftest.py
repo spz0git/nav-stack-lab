@@ -102,6 +102,7 @@ async def main():
         pg = await b.new_page(viewport={'width': 1440, 'height': 900})
         pg.on('pageerror', lambda e: ERRORS.append('PAGEERR ' + str(e)))
         await pg.goto(page_url()); await pg.wait_for_timeout(800)
+        await pg.evaluate("window.__nav.setLevel('advanced')")  # Tools → Safety is an Advanced tab
         r = await pg.evaluate(SCHED)
         print(json.dumps(r))
         check(r['before'] is True and r['after'] is False, 'the fault schedule switches the lidar off at 30 s')

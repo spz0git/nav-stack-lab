@@ -358,10 +358,7 @@ async function argFromHash() {
   try {
     const A = JSON.parse(m[1] ? b64uDecText(m[2]) : await inflateText(m[2]));
     argAdd({...A, name: plainText(A.name, 80) || 'An argument from a link'});
-    activeTab = 'saf';
-    consoleOpen = true;
-    buildTabs();
-    renderAllPanes();
+    showTab('saf');
     logE(`Opened the argument "${argNow().name}" from the link`, 'ok');
   } catch (e) {
     logE('Could not open the argument in the link: ' + e.message, 'warn');

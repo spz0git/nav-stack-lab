@@ -4,7 +4,8 @@
    ============================================================ */
 // dockAuto: the dock takes the height that leaves the map at the world's 3:2 aspect (no letterbox margins), within
 // limits, until the user drags the splitter; a stored layout with an untouched dock keeps that behaviour
-const WS = {insp: null, dock: 220, inspOff: false, dockOff: false, preset: 'tune', dockAuto: true};
+// level: 'basic' shows the four subsystem tabs, their main settings, one plot and three metrics; 'advanced' everything
+const WS = {insp: null, dock: 220, inspOff: false, dockOff: false, preset: 'tune', dockAuto: true, level: 'basic'};
 const WS_KEY = 'nav-stack-lab.layout';
 try {
   const s = JSON.parse(localStorage.getItem(WS_KEY) || 'null');
@@ -12,6 +13,7 @@ try {
     for (const k of Object.keys(WS)) if (k in s) WS[k] = s[k];
     if (!('dockAuto' in s)) WS.dockAuto = s.dock == null || s.dock === 220;
     if (typeof s.brief === 'boolean') briefOpen = s.brief;
+    if (WS.level !== 'advanced') WS.level = 'basic';
   }
 } catch (_) {}
 function wsSave() {
@@ -26,6 +28,8 @@ function wsApply() {
   else lay.style.removeProperty('--insp-w');
   lay.style.setProperty('--dock-h', WS.dock + 'px');
   lay.classList.toggle('insp-off', WS.inspOff);
+  lay.dataset.level = WS.level;
+  document.querySelectorAll('#tg-adv, #vm-adv').forEach(b => b.setAttribute('aria-pressed', String(WS.level === 'advanced')));
   $('#dock').classList.toggle('folded', WS.dockOff);
   $('#tg-insp').setAttribute('aria-pressed', String(!WS.inspOff));
   $('#tg-dock').setAttribute('aria-pressed', String(!WS.dockOff));
@@ -152,4 +156,87 @@ $('#modesel').addEventListener('click', e => {
   ro.observe($('#plotcol'));
   ro.observe($('.stage'));
 }
+
+/* ---------- the Basic and Advanced levels (v84 redesign: "the page is loaded with too many things") ----------
+   Basic shows the four subsystem tabs (the four health lights), their main settings, one plot and three metrics;
+   Advanced shows every tab, setting, plot, the event log and the Runs panel. Whatever asks for something Basic hides
+   (a lesson's tab, a search result, a link's setting, a layout preset) switches to Advanced first and says so. */
+const BASIC_TABS = ['loc', 'per', 'plan', 'ctl'],
+  BASIC_MORE = ['view', 'sym'],
+  AN_TABS = ['ctl', 'veh']; // Analyze reads only Control and Vehicle
+const levelBasic = () => WS.level === 'basic';
+// the tab row and the More menu for the left side and the level
+function tabsRow() {
+  if (AN.mode === 'an') return AN_TABS;
+  return levelBasic() ? BASIC_TABS : TAB_GROUPS[0].tabs;
+}
+function tabsMore() {
+  if (AN.mode === 'an') return [{name: 'Reference', tabs: ['sym']}];
+  return levelBasic() ? [{name: 'Reference', tabs: BASIC_MORE}] : TAB_GROUPS.slice(1);
+}
+const tabShown = id => tabsRow().includes(id) || tabsMore().some(g => g.tabs.includes(id));
+function setLevel(lv, why) {
+  if ((lv !== 'basic' && lv !== 'advanced') || lv === WS.level) return;
+  WS.level = lv;
+  wsSave();
+  wsApply();
+  if (why) toast(`Switched to Advanced to show ${why}`, 4200);
+  if (lv === 'basic') basicDock();
+  if (!tabShown(activeTab)) activeTab = AN.mode === 'an' ? 'ctl' : 'loc';
+  buildTabs();
+  renderAllPanes();
+  if (S) {
+    renderMetrics();
+    drawPlot();
+  }
+}
+// Basic keeps one plot and the run summary: added plots, the second channel, Values and the Runs panel go
+function basicDock() {
+  PANES.length = 0;
+  renderPanes();
+  plotCh2 = 'none';
+  $('#plotsel2').value = 'none';
+  if (metView !== 'metrics') setMetView('metrics');
+  if (!$('#runpanel').hidden) toggleRuns(false);
+}
+// Every request for a tab comes here: from Analyze a Simulate tab goes back to the simulator, and a tab the Basic
+// level hides switches to Advanced first.
+function showTab(id, render = true) {
+  if (AN.mode === 'an' && !tabShown(id)) setMode('sim');
+  if (!tabShown(id)) setLevel('advanced', TAB_NAME[id]);
+  TABS_MODE.before = null; // a tab asked for wins over the one Analyze set aside
+  activeTab = id;
+  consoleOpen = true;
+  buildTabs();
+  if (render) renderAllPanes();
+}
+// Basic shows a schema field only when it carries basic: true and sits on a tab Basic shows (Analyze's Vehicle tab too)
+const fieldBasic = (f, tab) => !!f.basic && (BASIC_TABS.includes(tab) || AN_TABS.includes(tab));
+const isSettingField = f => !!f.k || f.type === 'beacons' || f.type === 'sensors';
+// a link that sets something Basic hides opens in Advanced, so the page shows what the link set
+function levelForLink() {
+  if (!levelBasic()) return;
+  const c = changedList().find(s => !(s.f.basic && BASIC_TABS.includes(s.tab)));
+  if (c) setLevel('advanced', `“${plain(c.f.label)}” from the link`);
+}
+// The tabs follow the left side: Analyze shows Control and Vehicle; back in the simulator the tab open before returns
+const TABS_MODE = {mode: 'sim', before: null};
+function tabsFollowMode() {
+  if (AN.mode === TABS_MODE.mode) return;
+  TABS_MODE.mode = AN.mode;
+  if (AN.mode === 'an' && !tabShown(activeTab)) {
+    TABS_MODE.before = activeTab;
+    activeTab = 'ctl';
+  } else if (AN.mode !== 'an' && TABS_MODE.before) {
+    if (tabShown(TABS_MODE.before)) activeTab = TABS_MODE.before;
+    TABS_MODE.before = null;
+  }
+  buildTabs();
+  if (S) renderAllPanes();
+}
+$('#tg-adv').onclick = $('#vm-adv').onclick = () => setLevel(levelBasic() ? 'advanced' : 'basic');
+// "N more settings in Advanced" at the end of a Basic pane, and More's "Show everything"
+document.addEventListener('click', e => {
+  if (e.target && e.target.closest && e.target.closest('[data-adv]')) setLevel('advanced');
+});
 wsApply();

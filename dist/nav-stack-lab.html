@@ -3306,6 +3306,53 @@ details.see > p {
 .tele.folded .tele-grid {
   display: none;
 }
+/* v84 redesign: the Basic level and the Analyze view's header. Basic hides what a first look does not need (the
+   second plot channel, the dock's extra actions, Values, the event log, the sensor dots, the Runs button); the
+   elements stay in the page for Advanced. */
+.layout[data-level='basic'] :is(#plotsel2, #pl-more, #metsel, .tele-log, #sensdots, #tg-runs) {
+  display: none;
+}
+@container (min-width:620px) {
+  .layout[data-level='basic'] .tele-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+  }
+}
+/* four tabs need no pipeline numbers (2, 3, 5, 6 would read as gaps) */
+.layout[data-level='basic'] .tabs .tab small {
+  display: none;
+}
+#tg-adv[aria-pressed='true'] {
+  color: var(--accent);
+}
+.adv-more {
+  margin-top: 12px;
+}
+.tabmore .tm-adv {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  color: var(--accent);
+}
+.an-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.an-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.an-title h2 {
+  margin: 0;
+  font-size: var(--fs-title);
+}
+#an-purpose {
+  margin: 0;
+  max-width: 80ch;
+}
 /* one telemetry toolbar (UI review, step 5): title, channel, Compare, and a "⋯" menu for the rest */
 .tele-head {
   position: relative;
@@ -5665,7 +5712,7 @@ article.chapter .notes-table td button.try {
       </div>
       </div>
       <div class="health" id="health" role="status" aria-label="Subsystem health"></div>
-      <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across seven levels and your own. <b>Press Run</b> to start the mission. Tap the map to add goals. The level menu (<b>L1</b> to <b>L7</b>, and Custom) holds each floor's quick experiments. New here? <b>Start here</b> in <b>Learn</b> is a first pass of eight lessons, about <span id="firstrun-min">99</span> minutes.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
+      <p class="hint" id="firstrun"><span>Tune localization, perception, planning and control on a simulated robot across seven levels and your own. <b>Press Run</b> to start the mission. Tap the map to add goals. The level menu (<b>L1</b> to <b>L7</b>, and Custom) holds each floor's quick experiments. New here? <b>Start here</b> in <b>Learn</b> is a first pass of eight lessons, about <span id="firstrun-min">99</span> minutes. Basic shows the essentials; <b>Advanced</b> (top right) shows everything.</span><button class="linkbtn" id="firstrun-x" type="button">Got it</button></p>
       <div class="mapwrap"><canvas id="map" aria-label="Simulation map. Tap to add goals; scroll or pinch to zoom; drag to pan."></canvas>
         <div class="legend" id="legend" hidden>
           <span><i class="disc" style="background:var(--ink)"></i>true pose</span>
@@ -5687,15 +5734,17 @@ article.chapter .notes-table td button.try {
         <div class="tele-grid">
           <div class="plotcol" id="plotcol" data-n="1"><canvas id="plot" aria-label="Time series plot"></canvas></div>
           <div class="tele-side">
-            <div class="tele-log"><div class="logbar"><h3>Event log</h3><input type="search" id="log-q" class="logq" placeholder="Search" aria-label="Search the event log" autocomplete="off"><span class="seg sm" id="log-sev" aria-label="Severity"></span><button type="button" class="ibtn" id="log-order" aria-pressed="false" title="Oldest first">↓</button><span class="lbl" id="log-n"></span></div><ol class="log" id="log" aria-label="Event log"></ol><div class="sr-only" id="log-live" role="log" aria-live="polite"></div></div>
+            <div class="tele-log"><div class="logbar"><h3>Event log</h3><input type="search" id="log-q" class="logq" placeholder="Search" aria-label="Search the event log" autocomplete="off"><span class="seg sm" id="log-sev" aria-label="Severity"></span><button type="button" class="ibtn" id="log-order" aria-pressed="false" title="Oldest first">↓</button><span class="lbl" id="log-n"></span></div><ol class="log" id="log" aria-label="Event log"></ol></div>
             <div class="tele-met"><h3>Metrics</h3><dl class="metrics" id="metrics"></dl></div>
           </div>
         </div>
+        <div class="sr-only" id="log-live" role="log" aria-live="polite"></div>
       </section>
       </div>
       <div id="anview" class="view" hidden>
+        <div class="an-head"><button type="button" class="btn small" id="an-back" title="Back to the map and the run (A)">← Back to the simulator</button><div class="an-title"><h2>Loop analysis</h2><p class="an-op" id="an-op"></p></div></div>
+        <p class="note" id="an-purpose">This view takes the controller and vehicle set in the Control and Vehicle tabs, linearizes the steering loop about a straight path at the cruise speed, and shows what happens after the robot is pushed 20 cm to the side: how fast it comes back, how much it overshoots, how much extra delay it would tolerate. Run step test checks the model against the full simulator. The classic view for control engineers (transfer function, margins, Bode, Nyquist, root locus) is in the last fold.</p>
         <div class="an-ctl"><span class="lbl">Loop</span><span class="seg sm" id="an-loop"></span><span class="lbl">Path</span><span class="seg sm" id="an-curve"></span><label class="check sm" id="an-est-l" title="Off: the simulator tests (Run step test, Measure L(jω) and the speed step test) feed the controller the true pose. On: they feed it the estimate from the estimator picked in Localize (odometry plus beacons every 4 m beside the path), so the amber curves include the estimation error. The model curves, gains, poles and margins always assume the true pose. With the particle filter or EKF-SLAM the offset step moves only the true pose, which the estimator sees as a small kidnap."><input type="checkbox" id="an-est"><span>simulator tests use the Localize estimator</span></label></div>
-        <p class="an-op" id="an-op"></p>
         <div id="an-none" class="box an-none" hidden></div>
         <div id="an-body">
           <section class="an-story" id="an-story" aria-label="What is analyzed, in plain words"></section>
@@ -21107,6 +21156,9 @@ function predCell(cell) {
     ) + cell('cv', `${pe.cv[1].toFixed(2)} m`, '', 'Constant velocity’s mean error 2 s ahead, on the same people at the same moments')
   );
 }
+// Basic's three rows: how far, what it hit, and how well it knows where it is (or, with the true pose, how well it
+// follows the path)
+const BASIC_METRICS = () => ['Distance', 'Collisions', P.loc === 'truth' ? 'Cross-track RMS' : 'Pose error'];
 // the row a lesson's link points at (showMetric, ui/signals.js), marked until t: the list is rebuilt every frame
 let metMark = {name: '', t: 0};
 function renderMetrics() {
@@ -21179,10 +21231,12 @@ function renderMetrics() {
   if (S.slam) items.push(['SLAM map', `${S.slam.n} of ${S.beacons.length} beacons · ${3 + 2 * S.slam.n} states`, 'loc']);
   if (S.pf) items.push(['Particles', `N_eff ${S.pf.neff.toFixed(0)}/${S.pf.N}, inj ${(S.pf.inj * 100).toFixed(0)}%`, 'loc']);
   if (P.assoc === 'unknown' && P.loc !== 'truth' && P.loc !== 'dr') items.push(['Gated measurements', String(S.rejected), 'loc']);
-  const mk = performance.now() < metMark.t ? metMark.name : '';
+  const mk = performance.now() < metMark.t ? metMark.name : '',
+    basic = BASIC_METRICS();
   setHTML(
     $('#metrics'),
     items
+      .filter(([a]) => !levelBasic() || basic.includes(a))
       .map(([a, b, c]) => `<div${c ? ` data-sys="${c}"` : ''}${a === mk ? ' class="met-hi"' : ''}><dt>${a}</dt><dd>${b}</dd></div>`)
       .join('')
   );
@@ -21676,6 +21730,7 @@ const SCHEMA = {
   ],
   loc: [
     {
+      basic: true,
       k: 'loc',
       type: 'seg',
       label: 'Estimator',
@@ -21690,11 +21745,13 @@ const SCHEMA = {
       ]
     },
     {
+      basic: true,
       type: 'info',
       text: () => 'Odometry is perfect on this level (noise and bias 0), so dead reckoning matches the truth exactly.',
       show: () => P.loc === 'dr' && !P.odoK && !P.odoB
     },
     {
+      basic: true,
       type: 'btn',
       label: 'Add odometry noise and bias (×1)',
       act: () => {
@@ -21705,6 +21762,7 @@ const SCHEMA = {
       show: () => P.loc === 'dr' && !P.odoK && !P.odoB
     },
     {
+      basic: true,
       type: 'info',
       text: () =>
         `EKF-SLAM estimates the beacon positions too: ${S && S.slam ? S.slam.n : 0} mapped. The map starts empty; the first reading of each beacon places it.`,
@@ -21722,6 +21780,7 @@ const SCHEMA = {
       show: () => P.loc === 'ekf' && P.scanMatch
     },
     {
+      basic: true,
       type: 'info',
       text: () => {
         const G = S && S.pg;
@@ -21738,6 +21797,7 @@ const SCHEMA = {
     {k: 'pgMatch', type: 'bool', label: 'Scan-to-map matching at every keyframe', show: () => P.loc === 'pgslam'},
     {k: 'pgLoop', type: 'bool', label: 'Loop closures (scan-to-scan ICP against earlier keyframes)', show: () => P.loc === 'pgslam'},
     {
+      basic: true,
       type: 'info',
       text: () =>
         SLOTS.loc.worker
@@ -21755,7 +21815,7 @@ const SCHEMA = {
       ],
       show: () => filt() || P.loc === 'slam'
     },
-    {k: 'npart', label: 'Particles', min: 50, max: 2000, step: 50, show: pf_},
+    {basic: true, k: 'npart', label: 'Particles', min: 50, max: 2000, step: 50, show: pf_},
     {k: 'inject', type: 'bool', label: 'Recovery injection (augmented MCL + sensor resetting)', show: pf_},
     {
       k: 'pfLidar',
@@ -21763,27 +21823,39 @@ const SCHEMA = {
       label: 'Also weight particles by lidar against the prior map (likelihood field)',
       show: () => pf_() && P.per === 'oracle'
     },
-    {k: 'filtK', label: "Filter's assumed motion noise", min: 0.25, max: 6, step: 0.25, unit: '× true', show: () => P.loc !== 'truth'},
+    {
+      basic: true,
+      k: 'filtK',
+      label: "Filter's assumed motion noise",
+      min: 0.25,
+      max: 6,
+      step: 0.25,
+      unit: '× true',
+      show: () => P.loc !== 'truth'
+    },
     {
       k: 'gnssAug',
       type: 'bool',
       label: 'Estimate the GNSS bias in the EKF (two more states, a random walk)',
       show: () => P.gnss && P.loc === 'ekf'
     },
-    {type: 'btn', label: 'Scatter particles', act: () => scatterParticles(), show: pf_},
+    {basic: true, type: 'btn', label: 'Scatter particles', act: () => scatterParticles(), show: pf_},
     {
+      basic: true,
       type: 'info',
       text: () =>
         'Dead reckoning never uses the beacons: it integrates odometry only, so its error and ellipse only grow. Switch to EKF or the particle filter to see beacons pull the estimate back.',
       show: () => P.loc === 'dr'
     },
     {
+      basic: true,
       type: 'info',
       text: () =>
         'Ground truth: the estimate is the true pose, so the beacons and their on/off state change nothing here (L1, L2 and L6 start this way). Pick EKF or Particle filter to see what the beacons are worth.',
       show: () => P.loc === 'truth'
     },
     {
+      basic: true,
       type: 'btn',
       label: 'Use the EKF (beacons only)',
       act: () => {
@@ -21800,6 +21872,7 @@ const SCHEMA = {
   ],
   per: [
     {
+      basic: true,
       k: 'per',
       type: 'seg',
       label: 'Map source',
@@ -21824,8 +21897,9 @@ const SCHEMA = {
         "Lethal: the planners plan only through cells the lidar has already seen free (and 0.4 m clear of unseen ones). At the start that is what one scan covers, at most the lidar's 8 m and nothing behind a wall. A goal farther away or in an unseen room is approached through what has been seen: the robot heads for the edge of the seen floor nearest the goal, replans every second as the map grows, and plans to the goal itself once it is on seen floor (the event log says when). Mission → Explore maps the whole floor the same way, with no goals given. With Free the planner goes optimistically and replans as walls appear.",
       show: () => P.per === 'mapping' && P.unknownAs === 'lethal'
     },
-    {k: 'infl', label: 'Inflation band beyond lethal', min: 0, max: 1.5, step: 0.05, unit: 'm'},
+    {basic: true, k: 'infl', label: 'Inflation band beyond lethal', min: 0, max: 1.5, step: 0.05, unit: 'm'},
     {
+      basic: true,
       type: 'btn',
       label: 'Clear built map',
       act: () => {
@@ -21838,6 +21912,7 @@ const SCHEMA = {
       show: () => P.per === 'mapping'
     },
     {
+      basic: true,
       k: 'agents',
       type: 'seg',
       label: 'Agent tracking',
@@ -21849,6 +21924,7 @@ const SCHEMA = {
       ]
     },
     {
+      basic: true,
       type: 'info',
       text: () => {
         const ids = LEVELS.filter(l => l.peds.length).map(l => l.id);
@@ -21857,6 +21933,7 @@ const SCHEMA = {
       show: () => !agOn()
     },
     {
+      basic: true,
       type: 'info',
       text: () => {
         const M = nnModel('detector');
@@ -22029,6 +22106,7 @@ const SCHEMA = {
   ],
   plan: [
     {
+      basic: true,
       k: 'plan',
       type: 'seg',
       label: 'Global planner',
@@ -22048,6 +22126,7 @@ const SCHEMA = {
       ]
     },
     {
+      basic: true,
       type: 'info',
       text: () => {
         const M = nnModel('policy');
@@ -22080,6 +22159,7 @@ const SCHEMA = {
       show: () => P.plan === 'policy'
     },
     {
+      basic: true,
       type: 'info',
       text: () => {
         const D = S && S.dstar;
@@ -22090,18 +22170,21 @@ const SCHEMA = {
       show: () => P.plan === 'dstar'
     },
     {
+      basic: true,
       type: 'btn',
       label: 'Step through the last search',
       act: () => searchPlayStart(true),
       show: () => !!(S && S.searchTrace && S.searchTrace.n)
     },
     {
+      basic: true,
       type: 'info',
       text: () =>
         "Space-time A* plans (x, y, t) on a 0.2 m grid against the agents' predicted positions over the prediction horizon, and waits when that is cheaper than a detour. It needs agent tracking (Perceive).",
       show: () => P.plan === 'stastar'
     },
     {
+      basic: true,
       type: 'info',
       text: () =>
         SLOTS.plan.worker
@@ -22110,11 +22193,12 @@ const SCHEMA = {
       show: () => P.plan === 'custom'
     },
     {
+      basic: true,
       type: 'info',
       text: () => "A* and RRT* plan for a point with clearance. They ignore the car's heading, body and turning radius.",
       show: () => isCar() && (P.plan === 'astar' || P.plan === 'rrtstar')
     },
-    {type: 'info', text: () => 'Reeds–Shepp ignores obstacles entirely.', show: () => P.plan === 'rs'},
+    {basic: true, type: 'info', text: () => 'Reeds–Shepp ignores obstacles entirely.', show: () => P.plan === 'rs'},
     {
       k: 'planPct',
       label: 'Steering used by the planner',
@@ -22129,7 +22213,7 @@ const SCHEMA = {
       text: () => `Planning radius ${planR().toFixed(2)} m (vehicle minimum ${minTurnR().toFixed(2)} m)`,
       show: () => isCar() && (P.plan === 'hybrid' || P.plan === 'rs')
     },
-    {k: 'eps', label: 'Heuristic weight ε', min: 1, max: 5, step: 0.25, show: () => P.plan === 'astar' || P.plan === 'hybrid'},
+    {basic: true, k: 'eps', label: 'Heuristic weight ε', min: 1, max: 5, step: 0.25, show: () => P.plan === 'astar' || P.plan === 'hybrid'},
     {
       k: 'hybH',
       type: 'seg',
@@ -22147,6 +22231,7 @@ const SCHEMA = {
     {k: 'smooth', type: 'bool', label: 'Line-of-sight shortcut smoothing', show: () => P.plan === 'astar' || P.plan === 'rrtstar'},
     {k: 'agPlan', type: 'bool', label: 'When the speed planner reports an agent blocking the path, replan around its predicted positions'},
     {
+      basic: true,
       type: 'btn',
       label: 'Replan now',
       act: () => {
@@ -22160,6 +22245,16 @@ const SCHEMA = {
   ],
   ctl: [
     {
+      basic: true,
+      type: 'btn',
+      id: 'an-open',
+      label: 'Analyze this loop →',
+      tip: 'Linearize the steering loop for this controller and vehicle: how fast it comes back to the path, overshoot, how much delay it tolerates',
+      act: () => setMode('an'),
+      show: () => AN.mode === 'sim'
+    },
+    {
+      basic: true,
       k: 'ctl',
       type: 'seg',
       label: 'Path tracker',
@@ -22174,6 +22269,7 @@ const SCHEMA = {
       ]
     },
     {
+      basic: true,
       type: 'info',
       text: () =>
         SLOTS.ctl.worker
@@ -22182,6 +22278,7 @@ const SCHEMA = {
       show: () => P.ctl === 'custom'
     },
     {
+      basic: true,
       k: 'vcruise',
       label: 'Cruise speed (reference profile)',
       min: 0.2,
@@ -22250,7 +22347,16 @@ const SCHEMA = {
         `Every radar scan (10 Hz), the echoes the tracker would take, moving or not on the map, that lie ahead within half the body's width and 0.2 m of the arc the robot is turning on: the gap over the closing speed is the time to contact, and under ${P.radTTC.toFixed(1)} s the robot stops and holds for 0.5 s, renewed while the echo stays. One scan is enough: no track, no prediction, so it works in fog; and it stops for a ghost or clutter as readily as for a person. After every controller, your code's too.${radarOn() ? '' : ' <b>The radar is off</b>: the brake has nothing to read. <button type="button" class="linkbtn" data-gotab="sen">Sensors tab</button>'}`,
       show: () => P.radBrake
     },
-    {k: 'ppL0', label: 'Lookahead L<sub>0</sub>', min: 0.1, max: 2.5, step: 0.05, unit: 'm', show: () => P.ctl === 'pp' || P.ctl === 'pid'},
+    {
+      basic: true,
+      k: 'ppL0',
+      label: 'Lookahead L<sub>0</sub>',
+      min: 0.1,
+      max: 2.5,
+      step: 0.05,
+      unit: 'm',
+      show: () => P.ctl === 'pp' || P.ctl === 'pid'
+    },
     {
       k: 'ppK',
       label: 'Lookahead gain k (L = L<sub>0</sub> + k·v)',
@@ -22270,10 +22376,10 @@ const SCHEMA = {
       show: () => P.ctl === 'pp' || P.ctl === 'stanley' || P.ctl === 'rwf' || P.ctl === 'mpc'
     },
     {k: 'rwKth', label: 'Heading gain k_θ', min: 0, max: 6, step: 0.1, unit: '1/m', show: () => P.ctl === 'rwf'},
-    {k: 'rwKe', label: 'Lateral gain k_e', min: 0, max: 12, step: 0.1, unit: '1/m²', show: () => P.ctl === 'rwf'},
-    {k: 'stanK', label: 'Stanley gain k', min: 0.1, max: 8, step: 0.1, show: () => P.ctl === 'stanley'},
-    {type: 'info', text: () => 'Reverse legs use pure pursuit.', show: () => P.ctl === 'stanley'},
-    {k: 'kp', label: 'Kp', min: 0, max: 8, step: 0.1, show: () => P.ctl === 'pid'},
+    {basic: true, k: 'rwKe', label: 'Lateral gain k_e', min: 0, max: 12, step: 0.1, unit: '1/m²', show: () => P.ctl === 'rwf'},
+    {basic: true, k: 'stanK', label: 'Stanley gain k', min: 0.1, max: 8, step: 0.1, show: () => P.ctl === 'stanley'},
+    {basic: true, type: 'info', text: () => 'Reverse legs use pure pursuit.', show: () => P.ctl === 'stanley'},
+    {basic: true, k: 'kp', label: 'Kp', min: 0, max: 8, step: 0.1, show: () => P.ctl === 'pid'},
     {k: 'ki', label: 'Ki', min: 0, max: 3, step: 0.05, show: () => P.ctl === 'pid'},
     {k: 'kd', label: 'Kd', min: 0, max: 1, step: 0.01, show: () => P.ctl === 'pid'},
     {k: 'dwaG', label: 'Goal weight', min: 0, max: 3, step: 0.05, show: () => P.ctl === 'dwa'},
@@ -22422,8 +22528,8 @@ const SCHEMA = {
     {k: 'accel', type: 'bool', label: 'Acceleration limits'},
     {k: 'amax', label: 'Linear accel', min: 0.1, max: 3, step: 0.05, unit: 'm/s²', show: () => P.accel},
     {k: 'alpha', label: 'Angular accel', min: 0.2, max: 8, step: 0.1, unit: 'rad/s²', show: () => P.accel && !isCar()},
-    {k: 'lag', label: 'Actuator lag τ', min: 0, max: 0.6, step: 0.01, unit: 's'},
-    {k: 'latency', label: 'Control latency (whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
+    {basic: true, k: 'lag', label: 'Actuator lag τ', min: 0, max: 0.6, step: 0.01, unit: 's'},
+    {basic: true, k: 'latency', label: 'Control latency (whole ticks)', min: 0, max: 0.5, step: 0.05, unit: 's'},
     {
       k: 'people',
       type: 'seg',
@@ -22877,11 +22983,7 @@ async function tryGo(cfg) {
   for (const [k, v] of Object.entries(cfg.set || {})) setParam(k, v, false);
   if (cfg.goals) setGoals(cfg.goals); // a Try with its own goals (a loop to close): the mission restarts on them
   if (cfg.saf) safFromTry(cfg.saf); // the safety lessons: a sheet and a search in Tools → Safety
-  if (cfg.tab) {
-    activeTab = cfg.tab;
-    consoleOpen = true;
-    buildTabs();
-  }
+  if (cfg.tab) showTab(cfg.tab, false);
   applyTabLayers();
   if (cfg.layers) Object.assign(LAYERS, cfg.layers);
   renderAllPanes();
@@ -22938,10 +23040,7 @@ const showSym = id => showTabAt('sym', 'sym-' + id);
 // A tab of Simulate's console, scrolled to one of its elements (Learn gives way to Simulate, whose console it is)
 function showTabAt(tab, elId) {
   if (uiMode === 'learn') setUIMode(AN.mode);
-  activeTab = tab;
-  consoleOpen = true;
-  buildTabs();
-  renderAllPanes();
+  showTab(tab);
   const el = document.getElementById(elId),
     c = document.querySelector('.right') || document.querySelector('.console');
   if (!el) return;
@@ -23021,9 +23120,10 @@ const moreLabel = cur =>
   `<span class="tm-sz">${['More', ...TAB_GROUPS.slice(1).flatMap(g => g.tabs.map(id => TABS.find(t => t.id === id).name))]
     .map(n => `<span${n === cur ? '' : ' aria-hidden="true"'}>${n}</span>`)
     .join('')}</span>`;
+// Which tabs show follows the level and the left side (tabsRow, tabsMore in ui/workspace.js)
 function buildTabs() {
-  const pipe = TAB_GROUPS[0].tabs,
-    more = TAB_GROUPS.slice(1),
+  const pipe = tabsRow(),
+    more = tabsMore(),
     inMore = !pipe.includes(activeTab),
     cur = TABS.find(t => t.id === activeTab),
     ae = document.activeElement,
@@ -23037,26 +23137,27 @@ function buildTabs() {
       )
       .join('') +
     `<button class="tab tab-more" type="button" id="tab-more" aria-haspopup="menu" aria-expanded="false" aria-selected="${inMore}" tabindex="${inMore ? 0 : -1}">${moreLabel(inMore && cur ? cur.name : 'More')}<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
-  tabMore.innerHTML = more
-    .map(
-      g =>
-        `<p class="tm-h">${g.name}</p>` +
-        TABS.filter(t => g.tabs.includes(t.id))
-          .map(
-            t =>
-              `<button type="button" role="menuitem" class="tm-item" id="tab-${t.id}" tabindex="-1" aria-current="${t.id === activeTab}">${t.name}</button>`
-          )
-          .join('')
-    )
-    .join('');
+  tabMore.innerHTML =
+    more
+      .map(
+        g =>
+          `<p class="tm-h">${g.name}</p>` +
+          TABS.filter(t => g.tabs.includes(t.id))
+            .map(
+              t =>
+                `<button type="button" role="menuitem" class="tm-item" id="tab-${t.id}" tabindex="-1" aria-current="${t.id === activeTab}">${t.name}</button>`
+            )
+            .join('')
+      )
+      .join('') +
+    (levelBasic()
+      ? '<button type="button" role="menuitem" class="tm-item tm-adv" id="tm-adv" data-adv tabindex="-1" title="Every tab, setting and plot, the event log and the Runs panel">Show everything (Advanced)</button>'
+      : '');
   tabMore.querySelectorAll('.tm-item').forEach(
     b =>
       (b.onclick = () => {
         tabMoreOpen(false);
-        activeTab = b.id.slice(4);
-        consoleOpen = true;
-        buildTabs();
-        renderAllPanes();
+        if (b.id !== 'tm-adv') showTab(b.id.slice(4));
       })
   );
   $('#tab-more').onclick = e => {
@@ -23074,10 +23175,7 @@ function buildTabs() {
             buildTabs();
             return;
           }
-          activeTab = id;
-          consoleOpen = true;
-          buildTabs();
-          renderAllPanes();
+          showTab(id);
         })
     );
   $('.console').classList.toggle('collapsed', !consoleOpen);
@@ -23098,12 +23196,20 @@ function renderAllPanes() {
   else if (t === 'saf') html = safPane();
   else {
     if (t === 'mis') html += `<div id="fsm-wrap" class="fsm-wrap">${fsmSVG()}</div>`;
+    const basic = levelBasic();
+    let more = 0; // the settings Basic leaves out of this pane, for its "N more settings in Advanced"
     for (const f of SCHEMA[t]) {
       if (f.show && !f.show()) continue;
+      if (basic && !fieldBasic(f, t)) {
+        if (isSettingField(f)) more++;
+        continue;
+      }
       html += fieldHTML(f);
     }
     if (NOTES[t])
       html += `<details class="how" ${howOpen[t] ? 'open' : ''} data-how="${t}"><summary>How it works</summary><div class="how-body">${NOTES[t]}<button class="linkbtn" data-sym="${t === 'sen' ? 'loc' : t}">Symbol definitions for this section</button>${t === 'ctl' ? '<button class="linkbtn" data-sym="mpc">MPC symbols</button>' : ''}${t === 'per' || t === 'ctl' ? '<button class="linkbtn" data-sym="ag">Moving-agent symbols</button>' : ''}${SRC_FILES[t] ? `<button class="linkbtn" data-source="${SRC_FILES[t][0]}">View the source</button>` : ''}</div></details>`;
+    if (basic)
+      html += `<p class="note adv-more">${more ? `${more} more setting${more > 1 ? 's' : ''}` : 'More tabs (Sensors, Mission, Vehicle) and plots'} in <button type="button" class="linkbtn" data-adv>Advanced</button></p>`;
   }
   $('#panes').innerHTML = `<div class="pane" id="pane" role="tabpanel">${html}</div>`;
   wirePane(t);
@@ -23341,7 +23447,7 @@ function fieldHTML(f) {
       .join('')}</div></div>`;
   if (f.type === 'btn') {
     btnActs.push(f.act);
-    return `<div><button class="btn" data-act="${btnActs.length - 1}">${f.label}</button></div>`;
+    return `<div><button class="btn" data-act="${btnActs.length - 1}"${f.id ? ` id="${f.id}"` : ''}${f.tip ? ` title="${f.tip}"` : ''}>${f.label}</button></div>`;
   }
   return `<div class="field${chgMark(f) ? ' chg' : ''}"><div class="row"><label for="p-${f.k}" title="${TIPS[f.k] || ''}">${f.label}${chgMark(f)}</label><output id="o-${f.k}">${fmtVal(f, P[f.k])}</output></div><input type="range" id="p-${f.k}" data-k="${f.k}" min="${f.min}" max="${typeof f.max === 'function' ? f.max() : f.max}" step="${f.step}" value="${P[f.k]}"></div>`;
 }
@@ -24118,10 +24224,7 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => {
   const b = e.target && e.target.closest ? e.target.closest('[data-gotab]') : null;
   if (!b) return;
-  activeTab = b.dataset.gotab;
-  consoleOpen = true;
-  buildTabs();
-  renderAllPanes();
+  showTab(b.dataset.gotab);
 });
 
 /* ---- analysis/num.js ---- */
@@ -29202,15 +29305,16 @@ function glossLesson(L) {
 
 /* ---- ui/learn.js ---- */
 /* ============================================================
-   UI: the three modes (Simulate · Analyze · Learn) and the Learn column
+   UI: the modes (Simulate · Learn; Analyze opens from the Control tab) and the Learn column
    ============================================================ */
 // uiMode is what the switch shows. The left side is AN.mode (map or loop analysis); in Learn it follows the lesson.
 let uiMode = 'sim',
   lessonOpen = null,
   userLayers = null;
+// Analyze is no longer a mode button (v84): it is a view of the simulator's steering loop, opened from the Control tab
+// (Analyze this loop), the A key, lessons and chapters; while it shows, the switch shows Simulate pressed.
 const MODES = [
   ['sim', 'Simulate', 'mode-sim'],
-  ['an', 'Analyze', 'mode-an'],
   ['learn', 'Learn', 'tab-learn']
 ]; // Learn keeps the old tab's id
 const MODE_HINT = {
@@ -29233,12 +29337,13 @@ function setUIMode(m) {
 function syncModeUI() {
   $('#modesel')
     .querySelectorAll('button')
-    .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === uiMode)));
+    .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === (uiMode === 'an' ? 'sim' : uiMode))));
   $('.layout').dataset.mode = uiMode;
   $('#learnview').hidden = uiMode !== 'learn';
   $('#modesel').title = MODE_HINT[uiMode];
   const lb = $('#bb-learn');
   if (lb) lb.textContent = uiMode === 'learn' ? 'Simulate' : 'Learn';
+  tabsFollowMode();
 }
 $('#modesel').innerHTML = MODES.map(
   ([v, l, id]) => `<button type="button" id="${id}" data-v="${v}" aria-pressed="${v === uiMode}">${l}</button>`
@@ -32145,10 +32250,7 @@ async function argFromHash() {
   try {
     const A = JSON.parse(m[1] ? b64uDecText(m[2]) : await inflateText(m[2]));
     argAdd({...A, name: plainText(A.name, 80) || 'An argument from a link'});
-    activeTab = 'saf';
-    consoleOpen = true;
-    buildTabs();
-    renderAllPanes();
+    showTab('saf');
     logE(`Opened the argument "${argNow().name}" from the link`, 'ok');
   } catch (e) {
     logE('Could not open the argument in the link: ' + e.message, 'warn');
@@ -34045,6 +34147,7 @@ $('#pausec').onchange = e => {
 };
 $('#legendmore').onclick = () => showSym('map');
 $('#an-src').onclick = () => showSource('analysis/model.js');
+$('#an-back').onclick = () => setMode('sim');
 function syncAnControls() {
   seg(
     $('#an-loop'),
@@ -35553,6 +35656,7 @@ function renderValues() {
   );
 }
 function setMetView(v) {
+  if (v === 'values') setLevel('advanced', 'Values');
   metView = v;
   $('#metsel')
     .querySelectorAll('button')
@@ -35589,6 +35693,7 @@ function setMetView(v) {
 function showMetric(name) {
   if (uiMode === 'learn' && !wideUI()) setUIMode('sim'); // phones: the dock is under the map, outside Learn
   if (WS.dockOff) wsDock(true);
+  if (name && levelBasic() && !BASIC_METRICS().includes(name)) setLevel('advanced', `Metrics → ${name}`);
   setMetView('metrics');
   renderMetrics();
   const row = name ? [...$('#metrics').children].find(d => d.firstChild.textContent === name) : null;
@@ -35831,6 +35936,7 @@ function paneHTML(P1, i) {
     <button type="button" class="ibtn pp-add" data-add="${i}" aria-haspopup="dialog">+ Signal</button><button type="button" class="ibtn pp-close" data-close="${i}" aria-label="Remove this plot" title="Remove this plot">×</button></div><canvas aria-label="Plot ${i + 2}"></canvas></div>`;
 }
 function renderPanes() {
+  if (PANES.length) setLevel('advanced', 'the added plots'); // Basic has one plot
   const host = $('#plotcol');
   host.querySelectorAll('.ppane').forEach(e => e.remove());
   host.insertAdjacentHTML('beforeend', PANES.map(paneHTML).join(''));
@@ -36187,10 +36293,8 @@ function goToField(k) {
   if (!s) return;
   if (uiMode === 'learn') setUIMode(AN.mode);
   if (WS.inspOff) wsInspector(true);
-  activeTab = s.tab;
-  consoleOpen = true;
-  buildTabs();
-  renderAllPanes();
+  if (levelBasic() && !fieldBasic(s.f, s.tab)) setLevel('advanced', `“${plain(s.f.label)}” (${TAB_NAME[s.tab]})`);
+  showTab(s.tab);
   const el = document.querySelector(`#pane [data-k="${k}"]`) || (k === 'bOff' ? document.querySelector('#pane .bchips') : null);
   if (!el) {
     const why = revealedBy(s);
@@ -36847,10 +36951,7 @@ function renderHealthPop(H) {
     healthOpen(null);
     if (uiMode === 'learn') setUIMode(AN.mode);
     if (WS.inspOff) wsInspector(true);
-    activeTab = k;
-    consoleOpen = true;
-    buildTabs();
-    renderAllPanes();
+    showTab(k);
   };
   pop.querySelectorAll('.hp-ev li').forEach(
     li =>
@@ -36875,10 +36976,7 @@ function renderSensorDots() {
     el.onclick = () => {
       if (uiMode === 'learn') setUIMode(AN.mode);
       if (WS.inspOff) wsInspector(true);
-      activeTab = 'sen';
-      consoleOpen = true;
-      buildTabs();
-      renderAllPanes();
+      showTab('sen');
       const s = $('#sens-head');
       if (s) s.scrollIntoView({block: 'start'});
     };
@@ -37152,6 +37250,7 @@ function toggleRuns(on) {
   const p = $('#runpanel'),
     b = $('#tg-runs');
   on = on == null ? p.hidden : on;
+  if (on) setLevel('advanced', 'the Runs panel');
   p.hidden = !on;
   b.setAttribute('aria-expanded', String(on));
   if (on) {
@@ -37263,9 +37362,8 @@ const PRESETS = [
     () => {
       setUIMode('sim');
       wsInspector(true);
-      activeTab = 'loc';
-      consoleOpen = true;
-      buildTabs();
+      setLevel('advanced', 'the localization plots and Values');
+      showTab('loc', false);
       layersEdited = false;
       layersKey = '';
       renderAllPanes();
@@ -37281,6 +37379,7 @@ const PRESETS = [
     'Whole run in every plot, cross-track and speed added, the Runs panel open',
     () => {
       setUIMode('sim');
+      setLevel('advanced', 'the Runs panel and the added plots');
       PANES.length = 0;
       PANES.push({sigs: ['cte'], off: new Set()}, {sigs: ['va', 'vc'], off: new Set()});
       renderPanes();
@@ -37322,11 +37421,24 @@ function vmMark() {
   m.setAttribute('role', 'dialog');
   m.setAttribute('aria-label', 'View');
   m.innerHTML = `<p class="vm-h">Show</p><div class="vm-tg"></div><p class="vm-h">Layouts</p>${PRESETS.map(([id, name, sub]) => `<button type="button" class="vm-item" data-preset="${id}"><b>${name}<i class="vm-cur">current</i></b><span>${sub}</span></button>`).join('')}<p class="vm-h">Help</p><button type="button" class="vm-item" id="vm-keys"><b>Keyboard shortcuts</b><span>?</span></button>`;
+  // the level switch (ui/workspace.js setLevel): in the app bar beside View, and as a row of View's Show
+  const adv = document.createElement('button');
+  adv.type = 'button';
+  adv.id = 'tg-adv';
+  adv.className = 'ibtn';
+  adv.setAttribute('aria-pressed', 'false');
+  adv.title = 'Show every setting, tab, plot and the event log. Basic shows the essentials.';
+  adv.textContent = 'Advanced';
+  tools.appendChild(adv);
   tools.appendChild(b);
   document.body.appendChild(m);
   const tg = m.querySelector('.vm-tg');
   tg.appendChild($('#tg-dock'));
   tg.appendChild($('#tg-insp'));
+  const va = adv.cloneNode(true);
+  va.id = 'vm-adv';
+  va.textContent = 'Advanced: every tab, setting and plot';
+  tg.appendChild(va);
   const place = () => {
     const r = b.getBoundingClientRect();
     m.style.top = r.bottom + 6 + 'px';
@@ -37569,11 +37681,12 @@ document.addEventListener('keydown', e => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && document.body.classList.contains('sheet-open')) set(false);
   });
-  // the header's Changed, Runs and View are hidden on phones: there they sit in the sheet's head
+  // the header's Changed, Runs, Advanced and View are hidden on phones: there they sit in the sheet's head
   const tools = document.createElement('span');
   tools.className = 'sheet-tools';
   head.insertBefore(tools, $('#sheet-x'));
-  const placeTools = () => ['#tg-chg', '#tg-runs', '#tg-view'].forEach(id => (narrowUI() ? tools : $('#bartools')).appendChild($(id)));
+  const placeTools = () =>
+    ['#tg-chg', '#tg-runs', '#tg-adv', '#tg-view'].forEach(id => (narrowUI() ? tools : $('#bartools')).appendChild($(id)));
   placeTools();
   matchMedia('(max-width:760px)').addEventListener('change', e => {
     if (!e.matches) set(false);
@@ -37717,11 +37830,11 @@ function refreshAll() {
 // Phones: the telemetry dock and the status strip keep the tallest height they reached, so the page never gets shorter
 // while a run changes their rows and lines. A page that shrinks under a finger at its bottom has its scroll position
 // moved by the browser, and iPhone then drops the swipe: the page would not scroll back up. The hold is let go when
-// the floor, the run (time goes back), the width, the mode, the dock or the Metrics/Values view changes.
+// the floor, the run (time goes back), the width, the mode, the dock, the level or the Metrics/Values view changes.
 const HOLD = {key: '', t: 0, els: ['#dock', '#status']};
 function holdHeights() {
   const on = narrowUI(),
-    key = on ? [LV.id, LV.name, innerWidth, uiMode, AN.mode, WS.dockOff, metView].join('|') : '';
+    key = on ? [LV.id, LV.name, innerWidth, uiMode, AN.mode, WS.dockOff, WS.level, metView].join('|') : '';
   const back = !REPLAY.active && S && S.t + 1e-9 < HOLD.t;
   if (S && !REPLAY.active) HOLD.t = S.t;
   const els = HOLD.els.map(q => $(q)).filter(Boolean);
@@ -37804,7 +37917,8 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
    ============================================================ */
 // dockAuto: the dock takes the height that leaves the map at the world's 3:2 aspect (no letterbox margins), within
 // limits, until the user drags the splitter; a stored layout with an untouched dock keeps that behaviour
-const WS = {insp: null, dock: 220, inspOff: false, dockOff: false, preset: 'tune', dockAuto: true};
+// level: 'basic' shows the four subsystem tabs, their main settings, one plot and three metrics; 'advanced' everything
+const WS = {insp: null, dock: 220, inspOff: false, dockOff: false, preset: 'tune', dockAuto: true, level: 'basic'};
 const WS_KEY = 'nav-stack-lab.layout';
 try {
   const s = JSON.parse(localStorage.getItem(WS_KEY) || 'null');
@@ -37812,6 +37926,7 @@ try {
     for (const k of Object.keys(WS)) if (k in s) WS[k] = s[k];
     if (!('dockAuto' in s)) WS.dockAuto = s.dock == null || s.dock === 220;
     if (typeof s.brief === 'boolean') briefOpen = s.brief;
+    if (WS.level !== 'advanced') WS.level = 'basic';
   }
 } catch (_) {}
 function wsSave() {
@@ -37826,6 +37941,8 @@ function wsApply() {
   else lay.style.removeProperty('--insp-w');
   lay.style.setProperty('--dock-h', WS.dock + 'px');
   lay.classList.toggle('insp-off', WS.inspOff);
+  lay.dataset.level = WS.level;
+  document.querySelectorAll('#tg-adv, #vm-adv').forEach(b => b.setAttribute('aria-pressed', String(WS.level === 'advanced')));
   $('#dock').classList.toggle('folded', WS.dockOff);
   $('#tg-insp').setAttribute('aria-pressed', String(!WS.inspOff));
   $('#tg-dock').setAttribute('aria-pressed', String(!WS.dockOff));
@@ -37952,6 +38069,89 @@ $('#modesel').addEventListener('click', e => {
   ro.observe($('#plotcol'));
   ro.observe($('.stage'));
 }
+
+/* ---------- the Basic and Advanced levels (v84 redesign: "the page is loaded with too many things") ----------
+   Basic shows the four subsystem tabs (the four health lights), their main settings, one plot and three metrics;
+   Advanced shows every tab, setting, plot, the event log and the Runs panel. Whatever asks for something Basic hides
+   (a lesson's tab, a search result, a link's setting, a layout preset) switches to Advanced first and says so. */
+const BASIC_TABS = ['loc', 'per', 'plan', 'ctl'],
+  BASIC_MORE = ['view', 'sym'],
+  AN_TABS = ['ctl', 'veh']; // Analyze reads only Control and Vehicle
+const levelBasic = () => WS.level === 'basic';
+// the tab row and the More menu for the left side and the level
+function tabsRow() {
+  if (AN.mode === 'an') return AN_TABS;
+  return levelBasic() ? BASIC_TABS : TAB_GROUPS[0].tabs;
+}
+function tabsMore() {
+  if (AN.mode === 'an') return [{name: 'Reference', tabs: ['sym']}];
+  return levelBasic() ? [{name: 'Reference', tabs: BASIC_MORE}] : TAB_GROUPS.slice(1);
+}
+const tabShown = id => tabsRow().includes(id) || tabsMore().some(g => g.tabs.includes(id));
+function setLevel(lv, why) {
+  if ((lv !== 'basic' && lv !== 'advanced') || lv === WS.level) return;
+  WS.level = lv;
+  wsSave();
+  wsApply();
+  if (why) toast(`Switched to Advanced to show ${why}`, 4200);
+  if (lv === 'basic') basicDock();
+  if (!tabShown(activeTab)) activeTab = AN.mode === 'an' ? 'ctl' : 'loc';
+  buildTabs();
+  renderAllPanes();
+  if (S) {
+    renderMetrics();
+    drawPlot();
+  }
+}
+// Basic keeps one plot and the run summary: added plots, the second channel, Values and the Runs panel go
+function basicDock() {
+  PANES.length = 0;
+  renderPanes();
+  plotCh2 = 'none';
+  $('#plotsel2').value = 'none';
+  if (metView !== 'metrics') setMetView('metrics');
+  if (!$('#runpanel').hidden) toggleRuns(false);
+}
+// Every request for a tab comes here: from Analyze a Simulate tab goes back to the simulator, and a tab the Basic
+// level hides switches to Advanced first.
+function showTab(id, render = true) {
+  if (AN.mode === 'an' && !tabShown(id)) setMode('sim');
+  if (!tabShown(id)) setLevel('advanced', TAB_NAME[id]);
+  TABS_MODE.before = null; // a tab asked for wins over the one Analyze set aside
+  activeTab = id;
+  consoleOpen = true;
+  buildTabs();
+  if (render) renderAllPanes();
+}
+// Basic shows a schema field only when it carries basic: true and sits on a tab Basic shows (Analyze's Vehicle tab too)
+const fieldBasic = (f, tab) => !!f.basic && (BASIC_TABS.includes(tab) || AN_TABS.includes(tab));
+const isSettingField = f => !!f.k || f.type === 'beacons' || f.type === 'sensors';
+// a link that sets something Basic hides opens in Advanced, so the page shows what the link set
+function levelForLink() {
+  if (!levelBasic()) return;
+  const c = changedList().find(s => !(s.f.basic && BASIC_TABS.includes(s.tab)));
+  if (c) setLevel('advanced', `“${plain(c.f.label)}” from the link`);
+}
+// The tabs follow the left side: Analyze shows Control and Vehicle; back in the simulator the tab open before returns
+const TABS_MODE = {mode: 'sim', before: null};
+function tabsFollowMode() {
+  if (AN.mode === TABS_MODE.mode) return;
+  TABS_MODE.mode = AN.mode;
+  if (AN.mode === 'an' && !tabShown(activeTab)) {
+    TABS_MODE.before = activeTab;
+    activeTab = 'ctl';
+  } else if (AN.mode !== 'an' && TABS_MODE.before) {
+    if (tabShown(TABS_MODE.before)) activeTab = TABS_MODE.before;
+    TABS_MODE.before = null;
+  }
+  buildTabs();
+  if (S) renderAllPanes();
+}
+$('#tg-adv').onclick = $('#vm-adv').onclick = () => setLevel(levelBasic() ? 'advanced' : 'basic');
+// "N more settings in Advanced" at the end of a Basic pane, and More's "Show everything"
+document.addEventListener('click', e => {
+  if (e.target && e.target.closest && e.target.closest('[data-adv]')) setLevel('advanced');
+});
 wsApply();
 
 /* ---- ui/urlstate.js ---- */
@@ -38063,6 +38263,7 @@ let linkCfg = null;
     apply = c => {
       applyConfig(c);
       logE('Setup restored from the link', 'ok');
+      levelForLink(); // a link that sets something Basic hides opens in Advanced (ui/workspace.js)
       return c;
     };
   let c = null;
@@ -38144,6 +38345,8 @@ window.__runs = {
 };
 window.__plots = {TW, runCSV, plotsImage, PANES, addPane, SIGNALS, sigAt, timeWindow};
 window.__nav = {
+  setLevel, // 'basic' | 'advanced' (ui/workspace.js)
+  level: () => WS.level,
   scatter: () => scatterParticles(),
   kidnapTo,
   get S() {

@@ -58,6 +58,7 @@ $('#pausec').onchange = e => {
 };
 $('#legendmore').onclick = () => showSym('map');
 $('#an-src').onclick = () => showSource('analysis/model.js');
+$('#an-back').onclick = () => setMode('sim');
 function syncAnControls() {
   seg(
     $('#an-loop'),

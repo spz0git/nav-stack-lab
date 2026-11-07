@@ -1,13 +1,14 @@
 /* ============================================================
-   UI: the three modes (Simulate · Analyze · Learn) and the Learn column
+   UI: the modes (Simulate · Learn; Analyze opens from the Control tab) and the Learn column
    ============================================================ */
 // uiMode is what the switch shows. The left side is AN.mode (map or loop analysis); in Learn it follows the lesson.
 let uiMode = 'sim',
   lessonOpen = null,
   userLayers = null;
+// Analyze is no longer a mode button (v84): it is a view of the simulator's steering loop, opened from the Control tab
+// (Analyze this loop), the A key, lessons and chapters; while it shows, the switch shows Simulate pressed.
 const MODES = [
   ['sim', 'Simulate', 'mode-sim'],
-  ['an', 'Analyze', 'mode-an'],
   ['learn', 'Learn', 'tab-learn']
 ]; // Learn keeps the old tab's id
 const MODE_HINT = {
@@ -30,12 +31,13 @@ function setUIMode(m) {
 function syncModeUI() {
   $('#modesel')
     .querySelectorAll('button')
-    .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === uiMode)));
+    .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === (uiMode === 'an' ? 'sim' : uiMode))));
   $('.layout').dataset.mode = uiMode;
   $('#learnview').hidden = uiMode !== 'learn';
   $('#modesel').title = MODE_HINT[uiMode];
   const lb = $('#bb-learn');
   if (lb) lb.textContent = uiMode === 'learn' ? 'Simulate' : 'Learn';
+  tabsFollowMode();
 }
 $('#modesel').innerHTML = MODES.map(
   ([v, l, id]) => `<button type="button" id="${id}" data-v="${v}" aria-pressed="${v === uiMode}">${l}</button>`

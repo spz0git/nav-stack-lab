@@ -3271,6 +3271,53 @@ details.see > p {
 .tele.folded .tele-grid {
   display: none;
 }
+/* v84 redesign: the Basic level and the Analyze view's header. Basic hides what a first look does not need (the
+   second plot channel, the dock's extra actions, Values, the event log, the sensor dots, the Runs button); the
+   elements stay in the page for Advanced. */
+.layout[data-level='basic'] :is(#plotsel2, #pl-more, #metsel, .tele-log, #sensdots, #tg-runs) {
+  display: none;
+}
+@container (min-width:620px) {
+  .layout[data-level='basic'] .tele-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+  }
+}
+/* four tabs need no pipeline numbers (2, 3, 5, 6 would read as gaps) */
+.layout[data-level='basic'] .tabs .tab small {
+  display: none;
+}
+#tg-adv[aria-pressed='true'] {
+  color: var(--accent);
+}
+.adv-more {
+  margin-top: 12px;
+}
+.tabmore .tm-adv {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  color: var(--accent);
+}
+.an-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.an-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.an-title h2 {
+  margin: 0;
+  font-size: var(--fs-title);
+}
+#an-purpose {
+  margin: 0;
+  max-width: 80ch;
+}
 /* one telemetry toolbar (UI review, step 5): title, channel, Compare, and a "⋯" menu for the rest */
 .tele-head {
   position: relative;

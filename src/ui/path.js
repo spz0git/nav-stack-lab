@@ -100,13 +100,14 @@ const LEARN_PATH = [
 ];
 // Minutes for a lesson: all its prose read at 170 words a minute (the body, each experiment's setup, what to see, what
 // it shows and its prediction, the code note, Think about and Check yourself; a formula counts as one word), plus a
-// minute per experiment for pressing it and watching the run. Cached per lesson object.
+// minute per experiment for pressing it and watching the run. The math folded under Show the math is not counted: the
+// time is the read without it. Cached per lesson object.
 const LESSON_WPM = 170,
   TRY_MIN = 1,
   lessonMinCache = new WeakMap();
 function lessonMinutes(L) {
   if (lessonMinCache.has(L)) return lessonMinCache.get(L);
-  const parts = [L.b];
+  const parts = [L.b.replace(/<details class="math">[\s\S]*?<\/details>/g, ' ')];
   for (const t of L.tries || []) {
     const x = t[2] || {};
     parts.push(x.setup, x.see, x.shows);

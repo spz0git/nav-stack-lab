@@ -1383,6 +1383,9 @@ dialog:focus-visible {
 [data-sys='saf'] {
   --sys: var(--saf);
 }
+[data-sys='intro'] {
+  --sys: var(--beacon); /* Foundations, the first group: teal, a hue no other group uses */
+}
 .tab[data-sys] small {
   color: var(--sys);
   opacity: 1;
@@ -2832,6 +2835,76 @@ details.see > p {
 .questions details.q p {
   margin: 6px 0 2px;
   color: var(--ink);
+}
+/* Show the math: the derivations folded at build time (tools/lessons.mjs foldMath), a quiet disclosure like Terms and
+   Think about. The selectors outrank the ones that style every summary under .lesson (the lesson's own title row). */
+.how-body details.math {
+  /* the class is shared with the display equations (.how-body .math): undo their box */
+  max-width: none;
+  overflow: visible;
+  background: none;
+  border: 0;
+  border-left: 2px solid var(--line);
+  border-radius: 0;
+  padding: 2px 0 2px 10px;
+}
+.how-body details.math > p math {
+  font-size: 1.08em;
+}
+.learncol .lesson details.math > summary,
+.learncol.reading .lesson details.math > summary {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  font-family: var(--f-mono);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.learncol .lesson details.math > summary::-webkit-details-marker {
+  display: none;
+}
+.learncol .lesson details.math > summary::before,
+.learncol.reading .lesson details.math > summary::before {
+  content: '›';
+  display: inline-block;
+  transition: transform 0.15s;
+}
+.learncol .lesson details.math[open] > summary::before {
+  transform: rotate(90deg);
+}
+.learncol .lesson details.math > summary::after,
+.learncol.reading .lesson details.math > summary::after {
+  content: none;
+}
+.learncol .lesson details.math > summary:hover {
+  color: var(--accent);
+}
+/* the .how-body 8 px rhythm inside the fold (a details element does not lay its content out as flex) */
+.how-body details.math > :not(summary) {
+  margin: 8px 0 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .learncol .lesson details.math > summary::before {
+    transition: none;
+  }
+}
+/* the level tag in a lesson's row: "advanced" for the lessons that assume the most */
+.lesson .llevel {
+  font-family: var(--f-mono);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  padding: 0 5px;
+  margin-left: 6px;
+  white-space: nowrap;
+  align-self: center;
 }
 .lesson {
   border-top: 1px solid var(--line);

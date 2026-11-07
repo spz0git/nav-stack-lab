@@ -377,7 +377,7 @@ function renderLearn() {
           G.items
             .map((L, i) => {
               const id = `${G.id}:${i}`;
-              return `<details class="lesson" data-l="${id}" ${lessonOpen === id ? 'open' : ''}><summary title="${lessonStateText(id)}"><span class="lnum">${i + 1}</span><i class="ldot" data-st="${lessonState(id).st}" aria-hidden="true"></i>${L.t}<span class="sr-only">, ${lessonState(id).st === 'none' ? 'not started' : lessonState(id).st === 'done' ? 'done' : 'started'}</span><span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonOpen === id ? `<div class="lprog" role="status">${lessonProgHTML(id)}</div>` : ''}${lessonBodyHTML(L, id)}</div></details>`;
+              return `<details class="lesson" data-l="${id}" ${lessonOpen === id ? 'open' : ''}><summary title="${lessonStateText(id)}"><span class="lnum">${i + 1}</span><i class="ldot" data-st="${lessonState(id).st}" aria-hidden="true"></i>${L.t}<span class="sr-only">, ${lessonState(id).st === 'none' ? 'not started' : lessonState(id).st === 'done' ? 'done' : 'started'}</span>${L.level === 3 ? '<span class="llevel" title="Advanced: assumes the lessons before it in this group">advanced</span>' : ''}<span class="lmin">${lessonMinutes(L)} min</span></summary><div class="how-body">${lessonOpen === id ? `<div class="lprog" role="status">${lessonProgHTML(id)}</div>` : ''}${lessonBodyHTML(L, id)}</div></details>`;
             })
             .join('') +
           `</section>`
